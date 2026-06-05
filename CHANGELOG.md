@@ -8,6 +8,26 @@ contract stabilises.
 
 ## [Unreleased]
 
+### Fixed
+- Tree walkers in the contract/explain frontend and LLVM backend no
+  longer call `head_equals` on non-list AST nodes. WIR `and_bool` is
+  strict; unguarded walks caused flaky SIGBUS during multi-file
+  `--frontend`, `--explain`, and `--audit`.
+- Backend codegen emits `(fn main ...)` first in string pre-scan and
+  LLVM function emission when present, so multifile `--frontend` with
+  `main.weave` last in argv matches weavefront-cat stability.
+- `lower_sources` pass-2 emits `main.weave` decls before other inputs
+  (same `SOURCES` order as `build.sh`).
+- `./selfhost.sh` stage1 → stage2 bootstrap: stronger link smoke test
+  and retried `clang` until the stage binary passes it.
+
+### Changed
+- `build.sh` accepts `WEAVEC2_BACKEND` and auto-selects
+  `build/selfhost/stage2/weavec2` when present for WIR → LLVM (weavec1
+  miscompiles the guarded combined frontend module).
+- LLVM modules call `list_head_ne` in `ctx.weave` instead of raw
+  `head_equals` when the node may not be a list.
+
 ## [0.1.2] — 2026-05-27
 
 End-to-end self-hosting patch on top of v0.1.1.

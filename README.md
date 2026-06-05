@@ -176,14 +176,21 @@ Review the resulting `git diff` before committing.
 - `test/selfhost/test.sh` (run by `./test-all.sh`) is the basic
   self-host gate: weavec2 compiles its own bootstrapped
   `build/weavec2.wir`, and the output is accepted by `llvm-as` and
-  verified by `opt -passes=mem2reg`. **This passes.**
+  verified by `opt -passes=mem2reg`. This passes.
 - `./selfhost.sh` is the deeper bootstrap flow: re-run the
   surface → WIR pass with the bootstrapped weavec2 and rebuild
   through stages 1 → 2, then run three fixture smoke tests
-  against the stage2 binary. Passes end-to-end as of v0.1.2 (see
-  [`CHANGELOG.md`](CHANGELOG.md) for the loop-phi set-then-read
-  fix). Not in CI — local-only since it builds weavec2 three
-  times.
+  against the stage2 binary. Passes end-to-end after the call-site
+  guards, `main`-first codegen, and pass-2 `main.weave` ordering
+  (see [`CHANGELOG.md`](CHANGELOG.md)).
+  Not in CI — local-only since it builds weavec2 three times.
+- `./build.sh` uses `weavefront-cat` for `build/weavec2.wir` and,
+  when `build/selfhost/stage2/weavec2` exists, compiles that WIR with
+  `weavec2 --backend` instead of weavec1. Override with
+  `WEAVEC2_BACKEND=/path/to/weavec2 ./build.sh`.
+- `./selfhost.sh` uses the same `SOURCES` order as `build.sh`
+  (`main.weave` last). Pass-2 lowering emits `main.weave` first;
+  the backend emits `(fn main ...)` before other functions in LLVM.
 
 ### surface-matrix.sh
 
