@@ -44,6 +44,11 @@
           (const_string_ptr "Z") (const_i64 1)) (const_i32 0)))
         (then (do (return (const_i32 1))))
         (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get gate_node)
+          (const_string_ptr "CNOT") (const_i64 4)) (const_i32 0)))
+        (then (do (return (const_i32 2))))
+        (else (do)))
       (return (const_i32 127))))
 
   (fn validate_qgate

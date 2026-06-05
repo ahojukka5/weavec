@@ -1,0 +1,12 @@
+; Consecutive X on the same qubit cancel (X is self-inverse, X^2 = I).
+(program
+  (name "test-double-x-cancel")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let q0 Qubit (const_i64 0))
+      (qgate X q0)
+      (qgate X q0)
+      (return (const_i32 42)))))

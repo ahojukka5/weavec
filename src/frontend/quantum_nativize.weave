@@ -7,16 +7,23 @@
   (name "quantum_nativize")
   (version "0.1")
 
+  ; H = RY(pi/2) * RZ(pi), up to global phase -i. Verify with |0>:
+  ;   RZ(pi)|0>     = e^{-i pi/2} |0> = -i |0>
+  ;   RY(pi/2)(-i|0>) = -i (|0>+|1>)/sqrt(2) = -i |+>
+  ;   = -i * H|0>   (matches H|0> = |+>, global phase only)
+  ; Emit order: RZ first (applied first to state), then RY.
+  ; The earlier draft swapped these and produced |-> from |0>, breaking
+  ; interference-sensitive algorithms like Deutsch-Jozsa.
   (fn rigetti_emit_h_decomposition
     (params (fd i32) (source ptr) (tree ptr) (qubit_node i64))
     (returns void)
     (do
-      (call_void write_cstr (param_get fd) (const_string_ptr "(call_void qrt_ry "))
-      (call_void emit_local_get_ident (param_get fd) (param_get source) (param_get tree) (param_get qubit_node))
-      (call_void write_cstr (param_get fd) (const_string_ptr " (const_i64 1570796327)) "))
       (call_void write_cstr (param_get fd) (const_string_ptr "(call_void qrt_rz "))
       (call_void emit_local_get_ident (param_get fd) (param_get source) (param_get tree) (param_get qubit_node))
       (call_void write_cstr (param_get fd) (const_string_ptr " (const_i64 3141592653)) "))
+      (call_void write_cstr (param_get fd) (const_string_ptr "(call_void qrt_ry "))
+      (call_void emit_local_get_ident (param_get fd) (param_get source) (param_get tree) (param_get qubit_node))
+      (call_void write_cstr (param_get fd) (const_string_ptr " (const_i64 1570796327)) "))
       (return_void)))
 
   (fn rigetti_nativize_emit_qgate

@@ -1,0 +1,13 @@
+; Two-qubit SWAP. Self-inverse 2-qubit gate.
+(program
+  (name "test-swap")
+  (version "0.1")
+  (extern qrt_swap (params (q0 i64) (q1 i64)) (returns void))
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let q0 Qubit (const_i64 0))
+      (let q1 Qubit (const_i64 1))
+      (qgate SWAP q0 q1)
+      (return (const_i32 42)))))

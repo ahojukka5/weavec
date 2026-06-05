@@ -1,0 +1,3 @@
+native_gates=19
+two_qubit_gates=7
+depth=19

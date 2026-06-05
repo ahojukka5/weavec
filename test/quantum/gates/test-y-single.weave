@@ -1,0 +1,12 @@
+; Single-qubit Y gate. Lowered to qrt_y via the generic path.
+(program
+  (name "test-y-single")
+  (version "0.1")
+  (extern qrt_y (params (q i64)) (returns void))
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let q0 Qubit (const_i64 0))
+      (qgate Y q0)
+      (return (const_i32 42)))))

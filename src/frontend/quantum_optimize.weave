@@ -1,0 +1,173 @@
+; SPDX-License-Identifier: Apache-2.0
+; quantum_optimize.weave - generic self-inverse gate-cancellation pass
+;
+; A gate U is self-inverse iff U*U = I. Consecutive applications on the same
+; operands cancel. The set covered here:
+;   1-qubit: H, X, Y, Z
+;   2-qubit: CNOT, CZ, SWAP
+;   3-qubit: CCNOT
+;
+; NOT self-inverse (and excluded): S (S^2 = Z), T (T^2 = S), RX/RY/RZ
+; (parameterized; only cancel when angles sum to a multiple of 2*pi).
+;
+; The emit pass and stats pass both call qgate_self_inverse_match to decide
+; whether two consecutive qgate nodes cancel. The match predicate compares
+; gate name AND every qubit operand by source-text identity.
+
+(program
+  (name "quantum_optimize")
+  (version "0.1")
+
+  ; Return 1 if the identifier at gate_node names a self-inverse gate.
+  (fn qgate_name_is_self_inverse
+    (params (tree ptr) (source ptr) (gate_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source)
+          (param_get gate_node) (const_string_ptr "H") (const_i64 1)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source)
+          (param_get gate_node) (const_string_ptr "X") (const_i64 1)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source)
+          (param_get gate_node) (const_string_ptr "Y") (const_i64 1)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source)
+          (param_get gate_node) (const_string_ptr "Z") (const_i64 1)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source)
+          (param_get gate_node) (const_string_ptr "CNOT") (const_i64 4)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source)
+          (param_get gate_node) (const_string_ptr "CZ") (const_i64 2)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source)
+          (param_get gate_node) (const_string_ptr "SWAP") (const_i64 4)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source)
+          (param_get gate_node) (const_string_ptr "CCNOT") (const_i64 5)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  ; Return 1 if a and b are qgate nodes that cancel: same self-inverse gate
+  ; name AND identical operand-identifier text for every qubit position.
+  (fn qgate_self_inverse_match
+    (params (tree ptr) (source ptr) (a i64) (b i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_i64 (param_get a) (const_i64 -1))
+          (eq_i64 (param_get b) (const_i64 -1))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 node_kind (param_get tree) (param_get a)) (call_i32 node_list))
+          (ne_i32 (call_i32 node_kind (param_get tree) (param_get b)) (call_i32 node_list))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 head_equals (param_get tree) (param_get source)
+          (param_get a) (const_string_ptr "qgate") (const_i64 5)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 head_equals (param_get tree) (param_get source)
+          (param_get b) (const_string_ptr "qgate") (const_i64 5)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let ga i64 (call_i64 nth_child (param_get tree) (param_get a) (const_i64 1)))
+      (let gb i64 (call_i64 nth_child (param_get tree) (param_get b) (const_i64 1)))
+      (if
+        (condition (eq_i32 (call_i32 ident_nodes_equal (param_get tree) (param_get source)
+          (local_get ga) (local_get gb)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 qgate_name_is_self_inverse
+          (param_get tree) (param_get source) (local_get ga)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let n_a i64 (call_i64 count_children (param_get tree) (param_get a)))
+      (let n_b i64 (call_i64 count_children (param_get tree) (param_get b)))
+      (if
+        (condition (ne_i64 (local_get n_a) (local_get n_b)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let i i64 (const_i64 2))
+      (while
+        (condition (lt_i64 (local_get i) (local_get n_a)))
+        (do
+          (let oa i64 (call_i64 nth_child (param_get tree) (param_get a) (local_get i)))
+          (let ob i64 (call_i64 nth_child (param_get tree) (param_get b) (local_get i)))
+          (if
+            (condition (eq_i32 (call_i32 ident_nodes_equal (param_get tree) (param_get source)
+              (local_get oa) (local_get ob)) (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set i (add_i64 (local_get i) (const_i64 1)))))
+      (return (const_i32 1))))
+
+  ; Emit a node's source text with ASCII A-Z mapped to a-z. Used to lower
+  ; (qgate Foo q ...) to (call_void qrt_foo ...) regardless of source casing.
+  (fn emit_node_text_lower
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (let ts i64 (call_i64 node_text_start (param_get tree) (param_get node)))
+      (let tl i64 (call_i64 node_text_len (param_get tree) (param_get node)))
+      (let i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get i) (local_get tl)))
+        (do
+          (let b i32 (load_u8 (ptr_add (param_get source) (add_i64 (local_get ts) (local_get i)))))
+          (if
+            (condition (and_bool
+              (ge_i32 (local_get b) (const_i32 65))
+              (le_i32 (local_get b) (const_i32 90))))
+            (then (do
+              (call_void write_byte (param_get fd) (add_i32 (local_get b) (const_i32 32)))))
+            (else (do
+              (call_void write_byte (param_get fd) (local_get b)))))
+          (set i (add_i64 (local_get i) (const_i64 1)))))
+      (return_void)))
+
+  ; Return 1 if node is a self-inverse qgate (peephole candidate).
+  (fn qgate_is_self_inverse_candidate
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (param_get node) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 node_kind (param_get tree) (param_get node)) (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 head_equals (param_get tree) (param_get source)
+          (param_get node) (const_string_ptr "qgate") (const_i64 5)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let gate_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
+      (return (call_i32 qgate_name_is_self_inverse
+        (param_get tree) (param_get source) (local_get gate_node)))))
+)

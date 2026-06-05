@@ -1,0 +1,13 @@
+; Two-qubit CZ (controlled-Z). Self-inverse 2-qubit gate.
+(program
+  (name "test-cz")
+  (version "0.1")
+  (extern qrt_cz (params (q0 i64) (q1 i64)) (returns void))
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let q0 Qubit (const_i64 0))
+      (let q1 Qubit (const_i64 1))
+      (qgate CZ q0 q1)
+      (return (const_i32 42)))))

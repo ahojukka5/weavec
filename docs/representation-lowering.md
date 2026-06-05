@@ -137,7 +137,9 @@ grammar when implemented; the invariant is: one language, many lowering passes.
 | weavec0 / weavec1 / weavec2 classical path | Active |
 | Surface `qgate` / `qmeasure` | Implemented in `emit.weave` (v1) |
 | Transform engine in Weave | Spec only; rules stub in `targets/rigetti-nativize.weave` |
-| Quantum frontend goldens | `test/quantum/test.sh` (2 tests) |
+| Quantum frontend goldens | `test/quantum/test.sh` (nativization, benchmarks, optimization) |
+| Quantum metrics (`--dump-quantum-stats`) | `.metrics` sidecars in `test/quantum/` |
+| H·H peephole | `test/quantum/optimization/test-double-h-cancel.weave` |
 | Separate `.qir` files | Rejected — not used |
 
 ## Recommended order

@@ -1,0 +1,48 @@
+; QFT-3 (3-qubit Quantum Fourier Transform) — decomposed using the gates
+; we have today: H, CNOT, RZ. Controlled-RZ(theta) is realised as
+;   CNOT q_ctrl q_tgt; RZ q_tgt -theta/2; CNOT q_ctrl q_tgt; RZ q_tgt theta/2
+; The trailing SWAP that reverses bit order is included.
+;
+; Standard QFT-3 sequence:
+;   H q0; CRZ(pi/2) q1->q0; CRZ(pi/4) q2->q0;
+;   H q1; CRZ(pi/2) q2->q1;
+;   H q2;
+;   SWAP q0 q2
+;
+; Angles are stored in nanoradians (theta * 1e9 rounded). For documentation:
+;   pi/2  ≈ 1570796327
+;   pi/4  ≈ 0785398163
+;  -pi/4  ≈ -785398163
+;   pi/8  ≈ 0392699081
+;  -pi/8  ≈ -392699081
+(program
+  (name "qft3")
+  (version "0.1")
+  (extern qrt_ry (params (q i64) (theta_nr i64)) (returns void))
+  (extern qrt_rz (params (q i64) (phi_nr i64)) (returns void))
+  (extern qrt_cnot (params (q0 i64) (q1 i64)) (returns void))
+  (extern qrt_swap (params (q0 i64) (q1 i64)) (returns void))
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let q0 Qubit (const_i64 0))
+      (let q1 Qubit (const_i64 1))
+      (let q2 Qubit (const_i64 2))
+      (qgate H q0)
+      (qgate CNOT q1 q0)
+      (qgate RZ q0 (const_i64 -785398163))
+      (qgate CNOT q1 q0)
+      (qgate RZ q0 (const_i64 785398163))
+      (qgate CNOT q2 q0)
+      (qgate RZ q0 (const_i64 -392699081))
+      (qgate CNOT q2 q0)
+      (qgate RZ q0 (const_i64 392699081))
+      (qgate H q1)
+      (qgate CNOT q2 q1)
+      (qgate RZ q1 (const_i64 -785398163))
+      (qgate CNOT q2 q1)
+      (qgate RZ q1 (const_i64 785398163))
+      (qgate H q2)
+      (qgate SWAP q0 q2)
+      (return (const_i32 42)))))

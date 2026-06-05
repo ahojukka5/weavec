@@ -1,0 +1,12 @@
+; Single-qubit T gate (NOT self-inverse: T^2 = S). Lowered to qrt_t.
+(program
+  (name "test-t-single")
+  (version "0.1")
+  (extern qrt_t (params (q i64)) (returns void))
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let q0 Qubit (const_i64 0))
+      (qgate T q0)
+      (return (const_i32 42)))))

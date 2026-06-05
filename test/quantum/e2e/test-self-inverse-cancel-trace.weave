@@ -1,0 +1,22 @@
+; E2E: every self-inverse pair cancels at the frontend, leaving zero native
+; gates in the lowered WIR and zero trace events at runtime.
+(program
+  (name "test-self-inverse-cancel-trace")
+  (version "0.1")
+  (extern qrt_get_trace_count (params ()) (returns i32))
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let q0 Qubit (const_i64 0))
+      (let q1 Qubit (const_i64 1))
+      (let q2 Qubit (const_i64 2))
+      (qgate X q0)     (qgate X q0)
+      (qgate Y q0)     (qgate Y q0)
+      (qgate Z q0)     (qgate Z q0)
+      (qgate H q0)     (qgate H q0)
+      (qgate CNOT q0 q1)  (qgate CNOT q0 q1)
+      (qgate CZ q0 q1)    (qgate CZ q0 q1)
+      (qgate SWAP q0 q1)  (qgate SWAP q0 q1)
+      (qgate CCNOT q0 q1 q2)  (qgate CCNOT q0 q1 q2)
+      (return (call_i32 qrt_get_trace_count)))))
