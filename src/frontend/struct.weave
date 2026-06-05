@@ -113,12 +113,16 @@
         (condition (ne_i64 (local_get field) (const_i64 -1)))
         (do
           (if
-            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get field)
-              (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
+            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get field)) (call_i32 node_list)))
             (then (do
-              (let ftype i64 (call_i64 nth_child (param_get tree) (local_get field) (const_i64 2)))
-              (set total (add_i64 (local_get total) (call_i64 field_size
-                (param_get tree) (param_get source) (local_get ftype))))))
+              (if
+                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get field)
+                  (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
+                (then (do
+                  (let ftype i64 (call_i64 nth_child (param_get tree) (local_get field) (const_i64 2)))
+                  (set total (add_i64 (local_get total) (call_i64 field_size
+                    (param_get tree) (param_get source) (local_get ftype))))))
+                (else (do)))))
             (else (do)))
           (set field (call_i64 node_next_sibling (param_get tree) (local_get field)))))
       (return (local_get total))))
@@ -139,16 +143,20 @@
         (condition (ne_i64 (local_get field) (const_i64 -1)))
         (do
           (if
-            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get field)
-              (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
+            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get field)) (call_i32 node_list)))
             (then (do
-              (let fname i64 (call_i64 nth_child (param_get tree) (local_get field) (const_i64 1)))
-              (let ftype i64 (call_i64 nth_child (param_get tree) (local_get field) (const_i64 2)))
-              (call_void write_cstr (param_get fd) (const_string_ptr " ("))
-              (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get fname))
-              (call_void write_byte (param_get fd) (const_i32 32))
-              (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get ftype))
-              (call_void write_byte (param_get fd) (const_i32 41))))
+              (if
+                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get field)
+                  (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
+                (then (do
+                  (let fname i64 (call_i64 nth_child (param_get tree) (local_get field) (const_i64 1)))
+                  (let ftype i64 (call_i64 nth_child (param_get tree) (local_get field) (const_i64 2)))
+                  (call_void write_cstr (param_get fd) (const_string_ptr " ("))
+                  (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get fname))
+                  (call_void write_byte (param_get fd) (const_i32 32))
+                  (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get ftype))
+                  (call_void write_byte (param_get fd) (const_i32 41))))
+                (else (do)))))
             (else (do)))
           (set field (call_i64 node_next_sibling (param_get tree) (local_get field)))))
       (call_void write_cstr (param_get fd) (const_string_ptr ") (returns ptr)"))
@@ -176,27 +184,31 @@
         (condition (ne_i64 (local_get sfield) (const_i64 -1)))
         (do
           (if
-            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get sfield)
-              (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
+            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get sfield)) (call_i32 node_list)))
             (then (do
-              (let s_fname i64 (call_i64 nth_child (param_get tree) (local_get sfield) (const_i64 1)))
-              (let s_ftype i64 (call_i64 nth_child (param_get tree) (local_get sfield) (const_i64 2)))
-              (let s_fsize i64 (call_i64 field_size (param_get tree) (param_get source) (local_get s_ftype)))
-              (call_void write_cstr (param_get fd) (const_string_ptr "        ("))
-              (call_void store_op_for_type (param_get tree) (param_get source) (local_get s_ftype) (param_get fd))
               (if
-                (condition (eq_i64 (local_get offset) (const_i64 0)))
+                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get sfield)
+                  (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
                 (then (do
-                  (call_void write_cstr (param_get fd) (const_string_ptr " (local_get self)"))))
-                (else (do
-                  (call_void write_cstr (param_get fd) (const_string_ptr " (ptr_add (local_get self) (const_i64 "))
-                  (call_void write_i64_dec (param_get fd) (local_get offset))
-                  (call_void write_cstr (param_get fd) (const_string_ptr "))")))))
-              (call_void write_cstr (param_get fd) (const_string_ptr " (param_get "))
-              (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get s_fname))
-              (call_void write_cstr (param_get fd) (const_string_ptr "))"))
-              (call_void write_byte (param_get fd) (const_i32 10))
-              (set offset (add_i64 (local_get offset) (local_get s_fsize)))))
+                  (let s_fname i64 (call_i64 nth_child (param_get tree) (local_get sfield) (const_i64 1)))
+                  (let s_ftype i64 (call_i64 nth_child (param_get tree) (local_get sfield) (const_i64 2)))
+                  (let s_fsize i64 (call_i64 field_size (param_get tree) (param_get source) (local_get s_ftype)))
+                  (call_void write_cstr (param_get fd) (const_string_ptr "        ("))
+                  (call_void store_op_for_type (param_get tree) (param_get source) (local_get s_ftype) (param_get fd))
+                  (if
+                    (condition (eq_i64 (local_get offset) (const_i64 0)))
+                    (then (do
+                      (call_void write_cstr (param_get fd) (const_string_ptr " (local_get self)"))))
+                    (else (do
+                      (call_void write_cstr (param_get fd) (const_string_ptr " (ptr_add (local_get self) (const_i64 "))
+                      (call_void write_i64_dec (param_get fd) (local_get offset))
+                      (call_void write_cstr (param_get fd) (const_string_ptr "))")))))
+                  (call_void write_cstr (param_get fd) (const_string_ptr " (param_get "))
+                  (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get s_fname))
+                  (call_void write_cstr (param_get fd) (const_string_ptr "))"))
+                  (call_void write_byte (param_get fd) (const_i32 10))
+                  (set offset (add_i64 (local_get offset) (local_get s_fsize)))))
+                (else (do)))))
             (else (do)))
           (set sfield (call_i64 node_next_sibling (param_get tree) (local_get sfield)))))
       ; return self
@@ -271,15 +283,19 @@
         (condition (ne_i64 (local_get field) (const_i64 -1)))
         (do
           (if
-            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get field)
-              (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
+            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get field)) (call_i32 node_list)))
             (then (do
-              (let ftype i64 (call_i64 nth_child (param_get tree) (local_get field) (const_i64 2)))
-              (let fsize i64 (call_i64 field_size (param_get tree) (param_get source) (local_get ftype)))
-              (call_void emit_field_accessors
-                (param_get fd) (param_get source) (param_get tree)
-                (local_get name_node) (local_get field) (local_get offset))
-              (set offset (add_i64 (local_get offset) (local_get fsize)))))
+              (if
+                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get field)
+                  (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
+                (then (do
+                  (let ftype i64 (call_i64 nth_child (param_get tree) (local_get field) (const_i64 2)))
+                  (let fsize i64 (call_i64 field_size (param_get tree) (param_get source) (local_get ftype)))
+                  (call_void emit_field_accessors
+                    (param_get fd) (param_get source) (param_get tree)
+                    (local_get name_node) (local_get field) (local_get offset))
+                  (set offset (add_i64 (local_get offset) (local_get fsize)))))
+                (else (do)))))
             (else (do)))
           (set field (call_i64 node_next_sibling (param_get tree) (local_get field)))))
       (return_void)))

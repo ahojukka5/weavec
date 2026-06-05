@@ -1,0 +1,17 @@
+; audit_effect_malformed.weave — malformed (pure true) must be rejected
+
+(program
+  (name "audit_effect_malformed")
+  (version "0.1")
+  (entry main)
+  (fn bad-clause
+    (params)
+    (returns i32)
+    (pure true)
+    (do
+      (return (const_i32 42))))
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (return (call_i32 bad-clause)))))

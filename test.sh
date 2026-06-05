@@ -11,6 +11,7 @@ LL_DIR="$BUILD_DIR/ll"
 BC_DIR="$BUILD_DIR/bc"
 BIN_DIR="$BUILD_DIR/bin"
 WIR_FROM_SURFACE_DIR="$BUILD_DIR/wir"
+RUNTIME_C="$ROOT/runtime/portable.c"
 
 pass_count=0
 fail_count=0
@@ -34,6 +35,24 @@ require_tool() {
     printf '[weavec2-test] missing required tool: %s\n' "$1" >&2
     exit 1
   }
+}
+
+needs_contract_runtime() {
+  case "$1" in
+    *_contract_*|contract_* ) return 0 ;;
+    * ) return 1 ;;
+  esac
+}
+
+link_surface_bin() {
+  local ll="$1"
+  local bin="$2"
+  local name="$3"
+  if needs_contract_runtime "$name"; then
+    clang "$ll" "$RUNTIME_C" -o "$bin"
+  else
+    clang "$ll" -o "$bin"
+  fi
 }
 
 expected_exit() {
@@ -154,7 +173,7 @@ for src in "$WIR_TEST_DIR"/*.wir; do
     continue
   fi
 
-  if ! clang "$ll" -o "$bin"; then
+  if ! link_surface_bin "$ll" "$bin" "$name"; then
     fail "$name: clang failed"
     continue
   fi
@@ -266,6 +285,26 @@ surface_smoke_tests=(
   58_const_decl
   59_bare_identifier_operands
   60_let_literal_sugar
+  61_contract_requires_ok
+  63_contract_ensures_ok
+  64_contract_ensures_multi_return
+  67_contract_pure_ok
+  69_contract_no_alloc_ok
+  73_contract_pure_cycle_ok
+)
+
+contract_compile_fail_tests=(
+  68_contract_pure_fail
+  70_contract_no_alloc_fail
+  71_contract_pure_indirect_fail
+  72_contract_no_alloc_indirect_fail
+  audit_effect_malformed
+)
+
+contract_fail_tests=(
+  62_contract_requires_fail
+  65_contract_ensures_fail
+  66_contract_clamp_requires_fail
 )
 
 for name in "${surface_smoke_tests[@]}"; do
@@ -287,6 +326,12 @@ for name in "${surface_smoke_tests[@]}"; do
     54_integration_memory_flow) expected=100 ;;
     55_new_operators) expected=40 ;;
     58_const_decl) expected=42 ;;
+    61_contract_requires_ok) expected=42 ;;
+    63_contract_ensures_ok) expected=42 ;;
+    64_contract_ensures_multi_return) expected=10 ;;
+    67_contract_pure_ok) expected=42 ;;
+    69_contract_no_alloc_ok) expected=42 ;;
+    73_contract_pure_cycle_ok) expected=42 ;;
   esac
 
   log "frontend $name"
@@ -311,7 +356,7 @@ for name in "${surface_smoke_tests[@]}"; do
     continue
   fi
 
-  if ! clang "$ll" -o "$bin"; then
+  if ! link_surface_bin "$ll" "$bin" "$name"; then
     fail "$name: clang failed"
     continue
   fi
@@ -329,6 +374,150 @@ for name in "${surface_smoke_tests[@]}"; do
   log "ok frontend $name"
   pass_count=$((pass_count + 1))
 done
+
+for name in "${contract_fail_tests[@]}"; do
+  src="$SURFACE_TEST_DIR/$name.weave"
+  wir="$WIR_FROM_SURFACE_DIR/$name.wir"
+  ll="$LL_DIR/surface_$name.ll"
+  bc="$BC_DIR/surface_$name.bc"
+  bin="$BIN_DIR/surface_$name"
+
+  log "contract-fail $name"
+
+  if ! "$WEAVEC2" --frontend "$wir" "$src"; then
+    fail "$name: frontend failed"
+    continue
+  fi
+
+  if ! "$WEAVEC2" --backend "$wir" "$ll"; then
+    fail "$name: backend failed"
+    continue
+  fi
+
+  if ! llvm-as "$ll" -o "$bc"; then
+    fail "$name: llvm-as failed"
+    continue
+  fi
+
+  if ! link_surface_bin "$ll" "$bin" "$name"; then
+    fail "$name: clang failed"
+    continue
+  fi
+
+  set +e
+  "$bin" 2>"$BUILD_DIR/$name.stderr"
+  actual="$?"
+  set -e
+
+  if [[ "$actual" != "1" ]]; then
+    fail "$name: expected exit 1, got $actual"
+    continue
+  fi
+
+  if ! grep -F "contract failed:" "$BUILD_DIR/$name.stderr" >/dev/null 2>&1; then
+    fail "$name: expected contract failed message on stderr"
+    continue
+  fi
+
+  log "ok contract-fail $name"
+  pass_count=$((pass_count + 1))
+done
+
+for name in "${contract_compile_fail_tests[@]}"; do
+  case "$name" in
+    audit_effect_malformed)
+      src="$ROOT/test/correctness/contracts/$name.weave"
+      ;;
+    *)
+      src="$SURFACE_TEST_DIR/$name.weave"
+      ;;
+  esac
+  wir="$WIR_FROM_SURFACE_DIR/$name.wir"
+
+  log "contract-compile-fail $name"
+
+  set +e
+  "$WEAVEC2" --frontend --strict-contracts "$wir" "$src" 2>"$BUILD_DIR/$name.stderr"
+  actual="$?"
+  set -e
+
+  if [[ "$actual" == "0" ]]; then
+    fail "$name: expected frontend failure, got success"
+    continue
+  fi
+
+  case "$name" in
+    68_contract_pure_fail)
+      if ! grep -F "contract failed: pure" "$BUILD_DIR/$name.stderr" >/dev/null 2>&1; then
+        fail "$name: expected contract failed: pure on stderr"
+        continue
+      fi
+      ;;
+    70_contract_no_alloc_fail)
+      if ! grep -F "contract failed: no_alloc" "$BUILD_DIR/$name.stderr" >/dev/null 2>&1; then
+        fail "$name: expected contract failed: no_alloc on stderr"
+        continue
+      fi
+      ;;
+    71_contract_pure_indirect_fail)
+      if ! grep -F "contract failed: pure" "$BUILD_DIR/$name.stderr" >/dev/null 2>&1; then
+        fail "$name: expected contract failed: pure on stderr"
+        continue
+      fi
+      ;;
+    72_contract_no_alloc_indirect_fail)
+      if ! grep -F "contract failed: no_alloc" "$BUILD_DIR/$name.stderr" >/dev/null 2>&1; then
+        fail "$name: expected contract failed: no_alloc on stderr"
+        continue
+      fi
+      ;;
+    audit_effect_malformed)
+      if ! grep -F "malformed effect clause: pure" "$BUILD_DIR/$name.stderr" >/dev/null 2>&1; then
+        fail "$name: expected malformed effect clause on stderr"
+        continue
+      fi
+      ;;
+  esac
+
+  log "ok contract-compile-fail $name"
+  pass_count=$((pass_count + 1))
+done
+
+if [[ -x "$ROOT/test/correctness/contracts/test-explain.sh" ]]; then
+  log "explain"
+  if "$ROOT/test/correctness/contracts/test-explain.sh"; then
+    pass_count=$((pass_count + 1))
+  else
+    fail "explain output test"
+  fi
+fi
+
+if [[ -x "$ROOT/test/correctness/contracts/test-explain-audit.sh" ]]; then
+  log "explain-audit"
+  if "$ROOT/test/correctness/contracts/test-explain-audit.sh"; then
+    pass_count=$((pass_count + 1))
+  else
+    fail "explain audit output test"
+  fi
+fi
+
+if [[ -x "$ROOT/test/correctness/contracts/test-audit.sh" ]]; then
+  log "audit-report"
+  if "$ROOT/test/correctness/contracts/test-audit.sh"; then
+    pass_count=$((pass_count + 1))
+  else
+    fail "audit report output test"
+  fi
+fi
+
+if [[ -x "$ROOT/test/correctness/contracts/test-audit-json.sh" ]]; then
+  log "audit-json"
+  if "$ROOT/test/correctness/contracts/test-audit-json.sh"; then
+    pass_count=$((pass_count + 1))
+  else
+    fail "audit-json output test"
+  fi
+fi
 
 log "frontend multifile"
 if ! "$WEAVEC2" --frontend "$WIR_FROM_SURFACE_DIR/multifile.wir" \

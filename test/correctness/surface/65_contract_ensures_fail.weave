@@ -1,0 +1,19 @@
+; 65_contract_ensures_fail.weave
+; purpose: ensures clause fails when postcondition is false.
+; expected runtime behavior: exit 1 (contract failure).
+
+(program
+  (name "contract_ensures_fail")
+  (version "0.1")
+  (entry main)
+  (fn positive_or_zero
+    (params (x i32))
+    (returns i32)
+    (ensures (ge_i32 result (const_i32 0)))
+    (do
+      (return x)))
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (return (call_i32 positive_or_zero (const_i32 -5))))))

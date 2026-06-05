@@ -1,0 +1,63 @@
+Function: noisy
+Parameters:
+  x: i32
+Returns: i32
+Contracts:
+  requires:
+  (none)
+  ensures:
+  (none)
+Effect contracts:
+  pure: FAILED
+Reasons:
+  pure failed: calls I/O function puts
+Control flow:
+  return sites: 1
+  conditionals: 0
+  loops: 0
+Calls:
+  direct calls:
+  none
+  external calls:
+  puts
+Memory:
+  allocation: no
+  runtime calls:
+  puts
+Purity:
+  conservative: impure
+Warnings:
+  function has no requires clauses
+  function has no ensures clauses
+  calls external/runtime function puts
+
+Function: main
+Parameters:
+  (none)
+Returns: i32
+Contracts:
+  requires:
+  (none)
+  ensures:
+  (none)
+Effect contracts:
+  none declared
+Control flow:
+  return sites: 1
+  conditionals: 0
+  loops: 0
+Calls:
+  direct calls:
+  noisy
+  external calls:
+  none
+Memory:
+  allocation: no
+  runtime calls:
+  none
+Purity:
+  conservative: impure
+Warnings:
+  function has no requires clauses
+  function has no ensures clauses
+

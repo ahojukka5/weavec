@@ -1,0 +1,14 @@
+(program
+  (name "audit_two_fn")
+  (version "0.1")
+  (entry main)
+  (fn helper
+    (params (x i32))
+    (returns i32)
+    (do
+      (return (add_i32 x (const_i32 1)))))
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (return (call_i32 helper (const_i32 41))))))

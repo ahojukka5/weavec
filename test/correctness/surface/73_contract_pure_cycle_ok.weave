@@ -1,0 +1,33 @@
+; 73_contract_pure_cycle_ok.weave
+; purpose: mutually recursive (pure) functions with no effects.
+; expected runtime behavior: exit 42.
+
+(program
+  (name "contract_pure_cycle_ok")
+  (version "0.1")
+  (entry main)
+  (fn ping
+    (params (n i32))
+    (returns i32)
+    (pure)
+    (do
+      (if
+        (condition (le_i32 n (const_i32 0)))
+        (then (do (return (const_i32 42))))
+        (else (do)))
+      (return (call_i32 pong (sub_i32 n (const_i32 1))))))
+  (fn pong
+    (params (n i32))
+    (returns i32)
+    (pure)
+    (do
+      (if
+        (condition (le_i32 n (const_i32 0)))
+        (then (do (return (const_i32 42))))
+        (else (do)))
+      (return (call_i32 ping (sub_i32 n (const_i32 1))))))
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (return (call_i32 ping (const_i32 42))))))

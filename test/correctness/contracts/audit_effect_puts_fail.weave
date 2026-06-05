@@ -1,0 +1,21 @@
+; audit_effect_puts_fail.weave — (pure) violated by puts
+
+(program
+  (name "audit_effect_puts_fail")
+  (version "0.1")
+  (extern puts
+    (params (s ptr))
+    (returns i32))
+  (entry main)
+  (fn noisy
+    (params (x i32))
+    (returns i32)
+    (pure)
+    (do
+      (call_i32 puts (const_string_ptr "hello"))
+      (return x)))
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (return (call_i32 noisy (const_i32 42))))))

@@ -55,21 +55,23 @@
     (returns void)
     (do
       (if
-        (condition (and_bool
-          (eq_i32 (call_i32 node_kind (param_get tree) (param_get expr_node)) (call_i32 node_int))
-          (or_bool
-            (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
-              (const_string_ptr "i32") (const_i64 3)) (const_i32 0))
-            (or_bool
-              (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
-                (const_string_ptr "i64") (const_i64 3)) (const_i32 0))
-              (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
-                (const_string_ptr "Qubit") (const_i64 5)) (const_i32 0))))))
+        (condition (eq_i32 (call_i32 node_kind (param_get tree) (param_get expr_node)) (call_i32 node_int)))
         (then (do
-          (call_void emit_const_for_type
-            (param_get fd) (param_get source) (param_get tree)
-            (param_get type_node) (param_get expr_node))
-          (return_void)))
+          (if
+            (condition (or_bool
+              (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
+                (const_string_ptr "i32") (const_i64 3)) (const_i32 0))
+              (or_bool
+                (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
+                  (const_string_ptr "i64") (const_i64 3)) (const_i32 0))
+                (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
+                  (const_string_ptr "Qubit") (const_i64 5)) (const_i32 0)))))
+            (then (do
+              (call_void emit_const_for_type
+                (param_get fd) (param_get source) (param_get tree)
+                (param_get type_node) (param_get expr_node))
+              (return_void)))
+            (else (do)))))
         (else (do)))
       (call_void emit_node (param_get fd) (param_get source) (param_get tree) (param_get expr_node))
       (return_void)))
@@ -92,8 +94,8 @@
       (call_void write_byte (param_get fd) (const_i32 41))
       (return_void)))
 
-  ; Lower (qgate GATE qargs...) to extern qrt_* calls.
-  (fn emit_qgate_node
+  ; Lower (qgate GATE qargs...) to extern qrt_* calls (no peephole).
+  (fn emit_qgate_direct
     (params (fd i32) (source ptr) (tree ptr) (node i64))
     (returns void)
     (do
@@ -103,9 +105,64 @@
         (then (do (return_void)))
         (else (do)))
       (let gate_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (local_get gate_node)
+          (const_string_ptr "CNOT") (const_i64 4)) (const_i32 0)))
+        (then (do
+          (let q0 i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 2)))
+          (let q1 i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 3)))
+          (call_void write_cstr (param_get fd) (const_string_ptr "(call_void qrt_cnot "))
+          (call_void emit_local_get_ident (param_get fd) (param_get source) (param_get tree) (local_get q0))
+          (call_void write_byte (param_get fd) (const_i32 32))
+          (call_void emit_local_get_ident (param_get fd) (param_get source) (param_get tree) (local_get q1))
+          (call_void write_byte (param_get fd) (const_i32 41))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (local_get gate_node)
+          (const_string_ptr "CZ") (const_i64 2)) (const_i32 0)))
+        (then (do
+          (let cz_q0 i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 2)))
+          (let cz_q1 i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 3)))
+          (call_void write_cstr (param_get fd) (const_string_ptr "(call_void qrt_cz "))
+          (call_void emit_local_get_ident (param_get fd) (param_get source) (param_get tree) (local_get cz_q0))
+          (call_void write_byte (param_get fd) (const_i32 32))
+          (call_void emit_local_get_ident (param_get fd) (param_get source) (param_get tree) (local_get cz_q1))
+          (call_void write_byte (param_get fd) (const_i32 41))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (local_get gate_node)
+          (const_string_ptr "SWAP") (const_i64 4)) (const_i32 0)))
+        (then (do
+          (let sw_q0 i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 2)))
+          (let sw_q1 i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 3)))
+          (call_void write_cstr (param_get fd) (const_string_ptr "(call_void qrt_swap "))
+          (call_void emit_local_get_ident (param_get fd) (param_get source) (param_get tree) (local_get sw_q0))
+          (call_void write_byte (param_get fd) (const_i32 32))
+          (call_void emit_local_get_ident (param_get fd) (param_get source) (param_get tree) (local_get sw_q1))
+          (call_void write_byte (param_get fd) (const_i32 41))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (local_get gate_node)
+          (const_string_ptr "CCNOT") (const_i64 5)) (const_i32 0)))
+        (then (do
+          (let cc_q0 i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 2)))
+          (let cc_q1 i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 3)))
+          (let cc_q2 i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 4)))
+          (call_void write_cstr (param_get fd) (const_string_ptr "(call_void qrt_ccnot "))
+          (call_void emit_local_get_ident (param_get fd) (param_get source) (param_get tree) (local_get cc_q0))
+          (call_void write_byte (param_get fd) (const_i32 32))
+          (call_void emit_local_get_ident (param_get fd) (param_get source) (param_get tree) (local_get cc_q1))
+          (call_void write_byte (param_get fd) (const_i32 32))
+          (call_void emit_local_get_ident (param_get fd) (param_get source) (param_get tree) (local_get cc_q2))
+          (call_void write_byte (param_get fd) (const_i32 41))
+          (return_void)))
+        (else (do)))
       (let qubit_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 2)))
       (call_void write_cstr (param_get fd) (const_string_ptr "(call_void qrt_"))
-      (call_void emit_node_text (param_get fd) (param_get source) (param_get tree) (local_get gate_node))
+      (call_void emit_node_text_lower (param_get fd) (param_get source) (param_get tree) (local_get gate_node))
       (call_void write_byte (param_get fd) (const_i32 32))
       (call_void emit_local_get_ident (param_get fd) (param_get source) (param_get tree) (local_get qubit_node))
       (let extra i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 3)))
@@ -116,6 +173,82 @@
           (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get extra))))
         (else (do)))
       (call_void write_byte (param_get fd) (const_i32 41))
+      (return_void)))
+
+  ; Process one statement in a (do ...) body. The peephole carries a "pending"
+  ; self-inverse qgate from the previous iteration; if the current child cancels
+  ; it, both are dropped. Otherwise the previous pending (if any) is flushed and
+  ; - the current child becomes the new pending if it is a self-inverse qgate
+  ; - or is emitted directly and the new pending is -1.
+  ; Returns the new pending node id (or -1).
+  ;
+  ; Lifted out of emit_do_body so the loop body has a single top-level
+  ; (set pending ...) and weavec2's loop-phi pass handles the merge cleanly.
+  (fn emit_do_step
+    (params (fd i32) (source ptr) (tree ptr) (pending i64) (child i64))
+    (returns i64)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 qgate_is_self_inverse_candidate
+          (param_get tree) (param_get source) (param_get child)) (const_i32 0)))
+        (then (do
+          (if
+            (condition (ne_i32 (call_i32 qgate_self_inverse_match
+              (param_get tree) (param_get source) (param_get pending) (param_get child)) (const_i32 0)))
+            (then (do (return (const_i64 -1))))
+            (else (do)))
+          (if
+            (condition (ne_i64 (param_get pending) (const_i64 -1)))
+            (then (do
+              (call_void write_byte (param_get fd) (const_i32 32))
+              (call_void emit_qgate_direct
+                (param_get fd) (param_get source) (param_get tree) (param_get pending))))
+            (else (do)))
+          (return (param_get child))))
+        (else (do)))
+      (if
+        (condition (ne_i64 (param_get pending) (const_i64 -1)))
+        (then (do
+          (call_void write_byte (param_get fd) (const_i32 32))
+          (call_void emit_qgate_direct
+            (param_get fd) (param_get source) (param_get tree) (param_get pending))))
+        (else (do)))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void emit_node (param_get fd) (param_get source) (param_get tree) (param_get child))
+      (return (const_i64 -1))))
+
+  ; Emit statements in (do ...) with the self-inverse-qgate peephole driven
+  ; by emit_do_step. See quantum_optimize.weave for the predicate set
+  ; (H, X, Y, Z, CNOT, CZ, SWAP, CCNOT cancel pairwise on identical operands).
+  (fn emit_do_body
+    (params (fd i32) (source ptr) (tree ptr) (do_node i64))
+    (returns void)
+    (do
+      (let pending i64 (const_i64 -1))
+      (let head i64 (call_i64 node_first_child (param_get tree) (param_get do_node)))
+      (let child i64 (call_i64 node_next_sibling (param_get tree) (local_get head)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (set pending (call_i64 emit_do_step
+            (param_get fd) (param_get source) (param_get tree)
+            (local_get pending) (local_get child)))
+          (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
+      (if
+        (condition (ne_i64 (local_get pending) (const_i64 -1)))
+        (then (do
+          (call_void write_byte (param_get fd) (const_i32 32))
+          (call_void emit_qgate_direct
+            (param_get fd) (param_get source) (param_get tree) (local_get pending))))
+        (else (do)))
+      (return_void)))
+
+  ; Lower (qgate GATE qargs...) to extern qrt_* calls.
+  (fn emit_qgate_node
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (call_void emit_qgate_direct (param_get fd) (param_get source) (param_get tree) (param_get node))
       (return_void)))
 
   ; Lower (qmeasure qubit result) to let + call_i32 qrt_measure.
@@ -140,6 +273,16 @@
       (if
         (condition (eq_i32 (local_get kind) (call_i32 node_list)))
         (then (do
+          (if
+            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
+            (then (do
+              (call_void write_byte (param_get fd) (const_i32 40))
+              (call_void write_cstr (param_get fd) (const_string_ptr "do"))
+              (call_void emit_do_body (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (call_void write_byte (param_get fd) (const_i32 41))
+              (return_void)))
+            (else (do)))
           (if
             (condition (and_bool
               (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)

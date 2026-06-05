@@ -1,0 +1,62 @@
+Function: inc
+Parameters:
+  x: i32
+Returns: i32
+Contracts:
+  requires:
+  (none)
+  ensures:
+  (none)
+Effect contracts:
+  no_alloc: verified
+  pure: verified
+  deterministic: verified
+Control flow:
+  return sites: 1
+  conditionals: 0
+  loops: 0
+Calls:
+  direct calls:
+  none
+  external calls:
+  none
+Memory:
+  allocation: no
+  runtime calls:
+  none
+Purity:
+  conservative: pure
+Warnings:
+  function has no requires clauses
+  function has no ensures clauses
+
+Function: main
+Parameters:
+  (none)
+Returns: i32
+Contracts:
+  requires:
+  (none)
+  ensures:
+  (none)
+Effect contracts:
+  none declared
+Control flow:
+  return sites: 1
+  conditionals: 0
+  loops: 0
+Calls:
+  direct calls:
+  inc
+  external calls:
+  none
+Memory:
+  allocation: no
+  runtime calls:
+  none
+Purity:
+  conservative: pure
+Warnings:
+  function has no requires clauses
+  function has no ensures clauses
+

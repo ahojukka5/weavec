@@ -3,7 +3,12 @@
 ;
 ; Usage:
 ;   weavec2 --backend <input.wir> <output.ll>
-;   weavec2 --frontend <output.wir> <input.weave> [input2.weave ...]
+;   weavec2 --frontend [--strict-contracts] <output.wir> <input.weave> [input2.weave ...]
+;   weavec2 --dump-quantum-stats <output.metrics> <input.weave>
+;   weavec2 --explain <input.weave>
+;   weavec2 --explain-json <input.weave>
+;   weavec2 --audit <input.weave>
+;   weavec2 --audit-json <input.weave>
 
 (program
   (name "main")
@@ -134,9 +139,76 @@
             (condition (lt_i32 (param_get argc) (const_i32 4)))
             (then (do (return (const_i32 1))))
             (else (do)))
-          (let output_path2 ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
+          (let out_idx i64 (const_i64 2))
+          (let arg2 ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
+          (if
+            (condition (ne_i32 (call_i32 cstr_equals
+              (local_get arg2) (const_string_ptr "--strict-contracts") (const_i64 18)) (const_i32 0)))
+            (then (do (set out_idx (const_i64 3))))
+            (else (do)))
+          (if
+            (condition (ge_i64 (local_get out_idx) (cast_i32_to_i64 (param_get argc))))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (let output_path2 ptr (load_ptr (ptr_add (param_get argv) (mul_i64 (local_get out_idx) (const_i64 8)))))
           (return (call_i32 lower_sources
-            (param_get argc) (param_get argv) (local_get output_path2) (const_i64 3)))))
+            (param_get argc) (param_get argv) (local_get output_path2) (add_i64 (local_get out_idx) (const_i64 1))))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 cstr_equals
+          (local_get arg1) (const_string_ptr "--dump-quantum-stats") (const_i64 20)) (const_i32 0)))
+        (then (do
+          (if
+            (condition (ne_i32 (param_get argc) (const_i32 4)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (let stats_out ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
+          (let stats_in ptr (load_ptr (ptr_add (param_get argv) (const_i64 24))))
+          (return (call_i32 dump_quantum_stats_file (local_get stats_in) (local_get stats_out)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 cstr_equals
+          (local_get arg1) (const_string_ptr "--explain-json") (const_i64 14)) (const_i32 0)))
+        (then (do
+          (if
+            (condition (ne_i32 (param_get argc) (const_i32 3)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (let explain_json_in ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
+          (return (call_i32 explain_file_mode (local_get explain_json_in) (const_i32 1)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 cstr_equals
+          (local_get arg1) (const_string_ptr "--explain") (const_i64 9)) (const_i32 0)))
+        (then (do
+          (if
+            (condition (ne_i32 (param_get argc) (const_i32 3)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (let explain_in ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
+          (return (call_i32 explain_file (local_get explain_in)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 cstr_equals
+          (local_get arg1) (const_string_ptr "--audit") (const_i64 7)) (const_i32 0)))
+        (then (do
+          (if
+            (condition (ne_i32 (param_get argc) (const_i32 3)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (let audit_in ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
+          (return (call_i32 audit_file (local_get audit_in)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 cstr_equals
+          (local_get arg1) (const_string_ptr "--audit-json") (const_i64 12)) (const_i32 0)))
+        (then (do
+          (if
+            (condition (ne_i32 (param_get argc) (const_i32 3)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (let audit_json_in ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
+          (return (call_i32 audit_file_json (local_get audit_json_in)))))
         (else (do)))
       ; Keep the historical backend spelling for current tests and scripts.
       (let input_path_legacy ptr (local_get arg1))

@@ -1,0 +1,9 @@
+(program
+  (name "audit_minimal")
+  (version "0.1")
+  (entry main)
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (return (const_i32 42)))))

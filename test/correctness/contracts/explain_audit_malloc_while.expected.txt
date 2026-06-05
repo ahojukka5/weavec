@@ -1,0 +1,61 @@
+Function: bootstrap
+Kind: entry-only
+Requires:
+  (none)
+Ensures:
+  (none)
+Returns: (unknown)
+Parameters:
+  (none)
+Return sites: 0
+Contract checks inserted: 0
+Loop sites: 0
+Call sites: 0
+External calls: 0
+External callees:
+  (none)
+Allocations: 0
+
+Function: worker
+Requires:
+  (none)
+Ensures:
+  (none)
+Pure:
+  (not declared)
+No-alloc:
+  (not declared)
+Returns: i32
+Parameters:
+  n: i32
+Return sites: 1
+Contract checks inserted: 0
+Loop sites: 1
+Call sites: 2
+External calls: 2
+External callees:
+  malloc
+  free
+Allocations: 2
+
+Function: main
+Requires:
+  (none)
+Ensures:
+  (none)
+Pure:
+  (not declared)
+No-alloc:
+  (not declared)
+Returns: i32
+Parameters:
+  (none)
+Return sites: 1
+Contract checks inserted: 0
+Loop sites: 0
+Call sites: 1
+External calls: 0
+External callees:
+  (none)
+Allocations: 0
+

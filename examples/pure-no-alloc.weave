@@ -1,0 +1,19 @@
+; pure-no-alloc.weave — effect contract demo for weavec2 --audit
+
+(program
+  (name "pure_no_alloc")
+  (version "0.1")
+  (entry main)
+  (fn inc
+    (params (x i32))
+    (returns i32)
+    (pure)
+    (no_alloc)
+    (deterministic)
+    (do
+      (return (add_i32 x (const_i32 1)))))
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (return (call_i32 inc (const_i32 41))))))

@@ -1,0 +1,45 @@
+Function: clamp
+Requires:
+  (le_i32 lo hi)
+Ensures:
+  (ge_i32 result lo)
+  (le_i32 result hi)
+Pure:
+  (not declared)
+No-alloc:
+  (not declared)
+Returns: i32
+Parameters:
+  x: i32
+  lo: i32
+  hi: i32
+Return sites: 3
+Contract checks inserted: 7
+Loop sites: 0
+Call sites: 0
+External calls: 0
+External callees:
+  (none)
+Allocations: 0
+
+Function: main
+Requires:
+  (none)
+Ensures:
+  (none)
+Pure:
+  (not declared)
+No-alloc:
+  (not declared)
+Returns: i32
+Parameters:
+  (none)
+Return sites: 1
+Contract checks inserted: 0
+Loop sites: 0
+Call sites: 1
+External calls: 0
+External callees:
+  (none)
+Allocations: 0
+

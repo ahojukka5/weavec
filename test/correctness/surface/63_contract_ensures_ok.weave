@@ -1,0 +1,19 @@
+; 63_contract_ensures_ok.weave
+; purpose: ensures clause passes before return.
+; expected runtime behavior: exit 42.
+
+(program
+  (name "contract_ensures_ok")
+  (version "0.1")
+  (entry main)
+  (fn positive_or_zero
+    (params (x i32))
+    (returns i32)
+    (ensures (ge_i32 result (const_i32 0)))
+    (do
+      (return x)))
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (return (call_i32 positive_or_zero (const_i32 42))))))

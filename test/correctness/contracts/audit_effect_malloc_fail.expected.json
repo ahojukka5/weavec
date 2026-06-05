@@ -1,0 +1,6 @@
+{
+  "functions": [
+    {"name": "make-buffer", "requires": [], "ensures": [], "effect_contracts": {"no_alloc": "failed", "pure": "failed"}, "effect_reasons": ["no_alloc failed: calls allocation function", "pure failed: calls impure function"], "purity": "impure", "returns": "ptr", "parameters": [{"name": "n", "type": "i64"}], "return_sites": 1, "contract_checks_inserted": 0, "loop_sites": 0, "call_sites": 1, "external_calls": 1, "external_callees": ["malloc"], "allocations": 1},
+    {"name": "main", "requires": [], "ensures": [], "effect_contracts": null, "effect_reasons": [], "purity": "impure", "returns": "i32", "parameters": [], "return_sites": 1, "contract_checks_inserted": 0, "loop_sites": 0, "call_sites": 1, "external_calls": 0, "external_callees": [], "allocations": 1}
+  ]
+}

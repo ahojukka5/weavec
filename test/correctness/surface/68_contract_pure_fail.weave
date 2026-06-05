@@ -1,0 +1,20 @@
+; 68_contract_pure_fail.weave
+; purpose: (pure) violated by malloc; frontend must reject at compile time.
+
+(program
+  (name "contract_pure_fail")
+  (version "0.1")
+  (extern malloc (params (size i64)) (returns ptr))
+  (entry main)
+  (fn not-pure
+    (params)
+    (returns i32)
+    (pure)
+    (do
+      (let slot ptr (call_ptr malloc (const_i64 8)))
+      (return (const_i32 42))))
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (return (call_i32 not-pure)))))

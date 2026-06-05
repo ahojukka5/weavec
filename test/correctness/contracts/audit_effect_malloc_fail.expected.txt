@@ -1,0 +1,67 @@
+Function: make-buffer
+Parameters:
+  n: i64
+Returns: ptr
+Contracts:
+  requires:
+  (none)
+  ensures:
+  (none)
+Effect contracts:
+  no_alloc: FAILED
+  pure: FAILED
+Reasons:
+  no_alloc failed: calls allocation function malloc
+  pure failed: calls allocation function malloc
+Control flow:
+  return sites: 1
+  conditionals: 0
+  loops: 0
+Calls:
+  direct calls:
+  none
+  external calls:
+  malloc
+Memory:
+  allocation: yes
+  runtime calls:
+  malloc
+Purity:
+  conservative: impure
+Warnings:
+  function has no requires clauses
+  function has no ensures clauses
+  calls external/runtime function malloc
+  function appears to allocate memory
+
+Function: main
+Parameters:
+  (none)
+Returns: i32
+Contracts:
+  requires:
+  (none)
+  ensures:
+  (none)
+Effect contracts:
+  none declared
+Control flow:
+  return sites: 1
+  conditionals: 0
+  loops: 0
+Calls:
+  direct calls:
+  make-buffer
+  external calls:
+  none
+Memory:
+  allocation: yes
+  runtime calls:
+  none
+Purity:
+  conservative: impure
+Warnings:
+  function has no requires clauses
+  function has no ensures clauses
+  function appears to allocate memory
+

@@ -1,0 +1,19 @@
+; 62_contract_requires_fail.weave
+; purpose: requires clause fails when precondition is false.
+; expected runtime behavior: exit 1 (contract failure).
+
+(program
+  (name "contract_requires_fail")
+  (version "0.1")
+  (entry main)
+  (fn bounded
+    (params (x i32))
+    (returns i32)
+    (requires (ge_i32 x (const_i32 0)))
+    (do
+      (return x)))
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (return (call_i32 bounded (const_i32 -1))))))

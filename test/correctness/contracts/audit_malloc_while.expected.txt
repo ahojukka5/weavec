@@ -1,0 +1,95 @@
+Function: bootstrap
+Parameters:
+  (none)
+Returns: (unknown)
+Contracts:
+  requires:
+  (none)
+  ensures:
+  (none)
+Effect contracts:
+  none declared
+Control flow:
+  return sites: 0
+  conditionals: 0
+  loops: 0
+Calls:
+  direct calls:
+  none
+  external calls:
+  none
+Memory:
+  allocation: no
+  runtime calls:
+  none
+Purity:
+  conservative: pure
+Warnings:
+  function has no requires clauses
+  function has no ensures clauses
+
+Function: worker
+Parameters:
+  n: i32
+Returns: i32
+Contracts:
+  requires:
+  (none)
+  ensures:
+  (none)
+Effect contracts:
+  none declared
+Control flow:
+  return sites: 1
+  conditionals: 0
+  loops: 1
+Calls:
+  direct calls:
+  none
+  external calls:
+  malloc
+  free
+Memory:
+  allocation: yes
+  runtime calls:
+  malloc
+  free
+Purity:
+  conservative: impure
+Warnings:
+  function has no requires clauses
+  function has no ensures clauses
+  calls external/runtime function malloc
+  calls external/runtime function free
+  function appears to allocate memory
+
+Function: main
+Parameters:
+  (none)
+Returns: i32
+Contracts:
+  requires:
+  (none)
+  ensures:
+  (none)
+Effect contracts:
+  none declared
+Control flow:
+  return sites: 1
+  conditionals: 0
+  loops: 0
+Calls:
+  direct calls:
+  worker
+  external calls:
+  none
+Memory:
+  allocation: yes
+  runtime calls:
+  none
+Purity:
+  conservative: impure
+Warnings:
+  function has no requires clauses
+  function has no ensures clauses
+

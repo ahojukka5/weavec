@@ -1,0 +1,25 @@
+(program
+  (name "audit_clamp_only")
+  (version "0.1")
+  (entry main)
+  (fn clamp
+    (params (x i32) (lo i32) (hi i32))
+    (returns i32)
+    (requires (le_i32 lo hi))
+    (ensures (ge_i32 result lo))
+    (ensures (le_i32 result hi))
+    (do
+      (if
+        (condition (lt_i32 x lo))
+        (then (do (return lo)))
+        (else (do)))
+      (if
+        (condition (gt_i32 x hi))
+        (then (do (return hi)))
+        (else (do)))
+      (return x)))
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (return (const_i32 42)))))
