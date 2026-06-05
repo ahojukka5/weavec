@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0116_trailing_zeros_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @trailing_zeros(i32 96)
+  ret i32 %t0
+}
+
 ; function: trailing_zeros
 ; params: i32
 ; returns: i32
@@ -45,15 +55,5 @@ while.end:
   ; return
   %t4 = load i32, ptr %count.addr
   ret i32 %t4
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @trailing_zeros(i32 96)
-  ret i32 %t0
 }
 

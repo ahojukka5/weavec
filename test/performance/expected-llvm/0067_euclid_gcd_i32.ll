@@ -2,6 +2,17 @@
 ; source: test/performance/wir/0067_euclid_gcd_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @gcd(i32 462, i32 1071)
+  %t1 = add i32 %t0, 21
+  ret i32 %t1
+}
+
 ; function: gcd
 ; params: i32, i32
 ; returns: i32
@@ -41,17 +52,6 @@ while.exit-merge:
 while.end:
   ; return
   %t1 = load i32, ptr %x.addr
-  ret i32 %t1
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @gcd(i32 462, i32 1071)
-  %t1 = add i32 %t0, 21
   ret i32 %t1
 }
 

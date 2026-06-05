@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0025_ptr_params_call_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @same_ptr(ptr null, ptr null)
+  ret i32 %t0
+}
+
 ; function: same_ptr
 ; params: ptr, ptr
 ; returns: i32
@@ -18,15 +28,5 @@ else:
   ; else
   ; return
   ret i32 0
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @same_ptr(ptr null, ptr null)
-  ret i32 %t0
 }
 

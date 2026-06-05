@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0056_integration_multi_function_chain.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @calculate(i32 5)
+  ret i32 %t0
+}
+
 ; function: calculate
 ; params: i32
 ; returns: i32
@@ -31,16 +41,6 @@ define i32 @helper_square(i32 %n) {
 entry:
   ; return
   %t0 = mul i32 %n, %n
-  ret i32 %t0
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @calculate(i32 5)
   ret i32 %t0
 }
 

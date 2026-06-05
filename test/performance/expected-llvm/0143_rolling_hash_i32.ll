@@ -7,55 +7,6 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
-; function: hash64
-; params: ptr
-; returns: i32
-define i32 @hash64(ptr %data) {
-entry:
-  %h.addr = alloca i32
-  %i.addr = alloca i32
-  ; let h
-  store i32 0, ptr %h.addr
-  ; let i
-  store i32 0, ptr %i.addr
-  ; while condition
-  br label %while.pre
-while.pre:
-  %h.init0 = load i32, ptr %h.addr
-  %i.init0 = load i32, ptr %i.addr
-  br label %while.cond
-while.cond:
-  %h.phi0 = phi i32 [%h.init0, %while.pre], [%h.next0, %while.latch]
-  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
-  %t0 = icmp slt i32 %i.phi0, 64
-  br i1 %t0, label %while.body, label %while.exit-merge
-while.body:
-  ; while body
-  ; let b (deferred)
-  ; set h
-  %t1 = mul i32 %h.phi0, 31
-  %t2 = sext i32 %i.phi0 to i64
-  %t3 = getelementptr i32, ptr %data, i64 %t2
-  %t4 = load i32, ptr %t3
-  %t5 = add i32 %t1, %t4
-  %t6 = add i32 %t5, 1
-  %h.next0 = srem i32 %t6, 1000003
-  ; set i
-  %i.next0 = add i32 %i.phi0, 1
-  br label %while.latch
-while.latch:
-  br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %h.phi0, ptr %h.addr
-  store i32 %i.phi0, ptr %i.addr
-  br label %while.end
-while.end:
-  ; return
-  %t7 = load i32, ptr %h.addr
-  ret i32 %t7
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -104,6 +55,55 @@ while.end1:
   ; let ans
   call void @free(ptr %t0)
   ; return
+  ret i32 %t7
+}
+
+; function: hash64
+; params: ptr
+; returns: i32
+define i32 @hash64(ptr %data) {
+entry:
+  %h.addr = alloca i32
+  %i.addr = alloca i32
+  ; let h
+  store i32 0, ptr %h.addr
+  ; let i
+  store i32 0, ptr %i.addr
+  ; while condition
+  br label %while.pre
+while.pre:
+  %h.init0 = load i32, ptr %h.addr
+  %i.init0 = load i32, ptr %i.addr
+  br label %while.cond
+while.cond:
+  %h.phi0 = phi i32 [%h.init0, %while.pre], [%h.next0, %while.latch]
+  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
+  %t0 = icmp slt i32 %i.phi0, 64
+  br i1 %t0, label %while.body, label %while.exit-merge
+while.body:
+  ; while body
+  ; let b (deferred)
+  ; set h
+  %t1 = mul i32 %h.phi0, 31
+  %t2 = sext i32 %i.phi0 to i64
+  %t3 = getelementptr i32, ptr %data, i64 %t2
+  %t4 = load i32, ptr %t3
+  %t5 = add i32 %t1, %t4
+  %t6 = add i32 %t5, 1
+  %h.next0 = srem i32 %t6, 1000003
+  ; set i
+  %i.next0 = add i32 %i.phi0, 1
+  br label %while.latch
+while.latch:
+  br label %while.cond
+while.exit-merge:
+  ; sync loop-carried locals to stack
+  store i32 %h.phi0, ptr %h.addr
+  store i32 %i.phi0, ptr %i.addr
+  br label %while.end
+while.end:
+  ; return
+  %t7 = load i32, ptr %h.addr
   ret i32 %t7
 }
 

@@ -2,6 +2,17 @@
 ; source: test/performance/wir/0156_gcd_i64.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i64 @gcd_i64(i64 462, i64 1071)
+  %t1 = trunc i64 %t0 to i32
+  ret i32 %t1
+}
+
 ; function: gcd_i64
 ; params: i64, i64
 ; returns: i64
@@ -42,16 +53,5 @@ while.end:
   ; return
   %t1 = load i64, ptr %x.addr
   ret i64 %t1
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i64 @gcd_i64(i64 462, i64 1071)
-  %t1 = trunc i64 %t0 to i32
-  ret i32 %t1
 }
 

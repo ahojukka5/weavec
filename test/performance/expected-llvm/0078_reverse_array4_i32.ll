@@ -7,6 +7,37 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  %t0 = call ptr @malloc(i64 16)
+  ; let items
+  ; if condition
+  %t1 = icmp eq ptr %t0, null
+  br i1 %t1, label %then, label %endif
+then:
+  ; then
+  ; return
+  ret i32 0
+endif:
+  %t2 = call ptr @elem_ptr(ptr %t0, i32 0)
+  store i32 10, ptr %t2
+  %t3 = call ptr @elem_ptr(ptr %t0, i32 1)
+  store i32 20, ptr %t3
+  %t4 = call ptr @elem_ptr(ptr %t0, i32 2)
+  store i32 30, ptr %t4
+  %t5 = call ptr @elem_ptr(ptr %t0, i32 3)
+  store i32 40, ptr %t5
+  %t6 = call i32 @reverse4(ptr %t0)
+  ; let mid
+  call void @free(ptr %t0)
+  ; return
+  %t7 = add i32 %t6, 5
+  ret i32 %t7
+}
+
 ; function: elem_ptr
 ; params: ptr, i32
 ; returns: ptr
@@ -68,36 +99,5 @@ while.end:
   %t7 = call ptr @elem_ptr(ptr %items, i32 1)
   %t8 = load i32, ptr %t7
   ret i32 %t8
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  %t0 = call ptr @malloc(i64 16)
-  ; let items
-  ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
-then:
-  ; then
-  ; return
-  ret i32 0
-endif:
-  %t2 = call ptr @elem_ptr(ptr %t0, i32 0)
-  store i32 10, ptr %t2
-  %t3 = call ptr @elem_ptr(ptr %t0, i32 1)
-  store i32 20, ptr %t3
-  %t4 = call ptr @elem_ptr(ptr %t0, i32 2)
-  store i32 30, ptr %t4
-  %t5 = call ptr @elem_ptr(ptr %t0, i32 3)
-  store i32 40, ptr %t5
-  %t6 = call i32 @reverse4(ptr %t0)
-  ; let mid
-  call void @free(ptr %t0)
-  ; return
-  %t7 = add i32 %t6, 5
-  ret i32 %t7
 }
 

@@ -7,6 +7,29 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  %t0 = call ptr @malloc(i64 68)
+  ; let flags
+  ; if condition
+  %t1 = icmp eq ptr %t0, null
+  br i1 %t1, label %then, label %endif
+then:
+  ; then
+  ; return
+  ret i32 0
+endif:
+  %t2 = call i32 @count_primes16(ptr %t0)
+  ; let count
+  call void @free(ptr %t0)
+  ; return
+  %t3 = add i32 %t2, 36
+  ret i32 %t3
+}
+
 ; function: elem_ptr
 ; params: ptr, i32
 ; returns: ptr
@@ -148,28 +171,5 @@ while.end4:
   ; return
   %t23 = load i32, ptr %count.addr
   ret i32 %t23
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  %t0 = call ptr @malloc(i64 68)
-  ; let flags
-  ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
-then:
-  ; then
-  ; return
-  ret i32 0
-endif:
-  %t2 = call i32 @count_primes16(ptr %t0)
-  ; let count
-  call void @free(ptr %t0)
-  ; return
-  %t3 = add i32 %t2, 36
-  ret i32 %t3
 }
 

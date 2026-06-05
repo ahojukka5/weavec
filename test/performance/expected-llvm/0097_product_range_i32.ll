@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0097_product_range_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @product_range(i32 6)
+  ret i32 %t0
+}
+
 ; function: product_range
 ; params: i32
 ; returns: i32
@@ -42,15 +52,5 @@ while.end:
   ; return
   %t1 = load i32, ptr %acc.addr
   ret i32 %t1
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @product_range(i32 6)
-  ret i32 %t0
 }
 

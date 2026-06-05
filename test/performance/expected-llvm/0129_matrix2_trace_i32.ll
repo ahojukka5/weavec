@@ -7,31 +7,6 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
-; function: elem_ptr
-; params: ptr, i32
-; returns: ptr
-define ptr @elem_ptr(ptr %base, i32 %index) {
-entry:
-  ; return
-  %t0 = sext i32 %index to i64
-  %t1 = getelementptr i32, ptr %base, i64 %t0
-  ret ptr %t1
-}
-
-; function: trace2x2
-; params: ptr
-; returns: i32
-define i32 @trace2x2(ptr %m) {
-entry:
-  ; return
-  %t0 = call ptr @elem_ptr(ptr %m, i32 0)
-  %t1 = load i32, ptr %t0
-  %t2 = call ptr @elem_ptr(ptr %m, i32 3)
-  %t3 = load i32, ptr %t2
-  %t4 = add i32 %t1, %t3
-  ret i32 %t4
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -60,5 +35,30 @@ endif:
   call void @free(ptr %t0)
   ; return
   ret i32 %t6
+}
+
+; function: elem_ptr
+; params: ptr, i32
+; returns: ptr
+define ptr @elem_ptr(ptr %base, i32 %index) {
+entry:
+  ; return
+  %t0 = sext i32 %index to i64
+  %t1 = getelementptr i32, ptr %base, i64 %t0
+  ret ptr %t1
+}
+
+; function: trace2x2
+; params: ptr
+; returns: i32
+define i32 @trace2x2(ptr %m) {
+entry:
+  ; return
+  %t0 = call ptr @elem_ptr(ptr %m, i32 0)
+  %t1 = load i32, ptr %t0
+  %t2 = call ptr @elem_ptr(ptr %m, i32 3)
+  %t3 = load i32, ptr %t2
+  %t4 = add i32 %t1, %t3
+  ret i32 %t4
 }
 

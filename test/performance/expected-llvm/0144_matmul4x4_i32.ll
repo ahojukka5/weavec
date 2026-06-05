@@ -7,6 +7,73 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  %n.addr = alloca i32
+  %t0 = call ptr @malloc(i64 64)
+  ; let a
+  %t1 = call ptr @malloc(i64 64)
+  ; let b
+  %t2 = call ptr @malloc(i64 64)
+  ; let out
+  ; if condition
+  %t3 = icmp eq ptr %t0, null
+  %t4 = icmp eq ptr %t1, null
+  %t5 = icmp eq ptr %t2, null
+  %t6 = or i1 %t4, %t5
+  %t7 = or i1 %t3, %t6
+  br i1 %t7, label %then, label %endif
+then:
+  ; then
+  ; return
+  ret i32 0
+endif:
+  ; let n
+  store i32 0, ptr %n.addr
+  ; while condition
+  br label %while.pre1
+while.pre1:
+  %n.init1 = load i32, ptr %n.addr
+  br label %while.cond1
+while.cond1:
+  %n.phi1 = phi i32 [%n.init1, %while.pre1], [%n.next1, %while.latch1]
+  %t8 = icmp slt i32 %n.phi1, 16
+  br i1 %t8, label %while.body1, label %while.exit-merge1
+while.body1:
+  ; while body
+  %t9 = sext i32 %n.phi1 to i64
+  %t10 = getelementptr i32, ptr %t0, i64 %t9
+  %t11 = add i32 %n.phi1, 1
+  store i32 %t11, ptr %t10
+  %t12 = sext i32 %n.phi1 to i64
+  %t13 = getelementptr i32, ptr %t1, i64 %t12
+  %t14 = add i32 %n.phi1, 2
+  %t15 = srem i32 %t14, 4
+  store i32 %t15, ptr %t13
+  ; set n
+  %n.next1 = add i32 %n.phi1, 1
+  br label %while.latch1
+while.latch1:
+  br label %while.cond1
+while.exit-merge1:
+  ; sync loop-carried locals to stack
+  store i32 %n.phi1, ptr %n.addr
+  br label %while.end1
+while.end1:
+  call void @matmul4(ptr %t0, ptr %t1, ptr %t2)
+  %t16 = call ptr @at(ptr %t2, i32 3, i32 3)
+  %t17 = load i32, ptr %t16
+  ; let ans
+  call void @free(ptr %t0)
+  call void @free(ptr %t1)
+  call void @free(ptr %t2)
+  ; return
+  ret i32 %t17
+}
+
 ; function: at
 ; params: ptr, i32, i32
 ; returns: ptr
@@ -104,72 +171,5 @@ while.end1:
   br label %while.cond
 while.end:
   ret void
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  %n.addr = alloca i32
-  %t0 = call ptr @malloc(i64 64)
-  ; let a
-  %t1 = call ptr @malloc(i64 64)
-  ; let b
-  %t2 = call ptr @malloc(i64 64)
-  ; let out
-  ; if condition
-  %t3 = icmp eq ptr %t0, null
-  %t4 = icmp eq ptr %t1, null
-  %t5 = icmp eq ptr %t2, null
-  %t6 = or i1 %t4, %t5
-  %t7 = or i1 %t3, %t6
-  br i1 %t7, label %then, label %endif
-then:
-  ; then
-  ; return
-  ret i32 0
-endif:
-  ; let n
-  store i32 0, ptr %n.addr
-  ; while condition
-  br label %while.pre1
-while.pre1:
-  %n.init1 = load i32, ptr %n.addr
-  br label %while.cond1
-while.cond1:
-  %n.phi1 = phi i32 [%n.init1, %while.pre1], [%n.next1, %while.latch1]
-  %t8 = icmp slt i32 %n.phi1, 16
-  br i1 %t8, label %while.body1, label %while.exit-merge1
-while.body1:
-  ; while body
-  %t9 = sext i32 %n.phi1 to i64
-  %t10 = getelementptr i32, ptr %t0, i64 %t9
-  %t11 = add i32 %n.phi1, 1
-  store i32 %t11, ptr %t10
-  %t12 = sext i32 %n.phi1 to i64
-  %t13 = getelementptr i32, ptr %t1, i64 %t12
-  %t14 = add i32 %n.phi1, 2
-  %t15 = srem i32 %t14, 4
-  store i32 %t15, ptr %t13
-  ; set n
-  %n.next1 = add i32 %n.phi1, 1
-  br label %while.latch1
-while.latch1:
-  br label %while.cond1
-while.exit-merge1:
-  ; sync loop-carried locals to stack
-  store i32 %n.phi1, ptr %n.addr
-  br label %while.end1
-while.end1:
-  call void @matmul4(ptr %t0, ptr %t1, ptr %t2)
-  %t16 = call ptr @at(ptr %t2, i32 3, i32 3)
-  %t17 = load i32, ptr %t16
-  ; let ans
-  call void @free(ptr %t0)
-  call void @free(ptr %t1)
-  call void @free(ptr %t2)
-  ; return
-  ret i32 %t17
 }
 

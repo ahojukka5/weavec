@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0061_fibonacci_iterative.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @fib(i32 10)
+  ret i32 %t0
+}
+
 ; function: fib
 ; params: i32
 ; returns: i32
@@ -58,15 +68,5 @@ while.end1:
   ; return
   %t2 = load i32, ptr %curr.addr
   ret i32 %t2
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @fib(i32 10)
-  ret i32 %t0
 }
 

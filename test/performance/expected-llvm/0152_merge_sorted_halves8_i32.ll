@@ -7,108 +7,6 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
-; function: elem
-; params: ptr, i32
-; returns: ptr
-define ptr @elem(ptr %a, i32 %idx) {
-entry:
-  ; return
-  %t0 = sext i32 %idx to i64
-  %t1 = getelementptr i32, ptr %a, i64 %t0
-  ret ptr %t1
-}
-
-; function: merge8
-; params: ptr, ptr, ptr
-; returns: i32
-define i32 @merge8(ptr %left, ptr %right, ptr %out) {
-entry:
-  %i.addr = alloca i32
-  %j.addr = alloca i32
-  %k.addr = alloca i32
-  %checksum.addr = alloca i32
-  ; let i
-  store i32 0, ptr %i.addr
-  ; let j
-  store i32 0, ptr %j.addr
-  ; let k
-  store i32 0, ptr %k.addr
-  ; let checksum
-  store i32 0, ptr %checksum.addr
-  ; while condition
-  br label %while.pre
-while.pre:
-  %checksum.init0 = load i32, ptr %checksum.addr
-  %i.init0 = load i32, ptr %i.addr
-  %j.init0 = load i32, ptr %j.addr
-  %k.init0 = load i32, ptr %k.addr
-  br label %while.cond
-while.cond:
-  %checksum.phi0 = phi i32 [%checksum.init0, %while.pre], [%checksum.merge1, %while.latch]
-  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.merge1, %while.latch]
-  %j.phi0 = phi i32 [%j.init0, %while.pre], [%j.merge1, %while.latch]
-  %k.phi0 = phi i32 [%k.init0, %while.pre], [%k.next0, %while.latch]
-  %t0 = icmp slt i32 %k.phi0, 8
-  br i1 %t0, label %while.body, label %while.exit-merge
-while.body:
-  ; while body
-  ; if condition
-  %t1 = icmp slt i32 %i.phi0, 4
-  %t2 = icmp sge i32 %j.phi0, 4
-  %t3 = call ptr @elem(ptr %left, i32 %i.phi0)
-  %t4 = load i32, ptr %t3
-  %t5 = call ptr @elem(ptr %right, i32 %j.phi0)
-  %t6 = load i32, ptr %t5
-  %t7 = icmp sle i32 %t4, %t6
-  %t8 = or i1 %t2, %t7
-  %t9 = and i1 %t1, %t8
-  br i1 %t9, label %then1, label %else1
-then1:
-  ; then
-  %t10 = call ptr @elem(ptr %left, i32 %i.phi0)
-  %t11 = load i32, ptr %t10
-  ; let v
-  %t12 = call ptr @elem(ptr %out, i32 %k.phi0)
-  store i32 %t11, ptr %t12
-  ; set checksum
-  %checksum.next10 = add i32 %checksum.phi0, %t11
-  ; set i
-  %i.next10 = add i32 %i.phi0, 1
-  br label %endif1
-else1:
-  ; else
-  %t13 = call ptr @elem(ptr %right, i32 %j.phi0)
-  %t14 = load i32, ptr %t13
-  ; let w
-  %t15 = call ptr @elem(ptr %out, i32 %k.phi0)
-  store i32 %t14, ptr %t15
-  ; set checksum
-  %checksum.next11 = add i32 %checksum.phi0, %t14
-  ; set j
-  %j.next11 = add i32 %j.phi0, 1
-  br label %endif1
-endif1:
-  %i.merge1 = phi i32 [%i.next10, %then1], [%i.phi0, %else1]
-  %j.merge1 = phi i32 [%j.phi0, %then1], [%j.next11, %else1]
-  %checksum.merge1 = phi i32 [%checksum.next10, %then1], [%checksum.next11, %else1]
-  ; set k
-  %k.next0 = add i32 %k.phi0, 1
-  br label %while.latch
-while.latch:
-  br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %checksum.phi0, ptr %checksum.addr
-  store i32 %i.phi0, ptr %i.addr
-  store i32 %j.phi0, ptr %j.addr
-  store i32 %k.phi0, ptr %k.addr
-  br label %while.end
-while.end:
-  ; return
-  %t16 = load i32, ptr %checksum.addr
-  ret i32 %t16
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -155,5 +53,109 @@ endif:
   call void @free(ptr %t2)
   ; return
   ret i32 %t16
+}
+
+; function: elem
+; params: ptr, i32
+; returns: ptr
+define ptr @elem(ptr %a, i32 %idx) {
+entry:
+  ; return
+  %t0 = sext i32 %idx to i64
+  %t1 = getelementptr i32, ptr %a, i64 %t0
+  ret ptr %t1
+}
+
+; function: merge8
+; params: ptr, ptr, ptr
+; returns: i32
+define i32 @merge8(ptr %left, ptr %right, ptr %out) {
+entry:
+  %i.addr = alloca i32
+  %j.addr = alloca i32
+  %k.addr = alloca i32
+  %checksum.addr = alloca i32
+  ; let i
+  store i32 0, ptr %i.addr
+  ; let j
+  store i32 0, ptr %j.addr
+  ; let k
+  store i32 0, ptr %k.addr
+  ; let checksum
+  store i32 0, ptr %checksum.addr
+  ; while condition
+  br label %while.pre
+while.pre:
+  %k.init0 = load i32, ptr %k.addr
+  br label %while.cond
+while.cond:
+  %k.phi0 = phi i32 [%k.init0, %while.pre], [%k.next0, %while.latch]
+  %t0 = icmp slt i32 %k.phi0, 8
+  br i1 %t0, label %while.body, label %while.exit-merge
+while.body:
+  ; while body
+  ; if condition
+  %t1 = load i32, ptr %i.addr
+  %t2 = icmp slt i32 %t1, 4
+  %t3 = load i32, ptr %j.addr
+  %t4 = icmp sge i32 %t3, 4
+  %t5 = load i32, ptr %i.addr
+  %t6 = call ptr @elem(ptr %left, i32 %t5)
+  %t7 = load i32, ptr %t6
+  %t8 = load i32, ptr %j.addr
+  %t9 = call ptr @elem(ptr %right, i32 %t8)
+  %t10 = load i32, ptr %t9
+  %t11 = icmp sle i32 %t7, %t10
+  %t12 = or i1 %t4, %t11
+  %t13 = and i1 %t2, %t12
+  br i1 %t13, label %then1, label %else1
+then1:
+  ; then
+  %t14 = load i32, ptr %i.addr
+  %t15 = call ptr @elem(ptr %left, i32 %t14)
+  %t16 = load i32, ptr %t15
+  ; let v
+  %t17 = call ptr @elem(ptr %out, i32 %k.phi0)
+  store i32 %t16, ptr %t17
+  ; set checksum
+  %t18 = load i32, ptr %checksum.addr
+  %t19 = add i32 %t18, %t16
+  store i32 %t19, ptr %checksum.addr
+  ; set i
+  %t20 = load i32, ptr %i.addr
+  %t21 = add i32 %t20, 1
+  store i32 %t21, ptr %i.addr
+  br label %endif1
+else1:
+  ; else
+  %t22 = load i32, ptr %j.addr
+  %t23 = call ptr @elem(ptr %right, i32 %t22)
+  %t24 = load i32, ptr %t23
+  ; let w
+  %t25 = call ptr @elem(ptr %out, i32 %k.phi0)
+  store i32 %t24, ptr %t25
+  ; set checksum
+  %t26 = load i32, ptr %checksum.addr
+  %t27 = add i32 %t26, %t24
+  store i32 %t27, ptr %checksum.addr
+  ; set j
+  %t28 = load i32, ptr %j.addr
+  %t29 = add i32 %t28, 1
+  store i32 %t29, ptr %j.addr
+  br label %endif1
+endif1:
+  ; set k
+  %k.next0 = add i32 %k.phi0, 1
+  br label %while.latch
+while.latch:
+  br label %while.cond
+while.exit-merge:
+  ; sync loop-carried locals to stack
+  store i32 %k.phi0, ptr %k.addr
+  br label %while.end
+while.end:
+  ; return
+  %t30 = load i32, ptr %checksum.addr
+  ret i32 %t30
 }
 

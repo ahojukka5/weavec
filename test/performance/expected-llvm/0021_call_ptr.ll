@@ -7,16 +7,6 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
-; function: make_ptr
-; params: none
-; returns: ptr
-define ptr @make_ptr() {
-entry:
-  ; return
-  %t0 = call ptr @malloc(i64 8)
-  ret ptr %t0
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -36,5 +26,15 @@ else:
   call void @free(ptr %t0)
   ; return
   ret i32 42
+}
+
+; function: make_ptr
+; params: none
+; returns: ptr
+define ptr @make_ptr() {
+entry:
+  ; return
+  %t0 = call ptr @malloc(i64 8)
+  ret ptr %t0
 }
 

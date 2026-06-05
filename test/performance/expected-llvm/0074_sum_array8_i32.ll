@@ -7,6 +7,44 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  %t0 = call ptr @malloc(i64 32)
+  ; let items
+  ; if condition
+  %t1 = icmp eq ptr %t0, null
+  br i1 %t1, label %then, label %endif
+then:
+  ; then
+  ; return
+  ret i32 0
+endif:
+  %t2 = call ptr @elem_ptr(ptr %t0, i32 0)
+  store i32 1, ptr %t2
+  %t3 = call ptr @elem_ptr(ptr %t0, i32 1)
+  store i32 2, ptr %t3
+  %t4 = call ptr @elem_ptr(ptr %t0, i32 2)
+  store i32 3, ptr %t4
+  %t5 = call ptr @elem_ptr(ptr %t0, i32 3)
+  store i32 4, ptr %t5
+  %t6 = call ptr @elem_ptr(ptr %t0, i32 4)
+  store i32 5, ptr %t6
+  %t7 = call ptr @elem_ptr(ptr %t0, i32 5)
+  store i32 6, ptr %t7
+  %t8 = call ptr @elem_ptr(ptr %t0, i32 6)
+  store i32 7, ptr %t8
+  %t9 = call ptr @elem_ptr(ptr %t0, i32 7)
+  store i32 8, ptr %t9
+  %t10 = call i32 @sum8(ptr %t0)
+  ; let total
+  call void @free(ptr %t0)
+  ; return
+  ret i32 %t10
+}
+
 ; function: elem_ptr
 ; params: ptr, i32
 ; returns: ptr
@@ -60,43 +98,5 @@ while.end:
   ; return
   %t3 = load i32, ptr %total.addr
   ret i32 %t3
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  %t0 = call ptr @malloc(i64 32)
-  ; let items
-  ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
-then:
-  ; then
-  ; return
-  ret i32 0
-endif:
-  %t2 = call ptr @elem_ptr(ptr %t0, i32 0)
-  store i32 1, ptr %t2
-  %t3 = call ptr @elem_ptr(ptr %t0, i32 1)
-  store i32 2, ptr %t3
-  %t4 = call ptr @elem_ptr(ptr %t0, i32 2)
-  store i32 3, ptr %t4
-  %t5 = call ptr @elem_ptr(ptr %t0, i32 3)
-  store i32 4, ptr %t5
-  %t6 = call ptr @elem_ptr(ptr %t0, i32 4)
-  store i32 5, ptr %t6
-  %t7 = call ptr @elem_ptr(ptr %t0, i32 5)
-  store i32 6, ptr %t7
-  %t8 = call ptr @elem_ptr(ptr %t0, i32 6)
-  store i32 7, ptr %t8
-  %t9 = call ptr @elem_ptr(ptr %t0, i32 7)
-  store i32 8, ptr %t9
-  %t10 = call i32 @sum8(ptr %t0)
-  ; let total
-  call void @free(ptr %t0)
-  ; return
-  ret i32 %t10
 }
 

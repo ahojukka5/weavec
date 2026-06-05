@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0027_three_arg_function.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @add3(i32 10, i32 20, i32 12)
+  ret i32 %t0
+}
+
 ; function: add3
 ; params: i32, i32, i32
 ; returns: i32
@@ -11,15 +21,5 @@ entry:
   %t0 = add i32 %a, %b
   %t1 = add i32 %t0, %c
   ret i32 %t1
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @add3(i32 10, i32 20, i32 12)
-  ret i32 %t0
 }
 

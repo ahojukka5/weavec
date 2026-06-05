@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0110_nested_sum_ij_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @nested_sum(i32 4)
+  ret i32 %t0
+}
+
 ; function: nested_sum
 ; params: i32
 ; returns: i32
@@ -61,15 +71,5 @@ while.end:
   ; return
   %t7 = load i32, ptr %total.addr
   ret i32 %t7
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @nested_sum(i32 4)
-  ret i32 %t0
 }
 

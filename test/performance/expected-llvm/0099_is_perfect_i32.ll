@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0099_is_perfect_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @is_perfect(i32 28)
+  ret i32 %t0
+}
+
 ; function: is_perfect
 ; params: i32
 ; returns: i32
@@ -16,11 +26,9 @@ entry:
   ; while condition
   br label %while.pre
 while.pre:
-  %sum.init0 = load i32, ptr %sum.addr
   %d.init0 = load i32, ptr %d.addr
   br label %while.cond
 while.cond:
-  %sum.phi0 = phi i32 [%sum.init0, %while.pre], [%sum.merge1, %while.latch]
   %d.phi0 = phi i32 [%d.init0, %while.pre], [%d.next0, %while.latch]
   %t0 = icmp slt i32 %d.phi0, %n
   br i1 %t0, label %while.body, label %while.exit-merge
@@ -33,10 +41,11 @@ while.body:
 then1:
   ; then
   ; set sum
-  %sum.next10 = add i32 %sum.phi0, %d.phi0
+  %t3 = load i32, ptr %sum.addr
+  %t4 = add i32 %t3, %d.phi0
+  store i32 %t4, ptr %sum.addr
   br label %endif1
 endif1:
-  %sum.merge1 = phi i32 [%sum.next10, %then1], [%sum.phi0, %while.body]
   ; set d
   %d.next0 = add i32 %d.phi0, 1
   br label %while.latch
@@ -44,14 +53,13 @@ while.latch:
   br label %while.cond
 while.exit-merge:
   ; sync loop-carried locals to stack
-  store i32 %sum.phi0, ptr %sum.addr
   store i32 %d.phi0, ptr %d.addr
   br label %while.end
 while.end:
   ; if condition
-  %t3 = load i32, ptr %sum.addr
-  %t4 = icmp eq i32 %t3, %n
-  br i1 %t4, label %then2, label %else2
+  %t5 = load i32, ptr %sum.addr
+  %t6 = icmp eq i32 %t5, %n
+  br i1 %t6, label %then2, label %else2
 then2:
   ; then
   ; return
@@ -60,15 +68,5 @@ else2:
   ; else
   ; return
   ret i32 0
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @is_perfect(i32 28)
-  ret i32 %t0
 }
 

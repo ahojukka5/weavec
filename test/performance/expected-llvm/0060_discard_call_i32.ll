@@ -6,16 +6,6 @@
 
 declare ptr @malloc(i64)
 
-; function: touch
-; params: ptr
-; returns: i32
-define i32 @touch(ptr %p) {
-entry:
-  store i32 42, ptr %p
-  ; return
-  ret i32 0
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -27,5 +17,15 @@ entry:
   ; return
   %t2 = load i32, ptr %t0
   ret i32 %t2
+}
+
+; function: touch
+; params: ptr
+; returns: i32
+define i32 @touch(ptr %p) {
+entry:
+  store i32 42, ptr %p
+  ; return
+  ret i32 0
 }
 

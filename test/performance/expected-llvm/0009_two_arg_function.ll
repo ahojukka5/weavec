@@ -2,16 +2,6 @@
 ; source: test/performance/wir/0009_two_arg_function.wir
 ; core-version: 1
 
-; function: add
-; params: i32, i32
-; returns: i32
-define i32 @add(i32 %a, i32 %b) {
-entry:
-  ; return
-  %t0 = add i32 %a, %b
-  ret i32 %t0
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -19,6 +9,16 @@ define i32 @main() {
 entry:
   ; return
   %t0 = call i32 @add(i32 20, i32 22)
+  ret i32 %t0
+}
+
+; function: add
+; params: i32, i32
+; returns: i32
+define i32 @add(i32 %a, i32 %b) {
+entry:
+  ; return
+  %t0 = add i32 %a, %b
   ret i32 %t0
 }
 

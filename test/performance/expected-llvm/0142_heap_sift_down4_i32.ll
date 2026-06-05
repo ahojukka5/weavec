@@ -7,116 +7,6 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
-; function: elem
-; params: ptr, i32
-; returns: ptr
-define ptr @elem(ptr %h, i32 %idx) {
-entry:
-  ; return
-  %t0 = sext i32 %idx to i64
-  %t1 = getelementptr i32, ptr %h, i64 %t0
-  ret ptr %t1
-}
-
-; function: sift_down
-; params: ptr, i32
-; returns: void
-define void @sift_down(ptr %h, i32 %start) {
-entry:
-  %i.addr = alloca i32
-  ; let i
-  store i32 %start, ptr %i.addr
-  ; while condition
-  br label %while.pre
-while.pre:
-  %i.init0 = load i32, ptr %i.addr
-  br label %while.cond
-while.cond:
-  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.merge3, %while.latch]
-  %t0 = icmp slt i32 %i.phi0, 4
-  br i1 %t0, label %while.body, label %while.exit-merge
-while.body:
-  ; while body
-  %t1 = mul i32 %i.phi0, 2
-  %t2 = add i32 %t1, 1
-  ; let left
-  %t3 = add i32 %t2, 1
-  ; let right
-  ; let largest
-  %largest.addr = alloca i32
-  store i32 %i.phi0, ptr %largest.addr
-  ; if condition
-  %t4 = icmp slt i32 %t2, 4
-  %t5 = call ptr @elem(ptr %h, i32 %t2)
-  %t6 = load i32, ptr %t5
-  %t7 = load i32, ptr %largest.addr
-  %t8 = call ptr @elem(ptr %h, i32 %t7)
-  %t9 = load i32, ptr %t8
-  %t10 = icmp sgt i32 %t6, %t9
-  %t11 = and i1 %t4, %t10
-  br i1 %t11, label %then1, label %else1
-then1:
-  ; then
-  ; let largest
-  br label %endif1
-else1:
-  ; else
-  ; if condition
-  %t12 = icmp slt i32 %t3, 4
-  %t13 = call ptr @elem(ptr %h, i32 %t3)
-  %t14 = load i32, ptr %t13
-  %t15 = load i32, ptr %largest.addr
-  %t16 = call ptr @elem(ptr %h, i32 %t15)
-  %t17 = load i32, ptr %t16
-  %t18 = icmp sgt i32 %t14, %t17
-  %t19 = and i1 %t12, %t18
-  br i1 %t19, label %then2, label %endif2
-then2:
-  ; then
-  ; let largest
-  br label %endif2
-endif2:
-  br label %endif1
-endif1:
-  ; if condition
-  %t20 = load i32, ptr %largest.addr
-  %t21 = icmp eq i32 %t20, %i.phi0
-  br i1 %t21, label %then3, label %else3
-then3:
-  ; then
-  ; set i
-  %i.next30 = add i32 4, 0
-  br label %endif3
-else3:
-  ; else
-  %t22 = call ptr @elem(ptr %h, i32 %i.phi0)
-  %t23 = load i32, ptr %t22
-  ; let tmp
-  %t24 = call ptr @elem(ptr %h, i32 %i.phi0)
-  %t25 = load i32, ptr %largest.addr
-  %t26 = call ptr @elem(ptr %h, i32 %t25)
-  %t27 = load i32, ptr %t26
-  store i32 %t27, ptr %t24
-  %t28 = load i32, ptr %largest.addr
-  %t29 = call ptr @elem(ptr %h, i32 %t28)
-  store i32 %t23, ptr %t29
-  ; set i
-  %t30 = load i32, ptr %largest.addr
-  %i.next31 = add i32 %t30, 0
-  br label %endif3
-endif3:
-  %i.merge3 = phi i32 [%i.next30, %then3], [%i.next31, %else3]
-  br label %while.latch
-while.latch:
-  br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %i.phi0, ptr %i.addr
-  br label %while.end
-while.end:
-  ret void
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -147,5 +37,109 @@ endif:
   call void @free(ptr %t0)
   ; return
   ret i32 %t7
+}
+
+; function: elem
+; params: ptr, i32
+; returns: ptr
+define ptr @elem(ptr %h, i32 %idx) {
+entry:
+  ; return
+  %t0 = sext i32 %idx to i64
+  %t1 = getelementptr i32, ptr %h, i64 %t0
+  ret ptr %t1
+}
+
+; function: sift_down
+; params: ptr, i32
+; returns: void
+define void @sift_down(ptr %h, i32 %start) {
+entry:
+  %i.addr = alloca i32
+  ; let i
+  store i32 %start, ptr %i.addr
+  ; while condition
+  br label %while.pre
+while.pre:
+  br label %while.cond
+while.cond:
+  %t0 = load i32, ptr %i.addr
+  %t1 = icmp slt i32 %t0, 4
+  br i1 %t1, label %while.body, label %while.exit-merge
+while.body:
+  ; while body
+  %t2 = load i32, ptr %i.addr
+  %t3 = mul i32 %t2, 2
+  %t4 = add i32 %t3, 1
+  ; let left
+  %t5 = add i32 %t4, 1
+  ; let right
+  %t6 = load i32, ptr %i.addr
+  ; let largest
+  ; if condition
+  %t7 = icmp slt i32 %t4, 4
+  %t8 = call ptr @elem(ptr %h, i32 %t4)
+  %t9 = load i32, ptr %t8
+  %t10 = call ptr @elem(ptr %h, i32 %t6)
+  %t11 = load i32, ptr %t10
+  %t12 = icmp sgt i32 %t9, %t11
+  %t13 = and i1 %t7, %t12
+  br i1 %t13, label %then1, label %else1
+then1:
+  ; then
+  ; let largest
+  br label %endif1
+else1:
+  ; else
+  ; if condition
+  %t14 = icmp slt i32 %t5, 4
+  %t15 = call ptr @elem(ptr %h, i32 %t5)
+  %t16 = load i32, ptr %t15
+  %t17 = call ptr @elem(ptr %h, i32 %t6)
+  %t18 = load i32, ptr %t17
+  %t19 = icmp sgt i32 %t16, %t18
+  %t20 = and i1 %t14, %t19
+  br i1 %t20, label %then2, label %endif2
+then2:
+  ; then
+  ; let largest
+  br label %endif2
+endif2:
+  br label %endif1
+endif1:
+  ; if condition
+  %t21 = load i32, ptr %i.addr
+  %t22 = icmp eq i32 %t6, %t21
+  br i1 %t22, label %then3, label %else3
+then3:
+  ; then
+  ; set i
+  store i32 4, ptr %i.addr
+  br label %endif3
+else3:
+  ; else
+  %t23 = load i32, ptr %i.addr
+  %t24 = call ptr @elem(ptr %h, i32 %t23)
+  %t25 = load i32, ptr %t24
+  ; let tmp
+  %t26 = load i32, ptr %i.addr
+  %t27 = call ptr @elem(ptr %h, i32 %t26)
+  %t28 = call ptr @elem(ptr %h, i32 %t6)
+  %t29 = load i32, ptr %t28
+  store i32 %t29, ptr %t27
+  %t30 = call ptr @elem(ptr %h, i32 %t6)
+  store i32 %t25, ptr %t30
+  ; set i
+  store i32 %t6, ptr %i.addr
+  br label %endif3
+endif3:
+  br label %while.latch
+while.latch:
+  br label %while.cond
+while.exit-merge:
+  ; sync loop-carried locals to stack
+  br label %while.end
+while.end:
+  ret void
 }
 

@@ -7,33 +7,6 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
-; function: matvec3
-; params: ptr, ptr
-; returns: float
-define float @matvec3(ptr %m, ptr %v) {
-entry:
-  %t0 = getelementptr i8, ptr %m, i64 0
-  %t1 = load float, ptr %t0
-  %t2 = getelementptr i8, ptr %v, i64 0
-  %t3 = load float, ptr %t2
-  %t4 = fmul float %t1, %t3
-  %t5 = getelementptr i8, ptr %m, i64 4
-  %t6 = load float, ptr %t5
-  %t7 = getelementptr i8, ptr %v, i64 4
-  %t8 = load float, ptr %t7
-  %t9 = fmul float %t6, %t8
-  %t10 = getelementptr i8, ptr %m, i64 8
-  %t11 = load float, ptr %t10
-  %t12 = getelementptr i8, ptr %v, i64 8
-  %t13 = load float, ptr %t12
-  %t14 = fmul float %t11, %t13
-  %t15 = fadd float %t9, %t14
-  %t16 = fadd float %t4, %t15
-  ; let r0
-  ; return
-  ret float %t16
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -103,5 +76,32 @@ endif1:
   ; return
   %t29 = fptosi float %t28 to i32
   ret i32 %t29
+}
+
+; function: matvec3
+; params: ptr, ptr
+; returns: float
+define float @matvec3(ptr %m, ptr %v) {
+entry:
+  %t0 = getelementptr i8, ptr %m, i64 0
+  %t1 = load float, ptr %t0
+  %t2 = getelementptr i8, ptr %v, i64 0
+  %t3 = load float, ptr %t2
+  %t4 = fmul float %t1, %t3
+  %t5 = getelementptr i8, ptr %m, i64 4
+  %t6 = load float, ptr %t5
+  %t7 = getelementptr i8, ptr %v, i64 4
+  %t8 = load float, ptr %t7
+  %t9 = fmul float %t6, %t8
+  %t10 = getelementptr i8, ptr %m, i64 8
+  %t11 = load float, ptr %t10
+  %t12 = getelementptr i8, ptr %v, i64 8
+  %t13 = load float, ptr %t12
+  %t14 = fmul float %t11, %t13
+  %t15 = fadd float %t9, %t14
+  %t16 = fadd float %t4, %t15
+  ; let r0
+  ; return
+  ret float %t16
 }
 

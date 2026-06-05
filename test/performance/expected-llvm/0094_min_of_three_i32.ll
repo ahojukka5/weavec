@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0094_min_of_three_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @min3(i32 17, i32 4, i32 23)
+  ret i32 %t0
+}
+
 ; function: min3
 ; params: i32, i32, i32
 ; returns: i32
@@ -33,15 +43,5 @@ endif1:
   ; return
   %t4 = load i32, ptr %m.addr
   ret i32 %t4
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @min3(i32 17, i32 4, i32 23)
-  ret i32 %t0
 }
 

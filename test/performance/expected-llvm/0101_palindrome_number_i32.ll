@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0101_palindrome_number_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @is_palindrome(i32 1221)
+  ret i32 %t0
+}
+
 ; function: reverse_digits
 ; params: i32
 ; returns: i32
@@ -63,15 +73,5 @@ else:
   ; else
   ; return
   ret i32 0
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @is_palindrome(i32 1221)
-  ret i32 %t0
 }
 

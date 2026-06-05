@@ -2,14 +2,6 @@
 ; source: test/performance/wir/0022_return_void.wir
 ; core-version: 1
 
-; function: noop
-; params: none
-; returns: void
-define void @noop() {
-entry:
-  ret void
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -18,5 +10,13 @@ entry:
   call void @noop()
   ; return
   ret i32 42
+}
+
+; function: noop
+; params: none
+; returns: void
+define void @noop() {
+entry:
+  ret void
 }
 

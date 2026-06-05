@@ -2,15 +2,6 @@
 ; source: test/performance/wir/0026_bool_return.wir
 ; core-version: 1
 
-; function: same
-; params: i1
-; returns: i1
-define i1 @same(i1 %x) {
-entry:
-  ; return
-  ret i1 %x
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -27,5 +18,14 @@ else:
   ; else
   ; return
   ret i32 0
+}
+
+; function: same
+; params: i1
+; returns: i1
+define i1 @same(i1 %x) {
+entry:
+  ; return
+  ret i1 %x
 }
 

@@ -7,6 +7,58 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  %t0 = call ptr @malloc(i64 32)
+  ; let a
+  %t1 = call ptr @malloc(i64 32)
+  ; let b
+  %t2 = call ptr @malloc(i64 32)
+  ; let out
+  ; if condition
+  %t3 = icmp eq ptr %t0, null
+  %t4 = icmp eq ptr %t1, null
+  %t5 = icmp eq ptr %t2, null
+  %t6 = or i1 %t4, %t5
+  %t7 = or i1 %t3, %t6
+  br i1 %t7, label %then, label %endif
+then:
+  ; then
+  ; return
+  ret i32 0
+endif:
+  %t8 = call ptr @at(ptr %t0, i32 0, i32 0)
+  store i64 1, ptr %t8
+  %t9 = call ptr @at(ptr %t0, i32 0, i32 1)
+  store i64 2, ptr %t9
+  %t10 = call ptr @at(ptr %t0, i32 1, i32 0)
+  store i64 3, ptr %t10
+  %t11 = call ptr @at(ptr %t0, i32 1, i32 1)
+  store i64 4, ptr %t11
+  %t12 = call ptr @at(ptr %t1, i32 0, i32 0)
+  store i64 5, ptr %t12
+  %t13 = call ptr @at(ptr %t1, i32 0, i32 1)
+  store i64 6, ptr %t13
+  %t14 = call ptr @at(ptr %t1, i32 1, i32 0)
+  store i64 7, ptr %t14
+  %t15 = call ptr @at(ptr %t1, i32 1, i32 1)
+  store i64 8, ptr %t15
+  call void @matmul2(ptr %t0, ptr %t1, ptr %t2)
+  %t16 = call ptr @at(ptr %t2, i32 1, i32 1)
+  %t17 = load i64, ptr %t16
+  ; let ans
+  call void @free(ptr %t0)
+  call void @free(ptr %t1)
+  call void @free(ptr %t2)
+  ; return
+  %t18 = srem i64 %t17, 1000000007
+  %t19 = trunc i64 %t18 to i32
+  ret i32 %t19
+}
+
 ; function: at
 ; params: ptr, i32, i32
 ; returns: ptr
@@ -104,57 +156,5 @@ while.end1:
   br label %while.cond
 while.end:
   ret void
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  %t0 = call ptr @malloc(i64 32)
-  ; let a
-  %t1 = call ptr @malloc(i64 32)
-  ; let b
-  %t2 = call ptr @malloc(i64 32)
-  ; let out
-  ; if condition
-  %t3 = icmp eq ptr %t0, null
-  %t4 = icmp eq ptr %t1, null
-  %t5 = icmp eq ptr %t2, null
-  %t6 = or i1 %t4, %t5
-  %t7 = or i1 %t3, %t6
-  br i1 %t7, label %then, label %endif
-then:
-  ; then
-  ; return
-  ret i32 0
-endif:
-  %t8 = call ptr @at(ptr %t0, i32 0, i32 0)
-  store i64 1, ptr %t8
-  %t9 = call ptr @at(ptr %t0, i32 0, i32 1)
-  store i64 2, ptr %t9
-  %t10 = call ptr @at(ptr %t0, i32 1, i32 0)
-  store i64 3, ptr %t10
-  %t11 = call ptr @at(ptr %t0, i32 1, i32 1)
-  store i64 4, ptr %t11
-  %t12 = call ptr @at(ptr %t1, i32 0, i32 0)
-  store i64 5, ptr %t12
-  %t13 = call ptr @at(ptr %t1, i32 0, i32 1)
-  store i64 6, ptr %t13
-  %t14 = call ptr @at(ptr %t1, i32 1, i32 0)
-  store i64 7, ptr %t14
-  %t15 = call ptr @at(ptr %t1, i32 1, i32 1)
-  store i64 8, ptr %t15
-  call void @matmul2(ptr %t0, ptr %t1, ptr %t2)
-  %t16 = call ptr @at(ptr %t2, i32 1, i32 1)
-  %t17 = load i64, ptr %t16
-  ; let ans
-  call void @free(ptr %t0)
-  call void @free(ptr %t1)
-  call void @free(ptr %t2)
-  ; return
-  %t18 = srem i64 %t17, 1000000007
-  %t19 = trunc i64 %t18 to i32
-  ret i32 %t19
 }
 

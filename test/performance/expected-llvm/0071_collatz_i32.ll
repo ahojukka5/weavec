@@ -2,6 +2,17 @@
 ; source: test/performance/wir/0071_collatz_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @collatz_steps(i32 13)
+  %t1 = add i32 %t0, 33
+  ret i32 %t1
+}
+
 ; function: collatz_steps
 ; params: i32
 ; returns: i32
@@ -16,33 +27,36 @@ entry:
   ; while condition
   br label %while.pre
 while.pre:
-  %n.init0 = load i32, ptr %n.addr
   %steps.init0 = load i32, ptr %steps.addr
   br label %while.cond
 while.cond:
-  %n.phi0 = phi i32 [%n.init0, %while.pre], [%n.merge1, %while.latch]
   %steps.phi0 = phi i32 [%steps.init0, %while.pre], [%steps.next0, %while.latch]
-  %t0 = icmp ne i32 %n.phi0, 1
-  br i1 %t0, label %while.body, label %while.exit-merge
+  %t0 = load i32, ptr %n.addr
+  %t1 = icmp ne i32 %t0, 1
+  br i1 %t1, label %while.body, label %while.exit-merge
 while.body:
   ; while body
   ; if condition
-  %t1 = srem i32 %n.phi0, 2
-  %t2 = icmp eq i32 %t1, 0
-  br i1 %t2, label %then1, label %else1
+  %t2 = load i32, ptr %n.addr
+  %t3 = srem i32 %t2, 2
+  %t4 = icmp eq i32 %t3, 0
+  br i1 %t4, label %then1, label %else1
 then1:
   ; then
   ; set n
-  %n.next10 = sdiv i32 %n.phi0, 2
+  %t5 = load i32, ptr %n.addr
+  %t6 = sdiv i32 %t5, 2
+  store i32 %t6, ptr %n.addr
   br label %endif1
 else1:
   ; else
   ; set n
-  %t3 = mul i32 %n.phi0, 3
-  %n.next11 = add i32 %t3, 1
+  %t7 = load i32, ptr %n.addr
+  %t8 = mul i32 %t7, 3
+  %t9 = add i32 %t8, 1
+  store i32 %t9, ptr %n.addr
   br label %endif1
 endif1:
-  %n.merge1 = phi i32 [%n.next10, %then1], [%n.next11, %else1]
   ; set steps
   %steps.next0 = add i32 %steps.phi0, 1
   br label %while.latch
@@ -50,23 +64,11 @@ while.latch:
   br label %while.cond
 while.exit-merge:
   ; sync loop-carried locals to stack
-  store i32 %n.phi0, ptr %n.addr
   store i32 %steps.phi0, ptr %steps.addr
   br label %while.end
 while.end:
   ; return
-  %t4 = load i32, ptr %steps.addr
-  ret i32 %t4
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @collatz_steps(i32 13)
-  %t1 = add i32 %t0, 33
-  ret i32 %t1
+  %t10 = load i32, ptr %steps.addr
+  ret i32 %t10
 }
 

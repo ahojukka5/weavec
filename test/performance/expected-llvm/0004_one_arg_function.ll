@@ -2,16 +2,6 @@
 ; source: test/performance/wir/0004_one_arg_function.wir
 ; core-version: 1
 
-; function: inc
-; params: i32
-; returns: i32
-define i32 @inc(i32 %x) {
-entry:
-  ; return
-  %t0 = add i32 %x, 1
-  ret i32 %t0
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -19,6 +9,16 @@ define i32 @main() {
 entry:
   ; return
   %t0 = call i32 @inc(i32 41)
+  ret i32 %t0
+}
+
+; function: inc
+; params: i32
+; returns: i32
+define i32 @inc(i32 %x) {
+entry:
+  ; return
+  %t0 = add i32 %x, 1
   ret i32 %t0
 }
 

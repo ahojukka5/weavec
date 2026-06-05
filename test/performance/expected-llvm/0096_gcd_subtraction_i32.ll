@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0096_gcd_subtraction_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @gcd_sub(i32 54, i32 24)
+  ret i32 %t0
+}
+
 ; function: gcd_sub
 ; params: i32, i32
 ; returns: i32
@@ -16,53 +26,45 @@ entry:
   ; while condition
   br label %while.pre
 while.pre:
-  %x.init0 = load i32, ptr %x.addr
-  %y.init0 = load i32, ptr %y.addr
   br label %while.cond
 while.cond:
-  %x.phi0 = phi i32 [%x.init0, %while.pre], [%x.merge1, %while.latch]
-  %y.phi0 = phi i32 [%y.init0, %while.pre], [%y.merge1, %while.latch]
-  %t0 = icmp ne i32 %x.phi0, %y.phi0
-  br i1 %t0, label %while.body, label %while.exit-merge
+  %t0 = load i32, ptr %x.addr
+  %t1 = load i32, ptr %y.addr
+  %t2 = icmp ne i32 %t0, %t1
+  br i1 %t2, label %while.body, label %while.exit-merge
 while.body:
   ; while body
   ; if condition
-  %t1 = icmp sgt i32 %x.phi0, %y.phi0
-  br i1 %t1, label %then1, label %else1
+  %t3 = load i32, ptr %x.addr
+  %t4 = load i32, ptr %y.addr
+  %t5 = icmp sgt i32 %t3, %t4
+  br i1 %t5, label %then1, label %else1
 then1:
   ; then
   ; set x
-  %x.next10 = sub i32 %x.phi0, %y.phi0
+  %t6 = load i32, ptr %x.addr
+  %t7 = load i32, ptr %y.addr
+  %t8 = sub i32 %t6, %t7
+  store i32 %t8, ptr %x.addr
   br label %endif1
 else1:
   ; else
   ; set y
-  %y.next11 = sub i32 %y.phi0, %x.phi0
+  %t9 = load i32, ptr %y.addr
+  %t10 = load i32, ptr %x.addr
+  %t11 = sub i32 %t9, %t10
+  store i32 %t11, ptr %y.addr
   br label %endif1
 endif1:
-  %x.merge1 = phi i32 [%x.next10, %then1], [%x.phi0, %else1]
-  %y.merge1 = phi i32 [%y.phi0, %then1], [%y.next11, %else1]
   br label %while.latch
 while.latch:
   br label %while.cond
 while.exit-merge:
   ; sync loop-carried locals to stack
-  store i32 %x.phi0, ptr %x.addr
-  store i32 %y.phi0, ptr %y.addr
   br label %while.end
 while.end:
   ; return
-  %t2 = load i32, ptr %x.addr
-  ret i32 %t2
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @gcd_sub(i32 54, i32 24)
-  ret i32 %t0
+  %t12 = load i32, ptr %x.addr
+  ret i32 %t12
 }
 

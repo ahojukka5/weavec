@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0107_sign_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @sign_i32(i32 -7)
+  ret i32 %t0
+}
+
 ; function: sign_i32
 ; params: i32
 ; returns: i32
@@ -26,15 +36,5 @@ else1:
   ; else
   ; return
   ret i32 0
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @sign_i32(i32 -7)
-  ret i32 %t0
 }
 

@@ -7,6 +7,42 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  %t0 = call ptr @malloc(i64 48)
+  ; let a
+  ; if condition
+  %t1 = icmp eq ptr %t0, null
+  br i1 %t1, label %then, label %endif
+then:
+  ; then
+  ; return
+  ret i32 0
+endif:
+  %t2 = call ptr @elem(ptr %t0, i32 0)
+  store i64 1500, ptr %t2
+  %t3 = call ptr @elem(ptr %t0, i32 1)
+  store i64 2500, ptr %t3
+  %t4 = call ptr @elem(ptr %t0, i32 2)
+  store i64 3500, ptr %t4
+  %t5 = call ptr @elem(ptr %t0, i32 3)
+  store i64 4500, ptr %t5
+  %t6 = call ptr @elem(ptr %t0, i32 4)
+  store i64 5500, ptr %t6
+  %t7 = call ptr @elem(ptr %t0, i32 5)
+  store i64 6500, ptr %t7
+  %t8 = call i64 @mean_scaled(ptr %t0, i32 6)
+  ; let avg
+  call void @free(ptr %t0)
+  ; return
+  %t9 = sdiv i64 %t8, 10
+  %t10 = trunc i64 %t9 to i32
+  ret i32 %t10
+}
+
 ; function: elem
 ; params: ptr, i32
 ; returns: ptr
@@ -62,41 +98,5 @@ while.end:
   %t4 = sext i32 %count to i64
   %t5 = sdiv i64 %t3, %t4
   ret i64 %t5
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  %t0 = call ptr @malloc(i64 48)
-  ; let a
-  ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
-then:
-  ; then
-  ; return
-  ret i32 0
-endif:
-  %t2 = call ptr @elem(ptr %t0, i32 0)
-  store i64 1500, ptr %t2
-  %t3 = call ptr @elem(ptr %t0, i32 1)
-  store i64 2500, ptr %t3
-  %t4 = call ptr @elem(ptr %t0, i32 2)
-  store i64 3500, ptr %t4
-  %t5 = call ptr @elem(ptr %t0, i32 3)
-  store i64 4500, ptr %t5
-  %t6 = call ptr @elem(ptr %t0, i32 4)
-  store i64 5500, ptr %t6
-  %t7 = call ptr @elem(ptr %t0, i32 5)
-  store i64 6500, ptr %t7
-  %t8 = call i64 @mean_scaled(ptr %t0, i32 6)
-  ; let avg
-  call void @free(ptr %t0)
-  ; return
-  %t9 = sdiv i64 %t8, 10
-  %t10 = trunc i64 %t9 to i32
-  ret i32 %t10
 }
 

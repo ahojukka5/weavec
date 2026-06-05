@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0108_hailstone_peak_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @hailstone_peak(i32 27)
+  ret i32 %t0
+}
+
 ; function: hailstone_peak
 ; params: i32
 ; returns: i32
@@ -16,64 +26,55 @@ entry:
   ; while condition
   br label %while.pre
 while.pre:
-  %peak.init0 = load i32, ptr %peak.addr
-  %n.init0 = load i32, ptr %n.addr
   br label %while.cond
 while.cond:
-  %peak.phi0 = phi i32 [%peak.init0, %while.pre], [%peak.merge1, %while.latch]
-  %n.phi0 = phi i32 [%n.init0, %while.pre], [%n.merge2, %while.latch]
-  %t0 = icmp ne i32 %n.phi0, 1
-  br i1 %t0, label %while.body, label %while.exit-merge
+  %t0 = load i32, ptr %n.addr
+  %t1 = icmp ne i32 %t0, 1
+  br i1 %t1, label %while.body, label %while.exit-merge
 while.body:
   ; while body
   ; if condition
-  %t1 = icmp sgt i32 %n.phi0, %peak.phi0
-  br i1 %t1, label %then1, label %endif1
+  %t2 = load i32, ptr %n.addr
+  %t3 = load i32, ptr %peak.addr
+  %t4 = icmp sgt i32 %t2, %t3
+  br i1 %t4, label %then1, label %endif1
 then1:
   ; then
   ; set peak
-  %peak.next10 = add i32 %n.phi0, 0
+  %t5 = load i32, ptr %n.addr
+  store i32 %t5, ptr %peak.addr
   br label %endif1
 endif1:
-  %peak.merge1 = phi i32 [%peak.next10, %then1], [%peak.phi0, %while.body]
   ; if condition
-  %t2 = srem i32 %n.phi0, 2
-  %t3 = icmp eq i32 %t2, 0
-  br i1 %t3, label %then2, label %else2
+  %t6 = load i32, ptr %n.addr
+  %t7 = srem i32 %t6, 2
+  %t8 = icmp eq i32 %t7, 0
+  br i1 %t8, label %then2, label %else2
 then2:
   ; then
   ; set n
-  %n.next20 = sdiv i32 %n.phi0, 2
+  %t9 = load i32, ptr %n.addr
+  %t10 = sdiv i32 %t9, 2
+  store i32 %t10, ptr %n.addr
   br label %endif2
 else2:
   ; else
   ; set n
-  %t4 = mul i32 %n.phi0, 3
-  %n.next21 = add i32 %t4, 1
+  %t11 = load i32, ptr %n.addr
+  %t12 = mul i32 %t11, 3
+  %t13 = add i32 %t12, 1
+  store i32 %t13, ptr %n.addr
   br label %endif2
 endif2:
-  %n.merge2 = phi i32 [%n.next20, %then2], [%n.next21, %else2]
   br label %while.latch
 while.latch:
   br label %while.cond
 while.exit-merge:
   ; sync loop-carried locals to stack
-  store i32 %peak.phi0, ptr %peak.addr
-  store i32 %n.phi0, ptr %n.addr
   br label %while.end
 while.end:
   ; return
-  %t5 = load i32, ptr %peak.addr
-  ret i32 %t5
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @hailstone_peak(i32 27)
-  ret i32 %t0
+  %t14 = load i32, ptr %peak.addr
+  ret i32 %t14
 }
 

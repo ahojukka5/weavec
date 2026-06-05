@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0095_abs_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @abs_i32(i32 -123)
+  ret i32 %t0
+}
+
 ; function: abs_i32
 ; params: i32
 ; returns: i32
@@ -19,15 +29,5 @@ else:
   ; else
   ; return
   ret i32 %x
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @abs_i32(i32 -123)
-  ret i32 %t0
 }
 

@@ -2,6 +2,17 @@
 ; source: test/performance/wir/0159_power_mod_i64.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i64 @pow_mod(i64 3, i32 13, i64 1000000007)
+  %t1 = trunc i64 %t0 to i32
+  ret i32 %t1
+}
+
 ; function: pow_mod
 ; params: i64, i32, i64
 ; returns: i64
@@ -20,12 +31,10 @@ entry:
   ; while condition
   br label %while.pre
 while.pre:
-  %result.init0 = load i64, ptr %result.addr
   %b.init0 = load i64, ptr %b.addr
   %e.init0 = load i32, ptr %e.addr
   br label %while.cond
 while.cond:
-  %result.phi0 = phi i64 [%result.init0, %while.pre], [%result.merge1, %while.latch]
   %b.phi0 = phi i64 [%b.init0, %while.pre], [%b.next0, %while.latch]
   %e.phi0 = phi i32 [%e.init0, %while.pre], [%e.next0, %while.latch]
   %t1 = icmp sgt i32 %e.phi0, 0
@@ -39,14 +48,15 @@ while.body:
 then1:
   ; then
   ; set result
-  %t4 = mul i64 %result.phi0, %b.phi0
-  %result.next10 = srem i64 %t4, %modulus
+  %t4 = load i64, ptr %result.addr
+  %t5 = mul i64 %t4, %b.phi0
+  %t6 = srem i64 %t5, %modulus
+  store i64 %t6, ptr %result.addr
   br label %endif1
 endif1:
-  %result.merge1 = phi i64 [%result.next10, %then1], [%result.phi0, %while.body]
   ; set b
-  %t5 = mul i64 %b.phi0, %b.phi0
-  %b.next0 = srem i64 %t5, %modulus
+  %t7 = mul i64 %b.phi0, %b.phi0
+  %b.next0 = srem i64 %t7, %modulus
   ; set e
   %e.next0 = sdiv i32 %e.phi0, 2
   br label %while.latch
@@ -54,24 +64,12 @@ while.latch:
   br label %while.cond
 while.exit-merge:
   ; sync loop-carried locals to stack
-  store i64 %result.phi0, ptr %result.addr
   store i64 %b.phi0, ptr %b.addr
   store i32 %e.phi0, ptr %e.addr
   br label %while.end
 while.end:
   ; return
-  %t6 = load i64, ptr %result.addr
-  ret i64 %t6
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i64 @pow_mod(i64 3, i32 13, i64 1000000007)
-  %t1 = trunc i64 %t0 to i32
-  ret i32 %t1
+  %t8 = load i64, ptr %result.addr
+  ret i64 %t8
 }
 

@@ -7,111 +7,6 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
-; function: elem
-; params: ptr, i32
-; returns: ptr
-define ptr @elem(ptr %a, i32 %idx) {
-entry:
-  ; return
-  %t0 = sext i32 %idx to i64
-  %t1 = getelementptr i32, ptr %a, i64 %t0
-  ret ptr %t1
-}
-
-; function: partition012
-; params: ptr
-; returns: i32
-define i32 @partition012(ptr %a) {
-entry:
-  %lo.addr = alloca i32
-  %mid.addr = alloca i32
-  %hi.addr = alloca i32
-  ; let lo
-  store i32 0, ptr %lo.addr
-  ; let mid
-  store i32 0, ptr %mid.addr
-  ; let hi
-  store i32 11, ptr %hi.addr
-  ; while condition
-  br label %while.pre
-while.pre:
-  %lo.init0 = load i32, ptr %lo.addr
-  %mid.init0 = load i32, ptr %mid.addr
-  %hi.init0 = load i32, ptr %hi.addr
-  br label %while.cond
-while.cond:
-  %lo.phi0 = phi i32 [%lo.init0, %while.pre], [%lo.merge1, %while.latch]
-  %mid.phi0 = phi i32 [%mid.init0, %while.pre], [%mid.merge1, %while.latch]
-  %hi.phi0 = phi i32 [%hi.init0, %while.pre], [%hi.merge1, %while.latch]
-  %t0 = icmp sle i32 %mid.phi0, %hi.phi0
-  br i1 %t0, label %while.body, label %while.exit-merge
-while.body:
-  ; while body
-  %t1 = call ptr @elem(ptr %a, i32 %mid.phi0)
-  %t2 = load i32, ptr %t1
-  ; let v
-  ; if condition
-  %t3 = icmp eq i32 %t2, 0
-  br i1 %t3, label %then1, label %else1
-then1:
-  ; then
-  %t4 = call ptr @elem(ptr %a, i32 %lo.phi0)
-  %t5 = load i32, ptr %t4
-  ; let tmp
-  %t6 = call ptr @elem(ptr %a, i32 %lo.phi0)
-  store i32 %t2, ptr %t6
-  %t7 = call ptr @elem(ptr %a, i32 %mid.phi0)
-  store i32 %t5, ptr %t7
-  ; set lo
-  %lo.next10 = add i32 %lo.phi0, 1
-  ; set mid
-  %mid.next10 = add i32 %mid.phi0, 1
-  br label %endif1
-else1:
-  ; else
-  ; if condition
-  %t8 = icmp eq i32 %t2, 2
-  br i1 %t8, label %then2, label %else2
-then2:
-  ; then
-  %t9 = call ptr @elem(ptr %a, i32 %hi.phi0)
-  %t10 = load i32, ptr %t9
-  ; let tmp2
-  %t11 = call ptr @elem(ptr %a, i32 %hi.phi0)
-  store i32 %t2, ptr %t11
-  %t12 = call ptr @elem(ptr %a, i32 %mid.phi0)
-  store i32 %t10, ptr %t12
-  ; set hi
-  %hi.next20 = sub i32 %hi.phi0, 1
-  br label %endif2
-else2:
-  ; else
-  ; set mid
-  %mid.next21 = add i32 %mid.phi0, 1
-  br label %endif2
-endif2:
-  %mid.merge2 = phi i32 [%mid.phi0, %then2], [%mid.next21, %else2]
-  %hi.merge2 = phi i32 [%hi.next20, %then2], [%hi.phi0, %else2]
-  br label %endif1
-endif1:
-  %lo.merge1 = phi i32 [%lo.next10, %then1], [%lo.phi0, %endif2]
-  %mid.merge1 = phi i32 [%mid.next10, %then1], [%mid.merge2, %endif2]
-  %hi.merge1 = phi i32 [%hi.phi0, %then1], [%hi.merge2, %endif2]
-  br label %while.latch
-while.latch:
-  br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %lo.phi0, ptr %lo.addr
-  store i32 %mid.phi0, ptr %mid.addr
-  store i32 %hi.phi0, ptr %hi.addr
-  br label %while.end
-while.end:
-  ; return
-  %t13 = load i32, ptr %lo.addr
-  ret i32 %t13
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -156,5 +51,113 @@ endif:
   call void @free(ptr %t0)
   ; return
   ret i32 %t14
+}
+
+; function: elem
+; params: ptr, i32
+; returns: ptr
+define ptr @elem(ptr %a, i32 %idx) {
+entry:
+  ; return
+  %t0 = sext i32 %idx to i64
+  %t1 = getelementptr i32, ptr %a, i64 %t0
+  ret ptr %t1
+}
+
+; function: partition012
+; params: ptr
+; returns: i32
+define i32 @partition012(ptr %a) {
+entry:
+  %lo.addr = alloca i32
+  %mid.addr = alloca i32
+  %hi.addr = alloca i32
+  ; let lo
+  store i32 0, ptr %lo.addr
+  ; let mid
+  store i32 0, ptr %mid.addr
+  ; let hi
+  store i32 11, ptr %hi.addr
+  ; while condition
+  br label %while.pre
+while.pre:
+  br label %while.cond
+while.cond:
+  %t0 = load i32, ptr %mid.addr
+  %t1 = load i32, ptr %hi.addr
+  %t2 = icmp sle i32 %t0, %t1
+  br i1 %t2, label %while.body, label %while.exit-merge
+while.body:
+  ; while body
+  %t3 = load i32, ptr %mid.addr
+  %t4 = call ptr @elem(ptr %a, i32 %t3)
+  %t5 = load i32, ptr %t4
+  ; let v
+  ; if condition
+  %t6 = icmp eq i32 %t5, 0
+  br i1 %t6, label %then1, label %else1
+then1:
+  ; then
+  %t7 = load i32, ptr %lo.addr
+  %t8 = call ptr @elem(ptr %a, i32 %t7)
+  %t9 = load i32, ptr %t8
+  ; let tmp
+  %t10 = load i32, ptr %lo.addr
+  %t11 = call ptr @elem(ptr %a, i32 %t10)
+  store i32 %t5, ptr %t11
+  %t12 = load i32, ptr %mid.addr
+  %t13 = call ptr @elem(ptr %a, i32 %t12)
+  store i32 %t9, ptr %t13
+  ; set lo
+  %t14 = load i32, ptr %lo.addr
+  %t15 = add i32 %t14, 1
+  store i32 %t15, ptr %lo.addr
+  ; set mid
+  %t16 = load i32, ptr %mid.addr
+  %t17 = add i32 %t16, 1
+  store i32 %t17, ptr %mid.addr
+  br label %endif1
+else1:
+  ; else
+  ; if condition
+  %t18 = icmp eq i32 %t5, 2
+  br i1 %t18, label %then2, label %else2
+then2:
+  ; then
+  %t19 = load i32, ptr %hi.addr
+  %t20 = call ptr @elem(ptr %a, i32 %t19)
+  %t21 = load i32, ptr %t20
+  ; let tmp2
+  %t22 = load i32, ptr %hi.addr
+  %t23 = call ptr @elem(ptr %a, i32 %t22)
+  store i32 %t5, ptr %t23
+  %t24 = load i32, ptr %mid.addr
+  %t25 = call ptr @elem(ptr %a, i32 %t24)
+  store i32 %t21, ptr %t25
+  ; set hi
+  %t26 = load i32, ptr %hi.addr
+  %t27 = sub i32 %t26, 1
+  store i32 %t27, ptr %hi.addr
+  br label %endif2
+else2:
+  ; else
+  ; set mid
+  %t28 = load i32, ptr %mid.addr
+  %t29 = add i32 %t28, 1
+  store i32 %t29, ptr %mid.addr
+  br label %endif2
+endif2:
+  br label %endif1
+endif1:
+  br label %while.latch
+while.latch:
+  br label %while.cond
+while.exit-merge:
+  ; sync loop-carried locals to stack
+  br label %while.end
+while.end:
+  ; return
+  %t30 = load i32, ptr %lo.addr
+  ret i32 %t30
 }
 

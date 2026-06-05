@@ -7,66 +7,6 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
-; function: elem
-; params: ptr, i32
-; returns: ptr
-define ptr @elem(ptr %a, i32 %idx) {
-entry:
-  ; return
-  %t0 = sext i32 %idx to i64
-  %t1 = getelementptr i64, ptr %a, i64 %t0
-  ret ptr %t1
-}
-
-; function: dot8
-; params: ptr, ptr
-; returns: i64
-define i64 @dot8(ptr %a, ptr %b) {
-entry:
-  %i.addr = alloca i32
-  %sum.addr = alloca i64
-  ; let i
-  store i32 0, ptr %i.addr
-  ; let sum
-  store i64 0, ptr %sum.addr
-  ; while condition
-  br label %while.pre
-while.pre:
-  %sum.init0 = load i64, ptr %sum.addr
-  %i.init0 = load i32, ptr %i.addr
-  br label %while.cond
-while.cond:
-  %sum.phi0 = phi i64 [%sum.init0, %while.pre], [%sum.next0, %while.latch]
-  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
-  %t0 = icmp slt i32 %i.phi0, 8
-  br i1 %t0, label %while.body, label %while.exit-merge
-while.body:
-  ; while body
-  ; let va (deferred)
-  ; let vb (deferred)
-  ; set sum
-  %t1 = call ptr @elem(ptr %a, i32 %i.phi0)
-  %t2 = load i64, ptr %t1
-  %t3 = call ptr @elem(ptr %b, i32 %i.phi0)
-  %t4 = load i64, ptr %t3
-  %t5 = mul i64 %t2, %t4
-  %sum.next0 = add i64 %sum.phi0, %t5
-  ; set i
-  %i.next0 = add i32 %i.phi0, 1
-  br label %while.latch
-while.latch:
-  br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i64 %sum.phi0, ptr %sum.addr
-  store i32 %i.phi0, ptr %i.addr
-  br label %while.end
-while.end:
-  ; return
-  %t6 = load i64, ptr %sum.addr
-  ret i64 %t6
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -125,5 +65,65 @@ endif:
   ; return
   %t22 = trunc i64 %t21 to i32
   ret i32 %t22
+}
+
+; function: elem
+; params: ptr, i32
+; returns: ptr
+define ptr @elem(ptr %a, i32 %idx) {
+entry:
+  ; return
+  %t0 = sext i32 %idx to i64
+  %t1 = getelementptr i64, ptr %a, i64 %t0
+  ret ptr %t1
+}
+
+; function: dot8
+; params: ptr, ptr
+; returns: i64
+define i64 @dot8(ptr %a, ptr %b) {
+entry:
+  %i.addr = alloca i32
+  %sum.addr = alloca i64
+  ; let i
+  store i32 0, ptr %i.addr
+  ; let sum
+  store i64 0, ptr %sum.addr
+  ; while condition
+  br label %while.pre
+while.pre:
+  %sum.init0 = load i64, ptr %sum.addr
+  %i.init0 = load i32, ptr %i.addr
+  br label %while.cond
+while.cond:
+  %sum.phi0 = phi i64 [%sum.init0, %while.pre], [%sum.next0, %while.latch]
+  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
+  %t0 = icmp slt i32 %i.phi0, 8
+  br i1 %t0, label %while.body, label %while.exit-merge
+while.body:
+  ; while body
+  ; let va (deferred)
+  ; let vb (deferred)
+  ; set sum
+  %t1 = call ptr @elem(ptr %a, i32 %i.phi0)
+  %t2 = load i64, ptr %t1
+  %t3 = call ptr @elem(ptr %b, i32 %i.phi0)
+  %t4 = load i64, ptr %t3
+  %t5 = mul i64 %t2, %t4
+  %sum.next0 = add i64 %sum.phi0, %t5
+  ; set i
+  %i.next0 = add i32 %i.phi0, 1
+  br label %while.latch
+while.latch:
+  br label %while.cond
+while.exit-merge:
+  ; sync loop-carried locals to stack
+  store i64 %sum.phi0, ptr %sum.addr
+  store i32 %i.phi0, ptr %i.addr
+  br label %while.end
+while.end:
+  ; return
+  %t6 = load i64, ptr %sum.addr
+  ret i64 %t6
 }
 

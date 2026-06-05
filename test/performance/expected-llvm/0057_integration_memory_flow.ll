@@ -7,6 +7,21 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  %t0 = call ptr @malloc(i64 20)
+  ; let buffer
+  call void @write_values(ptr %t0, i32 5)
+  %t1 = call i32 @sum_values(ptr %t0, i32 5)
+  ; let result
+  call void @free(ptr %t0)
+  ; return
+  ret i32 %t1
+}
+
 ; function: write_values
 ; params: ptr, i32
 ; returns: void
@@ -88,20 +103,5 @@ while.end:
   ; return
   %t5 = load i32, ptr %sum.addr
   ret i32 %t5
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  %t0 = call ptr @malloc(i64 20)
-  ; let buffer
-  call void @write_values(ptr %t0, i32 5)
-  %t1 = call i32 @sum_values(ptr %t0, i32 5)
-  ; let result
-  call void @free(ptr %t0)
-  ; return
-  ret i32 %t1
 }
 

@@ -2,63 +2,6 @@
 ; source: test/performance/wir/0146_collatz_stats_i32.wir
 ; core-version: 1
 
-; function: collatz_steps
-; params: i32
-; returns: i32
-define i32 @collatz_steps(i32 %n) {
-entry:
-  %x.addr = alloca i32
-  %steps.addr = alloca i32
-  ; let x
-  store i32 %n, ptr %x.addr
-  ; let steps
-  store i32 0, ptr %steps.addr
-  ; while condition
-  br label %while.pre
-while.pre:
-  %x.init0 = load i32, ptr %x.addr
-  %steps.init0 = load i32, ptr %steps.addr
-  br label %while.cond
-while.cond:
-  %x.phi0 = phi i32 [%x.init0, %while.pre], [%x.merge1, %while.latch]
-  %steps.phi0 = phi i32 [%steps.init0, %while.pre], [%steps.next0, %while.latch]
-  %t0 = icmp ne i32 %x.phi0, 1
-  br i1 %t0, label %while.body, label %while.exit-merge
-while.body:
-  ; while body
-  ; if condition
-  %t1 = srem i32 %x.phi0, 2
-  %t2 = icmp eq i32 %t1, 0
-  br i1 %t2, label %then1, label %else1
-then1:
-  ; then
-  ; set x
-  %x.next10 = sdiv i32 %x.phi0, 2
-  br label %endif1
-else1:
-  ; else
-  ; set x
-  %t3 = mul i32 %x.phi0, 3
-  %x.next11 = add i32 %t3, 1
-  br label %endif1
-endif1:
-  %x.merge1 = phi i32 [%x.next10, %then1], [%x.next11, %else1]
-  ; set steps
-  %steps.next0 = add i32 %steps.phi0, 1
-  br label %while.latch
-while.latch:
-  br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %x.phi0, ptr %x.addr
-  store i32 %steps.phi0, ptr %steps.addr
-  br label %while.end
-while.end:
-  ; return
-  %t4 = load i32, ptr %steps.addr
-  ret i32 %t4
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -76,12 +19,10 @@ entry:
   ; while condition
   br label %while.pre
 while.pre:
-  %max_steps.init0 = load i32, ptr %max_steps.addr
   %sum_steps.init0 = load i32, ptr %sum_steps.addr
   %n.init0 = load i32, ptr %n.addr
   br label %while.cond
 while.cond:
-  %max_steps.phi0 = phi i32 [%max_steps.init0, %while.pre], [%max_steps.merge1, %while.latch]
   %sum_steps.phi0 = phi i32 [%sum_steps.init0, %while.pre], [%sum_steps.next0, %while.latch]
   %n.phi0 = phi i32 [%n.init0, %while.pre], [%n.next0, %while.latch]
   %t0 = icmp sle i32 %n.phi0, 80
@@ -91,15 +32,15 @@ while.body:
   %t1 = call i32 @collatz_steps(i32 %n.phi0)
   ; let s
   ; if condition
-  %t2 = icmp sgt i32 %t1, %max_steps.phi0
-  br i1 %t2, label %then1, label %endif1
+  %t2 = load i32, ptr %max_steps.addr
+  %t3 = icmp sgt i32 %t1, %t2
+  br i1 %t3, label %then1, label %endif1
 then1:
   ; then
   ; set max_steps
-  %max_steps.next10 = add i32 %t1, 0
+  store i32 %t1, ptr %max_steps.addr
   br label %endif1
 endif1:
-  %max_steps.merge1 = phi i32 [%max_steps.next10, %then1], [%max_steps.phi0, %while.body]
   ; set sum_steps
   %sum_steps.next0 = add i32 %sum_steps.phi0, %t1
   ; set n
@@ -109,15 +50,73 @@ while.latch:
   br label %while.cond
 while.exit-merge:
   ; sync loop-carried locals to stack
-  store i32 %max_steps.phi0, ptr %max_steps.addr
   store i32 %sum_steps.phi0, ptr %sum_steps.addr
   store i32 %n.phi0, ptr %n.addr
   br label %while.end
 while.end:
   ; return
-  %t3 = load i32, ptr %max_steps.addr
-  %t4 = load i32, ptr %sum_steps.addr
-  %t5 = add i32 %t3, %t4
-  ret i32 %t5
+  %t4 = load i32, ptr %max_steps.addr
+  %t5 = load i32, ptr %sum_steps.addr
+  %t6 = add i32 %t4, %t5
+  ret i32 %t6
+}
+
+; function: collatz_steps
+; params: i32
+; returns: i32
+define i32 @collatz_steps(i32 %n) {
+entry:
+  %x.addr = alloca i32
+  %steps.addr = alloca i32
+  ; let x
+  store i32 %n, ptr %x.addr
+  ; let steps
+  store i32 0, ptr %steps.addr
+  ; while condition
+  br label %while.pre
+while.pre:
+  %steps.init0 = load i32, ptr %steps.addr
+  br label %while.cond
+while.cond:
+  %steps.phi0 = phi i32 [%steps.init0, %while.pre], [%steps.next0, %while.latch]
+  %t0 = load i32, ptr %x.addr
+  %t1 = icmp ne i32 %t0, 1
+  br i1 %t1, label %while.body, label %while.exit-merge
+while.body:
+  ; while body
+  ; if condition
+  %t2 = load i32, ptr %x.addr
+  %t3 = srem i32 %t2, 2
+  %t4 = icmp eq i32 %t3, 0
+  br i1 %t4, label %then1, label %else1
+then1:
+  ; then
+  ; set x
+  %t5 = load i32, ptr %x.addr
+  %t6 = sdiv i32 %t5, 2
+  store i32 %t6, ptr %x.addr
+  br label %endif1
+else1:
+  ; else
+  ; set x
+  %t7 = load i32, ptr %x.addr
+  %t8 = mul i32 %t7, 3
+  %t9 = add i32 %t8, 1
+  store i32 %t9, ptr %x.addr
+  br label %endif1
+endif1:
+  ; set steps
+  %steps.next0 = add i32 %steps.phi0, 1
+  br label %while.latch
+while.latch:
+  br label %while.cond
+while.exit-merge:
+  ; sync loop-carried locals to stack
+  store i32 %steps.phi0, ptr %steps.addr
+  br label %while.end
+while.end:
+  ; return
+  %t10 = load i32, ptr %steps.addr
+  ret i32 %t10
 }
 

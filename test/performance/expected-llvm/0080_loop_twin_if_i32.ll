@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0080_loop_twin_if_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @run()
+  ret i32 %t0
+}
+
 ; function: run
 ; params: none
 ; returns: i32
@@ -16,11 +26,9 @@ entry:
   ; while condition
   br label %while.pre
 while.pre:
-  %x.init0 = load i32, ptr %x.addr
   %i.init0 = load i32, ptr %i.addr
   br label %while.cond
 while.cond:
-  %x.phi0 = phi i32 [%x.init0, %while.pre], [%x.merge1, %while.latch]
   %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
   %t0 = icmp slt i32 %i.phi0, 3
   br i1 %t0, label %while.body, label %while.exit-merge
@@ -32,20 +40,22 @@ while.body:
 then1:
   ; then
   ; set x
-  %x.next10 = add i32 %x.phi0, 1
+  %t2 = load i32, ptr %x.addr
+  %t3 = add i32 %t2, 1
+  store i32 %t3, ptr %x.addr
   br label %endif1
 endif1:
-  %x.merge1 = phi i32 [%x.next10, %then1], [%x.phi0, %while.body]
   ; if condition
-  %t2 = icmp eq i32 %i.phi0, 1
-  br i1 %t2, label %then2, label %endif2
+  %t4 = icmp eq i32 %i.phi0, 1
+  br i1 %t4, label %then2, label %endif2
 then2:
   ; then
   ; set x
-  %x.next20 = add i32 %x.merge1, 2
+  %t5 = load i32, ptr %x.addr
+  %t6 = add i32 %t5, 2
+  store i32 %t6, ptr %x.addr
   br label %endif2
 endif2:
-  %x.merge2 = phi i32 [%x.next20, %then2], [%x.merge1, %endif1]
   ; set i
   %i.next0 = add i32 %i.phi0, 1
   br label %while.latch
@@ -53,22 +63,11 @@ while.latch:
   br label %while.cond
 while.exit-merge:
   ; sync loop-carried locals to stack
-  store i32 %x.phi0, ptr %x.addr
   store i32 %i.phi0, ptr %i.addr
   br label %while.end
 while.end:
   ; return
-  %t3 = load i32, ptr %x.addr
-  ret i32 %t3
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @run()
-  ret i32 %t0
+  %t7 = load i32, ptr %x.addr
+  ret i32 %t7
 }
 

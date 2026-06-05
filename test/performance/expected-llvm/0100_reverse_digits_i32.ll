@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0100_reverse_digits_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @reverse_digits(i32 12034)
+  ret i32 %t0
+}
+
 ; function: reverse_digits
 ; params: i32
 ; returns: i32
@@ -44,15 +54,5 @@ while.end:
   ; return
   %t3 = load i32, ptr %rev.addr
   ret i32 %t3
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @reverse_digits(i32 12034)
-  ret i32 %t0
 }
 

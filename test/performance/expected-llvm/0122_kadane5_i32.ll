@@ -7,89 +7,6 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
-; function: elem_ptr
-; params: ptr, i32
-; returns: ptr
-define ptr @elem_ptr(ptr %base, i32 %index) {
-entry:
-  ; return
-  %t0 = sext i32 %index to i64
-  %t1 = getelementptr i32, ptr %base, i64 %t0
-  ret ptr %t1
-}
-
-; function: kadane5
-; params: ptr
-; returns: i32
-define i32 @kadane5(ptr %items) {
-entry:
-  %i.addr = alloca i32
-  %best.addr = alloca i32
-  %cur.addr = alloca i32
-  ; let i
-  store i32 0, ptr %i.addr
-  ; let best
-  store i32 -2147483648, ptr %best.addr
-  ; let cur
-  store i32 0, ptr %cur.addr
-  ; while condition
-  br label %while.pre
-while.pre:
-  %best.init0 = load i32, ptr %best.addr
-  %i.init0 = load i32, ptr %i.addr
-  br label %while.cond
-while.cond:
-  %best.phi0 = phi i32 [%best.init0, %while.pre], [%best.merge2, %while.latch]
-  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
-  %t0 = icmp slt i32 %i.phi0, 5
-  br i1 %t0, label %while.body, label %while.exit-merge
-while.body:
-  ; while body
-  %t1 = call ptr @elem_ptr(ptr %items, i32 %i.phi0)
-  %t2 = load i32, ptr %t1
-  ; let v
-  ; set cur
-  %t3 = load i32, ptr %cur.addr
-  %t4 = add i32 %t3, %t2
-  store i32 %t4, ptr %cur.addr
-  ; if condition
-  %t5 = load i32, ptr %cur.addr
-  %t6 = icmp slt i32 %t5, %t2
-  br i1 %t6, label %then1, label %endif1
-then1:
-  ; then
-  ; set cur
-  store i32 %t2, ptr %cur.addr
-  br label %endif1
-endif1:
-  ; if condition
-  %t7 = load i32, ptr %cur.addr
-  %t8 = icmp sgt i32 %t7, %best.phi0
-  br i1 %t8, label %then2, label %endif2
-then2:
-  ; then
-  ; set best
-  %t9 = load i32, ptr %cur.addr
-  %best.next20 = add i32 %t9, 0
-  br label %endif2
-endif2:
-  %best.merge2 = phi i32 [%best.next20, %then2], [%best.phi0, %endif1]
-  ; set i
-  %i.next0 = add i32 %i.phi0, 1
-  br label %while.latch
-while.latch:
-  br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %best.phi0, ptr %best.addr
-  store i32 %i.phi0, ptr %i.addr
-  br label %while.end
-while.end:
-  ; return
-  %t10 = load i32, ptr %best.addr
-  ret i32 %t10
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -120,5 +37,85 @@ endif:
   call void @free(ptr %t0)
   ; return
   ret i32 %t7
+}
+
+; function: elem_ptr
+; params: ptr, i32
+; returns: ptr
+define ptr @elem_ptr(ptr %base, i32 %index) {
+entry:
+  ; return
+  %t0 = sext i32 %index to i64
+  %t1 = getelementptr i32, ptr %base, i64 %t0
+  ret ptr %t1
+}
+
+; function: kadane5
+; params: ptr
+; returns: i32
+define i32 @kadane5(ptr %items) {
+entry:
+  %i.addr = alloca i32
+  %best.addr = alloca i32
+  %cur.addr = alloca i32
+  ; let i
+  store i32 0, ptr %i.addr
+  ; let best
+  store i32 -2147483648, ptr %best.addr
+  ; let cur
+  store i32 0, ptr %cur.addr
+  ; while condition
+  br label %while.pre
+while.pre:
+  %i.init0 = load i32, ptr %i.addr
+  br label %while.cond
+while.cond:
+  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
+  %t0 = icmp slt i32 %i.phi0, 5
+  br i1 %t0, label %while.body, label %while.exit-merge
+while.body:
+  ; while body
+  %t1 = call ptr @elem_ptr(ptr %items, i32 %i.phi0)
+  %t2 = load i32, ptr %t1
+  ; let v
+  ; set cur
+  %t3 = load i32, ptr %cur.addr
+  %t4 = add i32 %t3, %t2
+  store i32 %t4, ptr %cur.addr
+  ; if condition
+  %t5 = load i32, ptr %cur.addr
+  %t6 = icmp slt i32 %t5, %t2
+  br i1 %t6, label %then1, label %endif1
+then1:
+  ; then
+  ; set cur
+  store i32 %t2, ptr %cur.addr
+  br label %endif1
+endif1:
+  ; if condition
+  %t7 = load i32, ptr %cur.addr
+  %t8 = load i32, ptr %best.addr
+  %t9 = icmp sgt i32 %t7, %t8
+  br i1 %t9, label %then2, label %endif2
+then2:
+  ; then
+  ; set best
+  %t10 = load i32, ptr %cur.addr
+  store i32 %t10, ptr %best.addr
+  br label %endif2
+endif2:
+  ; set i
+  %i.next0 = add i32 %i.phi0, 1
+  br label %while.latch
+while.latch:
+  br label %while.cond
+while.exit-merge:
+  ; sync loop-carried locals to stack
+  store i32 %i.phi0, ptr %i.addr
+  br label %while.end
+while.end:
+  ; return
+  %t11 = load i32, ptr %best.addr
+  ret i32 %t11
 }
 

@@ -7,6 +7,28 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  %t0 = call ptr @malloc(i64 288)
+  ; let dp
+  ; if condition
+  %t1 = icmp eq ptr %t0, null
+  br i1 %t1, label %then, label %endif
+then:
+  ; then
+  ; return
+  ret i32 0
+endif:
+  %t2 = call i32 @knapsack5(ptr %t0)
+  ; let best
+  call void @free(ptr %t0)
+  ; return
+  ret i32 %t2
+}
+
 ; function: dp_at
 ; params: ptr, i32, i32
 ; returns: ptr
@@ -209,27 +231,5 @@ while.end:
   %t31 = call ptr @dp_at(ptr %dp, i32 5, i32 11)
   %t32 = load i32, ptr %t31
   ret i32 %t32
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  %t0 = call ptr @malloc(i64 288)
-  ; let dp
-  ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
-then:
-  ; then
-  ; return
-  ret i32 0
-endif:
-  %t2 = call i32 @knapsack5(ptr %t0)
-  ; let best
-  call void @free(ptr %t0)
-  ; return
-  ret i32 %t2
 }
 

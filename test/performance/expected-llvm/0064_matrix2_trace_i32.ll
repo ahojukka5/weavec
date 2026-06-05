@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0064_matrix2_trace_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @trace_mul2(i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8)
+  ret i32 %t0
+}
+
 ; function: trace_mul2
 ; params: i32, i32, i32, i32, i32, i32, i32, i32
 ; returns: i32
@@ -18,15 +28,5 @@ entry:
   ; return
   %t6 = add i32 %t2, %t5
   ret i32 %t6
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @trace_mul2(i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8)
-  ret i32 %t0
 }
 

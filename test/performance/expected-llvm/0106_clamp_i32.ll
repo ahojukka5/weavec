@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0106_clamp_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @clamp(i32 150, i32 10, i32 99)
+  ret i32 %t0
+}
+
 ; function: clamp
 ; params: i32, i32, i32
 ; returns: i32
@@ -33,15 +43,5 @@ endif1:
   ; return
   %t4 = load i32, ptr %out.addr
   ret i32 %t4
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @clamp(i32 150, i32 10, i32 99)
-  ret i32 %t0
 }
 

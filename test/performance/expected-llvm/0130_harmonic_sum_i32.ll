@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0130_harmonic_sum_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @harmonic_scaled(i32 10)
+  ret i32 %t0
+}
+
 ; function: harmonic_scaled
 ; params: i32
 ; returns: i32
@@ -43,15 +53,5 @@ while.end:
   ; return
   %t2 = load i32, ptr %total.addr
   ret i32 %t2
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @harmonic_scaled(i32 10)
-  ret i32 %t0
 }
 

@@ -2,16 +2,6 @@
 ; source: test/performance/wir/0040_call_bool_direct.wir
 ; core-version: 1
 
-; function: is_answer
-; params: i32
-; returns: i1
-define i1 @is_answer(i32 %x) {
-entry:
-  ; return
-  %t0 = icmp eq i32 %x, 42
-  ret i1 %t0
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -28,5 +18,15 @@ else:
   ; else
   ; return
   ret i32 0
+}
+
+; function: is_answer
+; params: i32
+; returns: i1
+define i1 @is_answer(i32 %x) {
+entry:
+  ; return
+  %t0 = icmp eq i32 %x, 42
+  ret i1 %t0
 }
 

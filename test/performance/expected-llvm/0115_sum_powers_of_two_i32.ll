@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0115_sum_powers_of_two_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @sum_powers(i32 5)
+  ret i32 %t0
+}
+
 ; function: sum_powers
 ; params: i32
 ; returns: i32
@@ -50,15 +60,5 @@ while.end:
   ; return
   %t1 = load i32, ptr %total.addr
   ret i32 %t1
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @sum_powers(i32 5)
-  ret i32 %t0
 }
 

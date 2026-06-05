@@ -7,71 +7,6 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
-; function: elem_ptr
-; params: ptr, i32
-; returns: ptr
-define ptr @elem_ptr(ptr %base, i32 %index) {
-entry:
-  ; return
-  %t0 = sext i32 %index to i64
-  %t1 = getelementptr i32, ptr %base, i64 %t0
-  ret ptr %t1
-}
-
-; function: find5
-; params: ptr, i32
-; returns: i32
-define i32 @find5(ptr %items, i32 %target) {
-entry:
-  %i.addr = alloca i32
-  %found.addr = alloca i32
-  ; let i
-  store i32 0, ptr %i.addr
-  ; let found
-  store i32 -1, ptr %found.addr
-  ; while condition
-  br label %while.pre
-while.pre:
-  %found.init0 = load i32, ptr %found.addr
-  %i.init0 = load i32, ptr %i.addr
-  br label %while.cond
-while.cond:
-  %found.phi0 = phi i32 [%found.init0, %while.pre], [%found.merge1, %while.latch]
-  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
-  %t0 = icmp slt i32 %i.phi0, 5
-  br i1 %t0, label %while.body, label %while.exit-merge
-while.body:
-  ; while body
-  ; if condition
-  %t1 = call ptr @elem_ptr(ptr %items, i32 %i.phi0)
-  %t2 = load i32, ptr %t1
-  %t3 = icmp eq i32 %t2, %target
-  %t4 = icmp eq i32 %found.phi0, -1
-  %t5 = and i1 %t3, %t4
-  br i1 %t5, label %then1, label %endif1
-then1:
-  ; then
-  ; set found
-  %found.next10 = add i32 %i.phi0, 0
-  br label %endif1
-endif1:
-  %found.merge1 = phi i32 [%found.next10, %then1], [%found.phi0, %while.body]
-  ; set i
-  %i.next0 = add i32 %i.phi0, 1
-  br label %while.latch
-while.latch:
-  br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %found.phi0, ptr %found.addr
-  store i32 %i.phi0, ptr %i.addr
-  br label %while.end
-while.end:
-  ; return
-  %t6 = load i32, ptr %found.addr
-  ret i32 %t6
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -101,6 +36,68 @@ endif:
   ; let idx
   call void @free(ptr %t0)
   ; return
+  ret i32 %t7
+}
+
+; function: elem_ptr
+; params: ptr, i32
+; returns: ptr
+define ptr @elem_ptr(ptr %base, i32 %index) {
+entry:
+  ; return
+  %t0 = sext i32 %index to i64
+  %t1 = getelementptr i32, ptr %base, i64 %t0
+  ret ptr %t1
+}
+
+; function: find5
+; params: ptr, i32
+; returns: i32
+define i32 @find5(ptr %items, i32 %target) {
+entry:
+  %i.addr = alloca i32
+  %found.addr = alloca i32
+  ; let i
+  store i32 0, ptr %i.addr
+  ; let found
+  store i32 -1, ptr %found.addr
+  ; while condition
+  br label %while.pre
+while.pre:
+  %i.init0 = load i32, ptr %i.addr
+  br label %while.cond
+while.cond:
+  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
+  %t0 = icmp slt i32 %i.phi0, 5
+  br i1 %t0, label %while.body, label %while.exit-merge
+while.body:
+  ; while body
+  ; if condition
+  %t1 = call ptr @elem_ptr(ptr %items, i32 %i.phi0)
+  %t2 = load i32, ptr %t1
+  %t3 = icmp eq i32 %t2, %target
+  %t4 = load i32, ptr %found.addr
+  %t5 = icmp eq i32 %t4, -1
+  %t6 = and i1 %t3, %t5
+  br i1 %t6, label %then1, label %endif1
+then1:
+  ; then
+  ; set found
+  store i32 %i.phi0, ptr %found.addr
+  br label %endif1
+endif1:
+  ; set i
+  %i.next0 = add i32 %i.phi0, 1
+  br label %while.latch
+while.latch:
+  br label %while.cond
+while.exit-merge:
+  ; sync loop-carried locals to stack
+  store i32 %i.phi0, ptr %i.addr
+  br label %while.end
+while.end:
+  ; return
+  %t7 = load i32, ptr %found.addr
   ret i32 %t7
 }
 

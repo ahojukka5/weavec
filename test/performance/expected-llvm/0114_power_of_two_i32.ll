@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0114_power_of_two_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @is_pow2(i32 64)
+  ret i32 %t0
+}
+
 ; function: is_pow2
 ; params: i32
 ; returns: i32
@@ -54,15 +64,5 @@ else2:
   ; else
   ; return
   ret i32 0
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @is_pow2(i32 64)
-  ret i32 %t0
 }
 

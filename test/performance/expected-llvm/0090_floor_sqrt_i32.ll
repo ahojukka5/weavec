@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0090_floor_sqrt_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @floor_sqrt(i32 200)
+  ret i32 %t0
+}
+
 ; function: floor_sqrt
 ; params: i32
 ; returns: i32
@@ -42,15 +52,5 @@ while.end:
   ; return
   %t2 = load i32, ptr %r.addr
   ret i32 %t2
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @floor_sqrt(i32 200)
-  ret i32 %t0
 }
 

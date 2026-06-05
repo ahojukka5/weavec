@@ -2,6 +2,18 @@
 ; source: test/performance/wir/0162_bitwise_mix_i64.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i64 @mix64(i64 0)
+  %t1 = srem i64 %t0, 1000000007
+  %t2 = trunc i64 %t1 to i32
+  ret i32 %t2
+}
+
 ; function: mix64
 ; params: i64
 ; returns: i64
@@ -46,17 +58,5 @@ while.end:
   ; return
   %t5 = load i64, ptr %x.addr
   ret i64 %t5
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i64 @mix64(i64 0)
-  %t1 = srem i64 %t0, 1000000007
-  %t2 = trunc i64 %t1 to i32
-  ret i32 %t2
 }
 

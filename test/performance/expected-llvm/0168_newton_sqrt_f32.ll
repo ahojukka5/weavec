@@ -2,6 +2,20 @@
 ; source: test/performance/wir/0168_newton_sqrt_f32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = sitofp i32 2 to float
+  %t1 = call float @sqrt_newton(float %t0)
+  %t2 = sitofp i32 1000 to float
+  %t3 = fmul float %t1, %t2
+  %t4 = fptosi float %t3 to i32
+  ret i32 %t4
+}
+
 ; function: sqrt_newton
 ; params: float
 ; returns: float
@@ -49,19 +63,5 @@ while.end:
   ; return
   %t11 = load float, ptr %guess.addr
   ret float %t11
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = sitofp i32 2 to float
-  %t1 = call float @sqrt_newton(float %t0)
-  %t2 = sitofp i32 1000 to float
-  %t3 = fmul float %t1, %t2
-  %t4 = fptosi float %t3 to i32
-  ret i32 %t4
 }
 

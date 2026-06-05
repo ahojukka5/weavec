@@ -7,69 +7,6 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
-; function: elem_ptr
-; params: ptr, i32
-; returns: ptr
-define ptr @elem_ptr(ptr %base, i32 %index) {
-entry:
-  ; return
-  %t0 = sext i32 %index to i64
-  %t1 = getelementptr i32, ptr %base, i64 %t0
-  ret ptr %t1
-}
-
-; function: count_positive5
-; params: ptr
-; returns: i32
-define i32 @count_positive5(ptr %items) {
-entry:
-  %i.addr = alloca i32
-  %count.addr = alloca i32
-  ; let i
-  store i32 0, ptr %i.addr
-  ; let count
-  store i32 0, ptr %count.addr
-  ; while condition
-  br label %while.pre
-while.pre:
-  %count.init0 = load i32, ptr %count.addr
-  %i.init0 = load i32, ptr %i.addr
-  br label %while.cond
-while.cond:
-  %count.phi0 = phi i32 [%count.init0, %while.pre], [%count.merge1, %while.latch]
-  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
-  %t0 = icmp slt i32 %i.phi0, 5
-  br i1 %t0, label %while.body, label %while.exit-merge
-while.body:
-  ; while body
-  ; if condition
-  %t1 = call ptr @elem_ptr(ptr %items, i32 %i.phi0)
-  %t2 = load i32, ptr %t1
-  %t3 = icmp sgt i32 %t2, 0
-  br i1 %t3, label %then1, label %endif1
-then1:
-  ; then
-  ; set count
-  %count.next10 = add i32 %count.phi0, 1
-  br label %endif1
-endif1:
-  %count.merge1 = phi i32 [%count.next10, %then1], [%count.phi0, %while.body]
-  ; set i
-  %i.next0 = add i32 %i.phi0, 1
-  br label %while.latch
-while.latch:
-  br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %count.phi0, ptr %count.addr
-  store i32 %i.phi0, ptr %i.addr
-  br label %while.end
-while.end:
-  ; return
-  %t4 = load i32, ptr %count.addr
-  ret i32 %t4
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -100,5 +37,66 @@ endif:
   call void @free(ptr %t0)
   ; return
   ret i32 %t7
+}
+
+; function: elem_ptr
+; params: ptr, i32
+; returns: ptr
+define ptr @elem_ptr(ptr %base, i32 %index) {
+entry:
+  ; return
+  %t0 = sext i32 %index to i64
+  %t1 = getelementptr i32, ptr %base, i64 %t0
+  ret ptr %t1
+}
+
+; function: count_positive5
+; params: ptr
+; returns: i32
+define i32 @count_positive5(ptr %items) {
+entry:
+  %i.addr = alloca i32
+  %count.addr = alloca i32
+  ; let i
+  store i32 0, ptr %i.addr
+  ; let count
+  store i32 0, ptr %count.addr
+  ; while condition
+  br label %while.pre
+while.pre:
+  %i.init0 = load i32, ptr %i.addr
+  br label %while.cond
+while.cond:
+  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
+  %t0 = icmp slt i32 %i.phi0, 5
+  br i1 %t0, label %while.body, label %while.exit-merge
+while.body:
+  ; while body
+  ; if condition
+  %t1 = call ptr @elem_ptr(ptr %items, i32 %i.phi0)
+  %t2 = load i32, ptr %t1
+  %t3 = icmp sgt i32 %t2, 0
+  br i1 %t3, label %then1, label %endif1
+then1:
+  ; then
+  ; set count
+  %t4 = load i32, ptr %count.addr
+  %t5 = add i32 %t4, 1
+  store i32 %t5, ptr %count.addr
+  br label %endif1
+endif1:
+  ; set i
+  %i.next0 = add i32 %i.phi0, 1
+  br label %while.latch
+while.latch:
+  br label %while.cond
+while.exit-merge:
+  ; sync loop-carried locals to stack
+  store i32 %i.phi0, ptr %i.addr
+  br label %while.end
+while.end:
+  ; return
+  %t6 = load i32, ptr %count.addr
+  ret i32 %t6
 }
 

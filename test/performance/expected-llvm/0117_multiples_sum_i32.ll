@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0117_multiples_sum_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @sum_multiples_below(i32 20)
+  ret i32 %t0
+}
+
 ; function: sum_multiples_below
 ; params: i32
 ; returns: i32
@@ -16,11 +26,9 @@ entry:
   ; while condition
   br label %while.pre
 while.pre:
-  %total.init0 = load i32, ptr %total.addr
   %i.init0 = load i32, ptr %i.addr
   br label %while.cond
 while.cond:
-  %total.phi0 = phi i32 [%total.init0, %while.pre], [%total.merge1, %while.latch]
   %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
   %t0 = icmp slt i32 %i.phi0, %n
   br i1 %t0, label %while.body, label %while.exit-merge
@@ -36,10 +44,11 @@ while.body:
 then1:
   ; then
   ; set total
-  %total.next10 = add i32 %total.phi0, %i.phi0
+  %t6 = load i32, ptr %total.addr
+  %t7 = add i32 %t6, %i.phi0
+  store i32 %t7, ptr %total.addr
   br label %endif1
 endif1:
-  %total.merge1 = phi i32 [%total.next10, %then1], [%total.phi0, %while.body]
   ; set i
   %i.next0 = add i32 %i.phi0, 1
   br label %while.latch
@@ -47,22 +56,11 @@ while.latch:
   br label %while.cond
 while.exit-merge:
   ; sync loop-carried locals to stack
-  store i32 %total.phi0, ptr %total.addr
   store i32 %i.phi0, ptr %i.addr
   br label %while.end
 while.end:
   ; return
-  %t6 = load i32, ptr %total.addr
-  ret i32 %t6
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @sum_multiples_below(i32 20)
-  ret i32 %t0
+  %t8 = load i32, ptr %total.addr
+  ret i32 %t8
 }
 

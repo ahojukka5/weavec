@@ -7,6 +7,49 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  %t0 = call ptr @malloc(i64 32)
+  ; let items
+  ; if condition
+  %t1 = icmp eq ptr %t0, null
+  br i1 %t1, label %then, label %endif
+then:
+  ; then
+  ; return
+  ret i32 0
+endif:
+  %t2 = call ptr @elem_ptr(ptr %t0, i32 0)
+  store i32 8, ptr %t2
+  %t3 = call ptr @elem_ptr(ptr %t0, i32 1)
+  store i32 3, ptr %t3
+  %t4 = call ptr @elem_ptr(ptr %t0, i32 2)
+  store i32 7, ptr %t4
+  %t5 = call ptr @elem_ptr(ptr %t0, i32 3)
+  store i32 1, ptr %t5
+  %t6 = call ptr @elem_ptr(ptr %t0, i32 4)
+  store i32 6, ptr %t6
+  %t7 = call ptr @elem_ptr(ptr %t0, i32 5)
+  store i32 2, ptr %t7
+  %t8 = call ptr @elem_ptr(ptr %t0, i32 6)
+  store i32 5, ptr %t8
+  %t9 = call ptr @elem_ptr(ptr %t0, i32 7)
+  store i32 4, ptr %t9
+  call void @bubble_sort8(ptr %t0)
+  %t10 = call ptr @elem_ptr(ptr %t0, i32 0)
+  %t11 = load i32, ptr %t10
+  %t12 = call ptr @elem_ptr(ptr %t0, i32 7)
+  %t13 = load i32, ptr %t12
+  %t14 = add i32 %t11, %t13
+  ; let sum
+  call void @free(ptr %t0)
+  ; return
+  ret i32 %t14
+}
+
 ; function: elem_ptr
 ; params: ptr, i32
 ; returns: ptr
@@ -86,48 +129,5 @@ while.end1:
   br label %while.cond
 while.end:
   ret void
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  %t0 = call ptr @malloc(i64 32)
-  ; let items
-  ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
-then:
-  ; then
-  ; return
-  ret i32 0
-endif:
-  %t2 = call ptr @elem_ptr(ptr %t0, i32 0)
-  store i32 8, ptr %t2
-  %t3 = call ptr @elem_ptr(ptr %t0, i32 1)
-  store i32 3, ptr %t3
-  %t4 = call ptr @elem_ptr(ptr %t0, i32 2)
-  store i32 7, ptr %t4
-  %t5 = call ptr @elem_ptr(ptr %t0, i32 3)
-  store i32 1, ptr %t5
-  %t6 = call ptr @elem_ptr(ptr %t0, i32 4)
-  store i32 6, ptr %t6
-  %t7 = call ptr @elem_ptr(ptr %t0, i32 5)
-  store i32 2, ptr %t7
-  %t8 = call ptr @elem_ptr(ptr %t0, i32 6)
-  store i32 5, ptr %t8
-  %t9 = call ptr @elem_ptr(ptr %t0, i32 7)
-  store i32 4, ptr %t9
-  call void @bubble_sort8(ptr %t0)
-  %t10 = call ptr @elem_ptr(ptr %t0, i32 0)
-  %t11 = load i32, ptr %t10
-  %t12 = call ptr @elem_ptr(ptr %t0, i32 7)
-  %t13 = load i32, ptr %t12
-  %t14 = add i32 %t11, %t13
-  ; let sum
-  call void @free(ptr %t0)
-  ; return
-  ret i32 %t14
 }
 

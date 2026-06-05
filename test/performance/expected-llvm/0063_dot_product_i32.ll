@@ -7,6 +7,49 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  %t0 = call ptr @malloc(i64 16)
+  ; let a
+  %t1 = call ptr @malloc(i64 16)
+  ; let b
+  ; if condition
+  %t2 = icmp eq ptr %t0, null
+  %t3 = icmp eq ptr %t1, null
+  %t4 = or i1 %t2, %t3
+  br i1 %t4, label %then, label %endif
+then:
+  ; then
+  ; return
+  ret i32 0
+endif:
+  %t5 = call ptr @i32_at(ptr %t0, i32 0)
+  store i32 1, ptr %t5
+  %t6 = call ptr @i32_at(ptr %t0, i32 1)
+  store i32 2, ptr %t6
+  %t7 = call ptr @i32_at(ptr %t0, i32 2)
+  store i32 3, ptr %t7
+  %t8 = call ptr @i32_at(ptr %t0, i32 3)
+  store i32 4, ptr %t8
+  %t9 = call ptr @i32_at(ptr %t1, i32 0)
+  store i32 5, ptr %t9
+  %t10 = call ptr @i32_at(ptr %t1, i32 1)
+  store i32 6, ptr %t10
+  %t11 = call ptr @i32_at(ptr %t1, i32 2)
+  store i32 7, ptr %t11
+  %t12 = call ptr @i32_at(ptr %t1, i32 3)
+  store i32 8, ptr %t12
+  %t13 = call i32 @dot4(ptr %t0, ptr %t1)
+  ; let result
+  call void @free(ptr %t1)
+  call void @free(ptr %t0)
+  ; return
+  ret i32 %t13
+}
+
 ; function: i32_at
 ; params: ptr, i32
 ; returns: ptr
@@ -65,48 +108,5 @@ while.end:
   ; return
   %t6 = load i32, ptr %sum.addr
   ret i32 %t6
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  %t0 = call ptr @malloc(i64 16)
-  ; let a
-  %t1 = call ptr @malloc(i64 16)
-  ; let b
-  ; if condition
-  %t2 = icmp eq ptr %t0, null
-  %t3 = icmp eq ptr %t1, null
-  %t4 = or i1 %t2, %t3
-  br i1 %t4, label %then, label %endif
-then:
-  ; then
-  ; return
-  ret i32 0
-endif:
-  %t5 = call ptr @i32_at(ptr %t0, i32 0)
-  store i32 1, ptr %t5
-  %t6 = call ptr @i32_at(ptr %t0, i32 1)
-  store i32 2, ptr %t6
-  %t7 = call ptr @i32_at(ptr %t0, i32 2)
-  store i32 3, ptr %t7
-  %t8 = call ptr @i32_at(ptr %t0, i32 3)
-  store i32 4, ptr %t8
-  %t9 = call ptr @i32_at(ptr %t1, i32 0)
-  store i32 5, ptr %t9
-  %t10 = call ptr @i32_at(ptr %t1, i32 1)
-  store i32 6, ptr %t10
-  %t11 = call ptr @i32_at(ptr %t1, i32 2)
-  store i32 7, ptr %t11
-  %t12 = call ptr @i32_at(ptr %t1, i32 3)
-  store i32 8, ptr %t12
-  %t13 = call i32 @dot4(ptr %t0, ptr %t1)
-  ; let result
-  call void @free(ptr %t1)
-  call void @free(ptr %t0)
-  ; return
-  ret i32 %t13
 }
 

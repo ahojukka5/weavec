@@ -2,6 +2,17 @@
 ; source: test/performance/wir/0070_horner_polynomial_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @horner3(i32 3)
+  %t1 = sub i32 %t0, 11
+  ret i32 %t1
+}
+
 ; function: horner3
 ; params: i32
 ; returns: i32
@@ -44,16 +55,5 @@ while.end:
   ; return
   %t2 = load i32, ptr %acc.addr
   ret i32 %t2
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @horner3(i32 3)
-  %t1 = sub i32 %t0, 11
-  ret i32 %t1
 }
 

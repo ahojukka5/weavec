@@ -7,70 +7,6 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
-; function: elem_ptr
-; params: ptr, i32
-; returns: ptr
-define ptr @elem_ptr(ptr %base, i32 %index) {
-entry:
-  ; return
-  %t0 = sext i32 %index to i64
-  %t1 = getelementptr i32, ptr %base, i64 %t0
-  ret ptr %t1
-}
-
-; function: count_evens5
-; params: ptr
-; returns: i32
-define i32 @count_evens5(ptr %items) {
-entry:
-  %i.addr = alloca i32
-  %evens.addr = alloca i32
-  ; let i
-  store i32 0, ptr %i.addr
-  ; let evens
-  store i32 0, ptr %evens.addr
-  ; while condition
-  br label %while.pre
-while.pre:
-  %evens.init0 = load i32, ptr %evens.addr
-  %i.init0 = load i32, ptr %i.addr
-  br label %while.cond
-while.cond:
-  %evens.phi0 = phi i32 [%evens.init0, %while.pre], [%evens.merge1, %while.latch]
-  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
-  %t0 = icmp slt i32 %i.phi0, 5
-  br i1 %t0, label %while.body, label %while.exit-merge
-while.body:
-  ; while body
-  ; if condition
-  %t1 = call ptr @elem_ptr(ptr %items, i32 %i.phi0)
-  %t2 = load i32, ptr %t1
-  %t3 = srem i32 %t2, 2
-  %t4 = icmp eq i32 %t3, 0
-  br i1 %t4, label %then1, label %endif1
-then1:
-  ; then
-  ; set evens
-  %evens.next10 = add i32 %evens.phi0, 1
-  br label %endif1
-endif1:
-  %evens.merge1 = phi i32 [%evens.next10, %then1], [%evens.phi0, %while.body]
-  ; set i
-  %i.next0 = add i32 %i.phi0, 1
-  br label %while.latch
-while.latch:
-  br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %evens.phi0, ptr %evens.addr
-  store i32 %i.phi0, ptr %i.addr
-  br label %while.end
-while.end:
-  ; return
-  %t5 = load i32, ptr %evens.addr
-  ret i32 %t5
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -100,6 +36,68 @@ endif:
   ; let n
   call void @free(ptr %t0)
   ; return
+  ret i32 %t7
+}
+
+; function: elem_ptr
+; params: ptr, i32
+; returns: ptr
+define ptr @elem_ptr(ptr %base, i32 %index) {
+entry:
+  ; return
+  %t0 = sext i32 %index to i64
+  %t1 = getelementptr i32, ptr %base, i64 %t0
+  ret ptr %t1
+}
+
+; function: count_evens5
+; params: ptr
+; returns: i32
+define i32 @count_evens5(ptr %items) {
+entry:
+  %i.addr = alloca i32
+  %evens.addr = alloca i32
+  ; let i
+  store i32 0, ptr %i.addr
+  ; let evens
+  store i32 0, ptr %evens.addr
+  ; while condition
+  br label %while.pre
+while.pre:
+  %i.init0 = load i32, ptr %i.addr
+  br label %while.cond
+while.cond:
+  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
+  %t0 = icmp slt i32 %i.phi0, 5
+  br i1 %t0, label %while.body, label %while.exit-merge
+while.body:
+  ; while body
+  ; if condition
+  %t1 = call ptr @elem_ptr(ptr %items, i32 %i.phi0)
+  %t2 = load i32, ptr %t1
+  %t3 = srem i32 %t2, 2
+  %t4 = icmp eq i32 %t3, 0
+  br i1 %t4, label %then1, label %endif1
+then1:
+  ; then
+  ; set evens
+  %t5 = load i32, ptr %evens.addr
+  %t6 = add i32 %t5, 1
+  store i32 %t6, ptr %evens.addr
+  br label %endif1
+endif1:
+  ; set i
+  %i.next0 = add i32 %i.phi0, 1
+  br label %while.latch
+while.latch:
+  br label %while.cond
+while.exit-merge:
+  ; sync loop-carried locals to stack
+  store i32 %i.phi0, ptr %i.addr
+  br label %while.end
+while.end:
+  ; return
+  %t7 = load i32, ptr %evens.addr
   ret i32 %t7
 }
 

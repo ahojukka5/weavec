@@ -7,6 +7,40 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  %t0 = call ptr @malloc(i64 20)
+  ; let items
+  ; if condition
+  %t1 = icmp eq ptr %t0, null
+  br i1 %t1, label %then, label %endif
+then:
+  ; then
+  ; return
+  ret i32 0
+endif:
+  %t2 = call ptr @elem_ptr(ptr %t0, i32 0)
+  store i32 5, ptr %t2
+  %t3 = call ptr @elem_ptr(ptr %t0, i32 1)
+  store i32 1, ptr %t3
+  %t4 = call ptr @elem_ptr(ptr %t0, i32 2)
+  store i32 4, ptr %t4
+  %t5 = call ptr @elem_ptr(ptr %t0, i32 3)
+  store i32 2, ptr %t5
+  %t6 = call ptr @elem_ptr(ptr %t0, i32 4)
+  store i32 3, ptr %t6
+  call void @bubble_sort5(ptr %t0)
+  %t7 = call ptr @elem_ptr(ptr %t0, i32 0)
+  %t8 = load i32, ptr %t7
+  ; let first
+  call void @free(ptr %t0)
+  ; return
+  ret i32 %t8
+}
+
 ; function: elem_ptr
 ; params: ptr, i32
 ; returns: ptr
@@ -86,39 +120,5 @@ while.end1:
   br label %while.cond
 while.end:
   ret void
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  %t0 = call ptr @malloc(i64 20)
-  ; let items
-  ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
-then:
-  ; then
-  ; return
-  ret i32 0
-endif:
-  %t2 = call ptr @elem_ptr(ptr %t0, i32 0)
-  store i32 5, ptr %t2
-  %t3 = call ptr @elem_ptr(ptr %t0, i32 1)
-  store i32 1, ptr %t3
-  %t4 = call ptr @elem_ptr(ptr %t0, i32 2)
-  store i32 4, ptr %t4
-  %t5 = call ptr @elem_ptr(ptr %t0, i32 3)
-  store i32 2, ptr %t5
-  %t6 = call ptr @elem_ptr(ptr %t0, i32 4)
-  store i32 3, ptr %t6
-  call void @bubble_sort5(ptr %t0)
-  %t7 = call ptr @elem_ptr(ptr %t0, i32 0)
-  %t8 = load i32, ptr %t7
-  ; let first
-  call void @free(ptr %t0)
-  ; return
-  ret i32 %t8
 }
 

@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0084_count_divisors_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @count_divisors(i32 36)
+  ret i32 %t0
+}
+
 ; function: count_divisors
 ; params: i32
 ; returns: i32
@@ -16,11 +26,9 @@ entry:
   ; while condition
   br label %while.pre
 while.pre:
-  %count.init0 = load i32, ptr %count.addr
   %d.init0 = load i32, ptr %d.addr
   br label %while.cond
 while.cond:
-  %count.phi0 = phi i32 [%count.init0, %while.pre], [%count.merge1, %while.latch]
   %d.phi0 = phi i32 [%d.init0, %while.pre], [%d.next0, %while.latch]
   %t0 = mul i32 %d.phi0, %d.phi0
   %t1 = icmp sle i32 %t0, %n
@@ -34,10 +42,11 @@ while.body:
 then1:
   ; then
   ; set count
-  %count.next10 = add i32 %count.phi0, 1
+  %t4 = load i32, ptr %count.addr
+  %t5 = add i32 %t4, 1
+  store i32 %t5, ptr %count.addr
   br label %endif1
 endif1:
-  %count.merge1 = phi i32 [%count.next10, %then1], [%count.phi0, %while.body]
   ; set d
   %d.next0 = add i32 %d.phi0, 1
   br label %while.latch
@@ -45,22 +54,11 @@ while.latch:
   br label %while.cond
 while.exit-merge:
   ; sync loop-carried locals to stack
-  store i32 %count.phi0, ptr %count.addr
   store i32 %d.phi0, ptr %d.addr
   br label %while.end
 while.end:
   ; return
-  %t4 = load i32, ptr %count.addr
-  ret i32 %t4
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @count_divisors(i32 36)
-  ret i32 %t0
+  %t6 = load i32, ptr %count.addr
+  ret i32 %t6
 }
 

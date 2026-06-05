@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0113_median_of_three_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @median3(i32 30, i32 10, i32 20)
+  ret i32 %t0
+}
+
 ; function: min3
 ; params: i32, i32, i32
 ; returns: i32
@@ -81,15 +91,5 @@ entry:
   %t4 = call i32 @max3(i32 %a, i32 %b, i32 %c)
   %t5 = sub i32 %t3, %t4
   ret i32 %t5
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @median3(i32 30, i32 10, i32 20)
-  ret i32 %t0
 }
 

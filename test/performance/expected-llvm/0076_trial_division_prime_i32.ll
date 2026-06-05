@@ -2,6 +2,19 @@
 ; source: test/performance/wir/0076_trial_division_prime_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @is_prime(i32 97)
+  %t1 = call i32 @is_prime(i32 91)
+  %t2 = mul i32 %t1, 10
+  %t3 = add i32 %t0, %t2
+  ret i32 %t3
+}
+
 ; function: is_prime
 ; params: i32
 ; returns: i32
@@ -24,30 +37,28 @@ endif:
   ; while condition
   br label %while.pre1
 while.pre1:
-  %prime.init1 = load i32, ptr %prime.addr
   %d.init1 = load i32, ptr %d.addr
   br label %while.cond1
 while.cond1:
-  %prime.phi1 = phi i32 [%prime.init1, %while.pre1], [%prime.merge2, %while.latch1]
   %d.phi1 = phi i32 [%d.init1, %while.pre1], [%d.next1, %while.latch1]
-  %t1 = icmp ne i32 %prime.phi1, 0
-  %t2 = mul i32 %d.phi1, %d.phi1
-  %t3 = icmp sle i32 %t2, %n
-  %t4 = and i1 %t1, %t3
-  br i1 %t4, label %while.body1, label %while.exit-merge1
+  %t1 = load i32, ptr %prime.addr
+  %t2 = icmp ne i32 %t1, 0
+  %t3 = mul i32 %d.phi1, %d.phi1
+  %t4 = icmp sle i32 %t3, %n
+  %t5 = and i1 %t2, %t4
+  br i1 %t5, label %while.body1, label %while.exit-merge1
 while.body1:
   ; while body
   ; if condition
-  %t5 = srem i32 %n, %d.phi1
-  %t6 = icmp eq i32 %t5, 0
-  br i1 %t6, label %then2, label %endif2
+  %t6 = srem i32 %n, %d.phi1
+  %t7 = icmp eq i32 %t6, 0
+  br i1 %t7, label %then2, label %endif2
 then2:
   ; then
   ; set prime
-  %prime.next120 = add i32 0, 0
+  store i32 0, ptr %prime.addr
   br label %endif2
 endif2:
-  %prime.merge2 = phi i32 [%prime.next120, %then2], [%prime.phi1, %while.body1]
   ; set d
   %d.next1 = add i32 %d.phi1, 1
   br label %while.latch1
@@ -55,25 +66,11 @@ while.latch1:
   br label %while.cond1
 while.exit-merge1:
   ; sync loop-carried locals to stack
-  store i32 %prime.phi1, ptr %prime.addr
   store i32 %d.phi1, ptr %d.addr
   br label %while.end1
 while.end1:
   ; return
-  %t7 = load i32, ptr %prime.addr
-  ret i32 %t7
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @is_prime(i32 97)
-  %t1 = call i32 @is_prime(i32 91)
-  %t2 = mul i32 %t1, 10
-  %t3 = add i32 %t0, %t2
-  ret i32 %t3
+  %t8 = load i32, ptr %prime.addr
+  ret i32 %t8
 }
 

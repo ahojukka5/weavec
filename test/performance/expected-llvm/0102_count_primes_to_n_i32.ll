@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0102_count_primes_to_n_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @count_primes_to(i32 30)
+  ret i32 %t0
+}
+
 ; function: is_prime
 ; params: i32
 ; returns: i32
@@ -24,30 +34,28 @@ endif:
   ; while condition
   br label %while.pre1
 while.pre1:
-  %ok.init1 = load i32, ptr %ok.addr
   %d.init1 = load i32, ptr %d.addr
   br label %while.cond1
 while.cond1:
-  %ok.phi1 = phi i32 [%ok.init1, %while.pre1], [%ok.merge2, %while.latch1]
   %d.phi1 = phi i32 [%d.init1, %while.pre1], [%d.next1, %while.latch1]
   %t1 = mul i32 %d.phi1, %d.phi1
   %t2 = icmp sle i32 %t1, %v
-  %t3 = icmp ne i32 %ok.phi1, 0
-  %t4 = and i1 %t2, %t3
-  br i1 %t4, label %while.body1, label %while.exit-merge1
+  %t3 = load i32, ptr %ok.addr
+  %t4 = icmp ne i32 %t3, 0
+  %t5 = and i1 %t2, %t4
+  br i1 %t5, label %while.body1, label %while.exit-merge1
 while.body1:
   ; while body
   ; if condition
-  %t5 = srem i32 %v, %d.phi1
-  %t6 = icmp eq i32 %t5, 0
-  br i1 %t6, label %then2, label %endif2
+  %t6 = srem i32 %v, %d.phi1
+  %t7 = icmp eq i32 %t6, 0
+  br i1 %t7, label %then2, label %endif2
 then2:
   ; then
   ; set ok
-  %ok.next120 = add i32 0, 0
+  store i32 0, ptr %ok.addr
   br label %endif2
 endif2:
-  %ok.merge2 = phi i32 [%ok.next120, %then2], [%ok.phi1, %while.body1]
   ; set d
   %d.next1 = add i32 %d.phi1, 1
   br label %while.latch1
@@ -55,13 +63,12 @@ while.latch1:
   br label %while.cond1
 while.exit-merge1:
   ; sync loop-carried locals to stack
-  store i32 %ok.phi1, ptr %ok.addr
   store i32 %d.phi1, ptr %d.addr
   br label %while.end1
 while.end1:
   ; return
-  %t7 = load i32, ptr %ok.addr
-  ret i32 %t7
+  %t8 = load i32, ptr %ok.addr
+  ret i32 %t8
 }
 
 ; function: count_primes_to
@@ -78,11 +85,9 @@ entry:
   ; while condition
   br label %while.pre
 while.pre:
-  %count.init0 = load i32, ptr %count.addr
   %v.init0 = load i32, ptr %v.addr
   br label %while.cond
 while.cond:
-  %count.phi0 = phi i32 [%count.init0, %while.pre], [%count.merge1, %while.latch]
   %v.phi0 = phi i32 [%v.init0, %while.pre], [%v.next0, %while.latch]
   %t0 = icmp sle i32 %v.phi0, %n
   br i1 %t0, label %while.body, label %while.exit-merge
@@ -95,10 +100,11 @@ while.body:
 then1:
   ; then
   ; set count
-  %count.next10 = add i32 %count.phi0, 1
+  %t3 = load i32, ptr %count.addr
+  %t4 = add i32 %t3, 1
+  store i32 %t4, ptr %count.addr
   br label %endif1
 endif1:
-  %count.merge1 = phi i32 [%count.next10, %then1], [%count.phi0, %while.body]
   ; set v
   %v.next0 = add i32 %v.phi0, 1
   br label %while.latch
@@ -106,22 +112,11 @@ while.latch:
   br label %while.cond
 while.exit-merge:
   ; sync loop-carried locals to stack
-  store i32 %count.phi0, ptr %count.addr
   store i32 %v.phi0, ptr %v.addr
   br label %while.end
 while.end:
   ; return
-  %t3 = load i32, ptr %count.addr
-  ret i32 %t3
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @count_primes_to(i32 30)
-  ret i32 %t0
+  %t5 = load i32, ptr %count.addr
+  ret i32 %t5
 }
 

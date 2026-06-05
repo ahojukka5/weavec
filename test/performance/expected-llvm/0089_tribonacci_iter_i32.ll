@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0089_tribonacci_iter_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @trib(i32 10)
+  ret i32 %t0
+}
+
 ; function: trib
 ; params: i32
 ; returns: i32
@@ -74,15 +84,5 @@ while.end2:
   ; return
   %t4 = load i32, ptr %c.addr
   ret i32 %t4
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @trib(i32 10)
-  ret i32 %t0
 }
 

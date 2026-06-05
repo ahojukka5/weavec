@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0103_mod_pow_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @mod_pow(i32 2, i32 10, i32 1000)
+  ret i32 %t0
+}
+
 ; function: mod_pow
 ; params: i32, i32, i32
 ; returns: i32
@@ -20,12 +30,10 @@ entry:
   ; while condition
   br label %while.pre
 while.pre:
-  %result.init0 = load i32, ptr %result.addr
   %base.init0 = load i32, ptr %base.addr
   %exp.init0 = load i32, ptr %exp.addr
   br label %while.cond
 while.cond:
-  %result.phi0 = phi i32 [%result.init0, %while.pre], [%result.merge1, %while.latch]
   %base.phi0 = phi i32 [%base.init0, %while.pre], [%base.next0, %while.latch]
   %exp.phi0 = phi i32 [%exp.init0, %while.pre], [%exp.next0, %while.latch]
   %t1 = icmp sgt i32 %exp.phi0, 0
@@ -39,14 +47,15 @@ while.body:
 then1:
   ; then
   ; set result
-  %t4 = mul i32 %result.phi0, %base.phi0
-  %result.next10 = srem i32 %t4, %modv
+  %t4 = load i32, ptr %result.addr
+  %t5 = mul i32 %t4, %base.phi0
+  %t6 = srem i32 %t5, %modv
+  store i32 %t6, ptr %result.addr
   br label %endif1
 endif1:
-  %result.merge1 = phi i32 [%result.next10, %then1], [%result.phi0, %while.body]
   ; set base
-  %t5 = mul i32 %base.phi0, %base.phi0
-  %base.next0 = srem i32 %t5, %modv
+  %t7 = mul i32 %base.phi0, %base.phi0
+  %base.next0 = srem i32 %t7, %modv
   ; set exp
   %exp.next0 = sdiv i32 %exp.phi0, 2
   br label %while.latch
@@ -54,23 +63,12 @@ while.latch:
   br label %while.cond
 while.exit-merge:
   ; sync loop-carried locals to stack
-  store i32 %result.phi0, ptr %result.addr
   store i32 %base.phi0, ptr %base.addr
   store i32 %exp.phi0, ptr %exp.addr
   br label %while.end
 while.end:
   ; return
-  %t6 = load i32, ptr %result.addr
-  ret i32 %t6
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @mod_pow(i32 2, i32 10, i32 1000)
-  ret i32 %t0
+  %t8 = load i32, ptr %result.addr
+  ret i32 %t8
 }
 

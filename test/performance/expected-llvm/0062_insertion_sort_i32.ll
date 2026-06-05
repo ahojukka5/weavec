@@ -7,6 +7,37 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  %t0 = call ptr @malloc(i64 16)
+  ; let items
+  ; if condition
+  %t1 = icmp eq ptr %t0, null
+  br i1 %t1, label %then, label %endif
+then:
+  ; then
+  ; return
+  ret i32 0
+endif:
+  %t2 = call ptr @elem_ptr(ptr %t0, i32 0)
+  store i32 4, ptr %t2
+  %t3 = call ptr @elem_ptr(ptr %t0, i32 1)
+  store i32 1, ptr %t3
+  %t4 = call ptr @elem_ptr(ptr %t0, i32 2)
+  store i32 3, ptr %t4
+  %t5 = call ptr @elem_ptr(ptr %t0, i32 3)
+  store i32 2, ptr %t5
+  call void @sort4(ptr %t0)
+  %t6 = call i32 @sorted_checksum4(ptr %t0)
+  ; let total
+  call void @free(ptr %t0)
+  ; return
+  ret i32 %t6
+}
+
 ; function: elem_ptr
 ; params: ptr, i32
 ; returns: ptr
@@ -49,57 +80,55 @@ while.body:
   ; while condition
   br label %while.pre1
 while.pre1:
-  %j.init1 = load i32, ptr %j.addr
-  %done.init1 = load i32, ptr %done.addr
   br label %while.cond1
 while.cond1:
-  %j.phi1 = phi i32 [%j.init1, %while.pre1], [%j.merge2, %while.latch1]
-  %done.phi1 = phi i32 [%done.init1, %while.pre1], [%done.merge2, %while.latch1]
-  %t7 = icmp sge i32 %j.phi1, 0
-  %t8 = icmp eq i32 %done.phi1, 0
-  %t9 = and i1 %t7, %t8
-  br i1 %t9, label %while.body1, label %while.exit-merge1
+  %t7 = load i32, ptr %j.addr
+  %t8 = icmp sge i32 %t7, 0
+  %t9 = load i32, ptr %done.addr
+  %t10 = icmp eq i32 %t9, 0
+  %t11 = and i1 %t8, %t10
+  br i1 %t11, label %while.body1, label %while.exit-merge1
 while.body1:
   ; while body
-  %t10 = call ptr @elem_ptr(ptr %items, i32 %j.phi1)
-  %t11 = load i32, ptr %t10
+  %t12 = load i32, ptr %j.addr
+  %t13 = call ptr @elem_ptr(ptr %items, i32 %t12)
+  %t14 = load i32, ptr %t13
   ; let current
   ; if condition
-  %t12 = icmp sgt i32 %t11, %t4
-  br i1 %t12, label %then2, label %else2
+  %t15 = icmp sgt i32 %t14, %t4
+  br i1 %t15, label %then2, label %else2
 then2:
   ; then
-  %t13 = add i32 %j.phi1, 1
-  %t14 = call ptr @elem_ptr(ptr %items, i32 %t13)
-  store i32 %t11, ptr %t14
+  %t16 = load i32, ptr %j.addr
+  %t17 = add i32 %t16, 1
+  %t18 = call ptr @elem_ptr(ptr %items, i32 %t17)
+  store i32 %t14, ptr %t18
   ; set j
-  %j.next120 = sub i32 %j.phi1, 1
+  %t19 = load i32, ptr %j.addr
+  %t20 = sub i32 %t19, 1
+  store i32 %t20, ptr %j.addr
   br label %endif2
 else2:
   ; else
   ; set done
-  %done.next121 = add i32 1, 0
+  store i32 1, ptr %done.addr
   br label %endif2
 endif2:
-  %j.merge2 = phi i32 [%j.next120, %then2], [%j.phi1, %else2]
-  %done.merge2 = phi i32 [%done.phi1, %then2], [%done.next121, %else2]
   br label %while.latch1
 while.latch1:
   br label %while.cond1
 while.exit-merge1:
   ; sync loop-carried locals to stack
-  store i32 %j.phi1, ptr %j.addr
-  store i32 %done.phi1, ptr %done.addr
   br label %while.end1
 while.end1:
-  %t15 = load i32, ptr %j.addr
-  %t16 = add i32 %t15, 1
-  %t17 = call ptr @elem_ptr(ptr %items, i32 %t16)
-  store i32 %t4, ptr %t17
+  %t21 = load i32, ptr %j.addr
+  %t22 = add i32 %t21, 1
+  %t23 = call ptr @elem_ptr(ptr %items, i32 %t22)
+  store i32 %t4, ptr %t23
   ; set i
-  %t18 = load i32, ptr %i.addr
-  %t19 = add i32 %t18, 1
-  store i32 %t19, ptr %i.addr
+  %t24 = load i32, ptr %i.addr
+  %t25 = add i32 %t24, 1
+  store i32 %t25, ptr %i.addr
   br label %while.cond
 while.end:
   ret void
@@ -126,36 +155,5 @@ entry:
   %t12 = add i32 %t8, %t11
   %t13 = add i32 %t5, %t12
   ret i32 %t13
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  %t0 = call ptr @malloc(i64 16)
-  ; let items
-  ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
-then:
-  ; then
-  ; return
-  ret i32 0
-endif:
-  %t2 = call ptr @elem_ptr(ptr %t0, i32 0)
-  store i32 4, ptr %t2
-  %t3 = call ptr @elem_ptr(ptr %t0, i32 1)
-  store i32 1, ptr %t3
-  %t4 = call ptr @elem_ptr(ptr %t0, i32 2)
-  store i32 3, ptr %t4
-  %t5 = call ptr @elem_ptr(ptr %t0, i32 3)
-  store i32 2, ptr %t5
-  call void @sort4(ptr %t0)
-  %t6 = call i32 @sorted_checksum4(ptr %t0)
-  ; let total
-  call void @free(ptr %t0)
-  ; return
-  ret i32 %t6
 }
 

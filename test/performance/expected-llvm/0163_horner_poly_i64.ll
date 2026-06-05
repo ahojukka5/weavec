@@ -2,6 +2,18 @@
 ; source: test/performance/wir/0163_horner_poly_i64.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i64 @horner6(i64 11)
+  %t1 = srem i64 %t0, 1000000007
+  %t2 = trunc i64 %t1 to i32
+  ret i32 %t2
+}
+
 ; function: horner6
 ; params: i64
 ; returns: i64
@@ -45,17 +57,5 @@ while.end:
   ; return
   %t4 = load i64, ptr %acc.addr
   ret i64 %t4
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i64 @horner6(i64 11)
-  %t1 = srem i64 %t0, 1000000007
-  %t2 = trunc i64 %t1 to i32
-  ret i32 %t2
 }
 

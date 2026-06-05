@@ -2,81 +2,6 @@
 ; source: test/performance/wir/0161_collatz_peak_i64.wir
 ; core-version: 1
 
-; function: collatz_peak
-; params: i64
-; returns: i64
-define i64 @collatz_peak(i64 %start) {
-entry:
-  %n.addr = alloca i64
-  %peak.addr = alloca i64
-  %steps.addr = alloca i64
-  ; let n
-  store i64 %start, ptr %n.addr
-  ; let peak
-  store i64 %start, ptr %peak.addr
-  ; let steps
-  store i64 0, ptr %steps.addr
-  ; while condition
-  br label %while.pre
-while.pre:
-  %n.init0 = load i64, ptr %n.addr
-  %peak.init0 = load i64, ptr %peak.addr
-  %steps.init0 = load i64, ptr %steps.addr
-  br label %while.cond
-while.cond:
-  %n.phi0 = phi i64 [%n.init0, %while.pre], [%n.merge1, %while.latch]
-  %peak.phi0 = phi i64 [%peak.init0, %while.pre], [%peak.merge2, %while.latch]
-  %steps.phi0 = phi i64 [%steps.init0, %while.pre], [%steps.next0, %while.latch]
-  %t0 = icmp ne i64 %n.phi0, 1
-  %t1 = icmp slt i64 %steps.phi0, 200
-  %t2 = and i1 %t0, %t1
-  br i1 %t2, label %while.body, label %while.exit-merge
-while.body:
-  ; while body
-  ; if condition
-  %t3 = srem i64 %n.phi0, 2
-  %t4 = icmp eq i64 %t3, 0
-  br i1 %t4, label %then1, label %else1
-then1:
-  ; then
-  ; set n
-  %n.next10 = sdiv i64 %n.phi0, 2
-  br label %endif1
-else1:
-  ; else
-  ; set n
-  %t5 = mul i64 %n.phi0, 3
-  %n.next11 = add i64 %t5, 1
-  br label %endif1
-endif1:
-  %n.merge1 = phi i64 [%n.next10, %then1], [%n.next11, %else1]
-  ; if condition
-  %t6 = icmp sgt i64 %n.merge1, %peak.phi0
-  br i1 %t6, label %then2, label %endif2
-then2:
-  ; then
-  ; set peak
-  %peak.next20 = add i64 %n.merge1, 0
-  br label %endif2
-endif2:
-  %peak.merge2 = phi i64 [%peak.next20, %then2], [%peak.phi0, %endif1]
-  ; set steps
-  %steps.next0 = add i64 %steps.phi0, 1
-  br label %while.latch
-while.latch:
-  br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i64 %n.phi0, ptr %n.addr
-  store i64 %peak.phi0, ptr %peak.addr
-  store i64 %steps.phi0, ptr %steps.addr
-  br label %while.end
-while.end:
-  ; return
-  %t7 = load i64, ptr %peak.addr
-  ret i64 %t7
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -124,5 +49,81 @@ while.end:
   %t6 = srem i64 %t5, 1000000007
   %t7 = trunc i64 %t6 to i32
   ret i32 %t7
+}
+
+; function: collatz_peak
+; params: i64
+; returns: i64
+define i64 @collatz_peak(i64 %start) {
+entry:
+  %n.addr = alloca i64
+  %peak.addr = alloca i64
+  %steps.addr = alloca i64
+  ; let n
+  store i64 %start, ptr %n.addr
+  ; let peak
+  store i64 %start, ptr %peak.addr
+  ; let steps
+  store i64 0, ptr %steps.addr
+  ; while condition
+  br label %while.pre
+while.pre:
+  %steps.init0 = load i64, ptr %steps.addr
+  br label %while.cond
+while.cond:
+  %steps.phi0 = phi i64 [%steps.init0, %while.pre], [%steps.next0, %while.latch]
+  %t0 = load i64, ptr %n.addr
+  %t1 = icmp ne i64 %t0, 1
+  %t2 = icmp slt i64 %steps.phi0, 200
+  %t3 = and i1 %t1, %t2
+  br i1 %t3, label %while.body, label %while.exit-merge
+while.body:
+  ; while body
+  ; if condition
+  %t4 = load i64, ptr %n.addr
+  %t5 = srem i64 %t4, 2
+  %t6 = icmp eq i64 %t5, 0
+  br i1 %t6, label %then1, label %else1
+then1:
+  ; then
+  ; set n
+  %t7 = load i64, ptr %n.addr
+  %t8 = sdiv i64 %t7, 2
+  store i64 %t8, ptr %n.addr
+  br label %endif1
+else1:
+  ; else
+  ; set n
+  %t9 = load i64, ptr %n.addr
+  %t10 = mul i64 %t9, 3
+  %t11 = add i64 %t10, 1
+  store i64 %t11, ptr %n.addr
+  br label %endif1
+endif1:
+  ; if condition
+  %t12 = load i64, ptr %n.addr
+  %t13 = load i64, ptr %peak.addr
+  %t14 = icmp sgt i64 %t12, %t13
+  br i1 %t14, label %then2, label %endif2
+then2:
+  ; then
+  ; set peak
+  %t15 = load i64, ptr %n.addr
+  store i64 %t15, ptr %peak.addr
+  br label %endif2
+endif2:
+  ; set steps
+  %steps.next0 = add i64 %steps.phi0, 1
+  br label %while.latch
+while.latch:
+  br label %while.cond
+while.exit-merge:
+  ; sync loop-carried locals to stack
+  store i64 %steps.phi0, ptr %steps.addr
+  br label %while.end
+while.end:
+  ; return
+  %t16 = load i64, ptr %peak.addr
+  ret i64 %t16
 }
 

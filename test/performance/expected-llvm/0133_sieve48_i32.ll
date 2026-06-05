@@ -7,6 +7,28 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  %t0 = call ptr @malloc(i64 196)
+  ; let flags
+  ; if condition
+  %t1 = icmp eq ptr %t0, null
+  br i1 %t1, label %then, label %endif
+then:
+  ; then
+  ; return
+  ret i32 0
+endif:
+  %t2 = call i32 @count_primes48(ptr %t0)
+  ; let n
+  call void @free(ptr %t0)
+  ; return
+  ret i32 %t2
+}
+
 ; function: flag_ptr
 ; params: ptr, i32
 ; returns: ptr
@@ -122,11 +144,9 @@ while.end1:
   ; while condition
   br label %while.pre4
 while.pre4:
-  %count.init4 = load i32, ptr %count.addr
   %k.init4 = load i32, ptr %k.addr
   br label %while.cond4
 while.cond4:
-  %count.phi4 = phi i32 [%count.init4, %while.pre4], [%count.merge5, %while.latch4]
   %k.phi4 = phi i32 [%k.init4, %while.pre4], [%k.next4, %while.latch4]
   %t20 = icmp sle i32 %k.phi4, 48
   br i1 %t20, label %while.body4, label %while.exit-merge4
@@ -140,10 +160,11 @@ while.body4:
 then5:
   ; then
   ; set count
-  %count.next450 = add i32 %count.phi4, 1
+  %t24 = load i32, ptr %count.addr
+  %t25 = add i32 %t24, 1
+  store i32 %t25, ptr %count.addr
   br label %endif5
 endif5:
-  %count.merge5 = phi i32 [%count.next450, %then5], [%count.phi4, %while.body4]
   ; set k
   %k.next4 = add i32 %k.phi4, 1
   br label %while.latch4
@@ -151,34 +172,11 @@ while.latch4:
   br label %while.cond4
 while.exit-merge4:
   ; sync loop-carried locals to stack
-  store i32 %count.phi4, ptr %count.addr
   store i32 %k.phi4, ptr %k.addr
   br label %while.end4
 while.end4:
   ; return
-  %t24 = load i32, ptr %count.addr
-  ret i32 %t24
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  %t0 = call ptr @malloc(i64 196)
-  ; let flags
-  ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
-then:
-  ; then
-  ; return
-  ret i32 0
-endif:
-  %t2 = call i32 @count_primes48(ptr %t0)
-  ; let n
-  call void @free(ptr %t0)
-  ; return
-  ret i32 %t2
+  %t26 = load i32, ptr %count.addr
+  ret i32 %t26
 }
 

@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0065_mandelbrot_escape_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @escape_count(i32 1000, i32 0, i32 16)
+  ret i32 %t0
+}
+
 ; function: escape_count
 ; params: i32, i32, i32
 ; returns: i32
@@ -22,80 +32,66 @@ entry:
   ; while condition
   br label %while.pre
 while.pre:
-  %active.init0 = load i32, ptr %active.addr
-  %zy.init0 = load i32, ptr %zy.addr
-  %zx.init0 = load i32, ptr %zx.addr
-  %iter.init0 = load i32, ptr %iter.addr
   br label %while.cond
 while.cond:
-  %active.phi0 = phi i32 [%active.init0, %while.pre], [%active.merge1, %while.latch]
-  %zy.phi0 = phi i32 [%zy.init0, %while.pre], [%zy.merge1, %while.latch]
-  %zx.phi0 = phi i32 [%zx.init0, %while.pre], [%zx.merge1, %while.latch]
-  %iter.phi0 = phi i32 [%iter.init0, %while.pre], [%iter.merge1, %while.latch]
-  %t0 = icmp slt i32 %iter.phi0, %max_iter
-  %t1 = icmp ne i32 %active.phi0, 0
-  %t2 = and i1 %t0, %t1
-  br i1 %t2, label %while.body, label %while.exit-merge
+  %t0 = load i32, ptr %iter.addr
+  %t1 = icmp slt i32 %t0, %max_iter
+  %t2 = load i32, ptr %active.addr
+  %t3 = icmp ne i32 %t2, 0
+  %t4 = and i1 %t1, %t3
+  br i1 %t4, label %while.body, label %while.exit-merge
 while.body:
   ; while body
-  %t3 = mul i32 %zx.phi0, %zx.phi0
-  %t4 = sdiv i32 %t3, 1000
+  %t5 = load i32, ptr %zx.addr
+  %t6 = load i32, ptr %zx.addr
+  %t7 = mul i32 %t5, %t6
+  %t8 = sdiv i32 %t7, 1000
   ; let zx2
-  %t5 = mul i32 %zy.phi0, %zy.phi0
-  %t6 = sdiv i32 %t5, 1000
+  %t9 = load i32, ptr %zy.addr
+  %t10 = load i32, ptr %zy.addr
+  %t11 = mul i32 %t9, %t10
+  %t12 = sdiv i32 %t11, 1000
   ; let zy2
-  %t7 = add i32 %t4, %t6
+  %t13 = add i32 %t8, %t12
   ; let radius2
   ; if condition
-  %t8 = icmp sgt i32 %t7, 4000
-  br i1 %t8, label %then1, label %else1
+  %t14 = icmp sgt i32 %t13, 4000
+  br i1 %t14, label %then1, label %else1
 then1:
   ; then
   ; set active
-  %active.next10 = add i32 0, 0
+  store i32 0, ptr %active.addr
   br label %endif1
 else1:
   ; else
-  %t9 = mul i32 2, %zx.phi0
-  %t10 = mul i32 %t9, %zy.phi0
-  %t11 = sdiv i32 %t10, 1000
+  %t15 = load i32, ptr %zx.addr
+  %t16 = mul i32 2, %t15
+  %t17 = load i32, ptr %zy.addr
+  %t18 = mul i32 %t16, %t17
+  %t19 = sdiv i32 %t18, 1000
   ; let two_zx_zy
   ; set zy
-  %zy.next11 = add i32 %t11, %cy
+  %t20 = add i32 %t19, %cy
+  store i32 %t20, ptr %zy.addr
   ; set zx
-  %t12 = sub i32 %t4, %t6
-  %zx.next11 = add i32 %t12, %cx
+  %t21 = sub i32 %t8, %t12
+  %t22 = add i32 %t21, %cx
+  store i32 %t22, ptr %zx.addr
   ; set iter
-  %iter.next11 = add i32 %iter.phi0, 1
+  %t23 = load i32, ptr %iter.addr
+  %t24 = add i32 %t23, 1
+  store i32 %t24, ptr %iter.addr
   br label %endif1
 endif1:
-  %zx.merge1 = phi i32 [%zx.phi0, %then1], [%zx.next11, %else1]
-  %zy.merge1 = phi i32 [%zy.phi0, %then1], [%zy.next11, %else1]
-  %iter.merge1 = phi i32 [%iter.phi0, %then1], [%iter.next11, %else1]
-  %active.merge1 = phi i32 [%active.next10, %then1], [%active.phi0, %else1]
   br label %while.latch
 while.latch:
   br label %while.cond
 while.exit-merge:
   ; sync loop-carried locals to stack
-  store i32 %active.phi0, ptr %active.addr
-  store i32 %zy.phi0, ptr %zy.addr
-  store i32 %zx.phi0, ptr %zx.addr
-  store i32 %iter.phi0, ptr %iter.addr
   br label %while.end
 while.end:
   ; return
-  %t13 = load i32, ptr %iter.addr
-  ret i32 %t13
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @escape_count(i32 1000, i32 0, i32 16)
-  ret i32 %t0
+  %t25 = load i32, ptr %iter.addr
+  ret i32 %t25
 }
 

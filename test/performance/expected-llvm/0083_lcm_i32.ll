@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0083_lcm_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @lcm(i32 12, i32 18)
+  ret i32 %t0
+}
+
 ; function: gcd
 ; params: i32, i32
 ; returns: i32
@@ -55,15 +65,5 @@ entry:
   %t1 = mul i32 %a, %b
   %t2 = sdiv i32 %t1, %t0
   ret i32 %t2
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @lcm(i32 12, i32 18)
-  ret i32 %t0
 }
 

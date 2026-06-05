@@ -7,101 +7,6 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
-; function: elem_ptr
-; params: ptr, i32
-; returns: ptr
-define ptr @elem_ptr(ptr %base, i32 %index) {
-entry:
-  ; return
-  %t0 = sext i32 %index to i64
-  %t1 = getelementptr i32, ptr %base, i64 %t0
-  ret ptr %t1
-}
-
-; function: search6
-; params: ptr, i32
-; returns: i32
-define i32 @search6(ptr %items, i32 %target) {
-entry:
-  %low.addr = alloca i32
-  %high.addr = alloca i32
-  %found.addr = alloca i32
-  ; let low
-  store i32 0, ptr %low.addr
-  ; let high
-  store i32 5, ptr %high.addr
-  ; let found
-  store i32 -1, ptr %found.addr
-  ; while condition
-  br label %while.pre
-while.pre:
-  %found.init0 = load i32, ptr %found.addr
-  %low.init0 = load i32, ptr %low.addr
-  %high.init0 = load i32, ptr %high.addr
-  br label %while.cond
-while.cond:
-  %found.phi0 = phi i32 [%found.init0, %while.pre], [%found.merge1, %while.latch]
-  %low.phi0 = phi i32 [%low.init0, %while.pre], [%low.merge1, %while.latch]
-  %high.phi0 = phi i32 [%high.init0, %while.pre], [%high.merge1, %while.latch]
-  %t0 = icmp sle i32 %low.phi0, %high.phi0
-  %t1 = icmp eq i32 %found.phi0, -1
-  %t2 = and i1 %t0, %t1
-  br i1 %t2, label %while.body, label %while.exit-merge
-while.body:
-  ; while body
-  %t3 = add i32 %low.phi0, %high.phi0
-  %t4 = sdiv i32 %t3, 2
-  ; let mid
-  %t5 = call ptr @elem_ptr(ptr %items, i32 %t4)
-  %t6 = load i32, ptr %t5
-  ; let mid_val
-  ; if condition
-  %t7 = icmp eq i32 %t6, %target
-  br i1 %t7, label %then1, label %else1
-then1:
-  ; then
-  ; set found
-  %t8 = add i32 %low.phi0, %high.phi0
-  %found.next10 = sdiv i32 %t8, 2
-  br label %endif1
-else1:
-  ; else
-  ; if condition
-  %t9 = icmp slt i32 %t6, %target
-  br i1 %t9, label %then2, label %else2
-then2:
-  ; then
-  ; set low
-  %low.next20 = add i32 %t4, 1
-  br label %endif2
-else2:
-  ; else
-  ; set high
-  %high.next21 = sub i32 %t4, 1
-  br label %endif2
-endif2:
-  %low.merge2 = phi i32 [%low.next20, %then2], [%low.phi0, %else2]
-  %high.merge2 = phi i32 [%high.phi0, %then2], [%high.next21, %else2]
-  br label %endif1
-endif1:
-  %low.merge1 = phi i32 [%low.phi0, %then1], [%low.merge2, %endif2]
-  %high.merge1 = phi i32 [%high.phi0, %then1], [%high.merge2, %endif2]
-  %found.merge1 = phi i32 [%found.next10, %then1], [%found.phi0, %endif2]
-  br label %while.latch
-while.latch:
-  br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %found.phi0, ptr %found.addr
-  store i32 %low.phi0, ptr %low.addr
-  store i32 %high.phi0, ptr %high.addr
-  br label %while.end
-while.end:
-  ; return
-  %t10 = load i32, ptr %found.addr
-  ret i32 %t10
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -134,5 +39,92 @@ endif:
   call void @free(ptr %t0)
   ; return
   ret i32 %t8
+}
+
+; function: elem_ptr
+; params: ptr, i32
+; returns: ptr
+define ptr @elem_ptr(ptr %base, i32 %index) {
+entry:
+  ; return
+  %t0 = sext i32 %index to i64
+  %t1 = getelementptr i32, ptr %base, i64 %t0
+  ret ptr %t1
+}
+
+; function: search6
+; params: ptr, i32
+; returns: i32
+define i32 @search6(ptr %items, i32 %target) {
+entry:
+  %low.addr = alloca i32
+  %high.addr = alloca i32
+  %found.addr = alloca i32
+  ; let low
+  store i32 0, ptr %low.addr
+  ; let high
+  store i32 5, ptr %high.addr
+  ; let found
+  store i32 -1, ptr %found.addr
+  ; while condition
+  br label %while.pre
+while.pre:
+  br label %while.cond
+while.cond:
+  %t0 = load i32, ptr %low.addr
+  %t1 = load i32, ptr %high.addr
+  %t2 = icmp sle i32 %t0, %t1
+  %t3 = load i32, ptr %found.addr
+  %t4 = icmp eq i32 %t3, -1
+  %t5 = and i1 %t2, %t4
+  br i1 %t5, label %while.body, label %while.exit-merge
+while.body:
+  ; while body
+  %t6 = load i32, ptr %low.addr
+  %t7 = load i32, ptr %high.addr
+  %t8 = add i32 %t6, %t7
+  %t9 = sdiv i32 %t8, 2
+  ; let mid
+  %t10 = call ptr @elem_ptr(ptr %items, i32 %t9)
+  %t11 = load i32, ptr %t10
+  ; let mid_val
+  ; if condition
+  %t12 = icmp eq i32 %t11, %target
+  br i1 %t12, label %then1, label %else1
+then1:
+  ; then
+  ; set found
+  store i32 %t9, ptr %found.addr
+  br label %endif1
+else1:
+  ; else
+  ; if condition
+  %t13 = icmp slt i32 %t11, %target
+  br i1 %t13, label %then2, label %else2
+then2:
+  ; then
+  ; set low
+  %t14 = add i32 %t9, 1
+  store i32 %t14, ptr %low.addr
+  br label %endif2
+else2:
+  ; else
+  ; set high
+  %t15 = sub i32 %t9, 1
+  store i32 %t15, ptr %high.addr
+  br label %endif2
+endif2:
+  br label %endif1
+endif1:
+  br label %while.latch
+while.latch:
+  br label %while.cond
+while.exit-merge:
+  ; sync loop-carried locals to stack
+  br label %while.end
+while.end:
+  ; return
+  %t16 = load i32, ptr %found.addr
+  ret i32 %t16
 }
 

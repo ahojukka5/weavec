@@ -7,6 +7,57 @@
 declare ptr @malloc(i64)
 declare void @free(ptr)
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  %t0 = call ptr @malloc(i64 48)
+  ; let src
+  %t1 = call ptr @malloc(i64 48)
+  ; let dst
+  ; if condition
+  %t2 = icmp eq ptr %t0, null
+  %t3 = icmp eq ptr %t1, null
+  %t4 = or i1 %t2, %t3
+  br i1 %t4, label %then, label %endif
+then:
+  ; then
+  ; return
+  ret i32 0
+endif:
+  %t5 = call ptr @elem(ptr %t0, i32 0)
+  store i32 3, ptr %t5
+  %t6 = call ptr @elem(ptr %t0, i32 1)
+  store i32 1, ptr %t6
+  %t7 = call ptr @elem(ptr %t0, i32 2)
+  store i32 4, ptr %t7
+  %t8 = call ptr @elem(ptr %t0, i32 3)
+  store i32 1, ptr %t8
+  %t9 = call ptr @elem(ptr %t0, i32 4)
+  store i32 5, ptr %t9
+  %t10 = call ptr @elem(ptr %t0, i32 5)
+  store i32 0, ptr %t10
+  %t11 = call ptr @elem(ptr %t0, i32 6)
+  store i32 2, ptr %t11
+  %t12 = call ptr @elem(ptr %t0, i32 7)
+  store i32 4, ptr %t12
+  %t13 = call ptr @elem(ptr %t0, i32 8)
+  store i32 5, ptr %t13
+  %t14 = call ptr @elem(ptr %t0, i32 9)
+  store i32 3, ptr %t14
+  %t15 = call ptr @elem(ptr %t0, i32 10)
+  store i32 5, ptr %t15
+  %t16 = call ptr @elem(ptr %t0, i32 11)
+  store i32 1, ptr %t16
+  %t17 = call i32 @counting_sort12(ptr %t0, ptr %t1)
+  ; let sum
+  call void @free(ptr %t0)
+  call void @free(ptr %t1)
+  ; return
+  ret i32 %t17
+}
+
 ; function: elem
 ; params: ptr, i32
 ; returns: ptr
@@ -172,56 +223,5 @@ while.end4:
   ; return
   %t26 = load i32, ptr %total.addr
   ret i32 %t26
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  %t0 = call ptr @malloc(i64 48)
-  ; let src
-  %t1 = call ptr @malloc(i64 48)
-  ; let dst
-  ; if condition
-  %t2 = icmp eq ptr %t0, null
-  %t3 = icmp eq ptr %t1, null
-  %t4 = or i1 %t2, %t3
-  br i1 %t4, label %then, label %endif
-then:
-  ; then
-  ; return
-  ret i32 0
-endif:
-  %t5 = call ptr @elem(ptr %t0, i32 0)
-  store i32 3, ptr %t5
-  %t6 = call ptr @elem(ptr %t0, i32 1)
-  store i32 1, ptr %t6
-  %t7 = call ptr @elem(ptr %t0, i32 2)
-  store i32 4, ptr %t7
-  %t8 = call ptr @elem(ptr %t0, i32 3)
-  store i32 1, ptr %t8
-  %t9 = call ptr @elem(ptr %t0, i32 4)
-  store i32 5, ptr %t9
-  %t10 = call ptr @elem(ptr %t0, i32 5)
-  store i32 0, ptr %t10
-  %t11 = call ptr @elem(ptr %t0, i32 6)
-  store i32 2, ptr %t11
-  %t12 = call ptr @elem(ptr %t0, i32 7)
-  store i32 4, ptr %t12
-  %t13 = call ptr @elem(ptr %t0, i32 8)
-  store i32 5, ptr %t13
-  %t14 = call ptr @elem(ptr %t0, i32 9)
-  store i32 3, ptr %t14
-  %t15 = call ptr @elem(ptr %t0, i32 10)
-  store i32 5, ptr %t15
-  %t16 = call ptr @elem(ptr %t0, i32 11)
-  store i32 1, ptr %t16
-  %t17 = call i32 @counting_sort12(ptr %t0, ptr %t1)
-  ; let sum
-  call void @free(ptr %t0)
-  call void @free(ptr %t1)
-  ; return
-  ret i32 %t17
 }
 

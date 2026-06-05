@@ -2,6 +2,16 @@
 ; source: test/performance/wir/0087_popcount_i32.wir
 ; core-version: 1
 
+; function: main
+; params: none
+; returns: i32
+define i32 @main() {
+entry:
+  ; return
+  %t0 = call i32 @popcount(i32 29)
+  ret i32 %t0
+}
+
 ; function: popcount
 ; params: i32
 ; returns: i32
@@ -16,11 +26,9 @@ entry:
   ; while condition
   br label %while.pre
 while.pre:
-  %bits.init0 = load i32, ptr %bits.addr
   %n.init0 = load i32, ptr %n.addr
   br label %while.cond
 while.cond:
-  %bits.phi0 = phi i32 [%bits.init0, %while.pre], [%bits.merge1, %while.latch]
   %n.phi0 = phi i32 [%n.init0, %while.pre], [%n.next0, %while.latch]
   %t0 = icmp sgt i32 %n.phi0, 0
   br i1 %t0, label %while.body, label %while.exit-merge
@@ -33,10 +41,11 @@ while.body:
 then1:
   ; then
   ; set bits
-  %bits.next10 = add i32 %bits.phi0, 1
+  %t3 = load i32, ptr %bits.addr
+  %t4 = add i32 %t3, 1
+  store i32 %t4, ptr %bits.addr
   br label %endif1
 endif1:
-  %bits.merge1 = phi i32 [%bits.next10, %then1], [%bits.phi0, %while.body]
   ; set n
   %n.next0 = sdiv i32 %n.phi0, 2
   br label %while.latch
@@ -44,22 +53,11 @@ while.latch:
   br label %while.cond
 while.exit-merge:
   ; sync loop-carried locals to stack
-  store i32 %bits.phi0, ptr %bits.addr
   store i32 %n.phi0, ptr %n.addr
   br label %while.end
 while.end:
   ; return
-  %t3 = load i32, ptr %bits.addr
-  ret i32 %t3
-}
-
-; function: main
-; params: none
-; returns: i32
-define i32 @main() {
-entry:
-  ; return
-  %t0 = call i32 @popcount(i32 29)
-  ret i32 %t0
+  %t5 = load i32, ptr %bits.addr
+  ret i32 %t5
 }
 

@@ -2,48 +2,6 @@
 ; source: test/performance/wir/0148_gcd_batch_i32.wir
 ; core-version: 1
 
-; function: gcd_pair
-; params: i32, i32
-; returns: i32
-define i32 @gcd_pair(i32 %a, i32 %b) {
-entry:
-  %x.addr = alloca i32
-  %y.addr = alloca i32
-  ; let x
-  store i32 %a, ptr %x.addr
-  ; let y
-  store i32 %b, ptr %y.addr
-  ; while condition
-  br label %while.pre
-while.pre:
-  %x.init0 = load i32, ptr %x.addr
-  %y.init0 = load i32, ptr %y.addr
-  br label %while.cond
-while.cond:
-  %x.phi0 = phi i32 [%x.init0, %while.pre], [%y.phi0, %while.latch]
-  %y.phi0 = phi i32 [%y.init0, %while.pre], [%y.next0, %while.latch]
-  %t0 = icmp ne i32 %y.phi0, 0
-  br i1 %t0, label %while.body, label %while.exit-merge
-while.body:
-  ; while body
-  ; let r (deferred)
-  ; set x
-  ; set y
-  %y.next0 = srem i32 %x.phi0, %y.phi0
-  br label %while.latch
-while.latch:
-  br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %x.phi0, ptr %x.addr
-  store i32 %y.phi0, ptr %y.addr
-  br label %while.end
-while.end:
-  ; return
-  %t1 = load i32, ptr %x.addr
-  ret i32 %t1
-}
-
 ; function: main
 ; params: none
 ; returns: i32
@@ -92,5 +50,47 @@ while.end:
   ; return
   %t6 = load i32, ptr %acc.addr
   ret i32 %t6
+}
+
+; function: gcd_pair
+; params: i32, i32
+; returns: i32
+define i32 @gcd_pair(i32 %a, i32 %b) {
+entry:
+  %x.addr = alloca i32
+  %y.addr = alloca i32
+  ; let x
+  store i32 %a, ptr %x.addr
+  ; let y
+  store i32 %b, ptr %y.addr
+  ; while condition
+  br label %while.pre
+while.pre:
+  %x.init0 = load i32, ptr %x.addr
+  %y.init0 = load i32, ptr %y.addr
+  br label %while.cond
+while.cond:
+  %x.phi0 = phi i32 [%x.init0, %while.pre], [%y.phi0, %while.latch]
+  %y.phi0 = phi i32 [%y.init0, %while.pre], [%y.next0, %while.latch]
+  %t0 = icmp ne i32 %y.phi0, 0
+  br i1 %t0, label %while.body, label %while.exit-merge
+while.body:
+  ; while body
+  ; let r (deferred)
+  ; set x
+  ; set y
+  %y.next0 = srem i32 %x.phi0, %y.phi0
+  br label %while.latch
+while.latch:
+  br label %while.cond
+while.exit-merge:
+  ; sync loop-carried locals to stack
+  store i32 %x.phi0, ptr %x.addr
+  store i32 %y.phi0, ptr %y.addr
+  br label %while.end
+while.end:
+  ; return
+  %t1 = load i32, ptr %x.addr
+  ret i32 %t1
 }
 
