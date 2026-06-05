@@ -9,6 +9,8 @@
   (name "module")
   (version "0.1")
 
+
+
   ; Emit the LLVM module header comment.
   (fn emit_module_header
     (params (ctx ptr) (source_path ptr))
@@ -42,7 +44,7 @@
         (condition (ne_i64 (local_get child) (const_i64 -1)))
         (do
           (if
-            (condition (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (local_get child)
+            (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (local_get child)
               (const_string_ptr "decls") (const_i64 5)) (const_i32 0)))
             (then (do (return (local_get child))))
             (else (do)))
@@ -66,7 +68,7 @@
         (condition (ne_i64 (local_get child) (const_i64 -1)))
         (do
           (if
-            (condition (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (local_get child)
+            (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (local_get child)
               (const_string_ptr "extern") (const_i64 6)) (const_i32 0)))
             (then (do
               (let name_node i64 (call_i64 nth_child (local_get tree) (local_get child) (const_i64 1)))
@@ -94,14 +96,14 @@
       (if
         (condition (or_bool
           (or_bool
-            (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (param_get node)
+            (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
               (const_string_ptr "call_i32") (const_i64 8)) (const_i32 0))
-            (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (param_get node)
+            (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
               (const_string_ptr "call_i64") (const_i64 8)) (const_i32 0)))
           (or_bool
-            (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (param_get node)
+            (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
               (const_string_ptr "call_ptr") (const_i64 8)) (const_i32 0))
-            (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (param_get node)
+            (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
               (const_string_ptr "call_void") (const_i64 9)) (const_i32 0)))))
         (then (do
           (let call_name i64 (call_i64 nth_child (local_get tree) (param_get node) (const_i64 1)))
@@ -178,6 +180,17 @@
           (call_void write_cstr (local_get fd) (const_string_ptr "declare i32 @puts(ptr)"))
           (call_void write_byte (local_get fd) (const_i32 10))))
         (else (do)))
+      (if
+        (condition (and_bool
+          (eq_i32 (call_i32 decls_has_extern
+            (param_get ctx) (param_get decls_node) (const_string_ptr "weave_rt_contract_fail") (const_i64 22)) (const_i32 0))
+          (ne_i32 (call_i32 node_has_call
+            (param_get ctx) (param_get decls_node) (const_string_ptr "weave_rt_contract_fail") (const_i64 22)) (const_i32 0))))
+        (then (do
+          (set any (call_i32 ensure_declarations_header (param_get ctx) (local_get any)))
+          (call_void write_cstr (local_get fd) (const_string_ptr "declare void @weave_rt_contract_fail(ptr)"))
+          (call_void write_byte (local_get fd) (const_i32 10))))
+        (else (do)))
       (return (local_get any))))
 
   ; Emit the full module: header + externs + strings + functions.
@@ -214,7 +227,7 @@
         (condition (ne_i64 (local_get scan) (const_i64 -1)))
         (do
           (if
-            (condition (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (local_get scan)
+            (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (local_get scan)
               (const_string_ptr "extern") (const_i64 6)) (const_i32 0)))
             (then (do
               (if
@@ -242,19 +255,32 @@
       (call_void emit_string_globals (param_get ctx) (local_get decls_node))
       ; Reset str_ctr so expression emission assigns the same indices
       (call_void ctx_reset_str (param_get ctx))
-      ; Pass 3: emit function definitions
+      ; Pass 3: emit function definitions (main first when present)
+      (let main_fn i64 (call_i64 find_main_fn_decl (param_get ctx) (local_get decls_node)))
+      (if
+        (condition (ne_i64 (local_get main_fn) (const_i64 -1)))
+        (then (do
+          (if
+            (condition (ne_i32 (call_i32 emit_function (param_get ctx) (local_get main_fn)) (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))))
+        (else (do)))
       (let fn_child i64 (local_get child))
       (while
         (condition (ne_i64 (local_get fn_child) (const_i64 -1)))
         (do
           (if
-            (condition (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (local_get fn_child)
+            (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (local_get fn_child)
               (const_string_ptr "fn") (const_i64 2)) (const_i32 0)))
             (then (do
               (if
-                (condition (ne_i32 (call_i32 emit_function (param_get ctx) (local_get fn_child)) (const_i32 0)))
-                (then (do (return (const_i32 1))))
-                (else (do)))))
+                (condition (eq_i64 (local_get fn_child) (local_get main_fn)))
+                (then (do))
+                (else (do
+                  (if
+                    (condition (ne_i32 (call_i32 emit_function (param_get ctx) (local_get fn_child)) (const_i32 0)))
+                    (then (do (return (const_i32 1))))
+                    (else (do))))))))
             (else (do)))
           (set fn_child (call_i64 node_next_sibling (local_get tree) (local_get fn_child)))))
       (return (const_i32 0))))

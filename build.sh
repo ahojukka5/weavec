@@ -40,6 +40,11 @@ set -euo pipefail
 #   WEAVEC0 / WEAVEC0_TAG       (default tag: v0.2.0)
 #   WEAVEC1 / WEAVEC1_TAG       (default tag: v0.1.0)
 #   WEAVEFRONT / WEAVEFRONT_TAG (default tag: v0.1.0)
+#   WEAVEC2_BACKEND              optional path to a self-hosted weavec2 binary;
+#                                when set, WIR → LLVM uses --backend instead of weavec1.
+#                                If unset and build/selfhost/stage2/weavec2 exists, that
+#                                binary is auto-selected (weavec1 miscompiles guarded tree
+#                                walks in the combined frontend module).
 # =============================================================================
 
 WEAVEC2_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -133,10 +138,19 @@ ensure_weavefront() {
   [[ -d "$WEAVEFRONT_DIR" ]] || fail "weavefront source dir not found: $WEAVEFRONT_DIR"
   [[ -x "$WEAVEFRONT_DIR/build.sh" ]] || fail "weavefront build.sh not found at $WEAVEFRONT_DIR/build.sh"
 
+  # weavefront v0.1.0 overflows the default stack on weavec2's combined
+  # surface; patch the vendor build script and rebuild when needed.
+  "$WEAVEC2_DIR/scripts/patch-weavefront-stack.sh" "$WEAVEFRONT_DIR/build.sh"
+
   WEAVEFRONT_BIN="$WEAVEFRONT_DIR/build/weavefront"
   WEAVEFRONT_BUILD="$WEAVEFRONT_DIR/build"
-  if [[ ! -x "$WEAVEFRONT_BIN" ]]; then
-    log "building weavefront ($WEAVEFRONT_DIR)"
+  if [[ ! -x "$WEAVEFRONT_BIN" ]] || ! "$WEAVEC2_DIR/scripts/weavefront-has-stack-patch.sh" "$WEAVEFRONT_BIN"; then
+    if [[ -x "$WEAVEFRONT_BIN" ]]; then
+      log "rebuilding weavefront (stack-size link patch)"
+      rm -f "$WEAVEFRONT_BIN"
+    else
+      log "building weavefront ($WEAVEFRONT_DIR)"
+    fi
     ( cd "$WEAVEFRONT_DIR" && WEAVEC0="$WEAVEC0_DIR" WEAVEC1="$WEAVEC1_DIR" ./build.sh ) \
       || fail "weavefront build failed"
   fi
@@ -158,11 +172,17 @@ SOURCES=(
   src/core/io.weave
   src/core/util.weave
   # frontend: surface Weave → WIR lowering
+  src/frontend/quantum_optimize.weave
   src/frontend/quantum_nativize.weave
+  src/frontend/quantum_stats.weave
   src/frontend/emit.weave
+  src/frontend/contract-lower.weave
   src/frontend/struct.weave
   src/frontend/lower.weave
   src/frontend/driver.weave
+  src/frontend/explain-audit.weave
+  src/frontend/contract-effects.weave
+  src/frontend/audit-report.weave
   # llvm: WIR → LLVM IR backend
   src/llvm/ctx.weave
   src/llvm/types.weave
@@ -187,9 +207,21 @@ build_weavec2() {
     || fail "weavefront-cat.sh failed"
   chmod u+rw "$BUILD_DIR/weavec2.wir" 2>/dev/null || true
 
+  if [[ -z "${WEAVEC2_BACKEND:-}" && -x "$BUILD_DIR/selfhost/stage2/weavec2" ]]; then
+    WEAVEC2_BACKEND="$BUILD_DIR/selfhost/stage2/weavec2"
+    log "auto-selected WEAVEC2_BACKEND=$WEAVEC2_BACKEND"
+  fi
+
   log "compiling WIR → LLVM IR"
-  "$WEAVEC1_BIN" "$BUILD_DIR/weavec2.wir" "$BUILD_DIR/weavec2.ll" \
-    || fail "weavec1 failed to compile weavec2.wir"
+  if [[ -n "${WEAVEC2_BACKEND:-}" ]]; then
+    [[ -x "$WEAVEC2_BACKEND" ]] || fail "WEAVEC2_BACKEND is not executable: $WEAVEC2_BACKEND"
+    log "using self-hosted backend: $WEAVEC2_BACKEND"
+    "$WEAVEC2_BACKEND" --backend "$BUILD_DIR/weavec2.wir" "$BUILD_DIR/weavec2.ll" \
+      || fail "weavec2 --backend failed to compile weavec2.wir"
+  else
+    "$WEAVEC1_BIN" "$BUILD_DIR/weavec2.wir" "$BUILD_DIR/weavec2.ll" \
+      || fail "weavec1 failed to compile weavec2.wir"
+  fi
 
   log "linking LLVM modules"
   llvm-link \
@@ -205,9 +237,19 @@ build_weavec2() {
   # runtime/portable.c provides weave_rt_open_write_trunc, which wraps
   # the POSIX open() call so we don't bake platform-specific flag
   # constants (macOS vs Linux) into the WIR source.
-  clang "$BUILD_DIR/weavec2.bc" "$WEAVEC2_DIR/runtime/portable.c" \
-    -o "$BUILD_DIR/weavec2" \
-    || fail "clang failed"
+  # Combined surface lowering recurses deeply; default ~8 MiB stack overflows.
+  local stack_size="0x1000000"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    clang "$BUILD_DIR/weavec2.bc" "$WEAVEC2_DIR/runtime/portable.c" \
+      -o "$BUILD_DIR/weavec2" \
+      -Wl,-stack_size,"$stack_size" \
+      || fail "clang failed"
+  else
+    clang "$BUILD_DIR/weavec2.bc" "$WEAVEC2_DIR/runtime/portable.c" \
+      -o "$BUILD_DIR/weavec2" \
+      -Wl,-z,stack-size="$stack_size" \
+      || fail "clang failed"
+  fi
 }
 
 main() {

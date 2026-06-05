@@ -24,10 +24,12 @@
   ; Wraps open(path, O_WRONLY|O_CREAT|O_TRUNC, mode) so we don't bake
   ; macOS-specific or Linux-specific flag values into the WIR source.
   (extern weave_rt_open_write_trunc (params (path ptr) (mode i32)) (returns i32))
+  (extern weave_rt_contract_fail (params (msg ptr)) (returns void))
 
   ; weavefront C runtime — lex/parse
   (extern lex (params (source ptr) (length i64)) (returns ptr))
   (extern parse (params (tokens ptr)) (returns ptr))
+  (extern tree_free (params (tree ptr)) (returns void))
 
   ; weavefront C runtime — node accessors
   (extern node_kind (params (tree ptr) (index i64)) (returns i32))

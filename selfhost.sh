@@ -22,15 +22,22 @@ require_tool clang
 
 chmod -R u+rw "$BUILD_DIR" 2>/dev/null || true
 
+# Keep in sync with SOURCES in build.sh (same order, $ROOT-prefixed paths).
 SOURCES=(
   "$ROOT/src/core/extern.weave"
   "$ROOT/src/core/io.weave"
   "$ROOT/src/core/util.weave"
+  "$ROOT/src/frontend/quantum_optimize.weave"
   "$ROOT/src/frontend/quantum_nativize.weave"
+  "$ROOT/src/frontend/quantum_stats.weave"
   "$ROOT/src/frontend/emit.weave"
+  "$ROOT/src/frontend/contract-lower.weave"
   "$ROOT/src/frontend/struct.weave"
   "$ROOT/src/frontend/lower.weave"
   "$ROOT/src/frontend/driver.weave"
+  "$ROOT/src/frontend/explain-audit.weave"
+  "$ROOT/src/frontend/contract-effects.weave"
+  "$ROOT/src/frontend/audit-report.weave"
   "$ROOT/src/llvm/ctx.weave"
   "$ROOT/src/llvm/types.weave"
   "$ROOT/src/llvm/locals.weave"
@@ -49,6 +56,40 @@ RUNTIME_MODULES=(
   sexpr_lexer
   sexpr_parser
 )
+
+# Link bc+runtime; reject broken executables (clang output for the large
+# self-host module is not always safe to run). Retry until smoke --frontend works.
+link_stage_binary() {
+  local bc="$1"
+  local out_bin="$2"
+  local stack_size="0x1000000"
+  local tmp_bin smoke_wir attempt
+
+  log "clang $out_bin"
+  for attempt in 1 2 3 4 5 6 7 8 9 10; do
+    tmp_bin="$(mktemp /tmp/weavec2-stage.XXXXXX)"
+    smoke_wir="$(mktemp /tmp/weavec2-smoke.XXXXXX.wir)"
+    rm -f "$out_bin"
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      clang "$bc" "$ROOT/runtime/portable.c" -o "$tmp_bin" \
+        -Wl,-stack_size,"$stack_size"
+    else
+      clang "$bc" "$ROOT/runtime/portable.c" -o "$tmp_bin" \
+        -Wl,-z,stack-size="$stack_size"
+    fi
+    if "$tmp_bin" --frontend "$smoke_wir" \
+      "$ROOT/src/core/extern.weave" \
+      "$ROOT/src/main.weave" \
+      "$ROOT/src/frontend/driver.weave" \
+      "$ROOT/src/frontend/lower.weave" >/dev/null 2>&1; then
+      mv "$tmp_bin" "$out_bin"
+      rm -f "$smoke_wir"
+      return 0
+    fi
+    rm -f "$tmp_bin" "$smoke_wir"
+  done
+  fail "link produced an unusable compiler binary after 10 attempts (rebuild seed: ./build.sh)"
+}
 
 build_stage() {
   local compiler="$1"
@@ -76,9 +117,7 @@ build_stage() {
   log "link $out_dir/weavec2.bc"
   llvm-link "$out_dir/weavec2.ll" "${runtime_ll[@]}" -o "$out_dir/weavec2.bc"
 
-  log "clang $out_bin"
-  # runtime/portable.c provides weave_rt_open_write_trunc (see build.sh).
-  clang "$out_dir/weavec2.bc" "$ROOT/runtime/portable.c" -o "$out_bin"
+  link_stage_binary "$out_dir/weavec2.bc" "$out_bin"
 }
 
 build_stage "$SEED" "$BUILD_DIR/stage1"

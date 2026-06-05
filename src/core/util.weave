@@ -42,6 +42,38 @@
         (param_get tree) (param_get source) (param_get node)
         (param_get ident_str) (param_get name_len)))))
 
+  ; Free token storage produced by lex (sexpr_lexer layout).
+  (fn tokens_free
+    (params (tokens ptr))
+    (returns void)
+    (do
+      (if
+        (condition (eq_ptr (param_get tokens) (const_null)))
+        (then (do (return_void)))
+        (else (do)))
+      (let kinds ptr (load_ptr (param_get tokens)))
+      (if
+        (condition (ne_ptr (local_get kinds) (const_null)))
+        (then (do (call_void free (local_get kinds))))
+        (else (do)))
+      (let starts ptr (load_ptr (ptr_add (param_get tokens) (const_i64 8))))
+      (if
+        (condition (ne_ptr (local_get starts) (const_null)))
+        (then (do (call_void free (local_get starts))))
+        (else (do)))
+      (let lengths ptr (load_ptr (ptr_add (param_get tokens) (const_i64 16))))
+      (if
+        (condition (ne_ptr (local_get lengths) (const_null)))
+        (then (do (call_void free (local_get lengths))))
+        (else (do)))
+      (let values ptr (load_ptr (ptr_add (param_get tokens) (const_i64 24))))
+      (if
+        (condition (ne_ptr (local_get values) (const_null)))
+        (then (do (call_void free (local_get values))))
+        (else (do)))
+      (call_void free (param_get tokens))
+      (return_void)))
+
   ; Check if the first child of a list node is an ident matching name.
   (fn head_equals
     (params (tree ptr) (source ptr) (node i64) (ident_str ptr) (name_len i64))
@@ -86,6 +118,23 @@
     (do
       (call_void write_bytes (param_get fd) (ptr_add (param_get source) (param_get start)) (param_get len))
       (return_void)))
+
+  ; True when two ident nodes name the same source slice.
+  (fn ident_nodes_equal
+    (params (tree ptr) (source ptr) (a i64) (b i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_i64 (param_get a) (const_i64 -1))
+          (eq_i64 (param_get b) (const_i64 -1))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 slices_equal (param_get source)
+        (call_i64 node_text_start (param_get tree) (param_get a))
+        (call_i64 node_text_len (param_get tree) (param_get a))
+        (call_i64 node_text_start (param_get tree) (param_get b))
+        (call_i64 node_text_len (param_get tree) (param_get b))))))
 
   ; Check if two source slices are equal (used for name lookup).
   (fn slices_equal
@@ -139,6 +188,20 @@
             (else (do)))
           (set i (add_i64 (local_get i) (const_i64 1)))))
       (return (const_i32 1))))
+
+  ; Return non-zero when path ends with suffix (byte-exact, length-checked).
+  (fn path_ends_with
+    (params (path ptr) (suffix ptr) (suffix_len i64))
+    (returns i32)
+    (do
+      (let plen i64 (call_i64 strlen (param_get path)))
+      (if
+        (condition (lt_i64 (local_get plen) (param_get suffix_len)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 cstr_equals
+        (ptr_add (param_get path) (sub_i64 (local_get plen) (param_get suffix_len)))
+        (param_get suffix) (param_get suffix_len)))))
 
   ; Compare a null-terminated C string with an expected byte string.
   (fn cstr_equals

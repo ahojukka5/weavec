@@ -10,6 +10,8 @@
   (name "strings")
   (version "0.1")
 
+
+
   ; Compute the decoded byte length of a string node's content (excluding quotes).
   ; Handles: \n \0 \" \\ → each counts as 1 decoded byte.
   (fn string_decoded_len
@@ -167,7 +169,7 @@
         (else (do)))
       ; Check if this list is (const_string_ptr "...")
       (if
-        (condition (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (param_get node)
+        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
           (const_string_ptr "const_string_ptr") (const_i64 16)) (const_i32 0)))
         (then (do
           (call_void emit_one_string_global (param_get ctx) (param_get node))
@@ -194,7 +196,7 @@
         (then (do (return (const_i32 0))))
         (else (do)))
       (if
-        (condition (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (param_get node)
+        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
           (const_string_ptr "const_string_ptr") (const_i64 16)) (const_i32 0)))
         (then (do (return (const_i32 1))))
         (else (do)))
@@ -233,7 +235,7 @@
         (condition (and_bool (ne_i64 (local_get scan_child) (const_i64 -1)) (eq_i32 (local_get has_strings) (const_i32 0))))
         (do
           (if
-            (condition (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (local_get scan_child)
+            (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (local_get scan_child)
               (const_string_ptr "fn") (const_i64 2)) (const_i32 0)))
             (then (do
               (if
@@ -247,19 +249,28 @@
         (condition (eq_i32 (local_get has_strings) (const_i32 0)))
         (then (do (return_void)))
         (else (do)))
-      ; emit header and scan all fn bodies
+      ; emit header and scan fn bodies (main first when present)
       (call_void write_cstr (local_get fd) (const_string_ptr "; string literals"))
       (call_void write_byte (local_get fd) (const_i32 10))
       (call_void write_byte (local_get fd) (const_i32 10))
+      (let main_fn i64 (call_i64 find_main_fn_decl (param_get ctx) (param_get decls_node)))
+      (if
+        (condition (ne_i64 (local_get main_fn) (const_i64 -1)))
+        (then (do
+          (call_void scan_emit_strings (param_get ctx) (local_get main_fn))))
+        (else (do)))
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
         (do
           (if
-            (condition (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (local_get child)
+            (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (local_get child)
               (const_string_ptr "fn") (const_i64 2)) (const_i32 0)))
             (then (do
-              ; scan entire fn node (including params, returns, do)
-              (call_void scan_emit_strings (param_get ctx) (local_get child))))
+              (if
+                (condition (eq_i64 (local_get child) (local_get main_fn)))
+                (then (do))
+                (else (do
+                  (call_void scan_emit_strings (param_get ctx) (local_get child)))))))
             (else (do)))
           (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
       (call_void write_byte (local_get fd) (const_i32 10))

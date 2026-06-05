@@ -73,6 +73,46 @@
       (call_void write_byte (local_get fd) (const_i32 10))
       (return (const_i32 0))))
 
+  ; Return non-zero when decl is (fn main ...).
+  (fn fn_decl_is_main
+    (params (ctx ptr) (decl_node i64))
+    (returns i32)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
+      (if
+        (condition (eq_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get decl_node)
+          (const_string_ptr "fn") (const_i64 2)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let name_node i64 (call_i64 nth_child (local_get tree) (param_get decl_node) (const_i64 1)))
+      (return (call_i32 node_text_equals
+        (local_get tree) (local_get source) (local_get name_node)
+        (const_string_ptr "main") (const_i64 4)))))
+
+  ; Find (fn main ...) in decls, or -1 when absent.
+  (fn find_main_fn_decl
+    (params (ctx ptr) (decls_node i64))
+    (returns i64)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
+      (let child i64 (call_i64 node_first_child (local_get tree) (param_get decls_node)))
+      (if
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (then (do
+          (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
+        (else (do)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 fn_decl_is_main (param_get ctx) (local_get child)) (const_i32 0)))
+            (then (do (return (local_get child))))
+            (else (do)))
+          (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
+      (return (const_i64 -1))))
+
   ; Emit a function definition.
   ; node is a (fn name (params ...) (returns type) (do ...)) list.
   (fn emit_function

@@ -14,6 +14,8 @@
   (name "expr")
   (version "0.1")
 
+
+
   (fn diag_prefix
     (params)
     (returns void)
@@ -181,7 +183,7 @@
       (let head i64 (call_i64 node_first_child (local_get tree) (param_get node)))
       ; param_get x → %x
       (if
-        (condition (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (param_get node)
+        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
           (const_string_ptr "param_get") (const_i64 9)) (const_i32 0)))
         (then (do
           (let name_node i64 (call_i64 nth_child (local_get tree) (param_get node) (const_i64 1)))
@@ -191,7 +193,7 @@
         (else (do)))
       ; const_null → null
       (if
-        (condition (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (param_get node)
+        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
           (const_string_ptr "const_null") (const_i64 10)) (const_i32 0)))
         (then (do
           (call_void write_cstr (local_get fd) (const_string_ptr "null"))
@@ -199,7 +201,7 @@
         (else (do)))
       ; const_bool → true/false
       (if
-        (condition (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (param_get node)
+        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
           (const_string_ptr "const_bool") (const_i64 10)) (const_i32 0)))
         (then (do
           (let bool_node i64 (call_i64 nth_child (local_get tree) (param_get node) (const_i64 1)))
@@ -212,7 +214,7 @@
         (else (do)))
       ; const_i32 N → N
       (if
-        (condition (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (param_get node)
+        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
           (const_string_ptr "const_i32") (const_i64 9)) (const_i32 0)))
         (then (do
           (let val_node i64 (call_i64 nth_child (local_get tree) (param_get node) (const_i64 1)))
@@ -221,7 +223,7 @@
         (else (do)))
       ; const_i64 N → N
       (if
-        (condition (ne_i32 (call_i32 head_equals (local_get tree) (local_get source) (param_get node)
+        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
           (const_string_ptr "const_i64") (const_i64 9)) (const_i32 0)))
         (then (do
           (let val_node2 i64 (call_i64 nth_child (local_get tree) (param_get node) (const_i64 1)))
