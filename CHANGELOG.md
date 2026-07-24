@@ -20,13 +20,19 @@ surface-language contract stabilises.
 - Documented the compiler chain as
   `weavec0 → weavec1 → weavec-bootstrap → weavec`.
 - Replaced four cross-repository parser-module links with the single named
-  `weavec-bootstrap/build/libweave-sexpr.bc` boundary.
+  `libweave-sexpr.bc` SDK boundary.
 - Renamed the self-host backend override to `WEAVEC_BACKEND` and all stage
   outputs to `weavec`.
 - Removed the remaining compatibility paths and former stack-patch helper
   scripts.
-- Pinned the bootstrap frontend revision that owns its executable stack
-  requirement and parser-library contract.
+- Linux x86-64 now consumes checksum-verified `weavec1 v0.2.0` and
+  `weavec-bootstrap v0.2.0` SDKs instead of cloning and rebuilding the lower
+  compiler repositories.
+- Added explicit glibc and musl SDK selection and local extracted-SDK overrides.
+- Restricted Stage 0 and source-repository resolution to unsupported hosts or
+  explicit source fallback requests.
+- Expanded CI to require SDK mode on Linux glibc and musl and source mode on
+  macOS.
 
 ### Fixed
 
@@ -43,6 +49,8 @@ surface-language contract stabilises.
   `clang` until the stage binary passes it.
 - `weavec` no longer rewrites a dependency's `build.sh`; the 16 MiB bootstrap
   frontend stack contract is implemented and tested in `weavec-bootstrap`.
+- SDK archives and checksums are revalidated before extraction, preventing a
+  stale or mismatched download from entering the bootstrap chain.
 
 ## [0.1.2] — 2026-05-27
 
