@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // Private source-to-executable driver used by the public `weavec build` command.
 
+#ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 700
+#endif
+#ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
+#endif
 
 #include <errno.h>
 #include <limits.h>
@@ -16,6 +20,10 @@
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
+#endif
+
+#ifndef WEAVEC_DEFAULT_CLANG
+#define WEAVEC_DEFAULT_CLANG "clang"
 #endif
 
 #ifndef WEAVEC_DEFAULT_CC
@@ -149,6 +157,7 @@ static void cleanup_build_directory(
     const char *directory,
     const char *wir,
     const char *llvm,
+    const char *object,
     const char *temporary_binary
 ) {
     if (wir != NULL) {
@@ -156,6 +165,9 @@ static void cleanup_build_directory(
     }
     if (llvm != NULL) {
         (void)unlink(llvm);
+    }
+    if (object != NULL) {
+        (void)unlink(object);
     }
     if (temporary_binary != NULL) {
         (void)unlink(temporary_binary);
@@ -246,13 +258,15 @@ int weave_driver_build(int argc, char **argv) {
 
     char wir[PATH_MAX];
     char llvm[PATH_MAX];
+    char object[PATH_MAX];
     char temporary_binary[PATH_MAX];
     if (snprintf(wir, sizeof(wir), "%s/program.wir", build_directory) >= (int)sizeof(wir) ||
         snprintf(llvm, sizeof(llvm), "%s/program.ll", build_directory) >= (int)sizeof(llvm) ||
+        snprintf(object, sizeof(object), "%s/program.o", build_directory) >= (int)sizeof(object) ||
         snprintf(temporary_binary, sizeof(temporary_binary), "%s/program", build_directory) >=
             (int)sizeof(temporary_binary)) {
         driver_error("output path is too long");
-        cleanup_build_directory(build_directory, NULL, NULL, NULL);
+        cleanup_build_directory(build_directory, NULL, NULL, NULL, NULL);
         free(build_directory);
         free(inputs);
         return 1;
@@ -261,7 +275,7 @@ int weave_driver_build(int argc, char **argv) {
     char **frontend = calloc((size_t)input_count + 5, sizeof(char *));
     if (frontend == NULL) {
         driver_error("out of memory");
-        cleanup_build_directory(build_directory, wir, llvm, temporary_binary);
+        cleanup_build_directory(build_directory, wir, llvm, object, temporary_binary);
         free(build_directory);
         free(inputs);
         return 1;
@@ -281,11 +295,35 @@ int weave_driver_build(int argc, char **argv) {
         status = run_command(backend);
     }
     if (status == 0) {
+        const char *configured_clang = getenv("WEAVEC_CLANG");
+        char *clang_binary = (char *)(
+            configured_clang != NULL && configured_clang[0] != '\0'
+                ? configured_clang
+                : WEAVEC_DEFAULT_CLANG
+        );
+        char *codegen[] = {
+            clang_binary,
+            "-Wno-override-module",
+            "-c",
+            llvm,
+            "-o",
+            object,
+            NULL,
+        };
+        status = run_command(codegen);
+    }
+    if (status == 0) {
         const char *configured_cc = getenv("WEAVEC_CC");
-        char *cc = (char *)((configured_cc != NULL && configured_cc[0] != '\0')
-            ? configured_cc
-            : WEAVEC_DEFAULT_CC);
-        char *link[] = {cc, llvm, runtime, "-o", temporary_binary, NULL};
+        char *cc = (char *)(
+            configured_cc != NULL && configured_cc[0] != '\0'
+                ? configured_cc
+                : WEAVEC_DEFAULT_CC
+        );
+#ifdef WEAVEC_DEFAULT_STATIC_LINK
+        char *link[] = {cc, "-static", object, runtime, "-o", temporary_binary, NULL};
+#else
+        char *link[] = {cc, object, runtime, "-o", temporary_binary, NULL};
+#endif
         status = run_command(link);
     }
     if (status == 0 && rename(temporary_binary, output) != 0) {
@@ -296,7 +334,7 @@ int weave_driver_build(int argc, char **argv) {
     if (keep_temporaries) {
         fprintf(stderr, "weavec: build: intermediates: %s\n", build_directory);
     } else {
-        cleanup_build_directory(build_directory, wir, llvm, temporary_binary);
+        cleanup_build_directory(build_directory, wir, llvm, object, temporary_binary);
     }
 
     free(build_directory);
