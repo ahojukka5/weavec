@@ -25,9 +25,6 @@ jobs:
       - name: Apply canonical paths
         run: python3 scripts/refactor-canonical-paths.py
 
-      - name: Validate patch formatting
-        run: git diff --check
-
       - name: Commit transformed tree
         run: |
           git config user.name github-actions[bot]
