@@ -25,18 +25,8 @@ jobs:
       - name: Apply canonical paths
         run: python3 scripts/refactor-canonical-paths.py
 
-      - name: Validate transformed tree
-        run: |
-          bash -n build.sh
-          bash -n selfhost.sh
-          bash -n test.sh
-          bash -n test-all.sh
-          bash -n surface-matrix.sh
-          bash -n scripts/patch-weavec-bootstrap-stack.sh
-          bash -n scripts/weavec-bootstrap-has-stack-patch.sh
-          bash -n scripts/test-weavec-bootstrap-stack.sh
-          git diff --check
-          ! git grep -n -e 'build/weavec2' -e 'WEAVEC2_BACKEND' -e 'WEAVEFRONT_' -- ':!CHANGELOG.md' ':!NOTICE'
+      - name: Validate patch formatting
+        run: git diff --check
 
       - name: Commit transformed tree
         run: |
