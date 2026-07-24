@@ -8,6 +8,18 @@ surface-language contract stabilises.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-07-24
+
+### Added
+
+- Static Linux x86-64 compiler archives for glibc and musl.
+- `VERSION`, `BUILD-MANIFEST`, release checksums, installed-binary smoke tests,
+  and automated GitHub Release publication.
+- `docs/RELEASING.md` and `scripts/package-linux-release.sh` for the final
+  compiler package contract.
+- A correctness regression proving that implicit backend invocation is rejected
+  without creating output.
+
 ### Changed
 
 - Renamed the repository from `weavec2` to `weavec` because it is the final
@@ -26,14 +38,15 @@ surface-language contract stabilises.
 - Removed the remaining compatibility paths and former stack-patch helper
   scripts.
 - Linux x86-64 now consumes checksum-verified `weavec1 v0.2.0` and
-  `weavec-bootstrap v0.2.0` SDKs instead of cloning and rebuilding the lower
+  `weavec-bootstrap v0.2.0` SDKs instead of cloning and rebuilding lower
   compiler repositories.
-- Added explicit glibc and musl SDK selection and local extracted-SDK overrides.
+- Added explicit glibc and musl SDK selection and extracted-SDK overrides.
 - Restricted Stage 0 and source-repository resolution to unsupported hosts or
   explicit source fallback requests.
 - Expanded CI to require SDK mode on Linux glibc and musl and source mode on
   macOS.
-- Removed the implicit `weavec input.wir output.ll` backend compatibility syntax; callers must use `weavec --backend input.wir output.ll`.
+- Removed the implicit `weavec input.wir output.ll` backend compatibility
+  syntax. Callers must use `weavec --backend input.wir output.ll`.
 
 ### Fixed
 
@@ -52,6 +65,8 @@ surface-language contract stabilises.
   frontend stack contract is implemented and tested in `weavec-bootstrap`.
 - SDK archives and checksums are revalidated before extraction, preventing a
   stale or mismatched download from entering the bootstrap chain.
+- Release packaging rejects dynamic ELF executables, tests both compiler stages,
+  verifies emitted LLVM IR, and retests the stripped archived binary.
 
 ## [0.1.2] — 2026-05-27
 

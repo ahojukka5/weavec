@@ -1,6 +1,7 @@
 # weavec — Self-Hosted Weave Compiler
 
 [![ci](https://github.com/ahojukka5/weavec/actions/workflows/ci.yml/badge.svg)](https://github.com/ahojukka5/weavec/actions/workflows/ci.yml)
+[![release](https://github.com/ahojukka5/weavec/actions/workflows/release.yml/badge.svg)](https://github.com/ahojukka5/weavec/actions/workflows/release.yml)
 
 > The user-facing Weave compiler, written in surface Weave. It combines surface
 > lowering and WIR-to-LLVM emission in one self-hosted binary.
@@ -23,9 +24,38 @@ weavec0 → weavec1 → weavec-bootstrap → weavec
 
 Normal users should interact only with `weavec`.
 
-## Prerequisites
+## Install a release binary
 
-Linux x86-64 builds use published, checksum-verified SDKs. They need:
+Release `v0.2.0` publishes static Linux x86-64 archives for glibc and musl:
+
+```text
+weavec-vX.Y.Z-linux-x86_64-<libc>/
+├── bin/weavec
+├── BUILD-MANIFEST
+├── VERSION
+├── README.md
+├── LICENSE
+└── NOTICE
+```
+
+The compiler binary itself does not require LLVM, Python, or any bootstrap
+repository. LLVM tools are needed only when assembling or linking emitted LLVM
+IR.
+
+After extracting an archive:
+
+```sh
+./bin/weavec --frontend output.wir input.weave
+./bin/weavec --backend output.wir output.ll
+```
+
+Release downloads include `SHA256SUMS`. The musl archive is the most portable
+choice for Linux systems; the glibc archive uses the standard GNU libc runtime.
+See [`docs/RELEASING.md`](docs/RELEASING.md).
+
+## Build from source
+
+Linux x86-64 source builds consume published, checksum-verified SDKs. They need:
 
 - Bash 4 or newer;
 - LLVM and Clang 14 or newer;
@@ -33,6 +63,11 @@ Linux x86-64 builds use published, checksum-verified SDKs. They need:
 
 ```sh
 sudo apt-get install -y clang curl llvm python3
+
+git clone https://github.com/ahojukka5/weavec.git
+cd weavec
+./build.sh
+./test-all.sh
 ```
 
 macOS currently uses the pinned source fallback:
@@ -40,13 +75,6 @@ macOS currently uses the pinned source fallback:
 ```sh
 brew install llvm git
 export PATH="$(brew --prefix llvm)/bin:$PATH"
-```
-
-## Quick start
-
-```sh
-git clone https://github.com/ahojukka5/weavec.git
-cd weavec
 ./build.sh
 ./test-all.sh
 ```
@@ -60,7 +88,22 @@ build/weavec.bc
 build/weavec
 ```
 
-There are no `weavec2` or `weavefront` compatibility aliases.
+There are no current `weavec2` or `weavefront` compatibility aliases.
+
+## Command line
+
+```text
+weavec --backend <input.wir> <output.ll>
+weavec --frontend [--strict-contracts] <output.wir> <input.weave> [input2.weave ...]
+weavec --dump-quantum-stats <output.metrics> <input.weave>
+weavec --explain <input.weave>
+weavec --explain-json <input.weave>
+weavec --audit <input.weave>
+weavec --audit-json <input.weave>
+```
+
+Backend compilation is intentionally explicit. The former
+`weavec input.wir output.ll` spelling is rejected.
 
 ## SDK-first bootstrap
 
@@ -70,9 +113,9 @@ The normal Linux build downloads:
 - `weavec-bootstrap v0.2.0` for surface lowering and
   `libweave-sexpr.bc`.
 
-Both archives are selected for `glibc` or `musl`, verified against the release
-`SHA256SUMS`, and cached under `build/vendor/*-sdk/`. The normal Linux path does
-not clone or build `weavec0`, `weavec1`, or `weavec-bootstrap` from source.
+Both archives are selected for `glibc` or `musl`, verified against release
+checksums, and cached under `build/vendor/*-sdk/`. The normal Linux path does not
+clone or build `weavec0`, `weavec1`, or `weavec-bootstrap` from source.
 
 Environment overrides:
 
@@ -119,10 +162,12 @@ build scripts.
 3. lowers the ordered compiler sources into `build/weavec.wir`;
 4. compiles WIR to `build/weavec.ll` with `weavec1` or `WEAVEC_BACKEND`;
 5. links the compiler with `libweave-sexpr.bc`;
-6. links the final `build/weavec` executable with `runtime/portable.c`.
+6. links the development `build/weavec` executable with
+   `runtime/portable.c`.
 
-The module order in `build.sh` and `selfhost.sh` is part of the deterministic
-bootstrap contract.
+Release packaging relinks `build/weavec.bc` into separate static glibc and musl
+executables. The module order in `build.sh` and `selfhost.sh` is part of the
+deterministic bootstrap contract.
 
 ## Tests
 
@@ -130,15 +175,18 @@ bootstrap contract.
 
 | Bucket | Driver | Count |
 |---|---|---:|
-| Correctness and end-to-end surface/WIR tests | `test.sh` | 124 |
+| Correctness and end-to-end surface/WIR tests | `test.sh` | 125 |
 | Performance LLVM goldens | `test/performance/test.sh` | 168 |
 | Quantum validation | `test/quantum/test.sh` | 4 |
 | Quantum end to end | `test/quantum/test-e2e.sh` | 1 |
 | Basic self-host | `test/selfhost/test.sh` | 1 |
 
+The correctness count includes the CLI regression proving that implicit backend
+syntax remains rejected.
+
 CI validates Linux glibc SDKs, Linux musl SDKs, and the macOS source fallback.
-It also verifies the dependency mode printed by `build.sh`, so an accidental
-source build on Linux fails the matrix.
+The release workflow additionally builds, inspects, strips, smokes, and archives
+both static Linux compiler variants.
 
 Regenerate performance goldens only after an intentional backend-output change:
 
@@ -167,6 +215,8 @@ weavec/
 ├── test-all.sh
 ├── selfhost.sh
 ├── surface-matrix.sh
+├── VERSION
+├── scripts/package-linux-release.sh
 ├── src/{core,frontend,llvm}/
 ├── runtime/
 ├── scripts/
@@ -176,7 +226,7 @@ weavec/
 
 ## Known limitations
 
-- Published compiler SDKs currently cover Linux x86-64 only.
+- Published compiler binaries currently cover Linux x86-64 only.
 - `surface-matrix.sh` reports counts rather than enforcing thresholds.
 - There is no dedicated source-style checker for `.weave` modules yet.
 - `runtime/quantum_runtime.c` is a test stub, not a production quantum runtime.
@@ -189,6 +239,7 @@ Licensed under the Apache License, Version 2.0. See [`LICENSE`](LICENSE) and
 
 ## Contributing
 
-Read [`CONTRIBUTING.md`](CONTRIBUTING.md) and the relevant document under
-[`docs/`](docs/) before changing the surface contract, backend output, source
-ordering, or bootstrap boundary.
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md),
+[`docs/RELEASING.md`](docs/RELEASING.md), and the relevant design document before
+changing the surface contract, backend output, source ordering, or bootstrap
+boundary.
