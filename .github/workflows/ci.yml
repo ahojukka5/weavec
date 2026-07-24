@@ -7,28 +7,46 @@ on:
   pull_request:
     branches: [master]
 
-permissions:
-  contents: write
-
 jobs:
-  cleanup:
-    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: refactor/canonical-paths
-          fetch-depth: 0
-      - run: python3 scripts/refactor-uppercase-stage-name.py
-      - run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
-          git commit -m "refactor: remove remaining WEAVEC2 symbols"
-          git push origin HEAD:refactor/canonical-paths
-
   test:
-    if: github.actor == 'github-actions[bot]'
-    runs-on: ubuntu-latest
+    name: build & test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    env:
+      WEAVEC0_TAG: v0.2.1
+      WEAVEC1_TAG: v0.2.0
+      WEAVEC_BOOTSTRAP_REF: 6ea7319f88afa32121cff7fa7cd76e79703fff30
+
     steps:
-      - run: echo cleanup committed
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install LLVM toolchain (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang git llvm
+          clang --version
+          llvm-as --version
+          llvm-link --version
+
+      - name: Install LLVM toolchain (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install llvm
+          echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+
+      - name: Verify toolchain (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          clang --version
+          llvm-as --version
+          llvm-link --version
+
+      - name: Build compiler and run full ladder
+        run: ./test-all.sh
