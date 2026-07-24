@@ -20,17 +20,17 @@ jobs:
     env:
       WEAVEC0_TAG: v0.2.1
       WEAVEC1_TAG: v0.2.0
-      WEAVEC_BOOTSTRAP_REF: 924dba10c8ac75657bd6fe65e9b1e54238f2bc80
+      WEAVEC_BOOTSTRAP_REF: v0.2.0
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install LLVM toolchain (Linux)
+      - name: Install LLVM and SDK tools (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang git llvm
+          sudo apt-get install -y clang curl git llvm python3
           clang --version
           llvm-as --version
           llvm-link --version
@@ -47,6 +47,7 @@ jobs:
           clang --version
           llvm-as --version
           llvm-link --version
+          python3 --version
 
       - name: Build compiler and run full ladder
         run: |

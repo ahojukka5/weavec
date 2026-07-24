@@ -22,6 +22,8 @@ combines surface lowering and WIR-to-LLVM emission. `weavec0`, `weavec1`, and
 - **Keep bootstrap boundaries named.** Consume `weavec-bootstrap` through its
   command, multifile driver, and `libweave-sexpr.bc`; do not depend on private
   generated `.ll` files.
+- **Prefer published SDKs.** The normal Linux path must remain reproducible from
+  release archives and checksums without source-repository side effects.
 
 ## What does not belong here
 
@@ -64,28 +66,33 @@ Stage 1 SDK, and then adopted here.
 7. Update README, changelog, CI comments, and the relevant design documents.
 8. Open a pull request.
 
-Normal CI runs the full ladder on Linux and macOS. The deeper self-host flow is
-local-only because it rebuilds the compiler through multiple generations.
+Normal CI runs the full ladder with Linux glibc SDKs, Linux musl SDKs, and the
+macOS source fallback. The deeper self-host flow remains local-only.
 
 ## Dependency changes
 
-The canonical dependency controls are:
+The canonical controls are:
 
-- `WEAVEC0_TAG` — Stage 0 release;
-- `WEAVEC1_TAG` — Stage 1 release;
-- `WEAVEC_BOOTSTRAP_REF` — exact bootstrap-frontend tag or commit;
+- `WEAVEC1_VERSION` and `WEAVEC1_LIBC` — published Stage 1 SDK;
+- `WEAVEC1_SDK` — extracted local Stage 1 SDK;
+- `WEAVEC_BOOTSTRAP_VERSION` and `WEAVEC_BOOTSTRAP_LIBC` — published bootstrap
+  SDK;
+- `WEAVEC_BOOTSTRAP_SDK` — extracted local bootstrap SDK;
+- `WEAVEC1`, `WEAVEC1_TAG`, `WEAVEC_BOOTSTRAP`, and
+  `WEAVEC_BOOTSTRAP_REF` — explicit source fallbacks;
 - `WEAVEC_BACKEND` — an existing self-hosted backend executable.
 
-When changing a pin:
+When changing an SDK pin:
 
-- verify the release, tag, or commit exists;
-- clear the corresponding vendor cache when necessary;
-- run the complete Linux and macOS ladder;
+- verify the release contains both libc archives and `SHA256SUMS`;
+- inspect `SDK-MANIFEST` for the required command and library paths;
+- run the complete three-way CI matrix;
 - run deeper self-hosting when compiler output or frontend modules changed;
-- document the dependency reason.
+- document why the pin changed.
 
-No `weavec2`, `weavefront`, `WEAVEC2_*`, or `WEAVEFRONT_*` compatibility
-interfaces are maintained in current code.
+Stage 0 controls are relevant only to source fallback builds. No `weavec2`,
+`weavefront`, `WEAVEC2_*`, or `WEAVEFRONT_*` compatibility interfaces are
+maintained in current code.
 
 ## Licensing
 
