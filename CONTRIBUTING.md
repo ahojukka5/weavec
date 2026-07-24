@@ -84,7 +84,7 @@ When changing a pin:
 - run deeper self-hosting when compiler output or frontend modules changed;
 - document the dependency reason.
 
-No `weavec2`, `weavefront`, `WEAVEC_*`, or `WEAVEFRONT_*` compatibility
+No `weavec2`, `weavefront`, `WEAVEC2_*`, or `WEAVEFRONT_*` compatibility
 interfaces are maintained in current code.
 
 ## Licensing
