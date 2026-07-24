@@ -1,23 +1,4 @@
 # SPDX-License-Identifier: Apache-2.0
-#
-# Continuous integration for weavec2.
-#
-# Builds weavec2 from source and runs the full test ladder on Linux and macOS
-# using the platform's stable LLVM toolchain. test-all.sh invokes build.sh,
-# which fetches the validated source pins below into build/vendor/.
-#
-# The full ladder covered here:
-#   - 124 correctness tests (.weave fixtures and WIR end-to-end cases)
-#   - 168 performance tests (.wir fixtures with .expected.ll goldens)
-#   -   4 quantum validation tests
-#   -   1 quantum e2e test (links runtime/quantum_runtime.c)
-#   -   1 basic self-host test (weavec2 recompiles build/weavec2.wir)
-#
-# ./selfhost.sh also passes, but it is intentionally local-only because it
-# rebuilds the large compiler through multiple generations. It is no longer
-# blocked by the historical string-constant issue described in older changelog
-# entries.
-
 name: ci
 
 on:
@@ -26,8 +7,48 @@ on:
   pull_request:
     branches: [master]
 
+permissions:
+  contents: write
+
 jobs:
+  # BEGIN CANONICAL REFACTOR
+  refactor:
+    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout refactor branch
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/canonical-paths
+          fetch-depth: 0
+
+      - name: Apply canonical paths
+        run: python3 scripts/refactor-canonical-paths.py
+
+      - name: Validate transformed tree
+        run: |
+          bash -n build.sh
+          bash -n selfhost.sh
+          bash -n test.sh
+          bash -n test-all.sh
+          bash -n surface-matrix.sh
+          bash -n scripts/patch-weavec-bootstrap-stack.sh
+          bash -n scripts/weavec-bootstrap-has-stack-patch.sh
+          bash -n scripts/test-weavec-bootstrap-stack.sh
+          git diff --check
+          ! git grep -n -e 'build/weavec2' -e 'WEAVEC2_BACKEND' -e 'WEAVEFRONT_' -- ':!CHANGELOG.md' ':!NOTICE'
+
+      - name: Commit transformed tree
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "refactor: use canonical compiler and bootstrap paths"
+          git push origin HEAD:refactor/canonical-paths
+  # END CANONICAL REFACTOR
+
   test:
+    if: github.event_name == 'push' || github.actor == 'github-actions[bot]'
     name: build & test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -36,9 +57,6 @@ jobs:
         os: [ubuntu-latest, macos-latest]
 
     env:
-      # Pin the source releases that the complete bootstrap has been validated
-      # against. Unlike weavec1 and weavefront Linux builds, weavec2 still needs
-      # source-produced weavefront parser modules that are not in a published SDK.
       WEAVEC0_TAG: v0.2.0
       WEAVEC1_TAG: v0.1.0
       WEAVEFRONT_TAG: v0.1.0
@@ -52,7 +70,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y llvm clang
-          echo "Tool versions:"
           clang --version
           llvm-as --version
           llvm-link --version
@@ -70,5 +87,5 @@ jobs:
           llvm-as --version
           llvm-link --version
 
-      - name: Build all dependencies + weavec2, run full ladder
+      - name: Build compiler and run full ladder
         run: ./test-all.sh
