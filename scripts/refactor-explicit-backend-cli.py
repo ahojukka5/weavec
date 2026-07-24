@@ -53,10 +53,11 @@ anchor = 'mkdir -p "$LL_DIR" "$BC_DIR" "$BIN_DIR" "$WIR_FROM_SURFACE_DIR"\n'
 check = r'''
 
 log "reject implicit backend syntax"
+legacy_weavec="$WEAVEC"
 legacy_ll="$LL_DIR/implicit_backend_should_fail.ll"
 rm -f "$legacy_ll"
 set +e
-"$WEAVEC" "$WIR_TEST_DIR/01_return_constant.wir" "$legacy_ll" \
+"$legacy_weavec" "$WIR_TEST_DIR/01_return_constant.wir" "$legacy_ll" \
   >/dev/null 2>&1
 legacy_status="$?"
 set -e
@@ -75,7 +76,7 @@ if check.strip() not in text:
     text = text.replace(anchor, anchor + check, 1)
 test.write_text(text)
 
-# Ensure every direct shell invocation is explicit after the migration.
+# Ensure every normal direct shell invocation is explicit after the migration.
 remaining: list[str] = []
 for path in tracked_shell_files():
     for number, line in enumerate(path.read_text().splitlines(), 1):
