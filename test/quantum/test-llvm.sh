@@ -11,7 +11,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WEAVEC2="$ROOT/build/weavec"
+WEAVEC="$ROOT/build/weavec"
 FIXTURE_ROOT="$ROOT/test/quantum"
 OUT_DIR="$ROOT/build/test/quantum-llvm"
 pass_count=0
@@ -23,7 +23,7 @@ fail() {
   fail_count=$((fail_count + 1))
 }
 
-[[ -x "$WEAVEC2" ]] || {
+[[ -x "$WEAVEC" ]] || {
   printf '[weavec-quantum-llvm] build/weavec not found; run ./build.sh first\n' >&2
   exit 1
 }
@@ -62,11 +62,11 @@ check_circuit() {
 
   log "llvm $label"
 
-  if ! "$WEAVEC2" --frontend "$wir" "$src"; then
+  if ! "$WEAVEC" --frontend "$wir" "$src"; then
     fail "$label: --frontend failed"
     return
   fi
-  if ! "$WEAVEC2" --backend "$wir" "$ll"; then
+  if ! "$WEAVEC" --backend "$wir" "$ll"; then
     fail "$label: --backend failed"
     return
   fi

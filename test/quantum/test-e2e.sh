@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WEAVEC2="$ROOT/build/weavec"
+WEAVEC="$ROOT/build/weavec"
 RUNTIME="$ROOT/runtime/quantum_runtime.c"
 FIXTURE_ROOT="$ROOT/test/quantum"
 OUT_DIR="$ROOT/build/test/quantum-e2e"
@@ -33,7 +33,7 @@ read_metrics_field() {
   printf '%s' "${line#*=}"
 }
 
-[[ -x "$WEAVEC2" ]] || {
+[[ -x "$WEAVEC" ]] || {
   printf '[weavec-quantum-e2e] build/weavec not found; run ./build.sh first\n' >&2
   exit 1
 }
@@ -60,11 +60,11 @@ while IFS= read -r -d '' src; do
 
   log "e2e $base"
 
-  if ! "$WEAVEC2" --frontend "$wir" "$src"; then
+  if ! "$WEAVEC" --frontend "$wir" "$src"; then
     fail "$base: frontend failed"
     continue
   fi
-  if ! "$WEAVEC2" --backend "$wir" "$ll"; then
+  if ! "$WEAVEC" --backend "$wir" "$ll"; then
     fail "$base: backend failed"
     continue
   fi

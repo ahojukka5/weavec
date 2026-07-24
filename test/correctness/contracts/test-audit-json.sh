@@ -3,12 +3,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-WEAVEC2="$ROOT/build/weavec"
+WEAVEC="$ROOT/build/weavec"
 
 log() { printf '[weavec-audit-json-test] %s\n' "$*"; }
 fail() { printf '[weavec-audit-json-test] error: %s\n' "$*" >&2; exit 1; }
 
-[[ -x "$WEAVEC2" ]] || fail "weavec not found: $WEAVEC2 (run ./build.sh)"
+[[ -x "$WEAVEC" ]] || fail "weavec not found: $WEAVEC (run ./build.sh)"
 
 run_case() {
   local name="$1"
@@ -19,7 +19,7 @@ run_case() {
   trap 'rm -f "$actual"' RETURN
   [[ -f "$src" ]] || fail "missing source: $src"
   [[ -f "$expected" ]] || fail "missing expected: $expected"
-  "$WEAVEC2" --audit-json "$src" >"$actual"
+  "$WEAVEC" --audit-json "$src" >"$actual"
   if ! diff -u "$expected" "$actual"; then
     fail "audit-json output mismatch for $name"
   fi

@@ -3,19 +3,19 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-WEAVEC2="$ROOT/build/weavec"
+WEAVEC="$ROOT/build/weavec"
 SRC="$ROOT/test/correctness/surface/64_contract_ensures_multi_return.weave"
 EXPECTED="$ROOT/test/correctness/contracts/64_explain.expected.txt"
 
 log() { printf '[weavec-explain-test] %s\n' "$*"; }
 fail() { printf '[weavec-explain-test] error: %s\n' "$*" >&2; exit 1; }
 
-[[ -x "$WEAVEC2" ]] || fail "build/weavec not found; run ./build.sh first"
+[[ -x "$WEAVEC" ]] || fail "build/weavec not found; run ./build.sh first"
 
 actual="$(mktemp)"
 trap 'rm -f "$actual"' EXIT
 
-"$WEAVEC2" --explain "$SRC" >"$actual"
+"$WEAVEC" --explain "$SRC" >"$actual"
 
 if ! diff -u "$EXPECTED" "$actual"; then
   fail "explain output mismatch"

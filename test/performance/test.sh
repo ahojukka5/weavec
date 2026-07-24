@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WEAVEC2="$ROOT/build/weavec"
+WEAVEC="$ROOT/build/weavec"
 FIXTURE_DIR="$ROOT/test/performance/wir"
 EXPECTED_DIR="$ROOT/test/performance/expected-llvm"
 BUILD_DIR="$ROOT/build/test/performance"
@@ -29,7 +29,7 @@ require_tool() {
   }
 }
 
-[[ -x "$WEAVEC2" ]] || {
+[[ -x "$WEAVEC" ]] || {
   printf '[weavec-performance] build/weavec not found; run ./build.sh first\n' >&2
   exit 1
 }
@@ -52,7 +52,7 @@ for src in "$FIXTURE_DIR"/*.wir; do
     continue
   fi
 
-  if ! (cd "$ROOT" && "$WEAVEC2" "$rel_src" "$generated"); then
+  if ! (cd "$ROOT" && "$WEAVEC" "$rel_src" "$generated"); then
     fail "$name: weavec failed"
     continue
   fi

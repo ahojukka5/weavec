@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WEAVEC2="$ROOT/build/weavec"
+WEAVEC="$ROOT/build/weavec"
 WIR="$ROOT/build/weavec.wir"
 OUT_LL="$ROOT/build/test/selfhost/weavec.ll"
 OUT_BC="$ROOT/build/test/selfhost/weavec.bc"
@@ -19,13 +19,13 @@ fail() {
 
 command -v llvm-as >/dev/null 2>&1 || fail 'missing llvm-as'
 
-[[ -x "$WEAVEC2" ]] || fail 'build/weavec not found; run ./build.sh first'
+[[ -x "$WEAVEC" ]] || fail 'build/weavec not found; run ./build.sh first'
 [[ -f "$WIR" ]] || fail 'build/weavec.wir not found; run ./build.sh first'
 
 mkdir -p "$(dirname "$OUT_LL")"
 
 log "compile $WIR"
-"$WEAVEC2" "$WIR" "$OUT_LL" || fail 'weavec failed on self-host WIR'
+"$WEAVEC" "$WIR" "$OUT_LL" || fail 'weavec failed on self-host WIR'
 
 log "llvm-as"
 llvm-as "$OUT_LL" -o "$OUT_BC" || fail 'llvm-as failed on self-host LLVM'

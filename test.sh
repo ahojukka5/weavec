@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WEAVEC2="$ROOT/build/weavec"
+WEAVEC="$ROOT/build/weavec"
 WIR_TEST_DIR="$ROOT/test/correctness/wir"
 SURFACE_TEST_DIR="$ROOT/test/correctness/surface"
 BUILD_DIR="$ROOT/build/test/correctness"
@@ -138,7 +138,7 @@ is_backend_fail_wir_test() {
   expected_backend_error "$1" >/dev/null
 }
 
-[[ -x "$WEAVEC2" ]] || {
+[[ -x "$WEAVEC" ]] || {
   printf '[weavec-test] build/weavec not found; run ./build.sh first\n' >&2
   exit 1
 }
@@ -163,7 +163,7 @@ for src in "$WIR_TEST_DIR"/*.wir; do
 
   log "compile $name"
 
-  if ! "$WEAVEC2" "$src" "$ll"; then
+  if ! "$WEAVEC" "$src" "$ll"; then
     fail "$name: weavec failed"
     continue
   fi
@@ -206,7 +206,7 @@ for src in "$WIR_TEST_DIR"/*.wir; do
   log "backend-fail $name"
 
   set +e
-  "$WEAVEC2" "$src" "$ll" 2>"$err"
+  "$WEAVEC" "$src" "$ll" 2>"$err"
   status="$?"
   set -e
 
@@ -336,7 +336,7 @@ for name in "${surface_smoke_tests[@]}"; do
 
   log "frontend $name"
 
-  if ! "$WEAVEC2" --frontend "$wir" "$src"; then
+  if ! "$WEAVEC" --frontend "$wir" "$src"; then
     fail "$name: frontend failed"
     continue
   fi
@@ -346,7 +346,7 @@ for name in "${surface_smoke_tests[@]}"; do
     continue
   fi
 
-  if ! "$WEAVEC2" --backend "$wir" "$ll"; then
+  if ! "$WEAVEC" --backend "$wir" "$ll"; then
     fail "$name: backend failed"
     continue
   fi
@@ -384,12 +384,12 @@ for name in "${contract_fail_tests[@]}"; do
 
   log "contract-fail $name"
 
-  if ! "$WEAVEC2" --frontend "$wir" "$src"; then
+  if ! "$WEAVEC" --frontend "$wir" "$src"; then
     fail "$name: frontend failed"
     continue
   fi
 
-  if ! "$WEAVEC2" --backend "$wir" "$ll"; then
+  if ! "$WEAVEC" --backend "$wir" "$ll"; then
     fail "$name: backend failed"
     continue
   fi
@@ -437,7 +437,7 @@ for name in "${contract_compile_fail_tests[@]}"; do
   log "contract-compile-fail $name"
 
   set +e
-  "$WEAVEC2" --frontend --strict-contracts "$wir" "$src" 2>"$BUILD_DIR/$name.stderr"
+  "$WEAVEC" --frontend --strict-contracts "$wir" "$src" 2>"$BUILD_DIR/$name.stderr"
   actual="$?"
   set -e
 
@@ -520,12 +520,12 @@ if [[ -x "$ROOT/test/correctness/contracts/test-audit-json.sh" ]]; then
 fi
 
 log "frontend multifile"
-if ! "$WEAVEC2" --frontend "$WIR_FROM_SURFACE_DIR/multifile.wir" \
+if ! "$WEAVEC" --frontend "$WIR_FROM_SURFACE_DIR/multifile.wir" \
   "$SURFACE_TEST_DIR/multifile_a.weave" \
   "$SURFACE_TEST_DIR/multifile_b.weave"; then
   fail "multifile: frontend failed"
 else
-  if ! "$WEAVEC2" --backend "$WIR_FROM_SURFACE_DIR/multifile.wir" "$LL_DIR/surface_multifile.ll"; then
+  if ! "$WEAVEC" --backend "$WIR_FROM_SURFACE_DIR/multifile.wir" "$LL_DIR/surface_multifile.ll"; then
     fail "multifile: backend failed"
   elif ! llvm-as "$LL_DIR/surface_multifile.ll" -o "$BC_DIR/surface_multifile.bc"; then
     fail "multifile: llvm-as failed"

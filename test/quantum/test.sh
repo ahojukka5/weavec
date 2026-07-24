@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WEAVEC2="$ROOT/build/weavec"
+WEAVEC="$ROOT/build/weavec"
 FIXTURE_ROOT="$ROOT/test/quantum"
 OUT_DIR="$ROOT/build/test/quantum"
 pass_count=0
@@ -53,7 +53,7 @@ run_wir_golden_dir() {
       continue
     fi
 
-    if ! "$WEAVEC2" --frontend "$wir" "$src"; then
+    if ! "$WEAVEC" --frontend "$wir" "$src"; then
       fail "$rel/$base: frontend failed"
       continue
     fi
@@ -66,7 +66,7 @@ run_wir_golden_dir() {
     local metrics="$dir/$base.metrics"
     if [[ -f "$metrics" ]]; then
       local got="$OUT_DIR/${rel//\//-}-$base.metrics"
-      if ! "$WEAVEC2" --dump-quantum-stats "$got" "$src"; then
+      if ! "$WEAVEC" --dump-quantum-stats "$got" "$src"; then
         fail "$rel/$base: --dump-quantum-stats failed"
         continue
       fi
@@ -79,7 +79,7 @@ run_wir_golden_dir() {
   done < <(find "$FIXTURE_ROOT/$subdir" -name '*.weave' -print0)
 }
 
-[[ -x "$WEAVEC2" ]] || {
+[[ -x "$WEAVEC" ]] || {
   printf '[weavec-quantum] build/weavec not found; run ./build.sh first\n' >&2
   exit 1
 }
@@ -102,7 +102,7 @@ while IFS= read -r -d '' src; do
 
   log "reject $rel/$base"
 
-  if "$WEAVEC2" --frontend "$wir" "$src"; then
+  if "$WEAVEC" --frontend "$wir" "$src"; then
     fail "$rel/$base: expected frontend failure, got success"
     continue
   fi
