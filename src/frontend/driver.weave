@@ -10,7 +10,7 @@
 ;
 ; frontend_main(argc, argv) -> i32
 ;   Entry point for the standalone frontend binary.
-;   Usage: weavefront2 <output.wir> <input.weave> [input2.weave ...]
+;   Usage: weavec-bootstrap2 <output.wir> <input.weave> [input2.weave ...]
 
 (program
   (name "driver")

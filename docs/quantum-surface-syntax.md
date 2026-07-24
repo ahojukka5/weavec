@@ -1,6 +1,6 @@
 # Quantum surface syntax (proposal)
 
-Status: Partially implemented in weavec2 (`qgate`, `qmeasure`, `Qubit` type,
+Status: Partially implemented in weavec (`qgate`, `qmeasure`, `Qubit` type,
 H nativization in `src/frontend/quantum_nativize.weave`; tests in `test/quantum/`)  
 Date: 2026-05-25  
 See also: [representation-lowering.md](representation-lowering.md)
@@ -109,7 +109,7 @@ WIR. Two viable v1 strategies:
 2. Intrinsics embedded in WIR as `(qop ...)` nodes if Core gains quantum
    forms — only if they share the same module as classical code.
 
-weavec2 v1 recommendation: extern runtime stubs so `src/llvm/` stays unchanged
+weavec v1 recommendation: extern runtime stubs so `src/llvm/` stays unchanged
 until intrinsics are justified. Classical `main` still returns `Int32`; quantum
 side effects happen through the runtime.
 

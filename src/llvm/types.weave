@@ -1,5 +1,5 @@
 ; SPDX-License-Identifier: Apache-2.0
-; types.weave — type parsing and emission for weavec2
+; types.weave — type parsing and emission for weavec
 ;
 ; Type IDs: 0=void 1=i32 2=i64 3=bool 4=ptr 5=f32 6=f64
 

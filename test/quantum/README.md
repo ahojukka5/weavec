@@ -43,7 +43,7 @@ depth=3
 Produced by:
 
 ```bash
-./build/weavec2 --dump-quantum-stats /tmp/out.metrics test/quantum/benchmarks/bell-pair.weave
+./build/weavec --dump-quantum-stats /tmp/out.metrics test/quantum/benchmarks/bell-pair.weave
 ```
 
 `native_gates` counts lowered `qrt_*` calls (H becomes RY+RZ). `depth` is the

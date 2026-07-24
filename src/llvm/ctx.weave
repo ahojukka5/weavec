@@ -1,5 +1,5 @@
 ; SPDX-License-Identifier: Apache-2.0
-; ctx.weave — emission context for weavec2
+; ctx.weave — emission context for weavec
 ;
 ; Layout (144 bytes):
 ;   offset  0: out_fd    i64  (output fd as i64 for alignment)

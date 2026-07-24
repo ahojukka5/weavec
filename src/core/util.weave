@@ -1,5 +1,5 @@
 ; SPDX-License-Identifier: Apache-2.0
-; util.weave — tree traversal helpers for weavec2
+; util.weave — tree traversal helpers for weavec
 
 (program
   (name "util")
@@ -164,7 +164,7 @@
   ; Compare the source text of a tree node against an expected C string.
   ; This is the canonical text comparison used throughout the compiler;
   ; defined here rather than as an extern because it is a pure Weave function
-  ; (not provided by the weavefront C runtime).
+  ; (not provided by the weavec-bootstrap C runtime).
   (fn node_text_equals
     (params (tree ptr) (source ptr) (node_index i64) (expected ptr) (expected_len i64))
     (returns i32)

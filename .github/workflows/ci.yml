@@ -1,23 +1,4 @@
 # SPDX-License-Identifier: Apache-2.0
-#
-# Continuous integration for weavec2.
-#
-# Builds weavec2 from source and runs the full test ladder on Linux and macOS
-# using the platform's stable LLVM toolchain. test-all.sh invokes build.sh,
-# which fetches the validated source pins below into build/vendor/.
-#
-# The full ladder covered here:
-#   - 124 correctness tests (.weave fixtures and WIR end-to-end cases)
-#   - 168 performance tests (.wir fixtures with .expected.ll goldens)
-#   -   4 quantum validation tests
-#   -   1 quantum e2e test (links runtime/quantum_runtime.c)
-#   -   1 basic self-host test (weavec2 recompiles build/weavec2.wir)
-#
-# ./selfhost.sh also passes, but it is intentionally local-only because it
-# rebuilds the large compiler through multiple generations. It is no longer
-# blocked by the historical string-constant issue described in older changelog
-# entries.
-
 name: ci
 
 on:
@@ -30,18 +11,16 @@ jobs:
   test:
     name: build & test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
 
     env:
-      # Pin the source releases that the complete bootstrap has been validated
-      # against. Unlike weavec1 and weavefront Linux builds, weavec2 still needs
-      # source-produced weavefront parser modules that are not in a published SDK.
-      WEAVEC0_TAG: v0.2.0
-      WEAVEC1_TAG: v0.1.0
-      WEAVEFRONT_TAG: v0.1.0
+      WEAVEC0_TAG: v0.2.1
+      WEAVEC1_TAG: v0.2.0
+      WEAVEC_BOOTSTRAP_REF: 924dba10c8ac75657bd6fe65e9b1e54238f2bc80
 
     steps:
       - name: Checkout
@@ -51,8 +30,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y llvm clang
-          echo "Tool versions:"
+          sudo apt-get install -y clang git llvm
           clang --version
           llvm-as --version
           llvm-link --version
@@ -70,5 +48,16 @@ jobs:
           llvm-as --version
           llvm-link --version
 
-      - name: Build all dependencies + weavec2, run full ladder
-        run: ./test-all.sh
+      - name: Build compiler and run full ladder
+        run: |
+          set -o pipefail
+          ./test-all.sh 2>&1 | tee ci.log
+
+      - name: Upload failed ladder log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-log-${{ matrix.os }}
+          path: ci.log
+          if-no-files-found: ignore
+          retention-days: 7

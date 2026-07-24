@@ -1,9 +1,9 @@
-# Loop-carried SSA contract (weavec2)
+# Loop-carried SSA contract (weavec)
 
-weavec2 lowers `while` loops and `if` statements inside loop bodies to
+weavec lowers `while` loops and `if` statements inside loop bodies to
 LLVM with explicit loop phis, per-iteration merges, and latch edges.
 This document states the invariants the emitter must preserve so IR
-passes `llvm-as` and self-host (`build/weavec2.wir`).
+passes `llvm-as` and self-host (`build/weavec.wir`).
 
 ## Names and blocks
 
@@ -92,7 +92,7 @@ Do not emit stack stores at `%while.endL` without dominating phis.
 |--------|--------|
 | `./test.sh` | Correctness programs |
 | `./test/performance/test.sh` | Golden LLVM diff + `llvm-as` + optional `opt -mem2reg` |
-| `./test/selfhost/test.sh` | `build/weavec2.wir` → LLVM → `llvm-as` |
+| `./test/selfhost/test.sh` | `build/weavec.wir` → LLVM → `llvm-as` |
 | `./test-all.sh` | All of the above after `./build.sh` |
 
 Self-host is the integration gate for nested control flow in real

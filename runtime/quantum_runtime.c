@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-/* Quantum runtime for weavec2 tests.
+/* Quantum runtime for weavec tests.
  *
  * Two services:
  *

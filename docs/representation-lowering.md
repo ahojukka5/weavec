@@ -2,7 +2,7 @@
 
 Status: Active design  
 Date: 2026-05-25  
-Audience: weavec0 / weavec1 / weavec2, quantum surface syntax, transform passes
+Audience: weavec0 / weavec1 / weavec, quantum surface syntax, transform passes
 
 ## Principle: quantum is surface Weave
 
@@ -24,12 +24,12 @@ with this clarification in mind.
 ```text
 weavec0   LLVM seed → compiles WIR
 weavec1   WIR-written compiler → built by weavec0
-weavefront surface parse + sexpr runtime (in weavec2)
-weavec2   surface .weave → WIR → LLVM
+weavec-bootstrap surface parse + sexpr runtime (in weavec)
+weavec   surface .weave → WIR → LLVM
 ```
 
 pybs is out of scope. All work uses `weave/weavec0`, `weave/weavec1`,
-`weave/weavec2`.
+`weave/weavec`.
 
 ## Two mechanisms
 
@@ -72,7 +72,7 @@ Typed surface
   │  transform passes (category lower): nativize, desugar, …
   ▼
 Mid IR / WIR (quantum ops lowered or embedded per target)
-  │  weavec2 backend
+  │  weavec backend
   ▼
 LLVM (+ device calls for quantum hardware when targeting QPUs)
 ```
@@ -121,7 +121,7 @@ Declared as a first-class transform rule (see
 Exact surface spellings (`gate`, `qubit-alloc`, …) will follow the language
 grammar when implemented; the invariant is: one language, many lowering passes.
 
-## weavec2 boundaries
+## weavec boundaries
 
 | Layer | Location | Responsibility |
 |-------|----------|----------------|
@@ -134,7 +134,7 @@ grammar when implemented; the invariant is: one language, many lowering passes.
 
 | Component | Status |
 |-----------|--------|
-| weavec0 / weavec1 / weavec2 classical path | Active |
+| weavec0 / weavec1 / weavec classical path | Active |
 | Surface `qgate` / `qmeasure` | Implemented in `emit.weave` (v1) |
 | Transform engine in Weave | Spec only; rules stub in `targets/rigetti-nativize.weave` |
 | Quantum frontend goldens | `test/quantum/test.sh` (nativization, benchmarks, optimization) |
@@ -145,7 +145,7 @@ grammar when implemented; the invariant is: one language, many lowering passes.
 ## Recommended order
 
 1. Surface types and statements: `Qubit`, `gate`, `measure`, …
-2. Parse and typecheck in weavec2 frontend (same as `let`, `if`, calls).
+2. Parse and typecheck in weavec frontend (same as `let`, `if`, calls).
 3. `transform-pass nativize` on typed surface (first rule: H).
 4. Golden tests: `test/quantum/nativization/test-hadamard-single.weave` + expected
    dump or lowered WIR fragment.

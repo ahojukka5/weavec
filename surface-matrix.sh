@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WEAVEC2="$ROOT/build/weavec2"
+WEAVEC="$ROOT/build/weavec"
 SURFACE_DIR="$ROOT/test/correctness/surface"
 BUILD_DIR="$ROOT/build/test/surface-matrix"
 WIR_DIR="$BUILD_DIR/wir"
@@ -19,12 +19,12 @@ run_ok=0
 total=0
 
 log() {
-  printf '[weavec2-surface] %s\n' "$*"
+  printf '[weavec-surface] %s\n' "$*"
 }
 
 require_tool() {
   command -v "$1" >/dev/null 2>&1 || {
-    printf '[weavec2-surface] missing required tool: %s\n' "$1" >&2
+    printf '[weavec-surface] missing required tool: %s\n' "$1" >&2
     exit 1
   }
 }
@@ -48,8 +48,8 @@ report() {
   printf '%-36s %s\n' "$name" "$phase"
 }
 
-[[ -x "$WEAVEC2" ]] || {
-  printf '[weavec2-surface] build/weavec2 not found; run ./build.sh first\n' >&2
+[[ -x "$WEAVEC" ]] || {
+  printf '[weavec-surface] build/weavec not found; run ./build.sh first\n' >&2
   exit 1
 }
 
@@ -70,13 +70,13 @@ for src in "$SURFACE_DIR"/[0-9][0-9]_*.weave; do
   expected="$(expected_exit "$name")"
   total=$((total + 1))
 
-  if ! "$WEAVEC2" --frontend "$wir" "$src" >/dev/null 2>&1; then
+  if ! "$WEAVEC" --frontend "$wir" "$src" >/dev/null 2>&1; then
     report "$name" "frontend-fail"
     continue
   fi
   frontend_ok=$((frontend_ok + 1))
 
-  if ! "$WEAVEC2" --backend "$wir" "$ll" >/dev/null 2>&1; then
+  if ! "$WEAVEC" --backend "$wir" "$ll" >/dev/null 2>&1; then
     report "$name" "backend-fail"
     continue
   fi

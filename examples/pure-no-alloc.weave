@@ -1,4 +1,4 @@
-; pure-no-alloc.weave — effect contract demo for weavec2 --audit
+; pure-no-alloc.weave — effect contract demo for weavec --audit
 
 (program
   (name "pure_no_alloc")

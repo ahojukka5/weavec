@@ -1,4 +1,4 @@
-# Performance demonstrations (weavec2)
+# Performance demonstrations (weavec)
 
 Each fixture under `test/performance/` is a small WIR program whose LLVM
 output is checked into `expected-llvm/`. The four-digit id leaves room to
@@ -87,7 +87,7 @@ i64 batch (0153–0161):
 | 0163 | `0163_horner_poly_i64` | Horner polynomial evaluation |
 | 0164 | `0164_matmul2x2_i64` | 2x2 matrix multiply on heap |
 
-Loop-phi promotion in weavec2 is i32-only today; i64 and f32 locals in loops
+Loop-phi promotion in weavec is i32-only today; i64 and f32 locals in loops
 use stack slots. `const_f32` / `const_f64` lower via `sitofp` from integer
 literal tokens until the WIR lexer accepts decimal fractions.
 
@@ -128,7 +128,7 @@ before `(core-module)`. Wrap prose at 80 columns (including the leading `; `).
 ```
 ; Performance: NNNN_short_name
 ; tags = smoke, i32, loop
-; Why hard: What makes this fixture demanding for weavec2 (algorithm,
+; Why hard: What makes this fixture demanding for weavec (algorithm,
 ;   control-flow depth, phi merges, memory traffic, width, etc.).
 ; Reveals: Which WIR constructs and LLVM shapes the test exercises.
 ; Expected: Semantic result when known; always note golden LLVM + llvm-as.
@@ -184,11 +184,11 @@ New fixtures need an entry there (or extend the script), then run the annotator.
    ./test/performance/regen-golden.sh NNNN_name
    ```
 
-   `regen-golden.sh` runs `weavec2`, checks `llvm-as`, and copies the
+   `regen-golden.sh` runs `weavec`, checks `llvm-as`, and copies the
    `.ll` into `expected-llvm/`.
 4. Run `./test/performance/test.sh` (or `./test-all.sh`).
 5. Review the golden IR: structure, redundant loads, branch layout. That
-   is the baseline before discussing weavec2 or LLVM optimizations.
+   is the baseline before discussing weavec or LLVM optimizations.
 6. Run `python3 scripts/analyze-performance-llvm.py` for a ranked table of
    fixtures with stack-carried locals and high load counts.
 

@@ -1,6 +1,6 @@
 # Executable contracts and explain mode
 
-Status: Implemented in weavec2  
+Status: Implemented in weavec  
 Date: 2026-05-27  
 See also: [representation-lowering.md](representation-lowering.md)
 
@@ -21,7 +21,7 @@ Non-goals in this version:
 
 ## Surface syntax
 
-Contracts attach to the standard weavec2 function form. Optional
+Contracts attach to the standard weavec function form. Optional
 `(requires …)` and `(ensures …)` clauses sit after `(returns …)` and before
 `(do …)`:
 
@@ -152,9 +152,9 @@ Implementation files:
 Print a human-readable audit of each `(fn …)` in a source file:
 
 ```sh
-cd weave/weavec2
+cd weave/weavec
 ./build.sh
-./build/weavec2 --explain test/correctness/surface/64_contract_ensures_multi_return.weave
+./build/weavec --explain test/correctness/surface/64_contract_ensures_multi_return.weave
 ```
 
 Example output (abbreviated):
@@ -184,20 +184,20 @@ Allocations: 0
 JSON output for tooling:
 
 ```sh
-./build/weavec2 --explain-json path/to/program.weave
+./build/weavec --explain-json path/to/program.weave
 ```
 
 Audit report (structured review output with purity and warnings):
 
 ```sh
-./build/weavec2 --audit path/to/program.weave
+./build/weavec --audit path/to/program.weave
 ```
 
 JSON audit output for CI and tooling (explain counts plus effect-contract
 verification fields):
 
 ```sh
-./build/weavec2 --audit-json path/to/program.weave
+./build/weavec --audit-json path/to/program.weave
 ```
 
 Rich JSON fields per function when effect clauses are declared:
@@ -211,8 +211,8 @@ Rich JSON fields per function when effect clauses are declared:
 Functions without effect clauses use `"effect_contracts": null` and still report
 conservative `"purity"` from the effect table when audit JSON mode is active.
 
-The weavec2 build patches vendored weavefront to link with a 16 MiB main-thread
-stack (`scripts/patch-weavefront-stack.sh`); the default ~8 MiB stack overflows
+The weavec build patches vendored weavec-bootstrap to link with a 16 MiB main-thread
+stack (`scripts/patch-weavec-bootstrap-stack.sh`); the default ~8 MiB stack overflows
 when lowering the combined frontend that includes audit JSON helpers.
 
 Explain and audit modes do not write WIR or LLVM. They parse the surface file and walk
@@ -267,7 +267,7 @@ Audit report goldens: `test/correctness/contracts/audit_clamp.expected.txt`,
 `test/correctness/contracts/audit_malloc_while.expected.txt`
 (checked by `test/correctness/contracts/test-audit.sh`).
 
-Run all weavec2 tests:
+Run all weavec tests:
 
 ```sh
 ./test.sh

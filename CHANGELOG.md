@@ -12,17 +12,21 @@ surface-language contract stabilises.
 
 - Renamed the repository from `weavec2` to `weavec` because it is the final
   user-facing compiler rather than another bootstrap stage.
-- Renamed the bootstrap frontend repository from `weavefront` to
-  `weavec-bootstrap` in current documentation and dependency links.
+- Renamed all current compiler artifacts to the canonical paths
+  `build/weavec.{wir,ll,bc}` and `build/weavec`.
+- Renamed the bootstrap dependency and environment contract from
+  `weavefront`/`WEAVEFRONT_*` to
+  `weavec-bootstrap`/`WEAVEC_BOOTSTRAP_*`.
 - Documented the compiler chain as
   `weavec0 → weavec1 → weavec-bootstrap → weavec`.
-- Current binary paths and environment variables retain `weavec2` and
-  `weavefront` compatibility names until an explicit build-interface migration.
-- `build.sh` accepts `WEAVEC2_BACKEND` and auto-selects
-  `build/selfhost/stage2/weavec2` when present for WIR → LLVM because `weavec1`
-  miscompiles the guarded combined frontend module.
-- LLVM modules call `list_head_ne` in `ctx.weave` instead of raw `head_equals`
-  when a node may not be a list.
+- Replaced four cross-repository parser-module links with the single named
+  `weavec-bootstrap/build/libweave-sexpr.bc` boundary.
+- Renamed the self-host backend override to `WEAVEC_BACKEND` and all stage
+  outputs to `weavec`.
+- Removed the remaining compatibility paths and former stack-patch helper
+  scripts.
+- Pinned the bootstrap frontend revision that owns its executable stack
+  requirement and parser-library contract.
 
 ### Fixed
 
@@ -37,6 +41,8 @@ surface-language contract stabilises.
   matching the `SOURCES` order in `build.sh`.
 - `./selfhost.sh` uses a stronger stage1-to-stage2 link smoke test and retries
   `clang` until the stage binary passes it.
+- `weavec` no longer rewrites a dependency's `build.sh`; the 16 MiB bootstrap
+  frontend stack contract is implemented and tested in `weavec-bootstrap`.
 
 ## [0.1.2] — 2026-05-27
 
