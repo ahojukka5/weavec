@@ -20,7 +20,7 @@ jobs:
     env:
       WEAVEC0_TAG: v0.2.1
       WEAVEC1_TAG: v0.2.0
-      WEAVEC_BOOTSTRAP_REF: 6ea7319f88afa32121cff7fa7cd76e79703fff30
+      WEAVEC_BOOTSTRAP_REF: 924dba10c8ac75657bd6fe65e9b1e54238f2bc80
 
     steps:
       - name: Checkout
