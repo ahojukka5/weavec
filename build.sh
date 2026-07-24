@@ -38,9 +38,9 @@ WEAVEC0_REPO="https://github.com/ahojukka5/weavec0.git"
 WEAVEC1_TAG="${WEAVEC1_TAG:-v0.2.0}"
 WEAVEC1_REPO="https://github.com/ahojukka5/weavec1.git"
 
-# First canonical weavec-bootstrap commit: executable, multifile driver, and
-# parser library all use their final names.
-WEAVEC_BOOTSTRAP_REF="${WEAVEC_BOOTSTRAP_REF:-6ea7319f88afa32121cff7fa7cd76e79703fff30}"
+# Canonical bootstrap commit: final command names, one parser library, and the
+# bootstrap frontend's 16 MiB stack requirement are owned upstream.
+WEAVEC_BOOTSTRAP_REF="${WEAVEC_BOOTSTRAP_REF:-924dba10c8ac75657bd6fe65e9b1e54238f2bc80}"
 WEAVEC_BOOTSTRAP_REPO="https://github.com/ahojukka5/weavec-bootstrap.git"
 
 WEAVEC0_DIR=""
@@ -122,10 +122,12 @@ ensure_weavec1() {
 }
 
 ensure_weavec_bootstrap() {
+  local vendored=0
   if [[ -n "${WEAVEC_BOOTSTRAP:-}" ]]; then
     WEAVEC_BOOTSTRAP_DIR="$WEAVEC_BOOTSTRAP"
     log "using WEAVEC_BOOTSTRAP source tree: $WEAVEC_BOOTSTRAP_DIR"
   else
+    vendored=1
     WEAVEC_BOOTSTRAP_DIR="$VENDOR_DIR/weavec-bootstrap"
     log "fetching weavec-bootstrap $WEAVEC_BOOTSTRAP_REF"
     checkout_ref "$WEAVEC_BOOTSTRAP_REPO" "$WEAVEC_BOOTSTRAP_REF" \
@@ -137,20 +139,36 @@ ensure_weavec_bootstrap() {
   [[ -x "$WEAVEC_BOOTSTRAP_DIR/weavec-bootstrap-cat.sh" ]] || \
     fail "weavec-bootstrap multifile driver missing"
 
-  "$WEAVEC_DIR/scripts/patch-weavec-bootstrap-stack.sh" \
-    "$WEAVEC_BOOTSTRAP_DIR/build.sh"
-
   WEAVEC_BOOTSTRAP_BIN="$WEAVEC_BOOTSTRAP_DIR/build/weavec-bootstrap"
   WEAVE_SEXPR_LIBRARY="$WEAVEC_BOOTSTRAP_DIR/build/libweave-sexpr.bc"
 
+  local ref_file="$WEAVEC_BOOTSTRAP_DIR/build/.source-ref"
+  local source_ref="local"
+  local built_ref=""
+  local rebuild=0
+
+  if (( vendored )); then
+    source_ref="$(git -C "$WEAVEC_BOOTSTRAP_DIR" rev-parse HEAD)"
+    [[ -f "$ref_file" ]] && built_ref="$(cat "$ref_file")"
+  else
+    rebuild=1
+  fi
+
   if [[ ! -x "$WEAVEC_BOOTSTRAP_BIN" ]] || \
-     ! "$WEAVEC_DIR/scripts/weavec-bootstrap-has-stack-patch.sh" \
-       "$WEAVEC_BOOTSTRAP_BIN"; then
-    rm -f "$WEAVEC_BOOTSTRAP_BIN"
+     [[ ! -s "$WEAVE_SEXPR_LIBRARY" ]] || \
+     [[ "$built_ref" != "$source_ref" ]]; then
+    rebuild=1
+  fi
+
+  if (( rebuild )); then
+    rm -f "$WEAVEC_BOOTSTRAP_BIN" "$WEAVE_SEXPR_LIBRARY"
     log "building weavec-bootstrap"
     (cd "$WEAVEC_BOOTSTRAP_DIR" && \
       WEAVEC0="$WEAVEC0_DIR" WEAVEC1="$WEAVEC1_DIR" ./build.sh) \
       || fail "weavec-bootstrap build failed"
+    if (( vendored )); then
+      printf '%s\n' "$source_ref" > "$ref_file"
+    fi
   fi
 
   [[ -x "$WEAVEC_BOOTSTRAP_BIN" ]] || \
