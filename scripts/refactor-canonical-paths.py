@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+CI_PATH = ROOT / ".github/workflows/ci.yml"
 
 
 def tracked_text_files() -> list[Path]:
@@ -17,7 +18,7 @@ def tracked_text_files() -> list[Path]:
         if not item:
             continue
         path = ROOT / item.decode()
-        if not path.is_file():
+        if not path.is_file() or path == CI_PATH:
             continue
         if path.name in {"CHANGELOG.md", "NOTICE", "LICENSE"}:
             continue
@@ -53,24 +54,6 @@ for path in tracked_text_files():
     if text != original:
         path.write_text(text)
 
-# Pin the validated canonical bootstrap chain in CI.
-ci = ROOT / ".github/workflows/ci.yml"
-text = ci.read_text()
-text = text.replace("WEAVEC0_TAG: v0.2.0", "WEAVEC0_TAG: v0.2.1")
-text = text.replace("WEAVEC1_TAG: v0.1.0", "WEAVEC1_TAG: v0.2.0")
-text = text.replace(
-    "WEAVEC_BOOTSTRAP_REF: v0.1.0",
-    "WEAVEC_BOOTSTRAP_REF: 6ea7319f88afa32121cff7fa7cd76e79703fff30",
-)
-text = re.sub(
-    r"\n  # BEGIN CANONICAL REFACTOR\n.*?\n  # END CANONICAL REFACTOR\n",
-    "\n",
-    text,
-    flags=re.S,
-)
-ci.write_text(text)
-
-# Current documentation: describe canonical artifacts, not former aliases.
 readme = ROOT / "README.md"
 text = readme.read_text()
 text = text.replace(
@@ -80,7 +63,6 @@ text = text.replace(
 text = text.replace("formerly `weavec`", "the final compiler")
 readme.write_text(text)
 
-# Preserve history, but record the current refactor explicitly.
 changelog = ROOT / "CHANGELOG.md"
 text = changelog.read_text()
 marker = "## [Unreleased]\n"
@@ -101,5 +83,5 @@ if entry not in text:
     text = text.replace(marker, marker + entry, 1)
 changelog.write_text(text)
 
-# The helper and its temporary CI job must not survive the refactor commit.
+# The helper itself is one-shot. CI is updated separately through the GitHub API.
 Path(__file__).unlink()
