@@ -88,7 +88,7 @@ The initial build uses these pinned components:
 - `weavec0 v0.2.1`;
 - `weavec1 v0.2.0`;
 - `weavec-bootstrap` commit
-  `6ea7319f88afa32121cff7fa7cd76e79703fff30`.
+  `924dba10c8ac75657bd6fe65e9b1e54238f2bc80`.
 
 Environment overrides:
 
@@ -126,6 +126,9 @@ weavec-bootstrap/build/libweave-sexpr.bc
 
 `weavec` links that library as a unit. The individual generated parser files are
 private build details of `weavec-bootstrap`.
+
+The bootstrap executable also owns its 16 MiB main-thread stack requirement.
+`weavec` no longer rewrites or probes the dependency's build script.
 
 ## Build pipeline
 
