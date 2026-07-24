@@ -14,6 +14,9 @@ log 'build'
 log 'correctness'
 "$ROOT/test.sh"
 
+log 'public-build'
+bash "$ROOT/test/build/test.sh"
+
 log 'performance'
 "$ROOT/test/performance/test.sh"
 
