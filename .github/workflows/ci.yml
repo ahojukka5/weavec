@@ -7,33 +7,8 @@ on:
   pull_request:
     branches: [master]
 
-permissions:
-  contents: write
-
 jobs:
-  refactor:
-    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout migration branch
-        uses: actions/checkout@v4
-        with:
-          ref: refactor/explicit-backend-cli
-          fetch-depth: 0
-
-      - name: Apply explicit backend CLI migration
-        run: python3 scripts/refactor-explicit-backend-cli.py
-
-      - name: Commit migrated tree
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
-          git commit -m "refactor: require explicit backend command"
-          git push origin HEAD:refactor/explicit-backend-cli
-
   test:
-    if: github.event_name == 'push' || github.actor == 'github-actions[bot]'
     name: build & test (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
