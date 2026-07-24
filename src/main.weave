@@ -2,6 +2,7 @@
 ; main.weave — entry point for weavec
 ;
 ; Usage:
+;   weavec build [--keep-temporaries] <input.weave> [input2.weave ...] -o <output>
 ;   weavec --backend <input.wir> <output.ll>
 ;   weavec --frontend [--strict-contracts] <output.wir> <input.weave> [input2.weave ...]
 ;   weavec --dump-quantum-stats <output.metrics> <input.weave>
@@ -82,9 +83,7 @@
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
-      ; Open output file via the portability shim — the flag value for
-      ; O_WRONLY|O_CREAT|O_TRUNC differs between macOS (0x601=1537) and
-      ; Linux (0x241=577), so we go through C where <fcntl.h> resolves it.
+      ; Open output file through the portability shim.
       (let out_fd i32 (call_i32 weave_rt_open_write_trunc (param_get output_path) (const_i32 420)))
       (if
         (condition (lt_i32 (local_get out_fd) (const_i32 0)))
@@ -119,6 +118,12 @@
         (then (do (return (const_i32 1))))
         (else (do)))
       (let arg1 ptr (load_ptr (ptr_add (param_get argv) (const_i64 8))))
+      (if
+        (condition (ne_i32 (call_i32 cstr_equals
+          (local_get arg1) (const_string_ptr "build") (const_i64 5)) (const_i32 0)))
+        (then (do
+          (return (call_i32 weave_driver_build (param_get argc) (param_get argv)))))
+        (else (do)))
       (if
         (condition (ne_i32 (call_i32 cstr_equals
           (local_get arg1) (const_string_ptr "--backend") (const_i64 9)) (const_i32 0)))
