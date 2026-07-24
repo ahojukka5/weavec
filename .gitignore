@@ -1,5 +1,5 @@
 # Build outputs (recreated by ./build.sh on every run).
-# Includes build/vendor/{weavec0,weavec1,weavefront} where the
+# Includes build/vendor/{weavec0,weavec1,weavec-bootstrap} where the
 # dependencies are auto-fetched.
 build/
 

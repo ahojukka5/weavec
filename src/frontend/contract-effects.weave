@@ -108,7 +108,7 @@
     (params (head ptr))
     (returns void)
     (do
-      (call_void write_cstr (const_i32 2) (const_string_ptr "weavec2: malformed effect clause: "))
+      (call_void write_cstr (const_i32 2) (const_string_ptr "weavec: malformed effect clause: "))
       (call_void write_cstr (const_i32 2) (param_get head))
       (call_void write_cstr (const_i32 2) (const_string_ptr " must have no arguments"))
       (call_void write_byte (const_i32 2) (const_i32 10))
@@ -758,7 +758,7 @@
     (params (msg ptr))
     (returns void)
     (do
-      (call_void write_cstr (const_i32 2) (const_string_ptr "weavec2: contract failed: "))
+      (call_void write_cstr (const_i32 2) (const_string_ptr "weavec: contract failed: "))
       (call_void write_cstr (const_i32 2) (param_get msg))
       (call_void write_byte (const_i32 2) (const_i32 10))
       (return_void)))

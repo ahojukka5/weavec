@@ -3,12 +3,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-WEAVEC2="$ROOT/build/weavec2"
+WEAVEC2="$ROOT/build/weavec"
 
-log() { printf '[weavec2-audit-json-test] %s\n' "$*"; }
-fail() { printf '[weavec2-audit-json-test] error: %s\n' "$*" >&2; exit 1; }
+log() { printf '[weavec-audit-json-test] %s\n' "$*"; }
+fail() { printf '[weavec-audit-json-test] error: %s\n' "$*" >&2; exit 1; }
 
-[[ -x "$WEAVEC2" ]] || fail "weavec2 not found: $WEAVEC2 (run ./build.sh)"
+[[ -x "$WEAVEC2" ]] || fail "weavec not found: $WEAVEC2 (run ./build.sh)"
 
 run_case() {
   local name="$1"

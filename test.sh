@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WEAVEC2="$ROOT/build/weavec2"
+WEAVEC2="$ROOT/build/weavec"
 WIR_TEST_DIR="$ROOT/test/correctness/wir"
 SURFACE_TEST_DIR="$ROOT/test/correctness/surface"
 BUILD_DIR="$ROOT/build/test/correctness"
@@ -17,11 +17,11 @@ pass_count=0
 fail_count=0
 
 log() {
-  printf '[weavec2-test] %s\n' "$*"
+  printf '[weavec-test] %s\n' "$*"
 }
 
 fail() {
-  printf '[weavec2-test] error: %s\n' "$*" >&2
+  printf '[weavec-test] error: %s\n' "$*" >&2
   fail_count=$((fail_count + 1))
 }
 
@@ -32,7 +32,7 @@ normalize_wir() {
 
 require_tool() {
   command -v "$1" >/dev/null 2>&1 || {
-    printf '[weavec2-test] missing required tool: %s\n' "$1" >&2
+    printf '[weavec-test] missing required tool: %s\n' "$1" >&2
     exit 1
   }
 }
@@ -139,7 +139,7 @@ is_backend_fail_wir_test() {
 }
 
 [[ -x "$WEAVEC2" ]] || {
-  printf '[weavec2-test] build/weavec2 not found; run ./build.sh first\n' >&2
+  printf '[weavec-test] build/weavec not found; run ./build.sh first\n' >&2
   exit 1
 }
 
@@ -164,7 +164,7 @@ for src in "$WIR_TEST_DIR"/*.wir; do
   log "compile $name"
 
   if ! "$WEAVEC2" "$src" "$ll"; then
-    fail "$name: weavec2 failed"
+    fail "$name: weavec failed"
     continue
   fi
 

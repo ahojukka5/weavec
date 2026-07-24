@@ -1,5 +1,5 @@
 ; SPDX-License-Identifier: Apache-2.0
-; strings.weave — string literal global emission for weavec2
+; strings.weave — string literal global emission for weavec
 ;
 ; Two-pass approach:
 ;   Pass 1: scan_strings_in_node — traverse tree, emit @.strN globals, increment str_ctr

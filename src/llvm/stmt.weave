@@ -1,5 +1,5 @@
 ; SPDX-License-Identifier: Apache-2.0
-; stmt.weave — WIR statement → LLVM IR emission for weavec2
+; stmt.weave — WIR statement → LLVM IR emission for weavec
 
 (program
   (name "stmt")

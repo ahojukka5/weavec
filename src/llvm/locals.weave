@@ -1,5 +1,5 @@
 ; SPDX-License-Identifier: Apache-2.0
-; locals.weave — local and parameter binding tables for weavec2
+; locals.weave — local and parameter binding tables for weavec
 ;
 ; Each binding record is 40 bytes:
 ;   {name_start i64, name_len i64, type i64, value_id i64, mode i64}.

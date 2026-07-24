@@ -2,7 +2,7 @@
 
 # LLVM golden analysis (generated)
 
-Metrics are static counts on checked-in `expected-llvm/` output. High opportunity scores usually mean weavec2 emits stack slots where LLVM would prefer loop phis after mem2reg.
+Metrics are static counts on checked-in `expected-llvm/` output. High opportunity scores usually mean weavec emits stack slots where LLVM would prefer loop phis after mem2reg.
 
 Fixtures scanned: 167
 With stack-carried locals in loops (no phi): 27
@@ -32,10 +32,10 @@ With stack-carried locals in loops (no phi): 27
 | 0077_selection_sort4_i32 | 3 | 17 | 12 | 3 | 2 | 2 | 1 | 0 | - | 8 |
 | 0123_selection_sort5_i32 | 3 | 15 | 13 | 3 | 2 | 2 | 1 | 0 | - | 8 |
 
-## Recommended weavec2 improvements (priority)
+## Recommended weavec improvements (priority)
 
 1. Extend loop-phi promotion to i64, f32, and f64 carried locals (today i32-only in `src/llvm/loop-phi.weave`).
 2. Emit direct phi back-edges for `set x (local_get y)` when x and y are the same loop-carried binding (avoid `add i32 %y, 0`).
 3. Hoist `sitofp` of loop indices out of the body when accumulating float sums (see 0166_sum_range_f32).
 4. Drop dead `let` stack slots when the value is only consumed by the next `set` on another carried local (0158 fibonacci `next`).
-5. After weavec2 emits cleaner IR, rely on LLVM `-O2` for final codegen; goldens document pre-opt shape.
+5. After weavec emits cleaner IR, rely on LLVM `-O2` for final codegen; goldens document pre-opt shape.

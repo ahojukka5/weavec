@@ -9,6 +9,13 @@ surface-language contract stabilises.
 ## [Unreleased]
 
 ### Changed
+- Renamed all current compiler artifacts from `weavec2` to `weavec`: `build/weavec.{wir,ll,bc}` and `build/weavec`.
+- Renamed the bootstrap dependency and environment contract from `weavefront`/`WEAVEFRONT_*` to `weavec-bootstrap`/`WEAVEC_BOOTSTRAP_*`.
+- Replaced four raw parser-module links with the single versioned boundary `build/libweave-sexpr.bc`.
+- Renamed the self-host backend override to `WEAVEC_BACKEND` and all stage outputs to `weavec`.
+- Removed the remaining compatibility paths and former stack-helper names.
+
+### Changed
 
 - Renamed the repository from `weavec2` to `weavec` because it is the final
   user-facing compiler rather than another bootstrap stage.

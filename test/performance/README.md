@@ -1,13 +1,13 @@
-# weavec2 performance tests
+# weavec performance tests
 
 This directory contains LLVM code shape tests. These tests are not primarily
 runtime correctness tests; they compare generated LLVM text with checked-in
 expected LLVM so code quality changes are easy to inspect.
 
 - `wir/` contains small WIR inputs chosen for LLVM inspection.
-- `expected-llvm/` contains the LLVM text expected from `build/weavec2`.
+- `expected-llvm/` contains the LLVM text expected from `build/weavec`.
 
-Run from the `weavec2` directory:
+Run from the `weavec` directory:
 
 ```bash
 ./test/performance/test.sh

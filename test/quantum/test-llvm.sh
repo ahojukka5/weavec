@@ -11,20 +11,20 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WEAVEC2="$ROOT/build/weavec2"
+WEAVEC2="$ROOT/build/weavec"
 FIXTURE_ROOT="$ROOT/test/quantum"
 OUT_DIR="$ROOT/build/test/quantum-llvm"
 pass_count=0
 fail_count=0
 
-log() { printf '[weavec2-quantum-llvm] %s\n' "$*"; }
+log() { printf '[weavec-quantum-llvm] %s\n' "$*"; }
 fail() {
-  printf '[weavec2-quantum-llvm] error: %s\n' "$*" >&2
+  printf '[weavec-quantum-llvm] error: %s\n' "$*" >&2
   fail_count=$((fail_count + 1))
 }
 
 [[ -x "$WEAVEC2" ]] || {
-  printf '[weavec2-quantum-llvm] build/weavec2 not found; run ./build.sh first\n' >&2
+  printf '[weavec-quantum-llvm] build/weavec not found; run ./build.sh first\n' >&2
   exit 1
 }
 

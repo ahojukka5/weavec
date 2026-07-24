@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0
-# Build weavec2 with weavec2 itself.
+# Build weavec with weavec itself.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SEED="$ROOT/build/weavec2"
+SEED="$ROOT/build/weavec"
 BUILD_DIR="$ROOT/build/selfhost"
 
-log() { printf '[weavec2-selfhost] %s\n' "$*"; }
-fail() { printf '[weavec2-selfhost] error: %s\n' "$*" >&2; exit 1; }
+log() { printf '[weavec-selfhost] %s\n' "$*"; }
+fail() { printf '[weavec-selfhost] error: %s\n' "$*" >&2; exit 1; }
 
 require_tool() {
   command -v "$1" >/dev/null 2>&1 || fail "missing required tool: $1"
@@ -67,8 +67,8 @@ link_stage_binary() {
 
   log "clang $out_bin"
   for attempt in 1 2 3 4 5 6 7 8 9 10; do
-    tmp_bin="$(mktemp /tmp/weavec2-stage.XXXXXX)"
-    smoke_wir="$(mktemp /tmp/weavec2-smoke.XXXXXX.wir)"
+    tmp_bin="$(mktemp /tmp/weavec-stage.XXXXXX)"
+    smoke_wir="$(mktemp /tmp/weavec-smoke.XXXXXX.wir)"
     rm -f "$out_bin"
     if [[ "$(uname -s)" == "Darwin" ]]; then
       clang "$bc" "$ROOT/runtime/portable.c" -o "$tmp_bin" \
@@ -94,15 +94,15 @@ link_stage_binary() {
 build_stage() {
   local compiler="$1"
   local out_dir="$2"
-  local out_bin="$out_dir/weavec2"
+  local out_bin="$out_dir/weavec"
 
   mkdir -p "$out_dir"
 
-  log "frontend $out_dir/weavec2.wir"
-  "$compiler" --frontend "$out_dir/weavec2.wir" "${SOURCES[@]}"
+  log "frontend $out_dir/weavec.wir"
+  "$compiler" --frontend "$out_dir/weavec.wir" "${SOURCES[@]}"
 
-  log "backend $out_dir/weavec2.ll"
-  "$compiler" --backend "$out_dir/weavec2.wir" "$out_dir/weavec2.ll"
+  log "backend $out_dir/weavec.ll"
+  "$compiler" --backend "$out_dir/weavec.wir" "$out_dir/weavec.ll"
 
   local runtime_ll=()
   local mod
@@ -114,14 +114,14 @@ build_stage() {
     runtime_ll+=("$out_dir/$mod.ll")
   done
 
-  log "link $out_dir/weavec2.bc"
-  llvm-link "$out_dir/weavec2.ll" "${runtime_ll[@]}" -o "$out_dir/weavec2.bc"
+  log "link $out_dir/weavec.bc"
+  llvm-link "$out_dir/weavec.ll" "${runtime_ll[@]}" -o "$out_dir/weavec.bc"
 
-  link_stage_binary "$out_dir/weavec2.bc" "$out_bin"
+  link_stage_binary "$out_dir/weavec.bc" "$out_bin"
 }
 
 build_stage "$SEED" "$BUILD_DIR/stage1"
-build_stage "$BUILD_DIR/stage1/weavec2" "$BUILD_DIR/stage2"
+build_stage "$BUILD_DIR/stage1/weavec" "$BUILD_DIR/stage2"
 
 normalize_wir() {
   tr '\n\t\r' ' ' < "$1" |
@@ -131,7 +131,7 @@ normalize_wir() {
 run_stage2_fixture() {
   local name="$1"
   local expected_exit="$2"
-  local stage2="$BUILD_DIR/stage2/weavec2"
+  local stage2="$BUILD_DIR/stage2/weavec"
   local out_dir="$BUILD_DIR/stage2-fixtures"
   local src="$ROOT/test/correctness/surface/$name.weave"
   local expected_wir="$ROOT/test/correctness/surface/$name.expected.wir"
@@ -168,4 +168,4 @@ run_stage2_fixture 01_return_42 42
 run_stage2_fixture 59_bare_identifier_operands 42
 run_stage2_fixture 60_let_literal_sugar 42
 
-log "complete: $BUILD_DIR/stage2/weavec2"
+log "complete: $BUILD_DIR/stage2/weavec"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0
-# Regenerate one or all performance LLVM goldens from weavec2 output.
+# Regenerate one or all performance LLVM goldens from weavec output.
 #
 # Usage:
 #   ./test/performance/regen-golden.sh              # all fixtures
@@ -10,7 +10,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WEAVEC2="$ROOT/build/weavec2"
+WEAVEC2="$ROOT/build/weavec"
 WIR_DIR="$ROOT/test/performance/wir"
 EXPECTED_DIR="$ROOT/test/performance/expected-llvm"
 GEN_DIR="$ROOT/build/test/performance/regen"
@@ -22,7 +22,7 @@ require_tool() {
   command -v "$1" >/dev/null 2>&1 || fail "missing required tool: $1"
 }
 
-[[ -x "$WEAVEC2" ]] || fail "build/weavec2 not found; run ./build.sh from weave/weavec2"
+[[ -x "$WEAVEC2" ]] || fail "build/weavec not found; run ./build.sh from weave/weavec"
 require_tool llvm-as
 
 mkdir -p "$GEN_DIR"
@@ -36,7 +36,7 @@ regen_one() {
   [[ -f "$src" ]] || fail "missing WIR fixture: $src"
 
   log "$name"
-  (cd "$ROOT" && "$WEAVEC2" "test/performance/wir/${name}.wir" "$out") || fail "weavec2 failed: $name"
+  (cd "$ROOT" && "$WEAVEC2" "test/performance/wir/${name}.wir" "$out") || fail "weavec failed: $name"
   llvm-as "$out" -o /dev/null || fail "llvm-as failed: $name"
   cp "$out" "$golden"
   log "ok $name -> $golden"

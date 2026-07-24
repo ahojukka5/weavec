@@ -5,7 +5,7 @@
 ;
 ; The strategy is direct text emission: we walk the input AST and emit
 ; WIR s-expressions without building an intermediate tree. This avoids
-; the complex tree-building API used by the original weavefront.
+; the complex tree-building API used by the original weavec-bootstrap.
 ;
 ; Transformation rules:
 ;   program wrapper    → core-module / core-version 1 / decls wrapper

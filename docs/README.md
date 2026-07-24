@@ -1,7 +1,7 @@
 # weavec documentation
 
 User-facing and internal notes for the self-hosted Weave compiler. This
-repository was formerly named `weavec2`; new documentation uses the final
+repository was formerly named `weavec`; new documentation uses the final
 product name `weavec`.
 
 ## Feature guides
@@ -27,8 +27,8 @@ product name `weavec`.
 weavec0 → weavec1 → weavec-bootstrap → weavec
 ```
 
-- `weavec-bootstrap` was formerly `weavefront`.
-- `weavec` was formerly `weavec2`.
+- `weavec-bootstrap` was formerly `weavec-bootstrap`.
+- `weavec` was formerly `weavec`.
 - Historical scripts, paths, and examples may retain the old names until their
   compatibility interfaces are migrated.
 
@@ -52,7 +52,7 @@ Explain contracts and simple function facts for a surface file. The current
 binary path retains the historical filename:
 
 ```sh
-./build/weavec2 --explain path/to/program.weave
+./build/weavec --explain path/to/program.weave
 ```
 
 See [contracts-and-explain.md](contracts-and-explain.md) for syntax and

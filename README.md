@@ -5,7 +5,7 @@
 > The user-facing Weave compiler, written in surface Weave. It combines surface
 > lowering and WIR-to-LLVM emission in one self-hosted compiler.
 
-This repository was previously named `weavec2`. The shorter name reflects its
+This repository was previously named `weavec`. The shorter name reflects its
 actual role: this is the final compiler product. `weavec0`, `weavec1`, and
 `weavec-bootstrap` remain as the reproducible bootstrap chain.
 
@@ -51,8 +51,8 @@ Design notes live under [`docs/`](docs/).
 |---|---|---|
 | `weavec0` | [`ahojukka5/weavec0`](https://github.com/ahojukka5/weavec0) | Hand-written Stage 0 seed and SDK. |
 | `weavec1` | [`ahojukka5/weavec1`](https://github.com/ahojukka5/weavec1) | WIR compiler and Stage 1 SDK. |
-| `weavec-bootstrap` | [`ahojukka5/weavec-bootstrap`](https://github.com/ahojukka5/weavec-bootstrap) | Surface-to-WIR bootstrap frontend, formerly `weavefront`. |
-| `weavec` | **this repository** | User-facing self-hosted compiler, formerly `weavec2`. |
+| `weavec-bootstrap` | [`ahojukka5/weavec-bootstrap`](https://github.com/ahojukka5/weavec-bootstrap) | Surface-to-WIR bootstrap frontend, formerly `weavec-bootstrap`. |
+| `weavec` | **this repository** | User-facing self-hosted compiler, the final compiler. |
 
 ```text
 weavec0 → weavec1 → weavec-bootstrap → weavec
@@ -105,7 +105,7 @@ cd weavec
 ```
 
 The current build output retains the historical compatibility path
-`build/weavec2`. It is the `weavec` compiler; the old filename remains until
+`build/weavec`. It is the `weavec` compiler; the old filename remains until
 all downstream scripts and release packaging have migrated.
 
 ## Why the initial build still uses source bootstrap
@@ -115,7 +115,7 @@ consumes the Stage 1 SDK on Linux. This repository currently needs additional
 frontend build products:
 
 - the bootstrap frontend executable;
-- the historical `weavefront-cat.sh` multifile helper;
+- the historical `weavec-bootstrap-cat.sh` multifile helper;
 - generated parser modules such as `sexpr_tokens.ll`, `sexpr_tree.ll`,
   `sexpr_lexer.ll`, and `sexpr_parser.ll`;
 - runtime support used by the final link.
@@ -133,8 +133,8 @@ Current environment names retain historical compatibility:
 
 - `WEAVEC0` and `WEAVEC0_TAG` select Stage 0;
 - `WEAVEC1` and `WEAVEC1_TAG` select Stage 1;
-- `WEAVEFRONT` and `WEAVEFRONT_TAG` select `weavec-bootstrap`;
-- `WEAVEC2_BACKEND` selects an already built self-hosted `weavec` backend.
+- `WEAVEC_BOOTSTRAP` and `WEAVEC_BOOTSTRAP_REF` select `weavec-bootstrap`;
+- `WEAVEC_BACKEND` selects an already built self-hosted `weavec` backend.
 
 The old variable names remain supported because they are part of the current
 bootstrap scripts. New prose and repository links use the final component
@@ -153,10 +153,10 @@ changing a source tag; the cache does not automatically switch refs.
 4. combines `src/**/*.weave` into the bootstrapped WIR module;
 5. compiles WIR to LLVM IR with `weavec1` or a self-hosted backend;
 6. links parser modules and portable runtime support;
-7. produces the user-facing compiler at the historical path `build/weavec2`.
+7. produces the user-facing compiler at the historical path `build/weavec`.
 
 When a deeper self-host compiler exists, the build may select it as the backend.
-An explicit `WEAVEC2_BACKEND` overrides that selection.
+An explicit `WEAVEC_BACKEND` overrides that selection.
 
 ## Repository layout
 
@@ -184,7 +184,7 @@ weavec/
     └── vendor/{weavec0,weavec1,weavec-bootstrap}/
 ```
 
-The physical vendor directory may still be named `weavefront` in existing
+The physical vendor directory may still be named `weavec-bootstrap` in existing
 builds because the current script retains the compatibility variable names.
 
 ## Tests
@@ -202,7 +202,7 @@ builds because the current script retains the compatibility variable names.
 A successful run currently ends with the historical message:
 
 ```text
-all weavec2 checks passed
+all weavec checks passed
 ```
 
 The name in that message is a compatibility detail, not a separate compiler.
@@ -254,7 +254,7 @@ help.
 - The first-generation bootstrap still requires source checkouts because the
   bootstrap frontend parser products are not yet packaged as an SDK.
 - Binary paths, helper scripts, environment variables, and some test output
-  still use the historical names `weavec2` and `weavefront` for compatibility.
+  still use the historical names `weavec` and `weavec-bootstrap` for compatibility.
 - `surface-matrix.sh` reports counts rather than enforcing thresholds.
 - There is no dedicated source-style checker for `.weave` modules yet.
 - `runtime/quantum_runtime.c` is a test stub, not a production quantum runtime.

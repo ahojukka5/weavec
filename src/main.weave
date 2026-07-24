@@ -1,14 +1,14 @@
 ; SPDX-License-Identifier: Apache-2.0
-; main.weave — entry point for weavec2
+; main.weave — entry point for weavec
 ;
 ; Usage:
-;   weavec2 --backend <input.wir> <output.ll>
-;   weavec2 --frontend [--strict-contracts] <output.wir> <input.weave> [input2.weave ...]
-;   weavec2 --dump-quantum-stats <output.metrics> <input.weave>
-;   weavec2 --explain <input.weave>
-;   weavec2 --explain-json <input.weave>
-;   weavec2 --audit <input.weave>
-;   weavec2 --audit-json <input.weave>
+;   weavec --backend <input.wir> <output.ll>
+;   weavec --frontend [--strict-contracts] <output.wir> <input.weave> [input2.weave ...]
+;   weavec --dump-quantum-stats <output.metrics> <input.weave>
+;   weavec --explain <input.weave>
+;   weavec --explain-json <input.weave>
+;   weavec --audit <input.weave>
+;   weavec --audit-json <input.weave>
 
 (program
   (name "main")

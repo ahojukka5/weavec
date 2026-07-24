@@ -3,15 +3,15 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-WEAVEC2="$ROOT/build/weavec2"
+WEAVEC2="$ROOT/build/weavec"
 SRC="$ROOT/test/correctness/contracts/explain_audit_malloc_while.weave"
 EXPECTED_TXT="$ROOT/test/correctness/contracts/explain_audit_malloc_while.expected.txt"
 EXPECTED_JSON="$ROOT/test/correctness/contracts/explain_audit_malloc_while.expected.json"
 
-log() { printf '[weavec2-explain-audit-test] %s\n' "$*"; }
-fail() { printf '[weavec2-explain-audit-test] error: %s\n' "$*" >&2; exit 1; }
+log() { printf '[weavec-explain-audit-test] %s\n' "$*"; }
+fail() { printf '[weavec-explain-audit-test] error: %s\n' "$*" >&2; exit 1; }
 
-[[ -x "$WEAVEC2" ]] || fail "weavec2 not found: $WEAVEC2 (run ./build.sh)"
+[[ -x "$WEAVEC2" ]] || fail "weavec not found: $WEAVEC2 (run ./build.sh)"
 [[ -f "$SRC" ]] || fail "missing source: $SRC"
 [[ -f "$EXPECTED_TXT" ]] || fail "missing expected text: $EXPECTED_TXT"
 [[ -f "$EXPECTED_JSON" ]] || fail "missing expected json: $EXPECTED_JSON"

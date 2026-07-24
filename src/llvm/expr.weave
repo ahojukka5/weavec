@@ -1,5 +1,5 @@
 ; SPDX-License-Identifier: Apache-2.0
-; expr.weave — WIR expression → LLVM IR emission for weavec2
+; expr.weave — WIR expression → LLVM IR emission for weavec
 ;
 ; emit_expr(ctx, node) → i64
 ;   Returns: ≥0 = temp register index
@@ -20,7 +20,7 @@
     (params)
     (returns void)
     (do
-      (call_void write_cstr (const_i32 2) (const_string_ptr "weavec2: error: "))
+      (call_void write_cstr (const_i32 2) (const_string_ptr "weavec: error: "))
       (return_void)))
 
   (fn diag_node_text

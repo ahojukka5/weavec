@@ -1,11 +1,11 @@
-# LLVM codegen analysis (weavec2 performance goldens)
+# LLVM codegen analysis (weavec performance goldens)
 
 This document explains what the performance demonstration LLVM files reveal
-about weavec2 codegen quality and where to invest for faster generated code.
+about weavec codegen quality and where to invest for faster generated code.
 
 The suite is CPU-focused (`test/performance/`). Goldens are pre-optimization
-IR (what weavec2 emits today). LLVM `opt -O2` is not the baseline; we first
-make weavec2 output easy for LLVM to optimize.
+IR (what weavec emits today). LLVM `opt -O2` is not the baseline; we first
+make weavec output easy for LLVM to optimize.
 
 ## Tools
 
@@ -24,7 +24,7 @@ Re-run the analyzer after changing goldens or the emitter.
 
 Two different goals:
 
-1. weavec2 compile time — smaller emitter, less redundant work while printing IR.
+1. weavec compile time — smaller emitter, less redundant work while printing IR.
 2. Generated program speed — LLVM IR that promotes to registers and vectorizes.
 
 This doc focuses on (2). The performance WIR programs are small; the LLVM

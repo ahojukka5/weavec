@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WEAVEC2="$ROOT/build/weavec2"
+WEAVEC2="$ROOT/build/weavec"
 RUNTIME="$ROOT/runtime/quantum_runtime.c"
 FIXTURE_ROOT="$ROOT/test/quantum"
 OUT_DIR="$ROOT/build/test/quantum-e2e"
@@ -13,11 +13,11 @@ pass_count=0
 fail_count=0
 
 log() {
-  printf '[weavec2-quantum-e2e] %s\n' "$*"
+  printf '[weavec-quantum-e2e] %s\n' "$*"
 }
 
 fail() {
-  printf '[weavec2-quantum-e2e] error: %s\n' "$*" >&2
+  printf '[weavec-quantum-e2e] error: %s\n' "$*" >&2
   fail_count=$((fail_count + 1))
 }
 
@@ -34,11 +34,11 @@ read_metrics_field() {
 }
 
 [[ -x "$WEAVEC2" ]] || {
-  printf '[weavec2-quantum-e2e] build/weavec2 not found; run ./build.sh first\n' >&2
+  printf '[weavec-quantum-e2e] build/weavec not found; run ./build.sh first\n' >&2
   exit 1
 }
 [[ -f "$RUNTIME" ]] || {
-  printf '[weavec2-quantum-e2e] missing %s\n' "$RUNTIME" >&2
+  printf '[weavec-quantum-e2e] missing %s\n' "$RUNTIME" >&2
   exit 1
 }
 

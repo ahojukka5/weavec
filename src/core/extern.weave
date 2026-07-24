@@ -1,5 +1,5 @@
 ; SPDX-License-Identifier: Apache-2.0
-; extern.weave — all extern declarations for weavec2
+; extern.weave — all extern declarations for weavec
 ;
 ; Must be listed first in the build so all other files can call these.
 
@@ -20,18 +20,18 @@
   (extern write (params (fd i32) (buf ptr) (count i64)) (returns i64))
   (extern lseek (params (fd i32) (offset i64) (whence i32)) (returns i64))
 
-  ; weavec2 portability shim — runtime/portable.c
+  ; weavec portability shim — runtime/portable.c
   ; Wraps open(path, O_WRONLY|O_CREAT|O_TRUNC, mode) so we don't bake
   ; macOS-specific or Linux-specific flag values into the WIR source.
   (extern weave_rt_open_write_trunc (params (path ptr) (mode i32)) (returns i32))
   (extern weave_rt_contract_fail (params (msg ptr)) (returns void))
 
-  ; weavefront C runtime — lex/parse
+  ; weavec-bootstrap C runtime — lex/parse
   (extern lex (params (source ptr) (length i64)) (returns ptr))
   (extern parse (params (tokens ptr)) (returns ptr))
   (extern tree_free (params (tree ptr)) (returns void))
 
-  ; weavefront C runtime — node accessors
+  ; weavec-bootstrap C runtime — node accessors
   (extern node_kind (params (tree ptr) (index i64)) (returns i32))
   (extern node_text_start (params (tree ptr) (index i64)) (returns i64))
   (extern node_text_len (params (tree ptr) (index i64)) (returns i64))
@@ -39,7 +39,7 @@
   (extern node_next_sibling (params (tree ptr) (index i64)) (returns i64))
   (extern node_value (params (tree ptr) (index i64)) (returns i64))
 
-  ; weavefront C runtime — node kind constants
+  ; weavec-bootstrap C runtime — node kind constants
   (extern node_list (params) (returns i32))
   (extern node_ident (params) (returns i32))
   (extern node_string (params) (returns i32))

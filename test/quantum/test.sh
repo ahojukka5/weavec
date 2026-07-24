@@ -4,18 +4,18 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WEAVEC2="$ROOT/build/weavec2"
+WEAVEC2="$ROOT/build/weavec"
 FIXTURE_ROOT="$ROOT/test/quantum"
 OUT_DIR="$ROOT/build/test/quantum"
 pass_count=0
 fail_count=0
 
 log() {
-  printf '[weavec2-quantum] %s\n' "$*"
+  printf '[weavec-quantum] %s\n' "$*"
 }
 
 fail() {
-  printf '[weavec2-quantum] error: %s\n' "$*" >&2
+  printf '[weavec-quantum] error: %s\n' "$*" >&2
   fail_count=$((fail_count + 1))
 }
 
@@ -80,7 +80,7 @@ run_wir_golden_dir() {
 }
 
 [[ -x "$WEAVEC2" ]] || {
-  printf '[weavec2-quantum] build/weavec2 not found; run ./build.sh first\n' >&2
+  printf '[weavec-quantum] build/weavec not found; run ./build.sh first\n' >&2
   exit 1
 }
 

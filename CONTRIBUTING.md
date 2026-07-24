@@ -1,7 +1,7 @@
 # Contributing to weavec
 
 `weavec` is the user-facing self-hosted compiler written in surface Weave. The
-repository was formerly named `weavec2`. It combines surface lowering and
+repository was formerly named `weavec`. It combines surface lowering and
 WIR-to-LLVM emission, while `weavec0`, `weavec1`, and `weavec-bootstrap` remain
 the reproducible bootstrap path.
 
@@ -81,8 +81,8 @@ Historical environment names remain in the build interface:
 
 - `WEAVEC0_TAG` selects `weavec0`;
 - `WEAVEC1_TAG` selects `weavec1`;
-- `WEAVEFRONT_TAG` selects `weavec-bootstrap`;
-- `WEAVEC2_BACKEND` selects an existing self-hosted `weavec` backend.
+- `WEAVEC_BOOTSTRAP_REF` selects `weavec-bootstrap`;
+- `WEAVEC_BACKEND` selects an existing self-hosted `weavec` backend.
 
 When changing a pin:
 
@@ -94,7 +94,7 @@ When changing a pin:
 
 ## Historical compatibility names
 
-Current scripts and generated paths still use `weavec2` and `weavefront` in
+Current scripts and generated paths still use `weavec` and `weavec-bootstrap` in
 several places. Do not interpret those names as separate active products. New
 APIs and documentation should use `weavec` and `weavec-bootstrap`, while
 removing compatibility aliases only through an explicit migration.

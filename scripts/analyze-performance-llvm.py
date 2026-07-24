@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-"""Summarize weavec2 performance LLVM goldens for codegen quality.
+"""Summarize weavec performance LLVM goldens for codegen quality.
 
 Reads test/performance/expected-llvm/*.ll and prints metrics that highlight
 missed SSA promotion, memory traffic, and other speed-related patterns.
@@ -68,7 +68,7 @@ def analyze_ll(text: str) -> dict[str, int | bool | list[str]]:
 
 
 def score_opportunity(m: dict) -> int:
-    """Higher = more obvious room for weavec2 speedups (not runtime of benchmark)."""
+    """Higher = more obvious room for weavec speedups (not runtime of benchmark)."""
     s = 0
     s += m["loop_body_addr_loads"] * 3
     s += len(m["stack_carried_candidates"]) * 5
@@ -112,7 +112,7 @@ def main() -> int:
     lines.append("")
     lines.append(
         "Metrics are static counts on checked-in `expected-llvm/` output. "
-        "High opportunity scores usually mean weavec2 emits stack slots where "
+        "High opportunity scores usually mean weavec emits stack slots where "
         "LLVM would prefer loop phis after mem2reg."
     )
     lines.append("")
@@ -143,7 +143,7 @@ def main() -> int:
         )
 
     lines.append("")
-    lines.append("## Recommended weavec2 improvements (priority)")
+    lines.append("## Recommended weavec improvements (priority)")
     lines.append("")
     lines.append(
         "1. Extend loop-phi promotion to i64, f32, and f64 carried locals "
@@ -162,7 +162,7 @@ def main() -> int:
         "the next `set` on another carried local (0158 fibonacci `next`)."
     )
     lines.append(
-        "5. After weavec2 emits cleaner IR, rely on LLVM `-O2` for final "
+        "5. After weavec emits cleaner IR, rely on LLVM `-O2` for final "
         "codegen; goldens document pre-opt shape."
     )
     lines.append("")
