@@ -49,4 +49,15 @@ jobs:
           llvm-link --version
 
       - name: Build compiler and run full ladder
-        run: ./test-all.sh
+        run: |
+          set -o pipefail
+          ./test-all.sh 2>&1 | tee ci.log
+
+      - name: Upload failed ladder log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-log-${{ matrix.os }}
+          path: ci.log
+          if-no-files-found: ignore
+          retention-days: 7
