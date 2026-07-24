@@ -210,8 +210,6 @@
           (let audit_json_in ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
           (return (call_i32 audit_file_json (local_get audit_json_in)))))
         (else (do)))
-      ; Keep the historical backend spelling for current tests and scripts.
-      (let input_path_legacy ptr (local_get arg1))
-      (let output_path_legacy ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
-      (return (call_i32 compile_file (local_get input_path_legacy) (local_get output_path_legacy)))))
+      ; Unknown or incomplete command.
+      (return (const_i32 1))))
 )

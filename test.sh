@@ -148,6 +148,25 @@ require_tool clang
 
 mkdir -p "$LL_DIR" "$BC_DIR" "$BIN_DIR" "$WIR_FROM_SURFACE_DIR"
 
+
+log "reject implicit backend syntax"
+legacy_weavec="$WEAVEC"
+legacy_ll="$LL_DIR/implicit_backend_should_fail.ll"
+rm -f "$legacy_ll"
+set +e
+"$legacy_weavec" "$WIR_TEST_DIR/01_return_constant.wir" "$legacy_ll" \
+  >/dev/null 2>&1
+legacy_status="$?"
+set -e
+if [[ "$legacy_status" -eq 0 ]]; then
+  fail "implicit backend syntax unexpectedly succeeded"
+elif [[ -e "$legacy_ll" ]]; then
+  fail "implicit backend syntax created output"
+else
+  log "ok explicit backend CLI required"
+  pass_count=$((pass_count + 1))
+fi
+
 for src in "$WIR_TEST_DIR"/*.wir; do
   name="$(basename "$src" .wir)"
 
@@ -163,7 +182,7 @@ for src in "$WIR_TEST_DIR"/*.wir; do
 
   log "compile $name"
 
-  if ! "$WEAVEC" "$src" "$ll"; then
+  if ! "$WEAVEC" --backend "$src" "$ll"; then
     fail "$name: weavec failed"
     continue
   fi
@@ -206,7 +225,7 @@ for src in "$WIR_TEST_DIR"/*.wir; do
   log "backend-fail $name"
 
   set +e
-  "$WEAVEC" "$src" "$ll" 2>"$err"
+  "$WEAVEC" --backend "$src" "$ll" 2>"$err"
   status="$?"
   set -e
 
