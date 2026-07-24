@@ -9,18 +9,31 @@ on:
 
 jobs:
   test:
-    name: build & test (${{ matrix.os }})
+    name: build & test (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          - name: linux-glibc-sdks
+            os: ubuntu-latest
+            libc: glibc
+          - name: linux-musl-sdks
+            os: ubuntu-latest
+            libc: musl
+          - name: macos-source-fallback
+            os: macos-latest
+            libc: glibc
 
     env:
       WEAVEC0_TAG: v0.2.1
+      WEAVEC1_VERSION: v0.2.0
       WEAVEC1_TAG: v0.2.0
+      WEAVEC1_LIBC: ${{ matrix.libc }}
+      WEAVEC_BOOTSTRAP_VERSION: v0.2.0
       WEAVEC_BOOTSTRAP_REF: v0.2.0
+      WEAVEC_BOOTSTRAP_LIBC: ${{ matrix.libc }}
 
     steps:
       - name: Checkout
@@ -54,11 +67,20 @@ jobs:
           set -o pipefail
           ./test-all.sh 2>&1 | tee ci.log
 
+      - name: Verify dependency mode
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            grep -F "dependency modes: weavec1=sdk bootstrap=sdk" ci.log
+          else
+            grep -F "dependency modes: weavec1=source bootstrap=source" ci.log
+          fi
+
       - name: Upload failed ladder log
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: ci-log-${{ matrix.os }}
+          name: ci-log-${{ matrix.name }}
           path: ci.log
           if-no-files-found: ignore
           retention-days: 7
