@@ -1,0 +1,177 @@
+# SPDX-License-Identifier: Apache-2.0
+name: release
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-linux:
+    name: Linux x86-64 (${{ matrix.libc }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        libc: [glibc, musl]
+
+    env:
+      WEAVEC1_VERSION: v0.2.0
+      WEAVEC1_LIBC: ${{ matrix.libc }}
+      WEAVEC_BOOTSTRAP_VERSION: v0.2.0
+      WEAVEC_BOOTSTRAP_LIBC: ${{ matrix.libc }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build and packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            binutils \
+            clang \
+            curl \
+            file \
+            llvm \
+            musl-tools \
+            python3
+
+      - name: Show toolchain versions
+        run: |
+          clang --version
+          llvm-as --version
+          llvm-link --version
+          musl-gcc --version
+
+      - name: Build compiler and run the full ladder
+        run: ./test-all.sh
+
+      - name: Select archive version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            version="$GITHUB_REF_NAME"
+          elif [[ "$GITHUB_REF" == refs/heads/master ]]; then
+            version="v$(tr -d '[:space:]' < VERSION)"
+          else
+            version="git-${GITHUB_SHA::12}"
+          fi
+          printf 'value=%s\n' "$version" >> "$GITHUB_OUTPUT"
+
+      - name: Package static ${{ matrix.libc }} compiler
+        run: |
+          bash scripts/package-linux-release.sh \
+            "${{ matrix.libc }}" \
+            "${{ steps.version.outputs.value }}" \
+            dist
+
+      - name: Upload compiler archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: weavec-linux-x86_64-${{ matrix.libc }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-release:
+    name: Publish GitHub Release
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/master')
+    needs: build-linux
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select release tag
+        id: release
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            tag="$GITHUB_REF_NAME"
+            replace=true
+          else
+            tag="v$(tr -d '[:space:]' < VERSION)"
+            replace=false
+          fi
+          printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
+          printf 'replace=%s\n' "$replace" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether release already exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            printf 'exists=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'exists=false\n' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download compiler archives
+        if: >-
+          steps.existing.outputs.exists != 'true' ||
+          steps.release.outputs.replace == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: weavec-linux-x86_64-*
+          path: dist
+          merge-multiple: true
+
+      - name: Create checksums
+        if: >-
+          steps.existing.outputs.exists != 'true' ||
+          steps.release.outputs.replace == 'true'
+        working-directory: dist
+        run: sha256sum *.tar.gz > SHA256SUMS
+
+      - name: Publish new release
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            dist/*.tar.gz dist/SHA256SUMS \
+            --target "$GITHUB_SHA" \
+            --generate-notes \
+            --title "weavec $RELEASE_TAG"
+
+      - name: Replace assets for explicit tag build
+        if: >-
+          steps.existing.outputs.exists == 'true' &&
+          steps.release.outputs.replace == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          gh release upload "$RELEASE_TAG" \
+            dist/*.tar.gz dist/SHA256SUMS \
+            --clobber
+
+      - name: Keep an existing VERSION release immutable
+        if: >-
+          steps.existing.outputs.exists == 'true' &&
+          steps.release.outputs.replace != 'true'
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: echo "$RELEASE_TAG already exists; leaving its assets unchanged"
