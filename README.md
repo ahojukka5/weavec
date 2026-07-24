@@ -1,18 +1,22 @@
-# weavec2 — Self-Hosted Weave Compiler
+# weavec — Self-Hosted Weave Compiler
 
-[![ci](https://github.com/ahojukka5/weavec2/actions/workflows/ci.yml/badge.svg)](https://github.com/ahojukka5/weavec2/actions/workflows/ci.yml)
+[![ci](https://github.com/ahojukka5/weavec/actions/workflows/ci.yml/badge.svg)](https://github.com/ahojukka5/weavec/actions/workflows/ci.yml)
 
-> The compiler written in surface Weave. It combines surface lowering and WIR
-> to LLVM emission in one self-hosted binary.
+> The user-facing Weave compiler, written in surface Weave. It combines surface
+> lowering and WIR-to-LLVM emission in one self-hosted compiler.
 
-## Overview
+This repository was previously named `weavec2`. The shorter name reflects its
+actual role: this is the final compiler product. `weavec0`, `weavec1`, and
+`weavec-bootstrap` remain as the reproducible bootstrap chain.
 
-The split bootstrap chain is:
+## Role
+
+The split bootstrap path is:
 
 ```text
 .weave
    ↓
-weavefront
+weavec-bootstrap
    ↓
  .wir
    ↓
@@ -21,19 +25,19 @@ weavec1
  .ll
 ```
 
-`weavec2` implements the same end-to-end surface compiler role in one binary:
+`weavec` implements the complete surface compiler role:
 
 ```text
 .weave
    ↓
-weavec2
+ weavec
    ↓
- .wir or .ll
+.wir or .ll
 ```
 
 The repository contains:
 
-- `src/frontend/` for surface validation, lowering, contracts, audit output,
+- `src/frontend/` for parsing, validation, lowering, contracts, audit output,
   structs, and quantum rewrites;
 - `src/llvm/` for WIR-to-LLVM emission and loop-phi handling;
 - `src/core/` for shared tree, I/O, and runtime helpers;
@@ -41,21 +45,36 @@ The repository contains:
 
 Design notes live under [`docs/`](docs/).
 
+## Compiler chain
+
+| Component | Repository | Role |
+|---|---|---|
+| `weavec0` | [`ahojukka5/weavec0`](https://github.com/ahojukka5/weavec0) | Hand-written Stage 0 seed and SDK. |
+| `weavec1` | [`ahojukka5/weavec1`](https://github.com/ahojukka5/weavec1) | WIR compiler and Stage 1 SDK. |
+| `weavec-bootstrap` | [`ahojukka5/weavec-bootstrap`](https://github.com/ahojukka5/weavec-bootstrap) | Surface-to-WIR bootstrap frontend, formerly `weavefront`. |
+| `weavec` | **this repository** | User-facing self-hosted compiler, formerly `weavec2`. |
+
+```text
+weavec0 → weavec1 → weavec-bootstrap → weavec
+```
+
+Normal users should interact only with `weavec`. The lower stages exist to make
+the compiler reproducible from a small trusted seed.
+
 ## Bootstrap status
 
-The compiler is written in surface Weave and is initially bootstrapped through
-`weavefront + weavec1`.
+The compiler is written in surface Weave and is initially built through
+`weavec-bootstrap + weavec1`.
 
 Two self-host levels are available:
 
-- `test/selfhost/test.sh` recompiles `build/weavec2.wir` with the freshly built
+- `test/selfhost/test.sh` recompiles the bootstrapped WIR with the freshly built
   compiler and verifies the result with LLVM tools;
 - `./selfhost.sh` performs the deeper stage1-to-stage2 flow and runs fixture
-  smoke tests against the stage2 compiler.
+  smoke tests against the later compiler generation.
 
-Both flows pass. The deeper flow is not part of normal CI because it builds the
-large compiler repeatedly; it is no longer blocked by the historical
-string-constant bug described in older changelog entries.
+Both flows pass. The deeper flow is not in normal CI because it rebuilds the
+large compiler repeatedly.
 
 ## Prerequisites
 
@@ -79,30 +98,30 @@ export PATH="$(brew --prefix llvm)/bin:$PATH"
 ## Quick start
 
 ```sh
-git clone https://github.com/ahojukka5/weavec2.git
-cd weavec2
+git clone https://github.com/ahojukka5/weavec.git
+cd weavec
 ./build.sh
 ./test-all.sh
 ```
 
-The first build fetches pinned source releases into `build/vendor/`. Later
-builds reuse those directories.
+The current build output retains the historical compatibility path
+`build/weavec2`. It is the `weavec` compiler; the old filename remains until
+all downstream scripts and release packaging have migrated.
 
-## Why this repository still uses source bootstrap
+## Why the initial build still uses source bootstrap
 
-`weavec0` and `weavec1` now publish Linux x86-64 bootstrap SDKs, and
-`weavefront` consumes the Stage 1 SDK on Linux. `weavec2` currently retains a
-source-bootstrap path because it needs more than the compiler executables:
+`weavec0` and `weavec1` publish Linux bootstrap SDKs, and `weavec-bootstrap`
+consumes the Stage 1 SDK on Linux. This repository currently needs additional
+frontend build products:
 
-- the `weavefront` executable;
-- `weavefront-cat.sh` for multifile lowering;
+- the bootstrap frontend executable;
+- the historical `weavefront-cat.sh` multifile helper;
 - generated parser modules such as `sexpr_tokens.ll`, `sexpr_tree.ll`,
   `sexpr_lexer.ll`, and `sexpr_parser.ll`;
-- the Stage 0 runtime source used by the current final link.
+- runtime support used by the final link.
 
-Those frontend build products are not yet published as a versioned SDK. Until
-that package exists, cloning the pinned source releases is the explicit and
-documented bootstrap behavior rather than an accidental fallback.
+Those frontend products are not yet published as one versioned SDK, so the
+first-generation build still resolves pinned source releases explicitly.
 
 ## Build configuration
 
@@ -110,43 +129,39 @@ documented bootstrap behavior rather than an accidental fallback.
 ./build.sh
 ```
 
-Current source pins:
+Current environment names retain historical compatibility:
 
-- `WEAVEC0_TAG=v0.2.0`;
-- `WEAVEC1_TAG=v0.1.0`;
-- `WEAVEFRONT_TAG=v0.1.0`.
+- `WEAVEC0` and `WEAVEC0_TAG` select Stage 0;
+- `WEAVEC1` and `WEAVEC1_TAG` select Stage 1;
+- `WEAVEFRONT` and `WEAVEFRONT_TAG` select `weavec-bootstrap`;
+- `WEAVEC2_BACKEND` selects an already built self-hosted `weavec` backend.
 
-Overrides:
-
-- `WEAVEC0=/path/to/weavec0` uses an existing Stage 0 source tree;
-- `WEAVEC1=/path/to/weavec1` uses an existing Stage 1 source tree;
-- `WEAVEFRONT=/path/to/weavefront` uses an existing frontend source tree;
-- the corresponding `_TAG` variables select different source refs;
-- `WEAVEC2_BACKEND=/path/to/weavec2` selects a self-hosted WIR backend.
+The old variable names remain supported because they are part of the current
+bootstrap scripts. New prose and repository links use the final component
+names.
 
 Delete a cached `build/vendor/<dependency>/` directory when intentionally
-changing a tag. The current vendor cache does not automatically switch refs.
+changing a source tag; the cache does not automatically switch refs.
 
 ## Build pipeline
 
-`build.sh` performs these steps:
+`build.sh`:
 
-1. resolve and build the pinned `weavec0` source tree;
-2. resolve and build `weavec1` with that Stage 0 tree;
-3. resolve and build `weavefront` with the same lower stages;
-4. concatenate `src/**/*.weave` into `build/weavec2.wir`;
-5. compile WIR to LLVM IR with `weavec1` or `WEAVEC2_BACKEND`;
-6. link the compiler with the frontend parser LLVM modules and
-   `runtime/portable.c` support;
-7. produce `build/weavec2`.
+1. resolves and builds the pinned `weavec0` source tree;
+2. resolves and builds `weavec1`;
+3. resolves and builds `weavec-bootstrap`;
+4. combines `src/**/*.weave` into the bootstrapped WIR module;
+5. compiles WIR to LLVM IR with `weavec1` or a self-hosted backend;
+6. links parser modules and portable runtime support;
+7. produces the user-facing compiler at the historical path `build/weavec2`.
 
-When `build/selfhost/stage2/weavec2` exists, the build may auto-select it as the
-backend. An explicit `WEAVEC2_BACKEND` overrides this selection.
+When a deeper self-host compiler exists, the build may select it as the backend.
+An explicit `WEAVEC2_BACKEND` overrides that selection.
 
 ## Repository layout
 
 ```text
-weavec2/
+weavec/
 ├── build.sh
 ├── test.sh
 ├── test-all.sh
@@ -163,13 +178,14 @@ weavec2/
 │   ├── quantum/
 │   └── selfhost/
 ├── runtime/
-│   ├── portable.c
-│   └── quantum_runtime.c
 ├── scripts/
 ├── docs/
 └── build/
-    └── vendor/{weavec0,weavec1,weavefront}/
+    └── vendor/{weavec0,weavec1,weavec-bootstrap}/
 ```
+
+The physical vendor directory may still be named `weavefront` in existing
+builds because the current script retains the compatibility variable names.
 
 ## Tests
 
@@ -183,20 +199,22 @@ weavec2/
 | Quantum end to end | `test/quantum/test-e2e.sh` | 1 |
 | Basic self-host | `test/selfhost/test.sh` | 1 |
 
-A successful run ends with:
+A successful run currently ends with the historical message:
 
 ```text
 all weavec2 checks passed
 ```
 
-### Performance goldens
+The name in that message is a compatibility detail, not a separate compiler.
 
-Regenerate only after an intentional backend change:
+### Performance goldens
 
 ```sh
 ./test/performance/regen-golden.sh
 git diff -- test/performance
 ```
+
+Regenerate only after an intentional backend change.
 
 ### Deeper self-host
 
@@ -204,8 +222,9 @@ git diff -- test/performance
 ./selfhost.sh
 ```
 
-This rebuilds the compiler through later generations and runs stage2 fixture
-smokes. It is a local release and architecture check, not a normal CI job.
+This rebuilds the compiler through later generations and runs stage fixture
+smokes. It is a local release and architecture check rather than a normal CI
+job.
 
 ### Surface matrix
 
@@ -213,12 +232,12 @@ smokes. It is a local release and architecture check, not a normal CI job.
 ./surface-matrix.sh
 ```
 
-The matrix reports how many surface fixtures reach each pipeline stage. It is a
+The matrix reports how many fixtures reach each pipeline stage. It is a
 development health report, not a pass/fail gate.
 
 ## Command roles
 
-The combined binary supports several modes used across the repository:
+The combined compiler supports:
 
 - surface lowering to WIR;
 - WIR backend emission to LLVM IR;
@@ -226,39 +245,16 @@ The combined binary supports several modes used across the repository:
 - explanation and audit output;
 - contract and effect analysis.
 
-Use the test fixtures as the authoritative examples for admitted forms and
-mode-specific command behavior.
-
-## Examples
-
-Useful starting points:
-
-- [`test/correctness/surface/01_return_constant.weave`](test/correctness/surface/01_return_constant.weave)
-- [`test/correctness/surface/07_if.weave`](test/correctness/surface/07_if.weave)
-- [`test/correctness/surface/08_while.weave`](test/correctness/surface/08_while.weave)
-- [`test/correctness/surface/57_struct_basic.weave`](test/correctness/surface/57_struct_basic.weave)
-- [`test/quantum/`](test/quantum)
-
-The complete surface corpus under `test/correctness/surface/` is also the
-syntax reference used by the external `weave-mcp` grammar help.
-
-## Compiler chain
-
-| Stage | Repository | Role |
-|---|---|---|
-| `weavec0` | [`ahojukka5/weavec0`](https://github.com/ahojukka5/weavec0) | Hand-written Stage 0 compiler and bootstrap SDK. |
-| `weavec1` | [`ahojukka5/weavec1`](https://github.com/ahojukka5/weavec1) | WIR-written compiler and Stage 1 SDK. |
-| `weavefront` | [`ahojukka5/weavefront`](https://github.com/ahojukka5/weavefront) | Split surface-to-WIR bootstrap frontend. |
-| `weavec2` | **this repository** | Self-hosted compiler written in surface Weave. |
-
-The long-term direction is for `weavec2` to replace the split
-`weavefront + weavec1` path for normal surface inputs while the lower stages
-remain available as a small reproducible bootstrap chain.
+The fixtures under `test/correctness/surface/` are the authoritative examples
+for admitted surface forms and are also indexed by external `weave-mcp` grammar
+help.
 
 ## Known limitations
 
-- The normal bootstrap still requires source checkouts for all three lower
-  repositories because frontend parser build products are not yet packaged.
+- The first-generation bootstrap still requires source checkouts because the
+  bootstrap frontend parser products are not yet packaged as an SDK.
+- Binary paths, helper scripts, environment variables, and some test output
+  still use the historical names `weavec2` and `weavefront` for compatibility.
 - `surface-matrix.sh` reports counts rather than enforcing thresholds.
 - There is no dedicated source-style checker for `.weave` modules yet.
 - `runtime/quantum_runtime.c` is a test stub, not a production quantum runtime.
