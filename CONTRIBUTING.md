@@ -1,66 +1,86 @@
 # Contributing to weavec2
 
-Thanks for your interest in `weavec2`. Before opening a PR or filing
-an issue, please understand the scope: `weavec2` is the
-**self-hosted** surface-Weave compiler at the top of the chain. It is
-written in surface Weave (`src/**/*.weave`) and bootstrapped by
-[`weavefront`](https://github.com/ahojukka5/weavefront) (surface →
-WIR) and [`weavec1`](https://github.com/ahojukka5/weavec1) (WIR →
-LLVM IR).
+`weavec2` is the self-hosted compiler written in surface Weave. It combines
+surface lowering and WIR-to-LLVM emission, while the lower repositories remain
+the reproducible bootstrap path.
 
 ## Principles
 
-- **WIR is the boundary contract.** weavec2 emits LLVM IR via a WIR-
-  backed pipeline. Don't extend WIR from weavec2; that change goes in
-  `weavec0` / `weavec1` first.
-- **Surface Weave evolves here.** Surface syntax additions (new
-  forms, syntax sugar, struct features, quantum ops) land in
-  `src/frontend/`. The expectation is that they lower to WIR the
-  backends already accept.
-- **No feature without a test.** Every change must come with a test:
-  - a `.weave` fixture under `test/correctness/surface/` or
-  - a `.wir` fixture + `.expected.ll` golden under
-    `test/performance/` or
-  - a `.weave` quantum fixture under `test/quantum/`.
-  `./test-all.sh` must continue to end with
-  `all weavec2 checks passed`.
-- **Goldens are reviewed.** The performance tests diff emitted LLVM
-  against checked-in `*.expected.ll` files. Regenerate with
-  `test/performance/regen-golden.sh` and review the `git diff` before
-  committing.
-- **Self-host basic must keep passing.** `test/selfhost/test.sh`
-  re-compiles `build/weavec2.wir` (the bootstrapped weavec2 source)
-  with the freshly-built weavec2 binary and verifies the output is
-  accepted by `llvm-as`. Any backend change that breaks self-host is
-  a regression even if the explicit test ladder passes.
+- **WIR is the backend boundary.** Do not extend WIR from this repository. A WIR
+  change must be coordinated with `weavec0` and `weavec1` first.
+- **Surface Weave evolves here.** New surface forms, contracts, structs, and
+  quantum rewrites belong in `src/frontend/` when they lower to admitted WIR.
+- **No feature without a test.** Add an appropriate correctness, performance,
+  quantum, or self-host fixture.
+- **Review LLVM goldens.** Regenerate performance output only after an
+  intentional backend change and inspect the complete diff.
+- **Keep self-hosting green.** The basic self-host gate must always pass.
+  Changes to combined lowering, source ordering, or code generation should also
+  run the deeper `./selfhost.sh` flow.
+- **Preserve deterministic source ordering.** `build.sh`, `selfhost.sh`, and
+  multifile lowering must agree about the compiler source sequence.
 
-## What does NOT belong here
+## What does not belong here
 
-- New WIR primitives. Those go in the backends (`weavec0` /
-  `weavec1`).
-- Optimisation passes targeting LLVM. The backend handles its own
-  codegen; weavec2's emitter aims for clarity and correctness, not
-  hand-tuned IR.
-- Anything that requires extending `weavec0`'s admitted extern set.
-  That goes in `weavec0` first, gets a release, and then the
-  `WEAVEC0_TAG` pin in `build.sh` is bumped.
+- New WIR primitives added only for a surface feature.
+- Uncoordinated changes to Stage 0 runtime externs.
+- Production quantum-runtime behavior in the current test stub.
+- High-level features that cannot be expressed through the documented surface
+  and WIR contracts.
 
-## Workflow
+A new runtime extern must be released through Stage 0, propagated through the
+Stage 1 SDK, and then adopted by the source bootstrap here.
 
-1. Fork and create a feature branch.
-2. Edit the relevant `src/**/*.weave`, add or update test fixtures.
-3. Run `./build.sh` locally — must succeed.
-4. Run `./test-all.sh` — full ladder
-   (124 correctness + 168 performance + 4 quantum + 1 quantum-e2e +
-   self-host basic) must pass.
-5. If your change affects the LLVM backend output, regenerate the
-   performance goldens with
-   `./test/performance/regen-golden.sh` and commit the regenerated
-   `*.expected.ll` files alongside your source change.
-6. Open a PR. CI re-runs the full ladder on Linux and macOS.
+## Development workflow
+
+1. Create a focused branch.
+2. Edit the relevant `src/**/*.weave` modules.
+3. Add or update fixtures under:
+   - `test/correctness/`;
+   - `test/performance/`;
+   - `test/quantum/`;
+   - `test/selfhost/`.
+4. Run:
+
+   ```sh
+   ./build.sh
+   ./test-all.sh
+   ```
+
+5. For backend output changes, regenerate and review performance goldens:
+
+   ```sh
+   ./test/performance/regen-golden.sh
+   git diff -- test/performance
+   ```
+
+6. For frontend, source-order, or self-host changes, run:
+
+   ```sh
+   ./selfhost.sh
+   ```
+
+7. Update README, changelog, CI comments, and relevant design documents when a
+   public contract or build assumption changes.
+8. Open a pull request.
+
+Normal CI runs the full ladder on Linux and macOS. The deeper self-host flow is
+local-only because it rebuilds the compiler through multiple generations.
+
+## Dependency changes
+
+The current build consumes pinned source releases because it needs frontend
+parser LLVM modules that are not yet distributed in an SDK.
+
+When changing `WEAVEC0_TAG`, `WEAVEC1_TAG`, or `WEAVEFRONT_TAG`:
+
+- verify the release exists;
+- delete the corresponding cached vendor directory;
+- run the complete ladder on Linux and macOS;
+- run deeper self-hosting when compiler output or frontend modules changed;
+- document why the pin changed.
 
 ## Licensing
 
-By submitting a contribution, you agree that your contribution is
-licensed under the Apache License, Version 2.0 (see
-[`LICENSE`](LICENSE)).
+By submitting a contribution, you agree that it is licensed under the Apache
+License, Version 2.0. See [`LICENSE`](LICENSE).
