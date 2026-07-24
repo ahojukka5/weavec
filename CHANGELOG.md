@@ -33,6 +33,7 @@ surface-language contract stabilises.
   explicit source fallback requests.
 - Expanded CI to require SDK mode on Linux glibc and musl and source mode on
   macOS.
+- Removed the implicit `weavec input.wir output.ll` backend compatibility syntax; callers must use `weavec --backend input.wir output.ll`.
 
 ### Fixed
 

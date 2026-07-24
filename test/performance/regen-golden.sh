@@ -36,7 +36,7 @@ regen_one() {
   [[ -f "$src" ]] || fail "missing WIR fixture: $src"
 
   log "$name"
-  (cd "$ROOT" && "$WEAVEC" "test/performance/wir/${name}.wir" "$out") || fail "weavec failed: $name"
+  (cd "$ROOT" && "$WEAVEC" --backend "test/performance/wir/${name}.wir" "$out") || fail "weavec failed: $name"
   llvm-as "$out" -o /dev/null || fail "llvm-as failed: $name"
   cp "$out" "$golden"
   log "ok $name -> $golden"

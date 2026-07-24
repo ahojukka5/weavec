@@ -52,7 +52,7 @@ for src in "$FIXTURE_DIR"/*.wir; do
     continue
   fi
 
-  if ! (cd "$ROOT" && "$WEAVEC" "$rel_src" "$generated"); then
+  if ! (cd "$ROOT" && "$WEAVEC" --backend "$rel_src" "$generated"); then
     fail "$name: weavec failed"
     continue
   fi
