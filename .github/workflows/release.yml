@@ -100,12 +100,166 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  verify-archives:
+    name: Verify extracted release archives
+    needs: build-linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install package smoke toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            binutils \
+            clang \
+            file \
+            llvm \
+            musl-tools \
+            python3
+
+      - name: Download compiler archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: weavec-linux-x86_64-*
+          path: dist
+          merge-multiple: true
+
+      - name: Verify checksums and extracted packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd dist
+            sha256sum *.tar.gz > SHA256SUMS
+            sha256sum --check SHA256SUMS
+          )
+
+          source_file="$GITHUB_WORKSPACE/test/correctness/surface/01_return_42.weave"
+          mkdir -p verify
+
+          for libc in glibc musl; do
+            shopt -s nullglob
+            archives=(dist/*-linux-x86_64-${libc}.tar.gz)
+            shopt -u nullglob
+            [[ "${#archives[@]}" -eq 1 ]] || {
+              printf 'expected one %s archive, found %s\n' "$libc" "${#archives[@]}" >&2
+              exit 1
+            }
+
+            root="verify/$libc"
+            mkdir -p "$root"
+            tar -C "$root" -xzf "${archives[0]}"
+            package_dirs=("$root"/*)
+            [[ "${#package_dirs[@]}" -eq 1 && -d "${package_dirs[0]}" ]] || exit 1
+            package="${package_dirs[0]}"
+            compiler="$package/bin/weavec"
+            [[ -x "$compiler" ]] || exit 1
+
+            if readelf -l "$compiler" | grep -q INTERP; then
+              echo "extracted compiler is dynamically linked: $compiler" >&2
+              exit 1
+            fi
+            file "$compiler"
+
+            shopt -s nullglob
+            runtimes=("$package"/lib/weavec/*/libweave-runtime.a)
+            shopt -u nullglob
+            [[ "${#runtimes[@]}" -eq 1 && -s "${runtimes[0]}" ]] || {
+              echo "private runtime layout is invalid for $libc" >&2
+              exit 1
+            }
+
+            output="$root/program"
+            diagnostics="$root/success.json"
+            "$compiler" build "$source_file" -o "$output" \
+              --diagnostics-json "$diagnostics"
+            set +e
+            "$output"
+            status="$?"
+            set -e
+            [[ "$status" -eq 42 ]] || {
+              echo "extracted $libc build returned $status" >&2
+              exit 1
+            }
+
+            cat > "$root/frontend-failure.weave" <<'EOF'
+          (program
+            (name "archive-frontend-failure")
+          EOF
+            set +e
+            "$compiler" build "$root/frontend-failure.weave" \
+              -o "$root/frontend-failure" \
+              --diagnostics-json "$root/frontend-failure.json" \
+              >/dev/null 2>&1
+            frontend_status="$?"
+            set -e
+            [[ "$frontend_status" -eq 10 && ! -e "$root/frontend-failure" ]] || exit 1
+
+            cat > "$root/backend-failure.weave" <<'EOF'
+          (program
+            (name "archive-backend-failure")
+            (version "0.1")
+            (entry main
+              (params)
+              (returns i32)
+              (do (return (unknown_form 0)))))
+          EOF
+            set +e
+            "$compiler" build "$root/backend-failure.weave" \
+              -o "$root/backend-failure" \
+              --diagnostics-json "$root/backend-failure.json" \
+              >/dev/null 2>&1
+            backend_status="$?"
+            set -e
+            [[ "$backend_status" -eq 11 && ! -e "$root/backend-failure" ]] || exit 1
+
+            python3 - "$diagnostics" \
+              "$root/frontend-failure.json" "$root/backend-failure.json" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          success, frontend, backend = [
+              json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
+              for path in sys.argv[1:]
+          ]
+          assert success == {
+              "format": "weavec-diagnostics-v1",
+              "status": "succeeded",
+              "phase": "complete",
+              "exit_code": 0,
+              "raw_exit_code": 0,
+              "diagnostics": [],
+          }
+          assert frontend["format"] == "weavec-diagnostics-v1"
+          assert frontend["phase"] == "frontend"
+          assert frontend["exit_code"] == 10
+          assert frontend["diagnostics"][0]["code"] == "frontend.parse.unclosed-list"
+          assert backend["format"] == "weavec-diagnostics-v1"
+          assert backend["phase"] == "backend"
+          assert backend["exit_code"] == 11
+          assert backend["diagnostics"][0]["code"] == "backend.unknown-expression-operator"
+          PY
+          done
+
+      - name: Upload verified checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: weavec-release-checksums
+          path: dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
+
   publish-release:
     name: Publish GitHub Release
     if: >-
       startsWith(github.ref, 'refs/tags/v') ||
       (github.event_name == 'push' && github.ref == 'refs/heads/master')
-    needs: build-linux
+    needs: [build-linux, verify-archives]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -151,14 +305,21 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Create and verify checksums
+      - name: Download verified checksums
+        if: >-
+          steps.existing.outputs.exists != 'true' ||
+          steps.release.outputs.replace == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: weavec-release-checksums
+          path: dist
+
+      - name: Verify publication checksums
         if: >-
           steps.existing.outputs.exists != 'true' ||
           steps.release.outputs.replace == 'true'
         working-directory: dist
-        run: |
-          sha256sum *.tar.gz > SHA256SUMS
-          sha256sum --check SHA256SUMS
+        run: sha256sum --check SHA256SUMS
 
       - name: Publish new release
         if: steps.existing.outputs.exists != 'true'
