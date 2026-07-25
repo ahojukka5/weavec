@@ -159,8 +159,9 @@ A source checkout uses `runtime/program.c` as a development fallback. The
 not part of normal user operation.
 
 The runtime is a static archive so the target linker pulls in only referenced
-object modules. Future target packages can add target directories without
-changing the public command.
+object modules. Its target and checksum belong to the release/build manifest.
+Future target packages can add target directories without changing the public
+command.
 
 ## Install a release
 
@@ -279,3 +280,83 @@ Environment overrides:
 
 Unsupported hosts fall back to the pinned source refs. Stage 0 is resolved only
 when the Stage 1 source fallback must be built.
+
+## Parser-library boundary
+
+The parser implementation sources remain in `weavec-bootstrap`. Downstream code
+does not consume generated parser `.ll` files individually. The published
+boundary is one artifact:
+
+```text
+weavec-bootstrap SDK/lib/libweave-sexpr.bc
+```
+
+`weavec` links that library as a unit. The bootstrap executable also owns its
+main-thread stack requirement; this repository does not rewrite dependency
+build scripts.
+
+## Build pipeline
+
+`./build.sh`:
+
+1. resolves the `weavec1` SDK or source fallback;
+2. resolves the `weavec-bootstrap` SDK or source fallback;
+3. lowers the ordered compiler sources into `build/weavec.wir`;
+4. compiles WIR to `build/weavec.ll` with `weavec1` or `WEAVEC_BACKEND`;
+5. links the compiler with `libweave-sexpr.bc`;
+6. links the development `build/weavec` executable with compiler host support
+   and the native build driver.
+
+Release packaging relinks `build/weavec.bc` into separate static glibc and musl
+compiler executables, builds the matching private runtime archive, and tests the
+public `weavec build` contract from the exact package tree.
+
+## Tests
+
+`./test-all.sh` runs correctness, performance, quantum, end-to-end, and self-host
+checks. `bash test/diagnostics/test-build-diagnostics.sh` additionally verifies
+the machine-readable diagnostics contract. CI normally validates Linux glibc
+SDKs, Linux musl SDKs, and the macOS source fallback; when Actions capacity is
+unavailable the same scripts are run locally.
+
+Regenerate performance goldens only after an intentional backend-output change:
+
+```sh
+./test/performance/regen-golden.sh
+git diff -- test/performance
+```
+
+## Deeper self-host
+
+```sh
+./selfhost.sh
+```
+
+This builds `build/selfhost/stage1/weavec` and
+`build/selfhost/stage2/weavec`, then runs stage-2 fixture smokes. It remains a
+local release and architecture check because it rebuilds the large compiler
+multiple times.
+
+## Known limitations
+
+- Published compiler packages currently cover Linux x86-64 only.
+- Each package currently installs one native target; `--target` rejects targets
+  that are not present in that package.
+- The source-to-executable driver delegates LLVM object generation and target
+  linking to installed commands rather than bundling an LLVM linker.
+- Surface syntax preflight spans are exact. Some backend spans are currently
+  attached only when the diagnostic names a unique canonical-source token;
+  explicit location propagation through WIR remains future work.
+- `runtime/quantum_runtime.c` is a test stub, not a production quantum runtime.
+
+## License
+
+Licensed under the Apache License, Version 2.0. See [`LICENSE`](LICENSE) and
+[`NOTICE`](NOTICE).
+
+## Contributing
+
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md),
+[`docs/RELEASING.md`](docs/RELEASING.md), and the relevant design document before
+changing the surface contract, backend output, source ordering, runtime boundary,
+diagnostics schema, or bootstrap chain.
