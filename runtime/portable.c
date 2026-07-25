@@ -3,6 +3,7 @@
 // Host support linked into the compiler executable. Program runtime code lives
 // separately in program.c and is shipped as a private target resource.
 
+#define _XOPEN_SOURCE 700
 #define _POSIX_C_SOURCE 200809L
 
 #include <fcntl.h>
