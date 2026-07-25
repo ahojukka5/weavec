@@ -12,16 +12,16 @@ set -euo pipefail
 # Environment overrides:
 #
 #   WEAVEC1_SDK=/path/to/extracted/sdk
-#   WEAVEC1_VERSION=v0.2.0
+#   WEAVEC1_VERSION=v0.3.1
 #   WEAVEC1_LIBC=glibc|musl
 #   WEAVEC1=/path/to/source
-#   WEAVEC1_TAG=v0.2.0
+#   WEAVEC1_TAG=v0.3.1
 #
 #   WEAVEC_BOOTSTRAP_SDK=/path/to/extracted/sdk
-#   WEAVEC_BOOTSTRAP_VERSION=v0.2.0
+#   WEAVEC_BOOTSTRAP_VERSION=v0.3.0
 #   WEAVEC_BOOTSTRAP_LIBC=glibc|musl
 #   WEAVEC_BOOTSTRAP=/path/to/source
-#   WEAVEC_BOOTSTRAP_REF=v0.2.0
+#   WEAVEC_BOOTSTRAP_REF=v0.3.0
 #
 #   WEAVEC_BACKEND=/path/to/self-hosted/weavec
 # =============================================================================
@@ -31,16 +31,16 @@ BUILD_DIR="$WEAVEC_DIR/build"
 VENDOR_DIR="$BUILD_DIR/vendor"
 DOWNLOAD_DIR="$BUILD_DIR/downloads"
 
-WEAVEC0_TAG="${WEAVEC0_TAG:-v0.2.1}"
+WEAVEC0_TAG="${WEAVEC0_TAG:-v0.4.0}"
 WEAVEC0_REPO="https://github.com/ahojukka5/weavec0.git"
 
-WEAVEC1_VERSION="${WEAVEC1_VERSION:-v0.2.0}"
+WEAVEC1_VERSION="${WEAVEC1_VERSION:-v0.3.1}"
 WEAVEC1_TAG="${WEAVEC1_TAG:-$WEAVEC1_VERSION}"
 WEAVEC1_LIBC="${WEAVEC1_LIBC:-glibc}"
 WEAVEC1_RELEASE_BASE="${WEAVEC1_RELEASE_BASE:-https://github.com/ahojukka5/weavec1/releases/download}"
 WEAVEC1_REPO="https://github.com/ahojukka5/weavec1.git"
 
-WEAVEC_BOOTSTRAP_VERSION="${WEAVEC_BOOTSTRAP_VERSION:-v0.2.0}"
+WEAVEC_BOOTSTRAP_VERSION="${WEAVEC_BOOTSTRAP_VERSION:-v0.3.0}"
 WEAVEC_BOOTSTRAP_REF="${WEAVEC_BOOTSTRAP_REF:-$WEAVEC_BOOTSTRAP_VERSION}"
 WEAVEC_BOOTSTRAP_LIBC="${WEAVEC_BOOTSTRAP_LIBC:-$WEAVEC1_LIBC}"
 WEAVEC_BOOTSTRAP_RELEASE_BASE="${WEAVEC_BOOTSTRAP_RELEASE_BASE:-https://github.com/ahojukka5/weavec-bootstrap/releases/download}"

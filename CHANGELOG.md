@@ -28,6 +28,8 @@ surface-language contract stabilises.
 
 ### Changed
 
+- The reproducible compiler chain now pins `weavec0 v0.4.0`, `weavec1 v0.3.1`,
+  and `weavec-bootstrap v0.3.0`.
 - Normal users and downstream tools no longer need to invoke the surface
   frontend, WIR backend, `clang`, or the runtime archive separately.
 - Linux glibc and musl compiler archives now include the private target runtime

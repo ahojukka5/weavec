@@ -260,8 +260,8 @@ Backend compilation is intentionally explicit. The former
 
 The normal Linux source build downloads:
 
-- `weavec1 v0.2.0` for WIR-to-LLVM compilation;
-- `weavec-bootstrap v0.2.0` for surface lowering and `libweave-sexpr.bc`.
+- `weavec1 v0.3.1` for WIR-to-LLVM compilation;
+- `weavec-bootstrap v0.3.0` for surface lowering and `libweave-sexpr.bc`.
 
 Both archives are selected for `glibc` or `musl`, verified against release
 checksums, and cached under `build/vendor/*-sdk/`. The normal Linux path does not
