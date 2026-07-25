@@ -3,8 +3,9 @@
 [![ci](https://github.com/ahojukka5/weavec/actions/workflows/ci.yml/badge.svg)](https://github.com/ahojukka5/weavec/actions/workflows/ci.yml)
 [![release](https://github.com/ahojukka5/weavec/actions/workflows/release.yml/badge.svg)](https://github.com/ahojukka5/weavec/actions/workflows/release.yml)
 
-> The user-facing Weave compiler, written in surface Weave. It combines surface
-> lowering and WIR-to-LLVM emission in one self-hosted binary.
+> The user-facing Weave compiler, written in surface Weave. It owns the complete
+> source-to-executable pipeline while retaining explicit low-level bootstrap
+> interfaces for compiler development.
 
 This repository was previously named `weavec2`. It is now simply `weavec`
 because it is the final compiler product.
@@ -20,17 +21,70 @@ weavec0 → weavec1 → weavec-bootstrap → weavec
 | `weavec0` | [`ahojukka5/weavec0`](https://github.com/ahojukka5/weavec0) | Hand-written LLVM-IR seed and Stage 0 SDK. |
 | `weavec1` | [`ahojukka5/weavec1`](https://github.com/ahojukka5/weavec1) | WIR-to-LLVM compiler and Stage 1 SDK. |
 | `weavec-bootstrap` | [`ahojukka5/weavec-bootstrap`](https://github.com/ahojukka5/weavec-bootstrap) | Surface-Weave-to-WIR bootstrap frontend and parser SDK. |
-| `weavec` | **this repository** | User-facing self-hosted compiler. |
+| `weavec` | **this repository** | User-facing self-hosted compiler and native build driver. |
 
 Normal users should interact only with `weavec`.
 
-## Install a release binary
+## Public build interface
 
-Release `v0.2.0` publishes static Linux x86-64 archives for glibc and musl:
+Compile one or more surface-Weave modules into a native executable:
+
+```sh
+weavec build main.weave -o main
+./main
+```
+
+Multi-file programs use the same command:
+
+```sh
+weavec build main.weave library.weave platform.weave -o application
+```
+
+The caller does not select or name a runtime library. Internally the command:
+
+```text
+surface Weave
+    ↓ frontend
+WIR
+    ↓ backend
+LLVM IR
+    ↓ LLVM code generation
+native object
+    + private target runtime
+    ↓ target linker
+executable
+```
+
+Intermediate files are created in a private temporary directory. The final
+executable is first linked beside the requested output under a temporary name
+and then published with an atomic rename. A failed build never replaces the
+previous output.
+
+Automation may request a versioned compiler manifest:
+
+```sh
+weavec build main.weave -o main \
+  --manifest-json main.build.json
+```
+
+The initial `weavec-build-manifest-v1` records the build status and phase,
+source paths, target, compiler, runtime resource, LLVM code generator, linker,
+and output path. Compiler diagnostic spans and artifact hashes are planned as
+extensions to this contract.
+
+## Private runtime contract
+
+Runtime support is part of the compiler product but is not a user-managed API.
+A release package stores it under the compiler's private target directory:
 
 ```text
 weavec-vX.Y.Z-linux-x86_64-<libc>/
-├── bin/weavec
+├── bin/
+│   └── weavec
+├── lib/
+│   └── weavec/
+│       └── <target-triple>/
+│           └── libweave-runtime.a
 ├── BUILD-MANIFEST
 ├── VERSION
 ├── README.md
@@ -38,20 +92,32 @@ weavec-vX.Y.Z-linux-x86_64-<libc>/
 └── NOTICE
 ```
 
-The compiler binary itself does not require LLVM, Python, or any bootstrap
-repository. LLVM tools are needed only when assembling or linking emitted LLVM
-IR.
+`weavec build` resolves the archive relative to the running compiler executable.
+A source checkout uses `runtime/program.c` as a development fallback. The
+`WEAVEC_RUNTIME` or `--runtime` override exists for compiler development and is
+not part of normal user operation.
 
-After extracting an archive:
+The runtime is a static archive so the target linker pulls in only referenced
+object modules. Its target and checksum belong to the release/build manifest.
+Future target packages can add more target directories without changing the
+public command.
 
-```sh
-./bin/weavec --frontend output.wir input.weave
-./bin/weavec --backend output.wir output.ll
-```
+## Install a release
 
-Release downloads include `SHA256SUMS`. The musl archive is the most portable
-choice for Linux systems; the glibc archive uses the standard GNU libc runtime.
-See [`docs/RELEASING.md`](docs/RELEASING.md).
+Linux x86-64 releases are provided separately for glibc and musl. After
+extracting an archive, add its `bin` directory to `PATH` and invoke `weavec`.
+The compiler discovers the adjacent private runtime automatically.
+
+Native builds currently use an installed LLVM code generator and target linker:
+
+- glibc package: `clang`;
+- musl package: `clang` for LLVM IR → object and `musl-gcc` for final linking.
+
+These tools are implementation dependencies of the current build driver; users
+do not invoke their commands or provide runtime paths themselves.
+
+Release downloads include `SHA256SUMS`. See
+[`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## Build from source
 
@@ -68,6 +134,9 @@ git clone https://github.com/ahojukka5/weavec.git
 cd weavec
 ./build.sh
 ./test-all.sh
+
+./build/weavec build test/correctness/surface/01_return_42.weave \
+  -o /tmp/weave-example
 ```
 
 macOS currently uses the pinned source fallback:
@@ -79,7 +148,7 @@ export PATH="$(brew --prefix llvm)/bin:$PATH"
 ./test-all.sh
 ```
 
-The build produces:
+The compiler build produces:
 
 ```text
 build/weavec.wir
@@ -91,6 +160,25 @@ build/weavec
 There are no current `weavec2` or `weavefront` compatibility aliases.
 
 ## Command line
+
+Public user interface:
+
+```text
+weavec build <input.weave> [input2.weave ...] -o <program>
+             [--target <triple>]
+             [--manifest-json <path>]
+             [--keep-temporaries]
+```
+
+Compiler-development overrides:
+
+```text
+--runtime <path>   / WEAVEC_RUNTIME
+--codegen <path>   / WEAVEC_CODEGEN
+--linker <path>    / WEAVEC_LINKER
+```
+
+Low-level bootstrap and analysis interfaces:
 
 ```text
 weavec --backend <input.wir> <output.ll>
@@ -107,7 +195,7 @@ Backend compilation is intentionally explicit. The former
 
 ## SDK-first bootstrap
 
-The normal Linux build downloads:
+The normal Linux source build downloads:
 
 - `weavec1 v0.2.0` for WIR-to-LLVM compilation;
 - `weavec-bootstrap v0.2.0` for surface lowering and
@@ -133,17 +221,9 @@ when the Stage 1 source fallback must be built.
 
 ## Parser-library boundary
 
-The parser implementation sources remain in `weavec-bootstrap`:
-
-```text
-sexpr_tokens.wir
-sexpr_tree.wir
-sexpr_lexer.wir
-sexpr_parser.wir
-```
-
-Downstream code does not consume their generated `.ll` files individually. The
-published boundary is one artifact:
+The parser implementation sources remain in `weavec-bootstrap`. Downstream code
+does not consume generated parser `.ll` files individually. The published
+boundary is one artifact:
 
 ```text
 weavec-bootstrap SDK/lib/libweave-sexpr.bc
@@ -162,31 +242,19 @@ build scripts.
 3. lowers the ordered compiler sources into `build/weavec.wir`;
 4. compiles WIR to `build/weavec.ll` with `weavec1` or `WEAVEC_BACKEND`;
 5. links the compiler with `libweave-sexpr.bc`;
-6. links the development `build/weavec` executable with
-   `runtime/portable.c`.
+6. links the development `build/weavec` executable with compiler host support
+   and the native build driver.
 
 Release packaging relinks `build/weavec.bc` into separate static glibc and musl
-executables. The module order in `build.sh` and `selfhost.sh` is part of the
-deterministic bootstrap contract.
+compiler executables, builds the matching private runtime archive, and tests the
+public `weavec build` contract from the exact package tree.
 
 ## Tests
 
-`./test-all.sh` runs:
-
-| Bucket | Driver | Count |
-|---|---|---:|
-| Correctness and end-to-end surface/WIR tests | `test.sh` | 125 |
-| Performance LLVM goldens | `test/performance/test.sh` | 168 |
-| Quantum validation | `test/quantum/test.sh` | 4 |
-| Quantum end to end | `test/quantum/test-e2e.sh` | 1 |
-| Basic self-host | `test/selfhost/test.sh` | 1 |
-
-The correctness count includes the CLI regression proving that implicit backend
-syntax remains rejected.
-
-CI validates Linux glibc SDKs, Linux musl SDKs, and the macOS source fallback.
-The release workflow additionally builds, inspects, strips, smokes, and archives
-both static Linux compiler variants.
+`./test-all.sh` runs correctness, performance, quantum, end-to-end, and self-host
+checks. CI validates Linux glibc SDKs, Linux musl SDKs, and the macOS source
+fallback. The release workflow additionally builds, inspects, strips, and
+smoke-tests both static Linux toolchain variants.
 
 Regenerate performance goldens only after an intentional backend-output change:
 
@@ -206,31 +274,15 @@ This builds `build/selfhost/stage1/weavec` and
 local release and architecture check because it rebuilds the large compiler
 multiple times.
 
-## Repository layout
-
-```text
-weavec/
-├── build.sh
-├── test.sh
-├── test-all.sh
-├── selfhost.sh
-├── surface-matrix.sh
-├── VERSION
-├── scripts/package-linux-release.sh
-├── src/{core,frontend,llvm}/
-├── runtime/
-├── scripts/
-├── docs/
-└── test/{correctness,performance,quantum,selfhost}/
-```
-
 ## Known limitations
 
-- Published compiler binaries currently cover Linux x86-64 only.
-- `surface-matrix.sh` reports counts rather than enforcing thresholds.
-- There is no dedicated source-style checker for `.weave` modules yet.
+- Published compiler packages currently cover Linux x86-64 only.
+- Each package currently installs one native target; `--target` rejects targets
+  that are not present in that package.
+- The current source-to-executable driver delegates LLVM object generation and
+  target linking to installed commands rather than bundling an LLVM linker.
+- Machine-readable source-span diagnostics are not yet emitted.
 - `runtime/quantum_runtime.c` is a test stub, not a production quantum runtime.
-- The deeper self-host flow is local-only because of build cost.
 
 ## License
 
@@ -241,5 +293,5 @@ Licensed under the Apache License, Version 2.0. See [`LICENSE`](LICENSE) and
 
 Read [`CONTRIBUTING.md`](CONTRIBUTING.md),
 [`docs/RELEASING.md`](docs/RELEASING.md), and the relevant design document before
-changing the surface contract, backend output, source ordering, or bootstrap
-boundary.
+changing the surface contract, backend output, source ordering, runtime boundary,
+or bootstrap chain.
