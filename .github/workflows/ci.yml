@@ -115,6 +115,13 @@ jobs:
           llvm-as --version
           llvm-link --version
 
+      - name: Build seed compiler
+        shell: bash
+        run: |
+          set -o pipefail
+          ./build.sh 2>&1 | tee selfhost-seed.log
+          test -x build/weavec
+
       - name: Run deep self-host
         shell: bash
         run: |
@@ -126,11 +133,13 @@ jobs:
           test -x build/selfhost/stage1/weavec
           test -x build/selfhost/stage2/weavec
 
-      - name: Upload failed self-host log
+      - name: Upload failed self-host logs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: selfhost-log-${{ github.run_id }}
-          path: selfhost.log
+          path: |
+            selfhost-seed.log
+            selfhost.log
           if-no-files-found: warn
           retention-days: 7
