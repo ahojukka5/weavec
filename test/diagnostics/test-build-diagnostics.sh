@@ -86,6 +86,36 @@ set -e
   exit 1
 }
 
+cat > "$TMP/missing-call.weave" <<'EOF'
+(program
+  (name "diagnostics-missing-call")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (return
+        (call_i32 helper
+          (const_i32 41))))))
+EOF
+
+set +e
+"$WEAVEC" build "$TMP/missing-call.weave" \
+  -o "$TMP/missing-call" \
+  --diagnostics-json "$TMP/missing-call.diagnostics.json" \
+  2>"$TMP/missing-call.stderr"
+missing_call_exit="$?"
+set -e
+[[ "$missing_call_exit" -eq 11 ]] || {
+  printf 'test-build-diagnostics: expected unresolved-call backend exit 11, got %s\n' \
+    "$missing_call_exit" >&2
+  exit 1
+}
+[[ ! -e "$TMP/missing-call" ]] || {
+  printf 'test-build-diagnostics: unresolved call published an executable\n' >&2
+  exit 1
+}
+
 python3 - "$TMP" <<'PY'
 import json
 import pathlib
@@ -130,6 +160,21 @@ source = (root / "unknown.weave").read_bytes()
 start = entry["span"]["start_byte"]
 end = entry["span"]["end_byte"]
 assert source[start:end] == b"unknown_form"
+
+missing_call = json.loads((root / "missing-call.diagnostics.json").read_text())
+assert missing_call["format"] == "weavec-diagnostics-v1"
+assert missing_call["status"] == "failed"
+assert missing_call["phase"] == "backend"
+assert missing_call["exit_code"] == 11
+entry = missing_call["diagnostics"][0]
+assert entry["code"] == "backend.unknown-identifier"
+assert entry["message"] == "unknown identifier: helper"
+assert entry["span_origin"] == "inferred-unique-token"
+assert entry["span"] is not None
+source = (root / "missing-call.weave").read_bytes()
+start = entry["span"]["start_byte"]
+end = entry["span"]["end_byte"]
+assert source[start:end] == b"helper"
 PY
 
 printf 'test-build-diagnostics: passed\n'
