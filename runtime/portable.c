@@ -1,26 +1,37 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Tiny portability shim for POSIX flag constants that differ across
-// platforms. weavec's WIR source previously baked open() flag values
-// in as integer literals — but those values are platform-specific
-// (e.g. O_WRONLY|O_CREAT|O_TRUNC = 1537 on macOS, 577 on Linux). The
-// WIR layer doesn't know about <fcntl.h>, so we wrap the call here in
-// C using the OS-native constants.
+// Host support linked into the compiler executable. Program runtime code lives
+// separately in program.c and is shipped as a private target resource.
+
+#define _POSIX_C_SOURCE 200809L
 
 #include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-// Open a file for writing, truncating if it exists, creating if it
-// doesn't. Returns the file descriptor, or -1 on failure. The mode
-// parameter is a POSIX mode_t value (e.g. 0644).
+#ifndef WEAVEC_DEFAULT_TARGET
+#if defined(__linux__) && defined(__x86_64__)
+#define WEAVEC_DEFAULT_TARGET "x86_64-unknown-linux-gnu"
+#elif defined(__APPLE__) && defined(__aarch64__)
+#define WEAVEC_DEFAULT_TARGET "aarch64-apple-darwin"
+#elif defined(__APPLE__) && defined(__x86_64__)
+#define WEAVEC_DEFAULT_TARGET "x86_64-apple-darwin"
+#else
+#define WEAVEC_DEFAULT_TARGET "unknown-host"
+#endif
+#endif
+
+#ifndef WEAVEC_DEFAULT_LINKER
+#define WEAVEC_DEFAULT_LINKER "clang"
+#endif
+
 int weave_rt_open_write_trunc(const char *path, int mode) {
     return open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
 }
 
-// Print a contract violation message to stderr and terminate the process.
-// Used by surface (requires ...) / (ensures ...) lowering.
+// The compiler itself may contain lowered contract checks, so it retains this
+// definition. Programs receive the same symbol from the private runtime archive.
 void weave_rt_contract_fail(const char *msg) {
     const char nl = '\n';
     (void)write(2, msg, (unsigned long)__builtin_strlen(msg));
@@ -47,3 +58,7 @@ void weave_audit_json_set_table(void *table) {
 void *weave_audit_json_get_table(void) {
     return weave_audit_json_effect_table;
 }
+
+// Keep the self-hosted compiler link command simple: the build driver is a
+// separate implementation module but shares this host-support translation unit.
+#include "build_driver.c"
