@@ -35,21 +35,6 @@ def update_build() -> None:
         replace_exact(path, old, new)
 
 
-def update_workflow(path: Path) -> None:
-    replacements = [
-        ("WEAVEC0_TAG: v0.2.1", "WEAVEC0_TAG: v0.4.0"),
-        ("WEAVEC1_VERSION: v0.2.0", "WEAVEC1_VERSION: v0.3.1"),
-        ("WEAVEC1_TAG: v0.2.0", "WEAVEC1_TAG: v0.3.1"),
-        ("WEAVEC_BOOTSTRAP_VERSION: v0.2.0", "WEAVEC_BOOTSTRAP_VERSION: v0.3.0"),
-        ("WEAVEC_BOOTSTRAP_REF: v0.2.0", "WEAVEC_BOOTSTRAP_REF: v0.3.0"),
-    ]
-    text = path.read_text(encoding="utf-8")
-    for old, new in replacements:
-        if old in text:
-            text = text.replace(old, new)
-    path.write_text(text, encoding="utf-8")
-
-
 def update_package_manifest() -> None:
     path = ROOT / "scripts" / "package-linux-release.sh"
     replace_exact(
@@ -98,8 +83,6 @@ def update_changelog() -> None:
 
 def main() -> None:
     update_build()
-    update_workflow(ROOT / ".github" / "workflows" / "ci.yml")
-    update_workflow(ROOT / ".github" / "workflows" / "release.yml")
     update_package_manifest()
     update_docs()
     update_changelog()
