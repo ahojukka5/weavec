@@ -20,16 +20,16 @@ jobs:
   build-linux:
     name: Linux x86-64 (${{ matrix.libc }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
         libc: [glibc, musl]
 
     env:
-      WEAVEC1_VERSION: v0.2.0
+      WEAVEC1_VERSION: v0.3.1
       WEAVEC1_LIBC: ${{ matrix.libc }}
-      WEAVEC_BOOTSTRAP_VERSION: v0.2.0
+      WEAVEC_BOOTSTRAP_VERSION: v0.3.0
       WEAVEC_BOOTSTRAP_LIBC: ${{ matrix.libc }}
 
     steps:
@@ -56,7 +56,10 @@ jobs:
           musl-gcc --version
 
       - name: Build compiler and run the full ladder
-        run: ./test-all.sh
+        shell: bash
+        run: |
+          set -o pipefail
+          ./test-all.sh 2>&1 | tee release-${{ matrix.libc }}.log
 
       - name: Select archive version
         id: version
@@ -72,11 +75,13 @@ jobs:
           printf 'value=%s\n' "$version" >> "$GITHUB_OUTPUT"
 
       - name: Package static ${{ matrix.libc }} compiler
+        shell: bash
         run: |
+          set -o pipefail
           bash scripts/package-linux-release.sh \
             "${{ matrix.libc }}" \
             "${{ steps.version.outputs.value }}" \
-            dist
+            dist 2>&1 | tee -a release-${{ matrix.libc }}.log
 
       - name: Upload compiler archive
         uses: actions/upload-artifact@v4
@@ -85,6 +90,15 @@ jobs:
           path: dist/*.tar.gz
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload failed release diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-log-${{ matrix.libc }}-${{ github.run_id }}
+          path: release-${{ matrix.libc }}.log
+          if-no-files-found: warn
+          retention-days: 7
 
   publish-release:
     name: Publish GitHub Release
@@ -137,12 +151,14 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Create checksums
+      - name: Create and verify checksums
         if: >-
           steps.existing.outputs.exists != 'true' ||
           steps.release.outputs.replace == 'true'
         working-directory: dist
-        run: sha256sum *.tar.gz > SHA256SUMS
+        run: |
+          sha256sum *.tar.gz > SHA256SUMS
+          sha256sum --check SHA256SUMS
 
       - name: Publish new release
         if: steps.existing.outputs.exists != 'true'
