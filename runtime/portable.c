@@ -6,7 +6,9 @@
 #define _XOPEN_SOURCE 700
 #define _POSIX_C_SOURCE 200809L
 
+#include <errno.h>
 #include <fcntl.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -23,6 +25,9 @@
 #endif
 #endif
 
+#ifndef WEAVEC_DEFAULT_CODEGEN
+#define WEAVEC_DEFAULT_CODEGEN "clang"
+#endif
 #ifndef WEAVEC_DEFAULT_LINKER
 #define WEAVEC_DEFAULT_LINKER "clang"
 #endif
@@ -60,6 +65,27 @@ void *weave_audit_json_get_table(void) {
     return weave_audit_json_effect_table;
 }
 
+// Some Apple SDK modes do not declare mkdtemp even when the rest of the POSIX
+// process API is visible. Build it from the universally available mkstemp,
+// unlink, and mkdir primitives so the driver has one portable implementation.
+static char *weave_rt_mkdtemp(char *path_template) {
+    int fd = mkstemp(path_template);
+    if (fd < 0) {
+        return NULL;
+    }
+    if (close(fd) != 0) {
+        int saved = errno;
+        (void)unlink(path_template);
+        errno = saved;
+        return NULL;
+    }
+    if (unlink(path_template) != 0 || mkdir(path_template, 0700) != 0) {
+        return NULL;
+    }
+    return path_template;
+}
+
+#define mkdtemp weave_rt_mkdtemp
 // Keep the self-hosted compiler link command simple: the build driver is a
 // separate implementation module but shares this host-support translation unit.
 #include "build_driver.c"
