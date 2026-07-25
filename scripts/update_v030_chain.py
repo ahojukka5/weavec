@@ -20,14 +20,6 @@ def replace_exact(path: Path, old: str, new: str, expected: int = 1) -> None:
     path.write_text(text.replace(old, new), encoding="utf-8")
 
 
-def replace_present(path: Path, old: str, new: str) -> None:
-    text = path.read_text(encoding="utf-8")
-    count = text.count(old)
-    if count == 0:
-        raise RuntimeError(f"{path}: expected at least one occurrence of {old!r}")
-    path.write_text(text.replace(old, new), encoding="utf-8")
-
-
 def update_build() -> None:
     path = ROOT / "build.sh"
     replacements = [
@@ -73,21 +65,19 @@ def update_package_manifest() -> None:
 
 
 def update_docs() -> None:
+    replacements = [
+        ("weavec1 v0.2.0", "weavec1 v0.3.1"),
+        ("weavec-bootstrap v0.2.0", "weavec-bootstrap v0.3.0"),
+        ("WEAVEC0_TAG=v0.2.1", "WEAVEC0_TAG=v0.4.0"),
+        ("WEAVEC1_VERSION=v0.2.0", "WEAVEC1_VERSION=v0.3.1"),
+        ("WEAVEC1_TAG=v0.2.0", "WEAVEC1_TAG=v0.3.1"),
+        ("WEAVEC_BOOTSTRAP_VERSION=v0.2.0", "WEAVEC_BOOTSTRAP_VERSION=v0.3.0"),
+        ("WEAVEC_BOOTSTRAP_REF=v0.2.0", "WEAVEC_BOOTSTRAP_REF=v0.3.0"),
+    ]
     for path in (ROOT / "README.md", ROOT / "docs" / "RELEASING.md"):
-        replace_present(path, "weavec1 v0.2.0", "weavec1 v0.3.1")
-        replace_present(path, "weavec-bootstrap v0.2.0", "weavec-bootstrap v0.3.0")
         text = path.read_text(encoding="utf-8")
-        text = text.replace("WEAVEC0_TAG=v0.2.1", "WEAVEC0_TAG=v0.4.0")
-        text = text.replace("WEAVEC1_VERSION=v0.2.0", "WEAVEC1_VERSION=v0.3.1")
-        text = text.replace("WEAVEC1_TAG=v0.2.0", "WEAVEC1_TAG=v0.3.1")
-        text = text.replace(
-            "WEAVEC_BOOTSTRAP_VERSION=v0.2.0",
-            "WEAVEC_BOOTSTRAP_VERSION=v0.3.0",
-        )
-        text = text.replace(
-            "WEAVEC_BOOTSTRAP_REF=v0.2.0",
-            "WEAVEC_BOOTSTRAP_REF=v0.3.0",
-        )
+        for old, new in replacements:
+            text = text.replace(old, new)
         path.write_text(text, encoding="utf-8")
 
 
