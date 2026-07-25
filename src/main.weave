@@ -15,6 +15,143 @@
   (name "main")
   (version "0.1")
 
+  ; Return non-zero when node is a typed or void function-call form.
+  (fn backend_is_call_form
+    (params (ctx ptr) (node i64))
+    (returns i32)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (or_bool
+              (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
+                (const_string_ptr "call_i32") (const_i64 8)) (const_i32 0))
+              (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
+                (const_string_ptr "call_i64") (const_i64 8)) (const_i32 0)))
+            (or_bool
+              (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
+                (const_string_ptr "call_bool") (const_i64 9)) (const_i32 0))
+              (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
+                (const_string_ptr "call_ptr") (const_i64 8)) (const_i32 0))))
+          (or_bool
+            (or_bool
+              (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
+                (const_string_ptr "call_f32") (const_i64 8)) (const_i32 0))
+              (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
+                (const_string_ptr "call_f64") (const_i64 8)) (const_i32 0)))
+            (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
+              (const_string_ptr "call_void") (const_i64 9)) (const_i32 0)))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  ; Return non-zero for runtime functions emitted implicitly by the backend.
+  (fn backend_is_implicit_callable
+    (params (ctx ptr) (name_node i64))
+    (returns i32)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 node_text_equals
+              (local_get tree) (local_get source) (param_get name_node)
+              (const_string_ptr "malloc") (const_i64 6)) (const_i32 0))
+            (ne_i32 (call_i32 node_text_equals
+              (local_get tree) (local_get source) (param_get name_node)
+              (const_string_ptr "free") (const_i64 4)) (const_i32 0)))
+          (or_bool
+            (ne_i32 (call_i32 node_text_equals
+              (local_get tree) (local_get source) (param_get name_node)
+              (const_string_ptr "puts") (const_i64 4)) (const_i32 0))
+            (ne_i32 (call_i32 node_text_equals
+              (local_get tree) (local_get source) (param_get name_node)
+              (const_string_ptr "weave_rt_contract_fail") (const_i64 22)) (const_i32 0)))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  ; Return non-zero when name is declared by an extern or function in decls.
+  (fn backend_decls_has_callable
+    (params (ctx ptr) (decls_node i64) (name_node i64))
+    (returns i32)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
+      (let child i64 (call_i64 node_first_child (local_get tree) (param_get decls_node)))
+      (if
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (then (do
+          (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
+        (else (do)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (if
+            (condition (and_bool
+              (eq_i32 (call_i32 node_kind (local_get tree) (local_get child)) (call_i32 node_list))
+              (or_bool
+                (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (local_get child)
+                  (const_string_ptr "extern") (const_i64 6)) (const_i32 0))
+                (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (local_get child)
+                  (const_string_ptr "fn") (const_i64 2)) (const_i32 0)))))
+            (then (do
+              (let declared_name i64 (call_i64 nth_child
+                (local_get tree) (local_get child) (const_i64 1)))
+              (if
+                (condition (ne_i32 (call_i32 ident_nodes_equal
+                  (local_get tree) (local_get source)
+                  (local_get declared_name) (param_get name_node)) (const_i32 0)))
+                (then (do (return (const_i32 1))))
+                (else (do)))))
+            (else (do)))
+          (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
+      (return (const_i32 0))))
+
+  ; Reject calls whose target is absent from the complete declaration set.
+  (fn backend_validate_call_targets
+    (params (ctx ptr) (decls_node i64) (node i64))
+    (returns i32)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (if
+        (condition (ne_i32 (call_i32 node_kind (local_get tree) (param_get node)) (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 backend_is_call_form
+          (param_get ctx) (param_get node)) (const_i32 0)))
+        (then (do
+          (let name_node i64 (call_i64 nth_child
+            (local_get tree) (param_get node) (const_i64 1)))
+          (if
+            (condition (or_bool
+              (eq_i64 (local_get name_node) (const_i64 -1))
+              (and_bool
+                (eq_i32 (call_i32 backend_is_implicit_callable
+                  (param_get ctx) (local_get name_node)) (const_i32 0))
+                (eq_i32 (call_i32 backend_decls_has_callable
+                  (param_get ctx) (param_get decls_node) (local_get name_node)) (const_i32 0)))))
+            (then (do
+              (call_void diag_unknown_identifier (param_get ctx) (local_get name_node))
+              (return (const_i32 1))))
+            (else (do)))))
+        (else (do)))
+      (let child i64 (call_i64 node_first_child (local_get tree) (param_get node)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 backend_validate_call_targets
+              (param_get ctx) (param_get decls_node) (local_get child)) (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
+      (return (const_i32 0))))
+
   ; Compile a WIR file to LLVM IR.
   (fn compile_file
     (params (input_path ptr) (output_path ptr))
@@ -83,6 +220,26 @@
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
+      ; Validate the complete WIR declaration set before creating an output file.
+      (let validation_ctx ptr (call_ptr ctx_new (const_i32 -1) (local_get source) (local_get tree)))
+      (if
+        (condition (eq_ptr (local_get validation_ctx) (const_null)))
+        (then (do
+          (call_void free (local_get source))
+          (return (const_i32 1))))
+        (else (do)))
+      (let decls_node i64 (call_i64 find_decls_node (local_get validation_ctx) (const_i64 0)))
+      (if
+        (condition (or_bool
+          (eq_i64 (local_get decls_node) (const_i64 -1))
+          (ne_i32 (call_i32 backend_validate_call_targets
+            (local_get validation_ctx) (local_get decls_node) (local_get decls_node)) (const_i32 0))))
+        (then (do
+          (call_void ctx_free (local_get validation_ctx))
+          (call_void free (local_get source))
+          (return (const_i32 1))))
+        (else (do)))
+      (call_void ctx_free (local_get validation_ctx))
       ; Open output file via the portability shim — the flag value for
       ; O_WRONLY|O_CREAT|O_TRUNC differs between macOS (0x601=1537) and
       ; Linux (0x241=577), so we go through C where <fcntl.h> resolves it.
