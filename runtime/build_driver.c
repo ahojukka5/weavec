@@ -4,7 +4,12 @@
 // surface lowering and LLVM emission; this file owns process orchestration,
 // private runtime discovery, temporary artifacts, and atomic output publication.
 
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 700
+#endif
+#ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
+#endif
 
 #include <errno.h>
 #include <fcntl.h>
@@ -28,7 +33,9 @@
 #ifndef WEAVEC_DEFAULT_TARGET
 #define WEAVEC_DEFAULT_TARGET "unknown-host"
 #endif
-
+#ifndef WEAVEC_DEFAULT_CODEGEN
+#define WEAVEC_DEFAULT_CODEGEN "clang"
+#endif
 #ifndef WEAVEC_DEFAULT_LINKER
 #define WEAVEC_DEFAULT_LINKER "clang"
 #endif
@@ -37,8 +44,8 @@ static void build_usage(void) {
     fputs(
         "usage: weavec build <input.weave> [input2.weave ...] -o <program>\n"
         "                    [--target <triple>] [--manifest-json <path>]\n"
-        "                    [--runtime <archive>] [--linker <command>]\n"
-        "                    [--keep-temporaries]\n",
+        "                    [--runtime <archive>] [--codegen <command>]\n"
+        "                    [--linker <command>] [--keep-temporaries]\n",
         stderr);
 }
 
@@ -137,7 +144,7 @@ static int resolve_executable(const char *argv0, char *out, size_t out_size) {
 static void parent_directory(char *path) {
     char *slash = strrchr(path, '/');
     if (slash == NULL) {
-        copy_string(path, PATH_MAX, ".");
+        (void)copy_string(path, PATH_MAX, ".");
     } else if (slash == path) {
         slash[1] = '\0';
     } else {
@@ -145,7 +152,7 @@ static void parent_directory(char *path) {
     }
 }
 
-static int runtime_candidate(
+static int runtime_archive_candidate(
     char *out,
     size_t out_size,
     const char *base,
@@ -188,13 +195,16 @@ static int locate_runtime(
     }
     parent_directory(directory);
 
-    if (runtime_candidate(out, out_size, directory, target, 1)) {
+    if (runtime_archive_candidate(out, out_size, directory, target, 1)) {
         return 1;
     }
-    if (runtime_candidate(out, out_size, directory, target, 0)) {
+    if (runtime_archive_candidate(out, out_size, directory, target, 0)) {
         return 1;
     }
-    return 0;
+
+    // Development checkout fallback: build/weavec sits beside ../runtime/.
+    int written = snprintf(out, out_size, "%s/../runtime/program.c", directory);
+    return written >= 0 && (size_t)written < out_size && file_exists(out);
 }
 
 static void json_string(FILE *stream, const char *value) {
@@ -224,6 +234,8 @@ static void write_manifest(
     const char *target,
     const char *compiler,
     const char *runtime,
+    const char *codegen,
+    const char *linker,
     const char *output,
     char **sources,
     int source_count) {
@@ -245,6 +257,10 @@ static void write_manifest(
     json_string(stream, compiler);
     fputs(",\n  \"runtime\": ", stream);
     json_string(stream, runtime);
+    fputs(",\n  \"codegen\": ", stream);
+    json_string(stream, codegen);
+    fputs(",\n  \"linker\": ", stream);
+    json_string(stream, linker);
     fputs(",\n  \"output\": ", stream);
     json_string(stream, output);
     fputs(",\n  \"sources\": [", stream);
@@ -262,6 +278,7 @@ static void cleanup_directory(
     const char *directory,
     const char *wir_path,
     const char *ll_path,
+    const char *object_path,
     int keep) {
     if (keep) {
         fprintf(stderr, "weavec: kept temporary build directory: %s\n", directory);
@@ -269,6 +286,7 @@ static void cleanup_directory(
     }
     unlink(wir_path);
     unlink(ll_path);
+    unlink(object_path);
     rmdir(directory);
 }
 
@@ -276,9 +294,17 @@ int weave_rt_build_main(int argc, char **argv) {
     const char *output = NULL;
     const char *target = WEAVEC_DEFAULT_TARGET;
     const char *runtime_override = NULL;
-    const char *linker = WEAVEC_DEFAULT_LINKER;
+    const char *codegen = getenv("WEAVEC_CODEGEN");
+    const char *linker = getenv("WEAVEC_LINKER");
     const char *manifest = NULL;
     int keep_temporaries = 0;
+
+    if (codegen == NULL || *codegen == '\0') {
+        codegen = WEAVEC_DEFAULT_CODEGEN;
+    }
+    if (linker == NULL || *linker == '\0') {
+        linker = WEAVEC_DEFAULT_LINKER;
+    }
 
     char **sources = calloc((size_t)argc, sizeof(char *));
     if (sources == NULL) {
@@ -310,6 +336,13 @@ int weave_rt_build_main(int argc, char **argv) {
                 return 2;
             }
             runtime_override = argv[i];
+        } else if (strcmp(arg, "--codegen") == 0) {
+            if (++i >= argc) {
+                build_usage();
+                free(sources);
+                return 2;
+            }
+            codegen = argv[i];
         } else if (strcmp(arg, "--linker") == 0) {
             if (++i >= argc) {
                 build_usage();
@@ -388,12 +421,15 @@ int weave_rt_build_main(int argc, char **argv) {
 
     char wir_path[PATH_MAX];
     char ll_path[PATH_MAX];
+    char object_path[PATH_MAX];
     snprintf(wir_path, sizeof(wir_path), "%s/program.wir", temporary);
     snprintf(ll_path, sizeof(ll_path), "%s/program.ll", temporary);
+    snprintf(object_path, sizeof(object_path), "%s/program.o", temporary);
 
     char **frontend = calloc((size_t)source_count + 4, sizeof(char *));
     if (frontend == NULL) {
-        cleanup_directory(temporary, wir_path, ll_path, keep_temporaries);
+        cleanup_directory(
+            temporary, wir_path, ll_path, object_path, keep_temporaries);
         free(sources);
         return 1;
     }
@@ -409,9 +445,10 @@ int weave_rt_build_main(int argc, char **argv) {
     free(frontend);
     if (status != 0) {
         write_manifest(
-            manifest, "failed", "frontend", target, compiler, runtime, output,
-            sources, source_count);
-        cleanup_directory(temporary, wir_path, ll_path, keep_temporaries);
+            manifest, "failed", "frontend", target, compiler, runtime,
+            codegen, linker, output, sources, source_count);
+        cleanup_directory(
+            temporary, wir_path, ll_path, object_path, keep_temporaries);
         free(sources);
         return status;
     }
@@ -420,9 +457,23 @@ int weave_rt_build_main(int argc, char **argv) {
     status = run_process(backend);
     if (status != 0) {
         write_manifest(
-            manifest, "failed", "backend", target, compiler, runtime, output,
-            sources, source_count);
-        cleanup_directory(temporary, wir_path, ll_path, keep_temporaries);
+            manifest, "failed", "backend", target, compiler, runtime,
+            codegen, linker, output, sources, source_count);
+        cleanup_directory(
+            temporary, wir_path, ll_path, object_path, keep_temporaries);
+        free(sources);
+        return status;
+    }
+
+    char *codegen_args[] = {
+        (char *)codegen, "-Wno-override-module", "-c", ll_path, "-o", object_path, NULL};
+    status = run_process(codegen_args);
+    if (status != 0) {
+        write_manifest(
+            manifest, "failed", "codegen", target, compiler, runtime,
+            codegen, linker, output, sources, source_count);
+        cleanup_directory(
+            temporary, wir_path, ll_path, object_path, keep_temporaries);
         free(sources);
         return status;
     }
@@ -431,28 +482,32 @@ int weave_rt_build_main(int argc, char **argv) {
     if (snprintf(output_template, sizeof(output_template), "%s.tmp.XXXXXX", output) >=
         (int)sizeof(output_template)) {
         fputs("weavec: output path is too long\n", stderr);
-        cleanup_directory(temporary, wir_path, ll_path, keep_temporaries);
+        cleanup_directory(
+            temporary, wir_path, ll_path, object_path, keep_temporaries);
         free(sources);
         return 1;
     }
     int output_fd = mkstemp(output_template);
     if (output_fd < 0) {
         fprintf(stderr, "weavec: cannot create output beside %s: %s\n", output, strerror(errno));
-        cleanup_directory(temporary, wir_path, ll_path, keep_temporaries);
+        cleanup_directory(
+            temporary, wir_path, ll_path, object_path, keep_temporaries);
         free(sources);
         return 1;
     }
     close(output_fd);
     unlink(output_template);
 
-    char *link[] = {(char *)linker, ll_path, runtime, "-o", output_template, NULL};
-    status = run_process(link);
+    char *link_args[] = {
+        (char *)linker, object_path, runtime, "-o", output_template, NULL};
+    status = run_process(link_args);
     if (status != 0) {
         unlink(output_template);
         write_manifest(
-            manifest, "failed", "link", target, compiler, runtime, output,
-            sources, source_count);
-        cleanup_directory(temporary, wir_path, ll_path, keep_temporaries);
+            manifest, "failed", "link", target, compiler, runtime,
+            codegen, linker, output, sources, source_count);
+        cleanup_directory(
+            temporary, wir_path, ll_path, object_path, keep_temporaries);
         free(sources);
         return status;
     }
@@ -461,17 +516,19 @@ int weave_rt_build_main(int argc, char **argv) {
         fprintf(stderr, "weavec: cannot publish output %s: %s\n", output, strerror(errno));
         unlink(output_template);
         write_manifest(
-            manifest, "failed", "publish", target, compiler, runtime, output,
-            sources, source_count);
-        cleanup_directory(temporary, wir_path, ll_path, keep_temporaries);
+            manifest, "failed", "publish", target, compiler, runtime,
+            codegen, linker, output, sources, source_count);
+        cleanup_directory(
+            temporary, wir_path, ll_path, object_path, keep_temporaries);
         free(sources);
         return 1;
     }
 
     write_manifest(
-        manifest, "succeeded", "complete", target, compiler, runtime, output,
-        sources, source_count);
-    cleanup_directory(temporary, wir_path, ll_path, keep_temporaries);
+        manifest, "succeeded", "complete", target, compiler, runtime,
+        codegen, linker, output, sources, source_count);
+    cleanup_directory(
+        temporary, wir_path, ll_path, object_path, keep_temporaries);
     free(sources);
     return 0;
 }
