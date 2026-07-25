@@ -50,6 +50,7 @@ BACKEND_BC="$RELEASE_BUILD/backend-smoke.bc"
 BUILD_SMOKE="$RELEASE_BUILD/build-smoke"
 LEGACY_LL="$RELEASE_BUILD/legacy-implicit-backend.ll"
 STACK_SIZE="0x1000000"
+PROGRAM_LINKAGE="dynamic"
 
 require_tool() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -80,7 +81,9 @@ mkdir -p "$PACKAGE_DIR/bin" "$RUNTIME_DIR" "$ARCHIVE_DIR"
 clang -Wno-override-module -O2 -c "$COMPILER_BC" -o "$COMPILER_OBJ"
 case "$LIBC" in
   glibc)
-    clang -O2 -DWEAVEC_DEFAULT_CC='"clang"' \
+    clang -O2 \
+      -DWEAVEC_DEFAULT_CLANG='"clang"' \
+      -DWEAVEC_DEFAULT_CC='"clang"' \
       -c "$ROOT/runtime/portable.c" -o "$PORTABLE_OBJ"
     clang -O2 -ffunction-sections -fdata-sections \
       -c "$ROOT/runtime/program_runtime.c" -o "$PROGRAM_RUNTIME_OBJ"
@@ -89,7 +92,11 @@ case "$LIBC" in
       -o "$COMPILER"
     ;;
   musl)
-    musl-gcc -O2 -DWEAVEC_DEFAULT_CC='"musl-gcc"' \
+    PROGRAM_LINKAGE="static"
+    musl-gcc -O2 \
+      -DWEAVEC_DEFAULT_CLANG='"clang"' \
+      -DWEAVEC_DEFAULT_CC='"musl-gcc"' \
+      -DWEAVEC_DEFAULT_STATIC_LINK=1 \
       -c "$ROOT/runtime/portable.c" -o "$PORTABLE_OBJ"
     musl-gcc -O2 -ffunction-sections -fdata-sections \
       -c "$ROOT/runtime/program_runtime.c" -o "$PROGRAM_RUNTIME_OBJ"
@@ -163,7 +170,8 @@ build_command=weavec build INPUT -o OUTPUT
 weavec1_version=${WEAVEC1_VERSION:-v0.2.0}
 weavec_bootstrap_version=${WEAVEC_BOOTSTRAP_VERSION:-v0.2.0}
 source_commit=${GITHUB_SHA:-unknown}
-linkage=static
+compiler_linkage=static
+program_linkage=$PROGRAM_LINKAGE
 EOF
 
 printf '%s\n' "$VERSION" > "$PACKAGE_DIR/VERSION"
