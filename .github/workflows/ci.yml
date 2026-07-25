@@ -7,6 +7,9 @@ on:
   pull_request:
     branches: [master]
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: build & test (${{ matrix.name }})
@@ -27,12 +30,12 @@ jobs:
             libc: glibc
 
     env:
-      WEAVEC0_TAG: v0.2.1
-      WEAVEC1_VERSION: v0.2.0
-      WEAVEC1_TAG: v0.2.0
+      WEAVEC0_TAG: v0.4.0
+      WEAVEC1_VERSION: v0.3.1
+      WEAVEC1_TAG: v0.3.1
       WEAVEC1_LIBC: ${{ matrix.libc }}
-      WEAVEC_BOOTSTRAP_VERSION: v0.2.0
-      WEAVEC_BOOTSTRAP_REF: v0.2.0
+      WEAVEC_BOOTSTRAP_VERSION: v0.3.0
+      WEAVEC_BOOTSTRAP_REF: v0.3.0
       WEAVEC_BOOTSTRAP_LIBC: ${{ matrix.libc }}
 
     steps:
@@ -63,6 +66,7 @@ jobs:
           python3 --version
 
       - name: Build compiler and run full ladder
+        shell: bash
         run: |
           set -o pipefail
           ./test-all.sh 2>&1 | tee ci.log
@@ -80,7 +84,62 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: ci-log-${{ matrix.name }}
+          name: ci-log-${{ matrix.name }}-${{ github.run_id }}
           path: ci.log
-          if-no-files-found: ignore
+          if-no-files-found: warn
+          retention-days: 7
+
+  deep-selfhost:
+    name: deep self-host ladder
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      WEAVEC0_TAG: v0.4.0
+      WEAVEC1_VERSION: v0.3.1
+      WEAVEC1_TAG: v0.3.1
+      WEAVEC1_LIBC: glibc
+      WEAVEC_BOOTSTRAP_VERSION: v0.3.0
+      WEAVEC_BOOTSTRAP_REF: v0.3.0
+      WEAVEC_BOOTSTRAP_LIBC: glibc
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install self-host toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang curl git llvm python3
+          clang --version
+          llvm-as --version
+          llvm-link --version
+
+      - name: Build seed compiler
+        shell: bash
+        run: |
+          set -o pipefail
+          ./build.sh 2>&1 | tee selfhost-seed.log
+          test -x build/weavec
+
+      - name: Run deep self-host
+        shell: bash
+        run: |
+          set -o pipefail
+          ./selfhost.sh 2>&1 | tee selfhost.log
+
+      - name: Verify stage artifacts
+        run: |
+          test -x build/selfhost/stage1/weavec
+          test -x build/selfhost/stage2/weavec
+
+      - name: Upload failed self-host logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selfhost-log-${{ github.run_id }}
+          path: |
+            selfhost-seed.log
+            selfhost.log
+          if-no-files-found: warn
           retention-days: 7
