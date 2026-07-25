@@ -59,6 +59,13 @@ BACKEND_BC="$RELEASE_BUILD/backend-smoke.bc"
 LEGACY_LL="$RELEASE_BUILD/legacy-implicit-backend.ll"
 BUILD_BIN="$RELEASE_BUILD/build-smoke"
 BUILD_MANIFEST="$RELEASE_BUILD/build-smoke.json"
+BUILD_DIAGNOSTICS="$RELEASE_BUILD/build-smoke.diagnostics.json"
+FRONTEND_FAILURE_SOURCE="$RELEASE_BUILD/frontend-failure.weave"
+FRONTEND_FAILURE_BIN="$RELEASE_BUILD/frontend-failure"
+FRONTEND_FAILURE_DIAGNOSTICS="$RELEASE_BUILD/frontend-failure.diagnostics.json"
+BACKEND_FAILURE_SOURCE="$RELEASE_BUILD/backend-failure.weave"
+BACKEND_FAILURE_BIN="$RELEASE_BUILD/backend-failure"
+BACKEND_FAILURE_DIAGNOSTICS="$RELEASE_BUILD/backend-failure.diagnostics.json"
 STACK_SIZE="0x1000000"
 
 require_tool() {
@@ -72,6 +79,7 @@ require_tool ar
 require_tool clang
 require_tool file
 require_tool llvm-as
+require_tool python3
 require_tool readelf
 require_tool tar
 if [[ "$LIBC" == musl ]]; then
@@ -143,14 +151,16 @@ file "$COMPILER"
 llvm-as "$BACKEND_LL" -o "$BACKEND_BC"
 
 # The public contract must produce a native executable without exposing runtime
-# selection or a linker command to the caller.
-rm -f "$BUILD_BIN" "$BUILD_MANIFEST"
+# selection or a linker command to the caller. It must also produce the stable
+# manifest and diagnostics protocols from the exact packaged compiler.
+rm -f "$BUILD_BIN" "$BUILD_MANIFEST" "$BUILD_DIAGNOSTICS"
 "$COMPILER" build \
   "$ROOT/test/correctness/surface/01_return_42.weave" \
   -o "$BUILD_BIN" \
-  --manifest-json "$BUILD_MANIFEST"
-[[ -x "$BUILD_BIN" && -s "$BUILD_MANIFEST" ]] || {
-  printf 'weavec build did not produce its executable and manifest\n' >&2
+  --manifest-json "$BUILD_MANIFEST" \
+  --diagnostics-json "$BUILD_DIAGNOSTICS"
+[[ -x "$BUILD_BIN" && -s "$BUILD_MANIFEST" && -s "$BUILD_DIAGNOSTICS" ]] || {
+  printf 'weavec build did not produce its executable, manifest, and diagnostics\n' >&2
   exit 1
 }
 set +e
@@ -163,6 +173,100 @@ if [[ "$build_status" -ne 42 ]]; then
 fi
 grep -F '"status": "succeeded"' "$BUILD_MANIFEST" >/dev/null
 grep -F "\"target\": \"$TARGET\"" "$BUILD_MANIFEST" >/dev/null
+
+cat > "$FRONTEND_FAILURE_SOURCE" <<'EOF'
+(program
+  (name "release-frontend-failure")
+EOF
+rm -f "$FRONTEND_FAILURE_BIN" "$FRONTEND_FAILURE_DIAGNOSTICS"
+set +e
+"$COMPILER" build "$FRONTEND_FAILURE_SOURCE" \
+  -o "$FRONTEND_FAILURE_BIN" \
+  --diagnostics-json "$FRONTEND_FAILURE_DIAGNOSTICS" \
+  >/dev/null 2>&1
+frontend_failure_status="$?"
+set -e
+if [[ "$frontend_failure_status" -ne 10 || -e "$FRONTEND_FAILURE_BIN" ]]; then
+  printf 'frontend failure contract was not preserved (status=%s)\n' \
+    "$frontend_failure_status" >&2
+  exit 1
+fi
+
+cat > "$BACKEND_FAILURE_SOURCE" <<'EOF'
+(program
+  (name "release-backend-failure")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do (return (unknown_form 0)))))
+EOF
+rm -f "$BACKEND_FAILURE_BIN" "$BACKEND_FAILURE_DIAGNOSTICS"
+set +e
+"$COMPILER" build "$BACKEND_FAILURE_SOURCE" \
+  -o "$BACKEND_FAILURE_BIN" \
+  --diagnostics-json "$BACKEND_FAILURE_DIAGNOSTICS" \
+  >/dev/null 2>&1
+backend_failure_status="$?"
+set -e
+if [[ "$backend_failure_status" -ne 11 || -e "$BACKEND_FAILURE_BIN" ]]; then
+  printf 'backend failure contract was not preserved (status=%s)\n' \
+    "$backend_failure_status" >&2
+  exit 1
+fi
+
+python3 - \
+  "$BUILD_DIAGNOSTICS" \
+  "$FRONTEND_FAILURE_SOURCE" "$FRONTEND_FAILURE_DIAGNOSTICS" \
+  "$BACKEND_FAILURE_SOURCE" "$BACKEND_FAILURE_DIAGNOSTICS" <<'PY'
+import json
+import pathlib
+import sys
+
+(
+    success_path,
+    frontend_source_path,
+    frontend_diagnostics_path,
+    backend_source_path,
+    backend_diagnostics_path,
+) = map(pathlib.Path, sys.argv[1:])
+
+success = json.loads(success_path.read_text(encoding="utf-8"))
+assert success == {
+    "format": "weavec-diagnostics-v1",
+    "status": "succeeded",
+    "phase": "complete",
+    "exit_code": 0,
+    "raw_exit_code": 0,
+    "diagnostics": [],
+}
+
+frontend = json.loads(frontend_diagnostics_path.read_text(encoding="utf-8"))
+assert frontend["format"] == "weavec-diagnostics-v1"
+assert frontend["status"] == "failed"
+assert frontend["phase"] == "frontend"
+assert frontend["exit_code"] == 10
+frontend_entry = frontend["diagnostics"][0]
+assert frontend_entry["code"] == "frontend.parse.unclosed-list"
+assert frontend_entry["span_origin"] == "compiler-preflight"
+assert frontend_entry["span"]["start_byte"] == 0
+assert frontend_entry["span"]["end_byte"] == 1
+assert frontend_source_path.read_bytes()[0:1] == b"("
+
+backend = json.loads(backend_diagnostics_path.read_text(encoding="utf-8"))
+assert backend["format"] == "weavec-diagnostics-v1"
+assert backend["status"] == "failed"
+assert backend["phase"] == "backend"
+assert backend["exit_code"] == 11
+backend_entry = backend["diagnostics"][0]
+assert backend_entry["code"] == "backend.unknown-expression-operator"
+assert backend_entry["message"] == "unknown expression operator: unknown_form"
+assert backend_entry["span_origin"] == "inferred-unique-token"
+span = backend_entry["span"]
+assert span is not None
+source = backend_source_path.read_bytes()
+assert source[span["start_byte"] : span["end_byte"]] == b"unknown_form"
+PY
 
 rm -f "$LEGACY_LL"
 set +e
@@ -187,6 +291,8 @@ weavec_bootstrap_version=${WEAVEC_BOOTSTRAP_VERSION:-v0.2.0}
 source_commit=${GITHUB_SHA:-unknown}
 compiler_linkage=static
 runtime_visibility=private
+build_manifest_format=weavec-build-manifest-v1
+diagnostics_format=weavec-diagnostics-v1
 EOF
 
 printf '%s\n' "$VERSION" > "$PACKAGE_DIR/VERSION"
@@ -198,14 +304,15 @@ if command -v strip >/dev/null 2>&1; then
   strip --strip-unneeded "$COMPILER"
 fi
 
-# Re-run both low-level and public commands after stripping so the archived
-# compiler and its relative runtime discovery are tested exactly as shipped.
+# Re-run low-level and public commands after stripping so the compiler and its
+# relative runtime discovery are tested exactly as archived.
 "$COMPILER" --backend "$FRONTEND_WIR" "$BACKEND_LL"
 llvm-as "$BACKEND_LL" -o "$BACKEND_BC"
-rm -f "$BUILD_BIN"
+rm -f "$BUILD_BIN" "$BUILD_DIAGNOSTICS"
 "$COMPILER" build \
   "$ROOT/test/correctness/surface/01_return_42.weave" \
-  -o "$BUILD_BIN"
+  -o "$BUILD_BIN" \
+  --diagnostics-json "$BUILD_DIAGNOSTICS"
 set +e
 "$BUILD_BIN"
 build_status="$?"
@@ -214,6 +321,17 @@ set -e
   printf 'stripped package build smoke returned %s instead of 42\n' "$build_status" >&2
   exit 1
 }
+python3 - "$BUILD_DIAGNOSTICS" <<'PY'
+import json
+import pathlib
+import sys
+
+document = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert document["format"] == "weavec-diagnostics-v1"
+assert document["status"] == "succeeded"
+assert document["exit_code"] == 0
+assert document["diagnostics"] == []
+PY
 
 rm -f "$ARCHIVE"
 tar -C "$RELEASE_BUILD" -czf "$ARCHIVE" "$PACKAGE_NAME"
