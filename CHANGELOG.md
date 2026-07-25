@@ -8,6 +8,47 @@ surface-language contract stabilises.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-07-25
+
+### Added
+
+- Public `weavec build <source...> -o <program>` source-to-executable command.
+- Private target runtime discovery relative to the installed compiler package.
+- `weavec-build-manifest-v1` build provenance output through
+  `--manifest-json <path>`.
+- `weavec-diagnostics-v1` machine-readable diagnostics through
+  `--diagnostics-json <path>`.
+- Stable phase exit codes for frontend, backend, LLVM code generation, target
+  linking, atomic publication, and build-driver failures.
+- Exact UTF-8 source spans for canonical S-expression parse preflight errors.
+- Conservative backend source spans when a diagnostic token occurs uniquely in
+  canonical source, with explicit `span_origin` provenance.
+- Documentation and regression coverage for the build-driver and diagnostics
+  contracts.
+
+### Changed
+
+- Normal users and downstream tools no longer need to invoke the surface
+  frontend, WIR backend, `clang`, or the runtime archive separately.
+- Linux glibc and musl compiler archives now include the private target runtime
+  under `lib/weavec/<target>/libweave-runtime.a`.
+- LLVM IR to object generation and target linking are separate internal driver
+  phases, allowing musl packages to use `clang` for code generation and
+  `musl-gcc` for final linking.
+- Output executables are published atomically only after every build phase has
+  succeeded.
+- Human-readable stderr remains unchanged when machine-readable diagnostics are
+  requested.
+
+### Fixed
+
+- The build driver now resolves its installed runtime without exposing a runtime
+  path to normal callers.
+- macOS temporary-directory creation no longer depends directly on an SDK
+  declaration of `mkdtemp`.
+- Failed compiler or linker phases cannot leave a partial executable at the
+  requested output path.
+
 ## [0.2.0] — 2026-07-24
 
 ### Added
