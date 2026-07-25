@@ -86,6 +86,10 @@ static char *weave_rt_mkdtemp(char *path_template) {
 }
 
 #define mkdtemp weave_rt_mkdtemp
-// Keep the self-hosted compiler link command simple: the build driver is a
-// separate implementation module but shares this host-support translation unit.
+// Keep the self-hosted compiler link command simple. The original build driver
+// remains the implementation core, while diagnostics_driver.c provides the
+// versioned public diagnostics facade without duplicating the phase pipeline.
+#define weave_rt_build_main weave_rt_build_main_legacy
 #include "build_driver.c"
+#undef weave_rt_build_main
+#include "diagnostics_driver.c"

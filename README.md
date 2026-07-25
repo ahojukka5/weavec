@@ -40,7 +40,8 @@ Multi-file programs use the same command:
 weavec build main.weave library.weave platform.weave -o application
 ```
 
-The caller does not select or name a runtime library. Internally the command:
+The caller does not select or name a runtime library. Internally the command
+performs:
 
 ```text
 surface Weave
@@ -56,21 +57,81 @@ executable
 ```
 
 Intermediate files are created in a private temporary directory. The final
-executable is first linked beside the requested output under a temporary name
-and then published with an atomic rename. A failed build never replaces the
-previous output.
+executable is linked beside the requested output under a temporary name and then
+published with an atomic rename. A failed build never replaces the previous
+output.
 
-Automation may request a versioned compiler manifest:
+## Automation contracts
+
+A build can emit two separate versioned JSON documents:
 
 ```sh
 weavec build main.weave -o main \
-  --manifest-json main.build.json
+  --manifest-json main.build.json \
+  --diagnostics-json main.diagnostics.json
 ```
 
-The initial `weavec-build-manifest-v1` records the build status and phase,
-source paths, target, compiler, runtime resource, LLVM code generator, linker,
-and output path. Compiler diagnostic spans and artifact hashes are planned as
-extensions to this contract.
+The paths must be different.
+
+### Build manifest
+
+`weavec-build-manifest-v1` records the final status and phase, source paths,
+target, compiler, private runtime resource, LLVM code generator, linker, and
+output path.
+
+### Machine-readable diagnostics
+
+`weavec-diagnostics-v1` preserves the existing human-readable stderr stream and
+adds an automation side channel:
+
+```json
+{
+  "format": "weavec-diagnostics-v1",
+  "status": "failed",
+  "phase": "backend",
+  "exit_code": 11,
+  "raw_exit_code": 1,
+  "diagnostics": [
+    {
+      "code": "backend.unknown-expression-operator",
+      "severity": "error",
+      "phase": "backend",
+      "message": "unknown expression operator: unknown_form",
+      "source": "main.weave",
+      "span_origin": "inferred-unique-token",
+      "span": {
+        "start_byte": 109,
+        "end_byte": 121,
+        "start_line": 6,
+        "start_column": 18,
+        "end_line": 6,
+        "end_column": 30
+      }
+    }
+  ]
+}
+```
+
+Offsets are UTF-8 byte offsets with an exclusive end. Lines and columns are
+one-based. `span_origin` distinguishes exact compiler-preflight locations from
+uniquely inferred token locations. Ambiguous locations remain `null` rather than
+being guessed.
+
+Stable public exit codes when `--diagnostics-json` is used:
+
+| Code | Meaning |
+|---:|---|
+| `0` | build succeeded |
+| `2` | invalid command-line request |
+| `10` | surface frontend or source parse failed |
+| `11` | WIR backend failed |
+| `12` | LLVM IR to object generation failed |
+| `13` | target linker failed |
+| `14` | atomic output publication failed |
+| `15` | build driver or toolchain setup failed |
+
+`raw_exit_code` preserves the underlying phase status. Full schema details and
+current span coverage are documented in [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md).
 
 ## Private runtime contract
 
@@ -99,8 +160,8 @@ not part of normal user operation.
 
 The runtime is a static archive so the target linker pulls in only referenced
 object modules. Its target and checksum belong to the release/build manifest.
-Future target packages can add more target directories without changing the
-public command.
+Future target packages can add target directories without changing the public
+command.
 
 ## Install a release
 
@@ -137,6 +198,7 @@ cd weavec
 
 ./build/weavec build test/correctness/surface/01_return_42.weave \
   -o /tmp/weave-example
+bash test/diagnostics/test-build-diagnostics.sh
 ```
 
 macOS currently uses the pinned source fallback:
@@ -167,6 +229,7 @@ Public user interface:
 weavec build <input.weave> [input2.weave ...] -o <program>
              [--target <triple>]
              [--manifest-json <path>]
+             [--diagnostics-json <path>]
              [--keep-temporaries]
 ```
 
@@ -198,8 +261,7 @@ Backend compilation is intentionally explicit. The former
 The normal Linux source build downloads:
 
 - `weavec1 v0.2.0` for WIR-to-LLVM compilation;
-- `weavec-bootstrap v0.2.0` for surface lowering and
-  `libweave-sexpr.bc`.
+- `weavec-bootstrap v0.2.0` for surface lowering and `libweave-sexpr.bc`.
 
 Both archives are selected for `glibc` or `musl`, verified against release
 checksums, and cached under `build/vendor/*-sdk/`. The normal Linux path does not
@@ -252,9 +314,10 @@ public `weavec build` contract from the exact package tree.
 ## Tests
 
 `./test-all.sh` runs correctness, performance, quantum, end-to-end, and self-host
-checks. CI validates Linux glibc SDKs, Linux musl SDKs, and the macOS source
-fallback. The release workflow additionally builds, inspects, strips, and
-smoke-tests both static Linux toolchain variants.
+checks. `bash test/diagnostics/test-build-diagnostics.sh` additionally verifies
+the machine-readable diagnostics contract. CI normally validates Linux glibc
+SDKs, Linux musl SDKs, and the macOS source fallback; when Actions capacity is
+unavailable the same scripts are run locally.
 
 Regenerate performance goldens only after an intentional backend-output change:
 
@@ -279,9 +342,11 @@ multiple times.
 - Published compiler packages currently cover Linux x86-64 only.
 - Each package currently installs one native target; `--target` rejects targets
   that are not present in that package.
-- The current source-to-executable driver delegates LLVM object generation and
-  target linking to installed commands rather than bundling an LLVM linker.
-- Machine-readable source-span diagnostics are not yet emitted.
+- The source-to-executable driver delegates LLVM object generation and target
+  linking to installed commands rather than bundling an LLVM linker.
+- Surface syntax preflight spans are exact. Some backend spans are currently
+  attached only when the diagnostic names a unique canonical-source token;
+  explicit location propagation through WIR remains future work.
 - `runtime/quantum_runtime.c` is a test stub, not a production quantum runtime.
 
 ## License
@@ -294,4 +359,4 @@ Licensed under the Apache License, Version 2.0. See [`LICENSE`](LICENSE) and
 Read [`CONTRIBUTING.md`](CONTRIBUTING.md),
 [`docs/RELEASING.md`](docs/RELEASING.md), and the relevant design document before
 changing the surface contract, backend output, source ordering, runtime boundary,
-or bootstrap chain.
+diagnostics schema, or bootstrap chain.
