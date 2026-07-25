@@ -7,9 +7,46 @@ on:
   pull_request:
     branches: [master]
 
+permissions:
+  contents: write
+
 jobs:
+  update-chain:
+    name: apply coordinated compiler-chain pins
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.head_ref == 'release/v0.3.0-prep'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Apply pin update
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f scripts/update_v030_chain.py ]]; then
+            echo "compiler-chain pins already updated"
+            exit 0
+          fi
+          python3 scripts/update_v030_chain.py
+          rm scripts/update_v030_chain.py
+          bash -n build.sh
+          bash -n scripts/package-linux-release.sh
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "release: update the compiler-chain SDK pins"
+          git push origin HEAD:${GITHUB_HEAD_REF}
+
   test:
     name: build & test (${{ matrix.name }})
+    needs: update-chain
+    if: >-
+      always() &&
+      (needs.update-chain.result == 'success' || needs.update-chain.result == 'skipped')
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -27,17 +64,19 @@ jobs:
             libc: glibc
 
     env:
-      WEAVEC0_TAG: v0.2.1
-      WEAVEC1_VERSION: v0.2.0
-      WEAVEC1_TAG: v0.2.0
+      WEAVEC0_TAG: v0.4.0
+      WEAVEC1_VERSION: v0.3.1
+      WEAVEC1_TAG: v0.3.1
       WEAVEC1_LIBC: ${{ matrix.libc }}
-      WEAVEC_BOOTSTRAP_VERSION: v0.2.0
-      WEAVEC_BOOTSTRAP_REF: v0.2.0
+      WEAVEC_BOOTSTRAP_VERSION: v0.3.0
+      WEAVEC_BOOTSTRAP_REF: v0.3.0
       WEAVEC_BOOTSTRAP_LIBC: ${{ matrix.libc }}
 
     steps:
-      - name: Checkout
+      - name: Checkout latest release head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
 
       - name: Install LLVM and SDK tools (Linux)
         if: runner.os == 'Linux'
@@ -63,6 +102,7 @@ jobs:
           python3 --version
 
       - name: Build compiler and run full ladder
+        shell: bash
         run: |
           set -o pipefail
           ./test-all.sh 2>&1 | tee ci.log
@@ -80,7 +120,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: ci-log-${{ matrix.name }}
+          name: ci-log-${{ matrix.name }}-${{ github.run_id }}
           path: ci.log
-          if-no-files-found: ignore
+          if-no-files-found: warn
           retention-days: 7
