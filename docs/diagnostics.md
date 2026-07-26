@@ -103,8 +103,9 @@ errors.
 
 - `compiler-preflight` — exact source span produced by the compiler's canonical
   S-expression preflight scanner;
-- `propagated-wir-location` — an exact surface byte span carried through
-  comment-only WIR source-map metadata during a diagnostics build;
+- `propagated-wir-location` — an exact surface file identity and byte span
+  carried through comment-only WIR source-map metadata during a diagnostics
+  build;
 - `inferred-unique-token` — a human diagnostic named one token and that token
   occurred exactly once in all source inputs outside comments and strings;
 - `none` — no trustworthy canonical-source span is available.
