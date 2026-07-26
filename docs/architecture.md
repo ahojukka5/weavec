@@ -259,7 +259,8 @@ local experiment.
 5. quantum native-runtime end-to-end tests;
 6. quantum LLVM checks;
 7. source-linked compilation-trace protocol tests;
-8. basic self-host integration tests.
+8. stable tooling-artifact publication tests;
+9. basic self-host integration tests.
 
 CI executes this ladder with Linux glibc SDKs, Linux musl SDKs, and the macOS
 source fallback. A separate deep-selfhost job verifies two self-hosted compiler
@@ -286,6 +287,12 @@ comments; the backend emits corresponding comments before generated function
 and statement groups. This path is opt-in and semantically inert. Structural
 LLVM budgets prevent instruction-count, stack-traffic, naming, and undefined-
 value regressions across the performance suite.
+
+The public build driver can atomically publish successful WIR and LLVM phase
+artifacts to caller-selected paths. This is the stable integration boundary for
+external analysis tools: the compiler emits facts and deterministic artifacts;
+tooling packages parse, compare, visualize, and report them. The compiler does
+not own HTML generation, databases, LLM orchestration, or report presentation.
 
 Stable versioned automation contracts are:
 

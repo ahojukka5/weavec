@@ -13,6 +13,8 @@ weavec build <input.weave> [input2.weave ...] -o <program>
              [--manifest-json <path>]
              [--diagnostics-json <path>]
              [--trace-json <path>]
+             [--emit-wir <path>]
+             [--emit-llvm <path>]
              [--llvm-provenance]
              [--keep-temporaries]
 ```
@@ -35,8 +37,8 @@ generations use the same WIR v2 boundary. See [Architecture](architecture.md) an
 - At least one `.weave` source is required.
 - `-o` and `--output` name the native executable.
 - Source order is preserved in the build manifest and passed to the frontend.
-- Executable, manifest, diagnostics, and trace paths must be distinct when the
-  corresponding outputs are requested.
+- Executable, WIR, LLVM, manifest, diagnostics, and trace paths must be distinct
+  when the corresponding outputs are requested.
 - A failed build does not publish a partial executable at the requested path.
 
 ### Target selection
@@ -64,11 +66,17 @@ public phase exit codes while preserving human-readable stderr. See
 of source-linked frontend transformations performed by the real lowering and
 optimization paths. See [Source-linked compilation trace](compilation-trace.md).
 
+`--emit-wir <path>` and `--emit-llvm <path>` atomically publish the successful
+frontend and backend artifacts at stable paths. They are intended for external
+compiler tooling and remain available when a later phase fails. See
+[Tooling artifact outputs](tooling-artifacts.md).
+
 `--llvm-provenance` adds comment-only function and statement provenance to the
-generated LLVM and implies `--keep-temporaries`, so the compiler prints the
-retained directory containing `program.ll`. The comments link exact surface and
-WIR byte ranges without changing ordinary WIR, LLVM semantics, or direct-WIR
-compatibility. See
+generated LLVM. When `--emit-llvm` is present, that explicit path is the stable
+inspection location; otherwise provenance implies `--keep-temporaries` and the
+compiler prints the retained directory containing `program.ll`. The comments
+link exact surface and WIR byte ranges without changing ordinary WIR, LLVM
+semantics, or direct-WIR compatibility. See
 [LLVM source provenance and quality budgets](llvm-provenance.md).
 
 ### Temporary artifacts
