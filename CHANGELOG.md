@@ -8,6 +8,31 @@ surface-language contract stabilises.
 
 ## [Unreleased]
 
+### Added
+
+- A canonical lowercase documentation index and complete final-compiler
+  architecture document.
+- Dedicated references for the public command line, implemented surface
+  language, `weavec-build-manifest-v1`, and release-package `BUILD-MANIFEST`.
+- A current quantum implementation guide that separates regression-tested
+  behavior from future runtime and target design.
+
+### Changed
+
+- Standardized maintained files under `docs/` on lowercase kebab-case names.
+- Refocused the root README on the user-facing compiler product and moved detailed
+  contracts into linked reference documents.
+- Replaced stale rename, bootstrap patching, local-only self-host, proposal-era
+  syntax, and workspace-specific guidance with current repository behavior.
+- Made the release guide reusable for versions derived from `VERSION` rather than
+  embedding one-time `v0.3.0` commands.
+- Clarified performance fixture naming, documented fixture `0175`, and identified
+  `0176` as the next free performance ID.
+- Reframed LLVM code-generation analysis as an engineering snapshot rather than a
+  stable language or performance contract.
+- Preserved short redirect documents for historical quantum and lowering links
+  without retaining competing proposal text.
+
 ## [0.3.0] — 2026-07-25
 
 ### Added
