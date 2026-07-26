@@ -15,31 +15,30 @@ fail() {
 [[ -f "$REGISTRY" ]] || fail "missing registry: $REGISTRY"
 [[ -f "$EXPECTED" ]] || fail "missing action expectations: $EXPECTED"
 
-mapfile -t declarations < <(grep '^; trace-action ' "$REGISTRY" || true)
-[[ "${#declarations[@]}" -gt 0 ]] || fail "registry has no trace-action declarations"
-
-declare -A seen_wrapper=()
-declare -A seen_action=()
-registered_wrappers=()
+declarations_file="$(mktemp)"
+wrappers_file="$(mktemp)"
 generated_actions="$(mktemp)"
-trap 'rm -f "$generated_actions"' EXIT
+trap 'rm -f "$declarations_file" "$wrappers_file" "$generated_actions"' EXIT
 
-for declaration in "${declarations[@]}"; do
+grep '^; trace-action ' "$REGISTRY" > "$declarations_file" || true
+declaration_count="$(wc -l < "$declarations_file" | tr -d ' ')"
+[[ "$declaration_count" -gt 0 ]] || fail "registry has no trace-action declarations"
+
+while IFS= read -r declaration; do
   read -r marker label wrapper kind pass action shape extra <<<"$declaration"
   [[ "$marker" == ";" && "$label" == "trace-action" && -z "${extra:-}" ]] || \
     fail "invalid declaration: $declaration"
   [[ "$shape" == "node" || "$shape" == "range" ]] || \
     fail "invalid event shape for $wrapper: $shape"
-  [[ -z "${seen_wrapper[$wrapper]:-}" ]] || fail "duplicate wrapper: $wrapper"
-  [[ -z "${seen_action[$action]:-}" ]] || fail "duplicate action: $action"
-  seen_wrapper[$wrapper]=1
-  seen_action[$action]=1
-  registered_wrappers+=("$wrapper")
+  grep -Fxq "$wrapper" "$wrappers_file" && fail "duplicate wrapper: $wrapper"
+  grep -Fxq "$action" "$generated_actions" && fail "duplicate action: $action"
+  printf '%s\n' "$wrapper" >> "$wrappers_file"
   printf '%s\n' "$action" >> "$generated_actions"
 
-  mapfile -t starts < <(grep -n -F "  (fn $wrapper" "$REGISTRY" || true)
-  [[ "${#starts[@]}" -eq 1 ]] || fail "$wrapper must have exactly one function"
-  start="${starts[0]%%:*}"
+  starts="$(grep -n -F "  (fn $wrapper" "$REGISTRY" || true)"
+  start_count="$(printf '%s\n' "$starts" | awk 'NF { count++ } END { print count + 0 }')"
+  [[ "$start_count" -eq 1 ]] || fail "$wrapper must have exactly one function"
+  start="${starts%%:*}"
   next_relative="$(tail -n "+$((start + 1))" "$REGISTRY" | \
     grep -n -m1 '^  (fn ' | cut -d: -f1 || true)"
   if [[ -n "$next_relative" ]]; then
@@ -60,20 +59,21 @@ for declaration in "${declarations[@]}"; do
   grep -Fq "(const_string_ptr \"$action\")" <<<"$block" || \
     fail "$wrapper action drift: $action"
 
-  call_count="$(grep -R -F "(call_void $wrapper" "$ROOT/src/frontend" | wc -l | tr -d ' ')"
+  call_count="$( (grep -R -F "(call_void $wrapper" "$ROOT/src/frontend" || true) | \
+    wc -l | tr -d ' ')"
   [[ "$call_count" -gt 0 ]] || fail "$wrapper has no frontend call site"
   if grep -R -Fq "(const_string_ptr \"$action\")" "$ROOT/src/frontend"; then
     fail "raw action metadata bypasses registry: $action"
   fi
   grep -Fq "| \`$action\` |" "$DOC" || fail "action missing from documentation: $action"
-done
+done < "$declarations_file"
 
 if grep -R -Eq 'call_void trace_event_for_(node|range)' "$ROOT/src/frontend"; then
   fail "frontend calls generic trace helper directly"
 fi
 
 while IFS= read -r wrapper; do
-  [[ -n "${seen_wrapper[$wrapper]:-}" ]] || fail "unregistered frontend wrapper: $wrapper"
+  grep -Fxq "$wrapper" "$wrappers_file" || fail "unregistered frontend wrapper: $wrapper"
 done < <(
   grep -RhoE '\(call_void trace_[A-Za-z0-9_]+' "$ROOT/src/frontend" |
     sed 's/(call_void //' | sort -u
@@ -98,4 +98,4 @@ grep -Fq 'scripts/check-trace-registry.sh' "$ROOT/test-all.sh" || \
 grep -Fq 'expected-actions.txt' "$ROOT/test/trace/test.sh" || \
   fail "trace regression does not load audited action expectations"
 
-printf 'check-trace-registry: %s actions passed\n' "${#declarations[@]}"
+printf 'check-trace-registry: %s actions passed\n' "$declaration_count"
