@@ -12,6 +12,7 @@ weavec build <input.weave> [input2.weave ...] -o <program>
              [--target <triple>]
              [--manifest-json <path>]
              [--diagnostics-json <path>]
+             [--trace-json <path>]
              [--keep-temporaries]
 ```
 
@@ -33,7 +34,8 @@ generations use the same WIR v2 boundary. See [Architecture](architecture.md) an
 - At least one `.weave` source is required.
 - `-o` and `--output` name the native executable.
 - Source order is preserved in the build manifest and passed to the frontend.
-- The manifest and diagnostics paths, when both requested, must be different.
+- Executable, manifest, diagnostics, and trace paths must be distinct when the
+  corresponding outputs are requested.
 - A failed build does not publish a partial executable at the requested path.
 
 ### Target selection
@@ -56,6 +58,10 @@ cross-compilation.
 `--diagnostics-json <path>` writes `weavec-diagnostics-v1` and enables stable
 public phase exit codes while preserving human-readable stderr. See
 [Machine-readable diagnostics](diagnostics.md).
+
+`--trace-json <path>` writes `weavec-compilation-trace-v1`, a deterministic list
+of source-linked frontend transformations performed by the real lowering and
+optimization paths. See [Source-linked compilation trace](compilation-trace.md).
 
 ### Temporary artifacts
 

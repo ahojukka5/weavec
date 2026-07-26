@@ -258,7 +258,8 @@ local experiment.
 4. quantum lowering and optimization tests;
 5. quantum native-runtime end-to-end tests;
 6. quantum LLVM checks;
-7. basic self-host integration tests.
+7. source-linked compilation-trace protocol tests;
+8. basic self-host integration tests.
 
 CI executes this ladder with Linux glibc SDKs, Linux musl SDKs, and the macOS
 source fallback. A separate deep-selfhost job verifies two self-hosted compiler
@@ -271,7 +272,7 @@ The release workflow additionally:
 - verifies the private runtime layout;
 - exercises low-level frontend/backend modes;
 - builds and runs a native executable through the public command;
-- verifies manifest and diagnostics protocols;
+- verifies manifest, diagnostics, and compilation-trace protocols;
 - proves failed builds do not publish an executable;
 - strips and retests the exact packaged compiler;
 - extracts both workflow archives into fresh directories and repeats package
@@ -283,6 +284,7 @@ Stable versioned automation contracts are:
 
 - `weavec-build-manifest-v1`;
 - `weavec-diagnostics-v1`;
+- `weavec-compilation-trace-v1`;
 - public phase exit codes used with diagnostics output;
 - the private runtime package location;
 - the explicit `--frontend` and `--backend` command shapes.

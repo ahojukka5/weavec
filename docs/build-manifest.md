@@ -125,6 +125,7 @@ compiler_linkage=static
 runtime_visibility=private
 build_manifest_format=weavec-build-manifest-v1
 diagnostics_format=weavec-diagnostics-v1
+compilation_trace_format=weavec-compilation-trace-v1
 ```
 
 This file identifies the package layout and compiler-chain dependencies. It is
@@ -132,4 +133,5 @@ not emitted by `weavec build`, and it is not JSON.
 
 Release validation checks that the archived compiler is static, the runtime path
 exists, and the exact packaged compiler can produce and run a native program
-while emitting the declared automation formats.
+while emitting the declared automation formats, including a source-linked
+compilation trace.

@@ -69,12 +69,13 @@ See the complete [command reference](docs/command-reference.md).
 
 ## Automation contracts
 
-A native build can emit two independent versioned JSON documents:
+A native build can emit three independent versioned JSON documents:
 
 ```sh
 weavec build main.weave -o main \
   --manifest-json main.build.json \
-  --diagnostics-json main.diagnostics.json
+  --diagnostics-json main.diagnostics.json \
+  --trace-json main.trace.json
 ```
 
 - [`weavec-build-manifest-v1`](docs/build-manifest.md) records the final phase,
@@ -83,8 +84,10 @@ weavec build main.weave -o main \
 - [`weavec-diagnostics-v1`](docs/diagnostics.md) provides stable phase exit codes,
   classified errors, and trustworthy source spans while preserving
   human-readable stderr.
+- [`weavec-compilation-trace-v1`](docs/compilation-trace.md) records deterministic,
+  source-linked lowering, rewrite, optimization, and contract-check events.
 
-The two output paths must be different.
+The executable and requested JSON output paths must all be different.
 
 ## Private target runtime
 
