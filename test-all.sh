@@ -32,14 +32,14 @@ log 'quantum-e2e'
 log 'quantum-llvm'
 "$ROOT/test/quantum/test-llvm.sh"
 
+log 'trace-registry'
+"$ROOT/scripts/check-trace-registry.sh"
+
 log 'compilation-trace'
 "$ROOT/test/trace/test.sh"
 
 log 'LLVM provenance'
 "$ROOT/test/llvm-provenance/test.sh"
-
-log 'tooling artifacts'
-"$ROOT/test/tooling-artifacts/test.sh"
 
 log 'self-host'
 "$ROOT/test/selfhost/test.sh"

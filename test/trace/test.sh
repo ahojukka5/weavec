@@ -116,12 +116,13 @@ set -e
 
 cmp "$TMP/trace.json" "$TMP/trace-second.json"
 
-python3 - "$TMP" <<'PY'
+python3 - "$TMP" "$ROOT/test/trace/expected-actions.txt" <<'PY'
 import json
 import pathlib
 import sys
 
 root = pathlib.Path(sys.argv[1])
+expected_actions = pathlib.Path(sys.argv[2])
 source_paths = [root / "library.weave", root / "main.weave"]
 sources = [path.read_bytes() for path in source_paths]
 trace = json.loads((root / "trace.json").read_text(encoding="utf-8"))
@@ -146,14 +147,9 @@ for event in trace["events"]:
     actions.setdefault(event["action"], []).append(event)
 
 required = {
-    "insert-requires-check",
-    "insert-ensures-check",
-    "lower-qubit-to-i64",
-    "wrap-typed-integer",
-    "decompose-h-to-rz-ry",
-    "cancel-self-inverse-pair",
-    "lower-gate-to-runtime-call",
-    "lower-measurement-to-runtime-call",
+    line.strip()
+    for line in expected_actions.read_text(encoding="utf-8").splitlines()
+    if line.strip()
 }
 assert required <= actions.keys()
 
