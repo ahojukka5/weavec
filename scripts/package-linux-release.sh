@@ -57,9 +57,11 @@ FRONTEND_WIR="$RELEASE_BUILD/frontend-smoke.wir"
 BACKEND_LL="$RELEASE_BUILD/backend-smoke.ll"
 BACKEND_BC="$RELEASE_BUILD/backend-smoke.bc"
 LEGACY_LL="$RELEASE_BUILD/legacy-implicit-backend.ll"
+BUILD_SOURCE="$RELEASE_BUILD/build-smoke.weave"
 BUILD_BIN="$RELEASE_BUILD/build-smoke"
 BUILD_MANIFEST="$RELEASE_BUILD/build-smoke.json"
 BUILD_DIAGNOSTICS="$RELEASE_BUILD/build-smoke.diagnostics.json"
+BUILD_TRACE="$RELEASE_BUILD/build-smoke.trace.json"
 FRONTEND_FAILURE_SOURCE="$RELEASE_BUILD/frontend-failure.weave"
 FRONTEND_FAILURE_BIN="$RELEASE_BUILD/frontend-failure"
 FRONTEND_FAILURE_DIAGNOSTICS="$RELEASE_BUILD/frontend-failure.diagnostics.json"
@@ -152,15 +154,29 @@ llvm-as "$BACKEND_LL" -o "$BACKEND_BC"
 
 # The public contract must produce a native executable without exposing runtime
 # selection or a linker command to the caller. It must also produce the stable
-# manifest and diagnostics protocols from the exact packaged compiler.
-rm -f "$BUILD_BIN" "$BUILD_MANIFEST" "$BUILD_DIAGNOSTICS"
+# manifest, diagnostics, and compilation-trace protocols from the exact
+# packaged compiler. The typed integer sugar guarantees one trace event.
+cat > "$BUILD_SOURCE" <<'EOF'
+(program
+  (name "release-build-smoke")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let answer i32 42)
+      (return (local_get answer)))))
+EOF
+rm -f "$BUILD_BIN" "$BUILD_MANIFEST" "$BUILD_DIAGNOSTICS" "$BUILD_TRACE"
 "$COMPILER" build \
-  "$ROOT/test/correctness/surface/01_return_42.weave" \
+  "$BUILD_SOURCE" \
   -o "$BUILD_BIN" \
   --manifest-json "$BUILD_MANIFEST" \
-  --diagnostics-json "$BUILD_DIAGNOSTICS"
-[[ -x "$BUILD_BIN" && -s "$BUILD_MANIFEST" && -s "$BUILD_DIAGNOSTICS" ]] || {
-  printf 'weavec build did not produce its executable, manifest, and diagnostics\n' >&2
+  --diagnostics-json "$BUILD_DIAGNOSTICS" \
+  --trace-json "$BUILD_TRACE"
+[[ -x "$BUILD_BIN" && -s "$BUILD_MANIFEST" && -s "$BUILD_DIAGNOSTICS" && \
+   -s "$BUILD_TRACE" ]] || {
+  printf 'weavec build did not produce all requested automation outputs\n' >&2
   exit 1
 }
 set +e
@@ -216,7 +232,7 @@ if [[ "$backend_failure_status" -ne 11 || -e "$BACKEND_FAILURE_BIN" ]]; then
 fi
 
 python3 - \
-  "$BUILD_DIAGNOSTICS" \
+  "$BUILD_DIAGNOSTICS" "$BUILD_SOURCE" "$BUILD_TRACE" \
   "$FRONTEND_FAILURE_SOURCE" "$FRONTEND_FAILURE_DIAGNOSTICS" \
   "$BACKEND_FAILURE_SOURCE" "$BACKEND_FAILURE_DIAGNOSTICS" <<'PY'
 import json
@@ -225,6 +241,8 @@ import sys
 
 (
     success_path,
+    build_source_path,
+    build_trace_path,
     frontend_source_path,
     frontend_diagnostics_path,
     backend_source_path,
@@ -240,6 +258,19 @@ assert success == {
     "raw_exit_code": 0,
     "diagnostics": [],
 }
+
+trace = json.loads(build_trace_path.read_text(encoding="utf-8"))
+assert trace["format"] == "weavec-compilation-trace-v1"
+assert trace["status"] == "succeeded"
+assert trace["phase"] == "complete"
+assert trace["sources"] == [str(build_source_path)]
+events = [
+    event for event in trace["events"]
+    if event["action"] == "wrap-typed-integer"
+]
+assert len(events) == 1
+assert events[0]["surface"] == "42"
+assert events[0]["detail"] == "i32"
 
 frontend = json.loads(frontend_diagnostics_path.read_text(encoding="utf-8"))
 assert frontend["format"] == "weavec-diagnostics-v1"
@@ -294,6 +325,7 @@ compiler_linkage=static
 runtime_visibility=private
 build_manifest_format=weavec-build-manifest-v1
 diagnostics_format=weavec-diagnostics-v1
+compilation_trace_format=weavec-compilation-trace-v1
 EOF
 
 printf '%s\n' "$VERSION" > "$PACKAGE_DIR/VERSION"
@@ -309,11 +341,12 @@ fi
 # relative runtime discovery are tested exactly as archived.
 "$COMPILER" --backend "$FRONTEND_WIR" "$BACKEND_LL"
 llvm-as "$BACKEND_LL" -o "$BACKEND_BC"
-rm -f "$BUILD_BIN" "$BUILD_DIAGNOSTICS"
+rm -f "$BUILD_BIN" "$BUILD_DIAGNOSTICS" "$BUILD_TRACE"
 "$COMPILER" build \
-  "$ROOT/test/correctness/surface/01_return_42.weave" \
+  "$BUILD_SOURCE" \
   -o "$BUILD_BIN" \
-  --diagnostics-json "$BUILD_DIAGNOSTICS"
+  --diagnostics-json "$BUILD_DIAGNOSTICS" \
+  --trace-json "$BUILD_TRACE"
 set +e
 "$BUILD_BIN"
 build_status="$?"
@@ -322,7 +355,7 @@ set -e
   printf 'stripped package build smoke returned %s instead of 42\n' "$build_status" >&2
   exit 1
 }
-python3 - "$BUILD_DIAGNOSTICS" <<'PY'
+python3 - "$BUILD_DIAGNOSTICS" "$BUILD_TRACE" <<'PY'
 import json
 import pathlib
 import sys
@@ -332,6 +365,11 @@ assert document["format"] == "weavec-diagnostics-v1"
 assert document["status"] == "succeeded"
 assert document["exit_code"] == 0
 assert document["diagnostics"] == []
+
+trace = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding="utf-8"))
+assert trace["format"] == "weavec-compilation-trace-v1"
+assert trace["status"] == "succeeded"
+assert any(event["action"] == "wrap-typed-integer" for event in trace["events"])
 PY
 
 rm -f "$ARCHIVE"

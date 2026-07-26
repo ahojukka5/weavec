@@ -29,6 +29,9 @@ log 'quantum-e2e'
 log 'quantum-llvm'
 "$ROOT/test/quantum/test-llvm.sh"
 
+log 'compilation-trace'
+"$ROOT/test/trace/test.sh"
+
 log 'self-host'
 "$ROOT/test/selfhost/test.sh"
 
