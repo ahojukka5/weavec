@@ -1,14 +1,15 @@
-# weavec — Self-Hosted Weave Compiler
+# weavec — self-hosted Weave compiler
 
 [![ci](https://github.com/ahojukka5/weavec/actions/workflows/ci.yml/badge.svg)](https://github.com/ahojukka5/weavec/actions/workflows/ci.yml)
 [![release](https://github.com/ahojukka5/weavec/actions/workflows/release.yml/badge.svg)](https://github.com/ahojukka5/weavec/actions/workflows/release.yml)
 
-> The user-facing Weave compiler, written in surface Weave. It owns the complete
-> source-to-executable pipeline while retaining explicit low-level bootstrap
-> interfaces for compiler development.
+`weavec` is the user-facing Weave compiler, written primarily in surface Weave.
+It owns the complete source-to-executable product flow while retaining explicit
+frontend and backend modes for compiler development and reproducible
+bootstrapping.
 
-This repository was previously named `weavec2`. It is now simply `weavec`
-because it is the final compiler product.
+This repository was named `weavec2` through release `v0.1.2`. It is now simply
+`weavec` because it is the final compiler product.
 
 ## Compiler chain
 
@@ -16,18 +17,17 @@ because it is the final compiler product.
 weavec0 → weavec1 → weavec-bootstrap → weavec
 ```
 
-| Component | Repository | Role |
-|---|---|---|
-| `weavec0` | [`ahojukka5/weavec0`](https://github.com/ahojukka5/weavec0) | Hand-written LLVM-IR seed and Stage 0 SDK. |
-| `weavec1` | [`ahojukka5/weavec1`](https://github.com/ahojukka5/weavec1) | WIR-to-LLVM compiler and Stage 1 SDK. |
-| `weavec-bootstrap` | [`ahojukka5/weavec-bootstrap`](https://github.com/ahojukka5/weavec-bootstrap) | Surface-Weave-to-WIR bootstrap frontend and parser SDK. |
-| `weavec` | **this repository** | User-facing self-hosted compiler and native build driver. |
+| Component | Role |
+|---|---|
+| [`weavec0`](https://github.com/ahojukka5/weavec0) | Minimal hand-written LLVM-IR seed and Stage 0 SDK. |
+| [`weavec1`](https://github.com/ahojukka5/weavec1) | Complete stable WIR core version 2 to LLVM backend and Stage 1 SDK. |
+| [`weavec-bootstrap`](https://github.com/ahojukka5/weavec-bootstrap) | Frozen surface-Weave to WIR core version 2 bootstrap frontend and parser SDK. |
+| `weavec` | Evolving user-facing compiler, self-hosted frontend/backend, native build driver, diagnostics, and package runtime boundary. |
 
-Normal users should interact only with `weavec`.
+Normal users interact only with `weavec`. The three lower repositories are
+frozen bootstrap infrastructure.
 
-## Public build interface
-
-Compile one or more surface-Weave modules into a native executable:
+## Build a native program
 
 ```sh
 weavec build main.weave -o main
@@ -40,13 +40,12 @@ Multi-file programs use the same command:
 weavec build main.weave library.weave platform.weave -o application
 ```
 
-The caller does not select or name a runtime library. Internally the command
-performs:
+The current self-hosted compiler performs:
 
 ```text
 surface Weave
     ↓ frontend
-WIR
+WIR core version 1
     ↓ backend
 LLVM IR
     ↓ LLVM code generation
@@ -56,14 +55,21 @@ native object
 executable
 ```
 
-Intermediate files are created in a private temporary directory. The final
-executable is linked beside the requested output under a temporary name and then
-published with an atomic rename. A failed build never replaces the previous
-output.
+The initial seed compiler is built differently: `weavec-bootstrap v0.3.0`
+lowers the compiler sources to WIR core version 2, and `weavec1 v0.3.1` compiles
+that seed input to LLVM. The current self-hosted frontend/backend still use core
+version 1. See [Architecture](docs/architecture.md) for this version split.
+
+Intermediate files live in a private temporary directory. The linker writes a
+temporary executable beside the requested output, and the compiler publishes it
+with an atomic rename only after every phase succeeds. A failed build does not
+replace an existing output.
+
+See the complete [command reference](docs/command-reference.md).
 
 ## Automation contracts
 
-A build can emit two separate versioned JSON documents:
+A native build can emit two independent versioned JSON documents:
 
 ```sh
 weavec build main.weave -o main \
@@ -71,81 +77,41 @@ weavec build main.weave -o main \
   --diagnostics-json main.diagnostics.json
 ```
 
-The paths must be different.
+- [`weavec-build-manifest-v1`](docs/build-manifest.md) records the final phase,
+  target, compiler, private runtime, code generator, linker, output, and ordered
+  source paths.
+- [`weavec-diagnostics-v1`](docs/diagnostics.md) provides stable phase exit codes,
+  classified errors, and trustworthy source spans while preserving
+  human-readable stderr.
 
-### Build manifest
+The two output paths must be different.
 
-`weavec-build-manifest-v1` records the final status and phase, source paths,
-target, compiler, private runtime resource, LLVM code generator, linker, and
-output path.
-
-### Machine-readable diagnostics
-
-`weavec-diagnostics-v1` preserves the existing human-readable stderr stream and
-adds an automation side channel:
-
-```json
-{
-  "format": "weavec-diagnostics-v1",
-  "status": "failed",
-  "phase": "backend",
-  "exit_code": 11,
-  "raw_exit_code": 1,
-  "diagnostics": [
-    {
-      "code": "backend.unknown-expression-operator",
-      "severity": "error",
-      "phase": "backend",
-      "message": "unknown expression operator: unknown_form",
-      "source": "main.weave",
-      "span_origin": "inferred-unique-token",
-      "span": {
-        "start_byte": 109,
-        "end_byte": 121,
-        "start_line": 6,
-        "start_column": 18,
-        "end_line": 6,
-        "end_column": 30
-      }
-    }
-  ]
-}
-```
-
-Offsets are UTF-8 byte offsets with an exclusive end. Lines and columns are
-one-based. `span_origin` distinguishes exact compiler-preflight locations from
-uniquely inferred token locations. Ambiguous locations remain `null` rather than
-being guessed.
-
-Stable public exit codes when `--diagnostics-json` is used:
-
-| Code | Meaning |
-|---:|---|
-| `0` | build succeeded |
-| `2` | invalid command-line request |
-| `10` | surface frontend or source parse failed |
-| `11` | WIR backend failed |
-| `12` | LLVM IR to object generation failed |
-| `13` | target linker failed |
-| `14` | atomic output publication failed |
-| `15` | build driver or toolchain setup failed |
-
-`raw_exit_code` preserves the underlying phase status. Full schema details and
-current span coverage are documented in [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md).
-
-## Private runtime contract
+## Private target runtime
 
 Runtime support is part of the compiler product but is not a user-managed API.
-A release package stores it under the compiler's private target directory:
+A release package stores one target runtime at:
+
+```text
+lib/weavec/<target-triple>/libweave-runtime.a
+```
+
+`weavec build` discovers the archive relative to the running compiler. A source
+checkout may use `runtime/program.c` as a development fallback. `--runtime` and
+`WEAVEC_RUNTIME` exist only for compiler development.
+
+The runtime is a static archive, so the target linker pulls in only referenced
+objects. Future packages can add target directories without changing the public
+build command.
+
+## Install a release
+
+Published Linux x86-64 archives are provided separately for glibc and musl. Each
+archive contains:
 
 ```text
 weavec-vX.Y.Z-linux-x86_64-<libc>/
-├── bin/
-│   └── weavec
-├── lib/
-│   └── weavec/
-│       └── <target-triple>/
-│           └── libweave-runtime.a
+├── bin/weavec
+├── lib/weavec/<target-triple>/libweave-runtime.a
 ├── BUILD-MANIFEST
 ├── VERSION
 ├── README.md
@@ -153,55 +119,29 @@ weavec-vX.Y.Z-linux-x86_64-<libc>/
 └── NOTICE
 ```
 
-`weavec build` resolves the archive relative to the running compiler executable.
-A source checkout uses `runtime/program.c` as a development fallback. The
-`WEAVEC_RUNTIME` or `--runtime` override exists for compiler development and is
-not part of normal user operation.
+After extracting, add the package `bin` directory to `PATH`. The current driver
+uses installed LLVM tools internally:
 
-The runtime is a static archive so the target linker pulls in only referenced
-object modules. Its target and checksum belong to the release/build manifest.
-Future target packages can add target directories without changing the public
-command.
+- glibc package: `clang` for code generation and linking;
+- musl package: `clang` for code generation and `musl-gcc` for linking.
 
-## Install a release
-
-Linux x86-64 releases are provided separately for glibc and musl. After
-extracting an archive, add its `bin` directory to `PATH` and invoke `weavec`.
-The compiler discovers the adjacent private runtime automatically.
-
-Native builds currently use an installed LLVM code generator and target linker:
-
-- glibc package: `clang`;
-- musl package: `clang` for LLVM IR → object and `musl-gcc` for final linking.
-
-These tools are implementation dependencies of the current build driver; users
-do not invoke their commands or provide runtime paths themselves.
-
-Release downloads include `SHA256SUMS`. See
-[`docs/RELEASING.md`](docs/RELEASING.md).
+Release downloads include `SHA256SUMS`. See the reusable
+[release procedure](docs/releasing.md).
 
 ## Build from source
 
-Linux x86-64 source builds consume published, checksum-verified SDKs. They need:
-
-- Bash 4 or newer;
-- LLVM and Clang 14 or newer;
-- `curl`, `tar`, `sha256sum`, and Python 3.
+Linux x86-64 source builds consume checksum-verified published SDKs. Required
+tools are Bash 4 or newer, LLVM/Clang 14 or newer, `curl`, `tar`, `sha256sum`, and
+Python 3.
 
 ```sh
-sudo apt-get install -y clang curl llvm python3
-
 git clone https://github.com/ahojukka5/weavec.git
 cd weavec
 ./build.sh
 ./test-all.sh
-
-./build/weavec build test/correctness/surface/01_return_42.weave \
-  -o /tmp/weave-example
-bash test/diagnostics/test-build-diagnostics.sh
 ```
 
-macOS currently uses the pinned source fallback:
+macOS currently uses pinned source fallbacks:
 
 ```sh
 brew install llvm git
@@ -210,7 +150,7 @@ export PATH="$(brew --prefix llvm)/bin:$PATH"
 ./test-all.sh
 ```
 
-The compiler build produces:
+The build produces:
 
 ```text
 build/weavec.wir
@@ -221,31 +161,37 @@ build/weavec
 
 There are no current `weavec2` or `weavefront` compatibility aliases.
 
-## Command line
+## SDK-first seed bootstrap
 
-Public user interface:
+The normal Linux seed build downloads:
+
+- `weavec1 v0.3.1` for WIR core version 2 to LLVM compilation;
+- `weavec-bootstrap v0.3.0` for surface-to-WIR-v2 lowering and
+  `libweave-sexpr.bc`.
+
+The selected glibc or musl archives are verified against release checksums and
+cached under `build/vendor/`. The normal Linux path does not clone or build
+`weavec0`, `weavec1`, or `weavec-bootstrap` from source.
+
+Unsupported hosts and explicit development configurations use pinned source
+fallbacks. Stage 0 is resolved only when Stage 1 must be built from source.
+
+The parser boundary is one published artifact:
 
 ```text
-weavec build <input.weave> [input2.weave ...] -o <program>
-             [--target <triple>]
-             [--manifest-json <path>]
-             [--diagnostics-json <path>]
-             [--keep-temporaries]
+weavec-bootstrap SDK/lib/libweave-sexpr.bc
 ```
 
-Compiler-development overrides:
+`weavec` does not consume individual generated parser modules or rewrite lower
+repository build scripts.
+
+## Low-level compiler modes
+
+The public build command is supplemented by explicit compiler interfaces:
 
 ```text
---runtime <path>   / WEAVEC_RUNTIME
---codegen <path>   / WEAVEC_CODEGEN
---linker <path>    / WEAVEC_LINKER
-```
-
-Low-level bootstrap and analysis interfaces:
-
-```text
-weavec --backend <input.wir> <output.ll>
 weavec --frontend [--strict-contracts] <output.wir> <input.weave> [input2.weave ...]
+weavec --backend <input.wir> <output.ll>
 weavec --dump-quantum-stats <output.metrics> <input.weave>
 weavec --explain <input.weave>
 weavec --explain-json <input.weave>
@@ -253,110 +199,81 @@ weavec --audit <input.weave>
 weavec --audit-json <input.weave>
 ```
 
-Backend compilation is intentionally explicit. The former
-`weavec input.wir output.ll` spelling is rejected.
+The current self-hosted `--frontend` emits core-version-1 WIR for the current
+self-hosted `--backend`. The former implicit `weavec input.wir output.ll`
+backend spelling is rejected.
 
-## SDK-first bootstrap
+See the [command reference](docs/command-reference.md),
+[language reference](docs/language-reference.md), and
+[contracts and audit guide](docs/contracts-and-explain.md).
 
-The normal Linux source build downloads:
+## Tests and self-hosting
 
-- `weavec1 v0.3.1` for WIR-to-LLVM compilation;
-- `weavec-bootstrap v0.3.0` for surface lowering and `libweave-sexpr.bc`.
+`./test-all.sh` builds the compiler and runs:
 
-Both archives are selected for `glibc` or `musl`, verified against release
-checksums, and cached under `build/vendor/*-sdk/`. The normal Linux path does not
-clone or build `weavec0`, `weavec1`, or `weavec-bootstrap` from source.
+- direct WIR and surface correctness tests;
+- performance LLVM goldens;
+- quantum lowering and optimization tests;
+- quantum runtime end-to-end tests;
+- quantum LLVM validation;
+- basic self-host integration tests.
 
-Environment overrides:
+CI executes the full ladder with Linux glibc SDKs, Linux musl SDKs, and the macOS
+source fallback.
 
-- `WEAVEC1_SDK=/path/to/sdk` or `WEAVEC1_VERSION=vX.Y.Z`;
-- `WEAVEC1_LIBC=glibc|musl`;
-- `WEAVEC_BOOTSTRAP_SDK=/path/to/sdk` or
-  `WEAVEC_BOOTSTRAP_VERSION=vX.Y.Z`;
-- `WEAVEC_BOOTSTRAP_LIBC=glibc|musl`;
-- `WEAVEC1=/path/to/source` and `WEAVEC_BOOTSTRAP=/path/to/source` force source
-  dependencies;
-- `WEAVEC_BACKEND=/path/to/weavec` selects an existing self-hosted backend.
-
-Unsupported hosts fall back to the pinned source refs. Stage 0 is resolved only
-when the Stage 1 source fallback must be built.
-
-## Parser-library boundary
-
-The parser implementation sources remain in `weavec-bootstrap`. Downstream code
-does not consume generated parser `.ll` files individually. The published
-boundary is one artifact:
-
-```text
-weavec-bootstrap SDK/lib/libweave-sexpr.bc
-```
-
-`weavec` links that library as a unit. The bootstrap executable also owns its
-main-thread stack requirement; this repository does not rewrite dependency
-build scripts.
-
-## Build pipeline
-
-`./build.sh`:
-
-1. resolves the `weavec1` SDK or source fallback;
-2. resolves the `weavec-bootstrap` SDK or source fallback;
-3. lowers the ordered compiler sources into `build/weavec.wir`;
-4. compiles WIR to `build/weavec.ll` with `weavec1` or `WEAVEC_BACKEND`;
-5. links the compiler with `libweave-sexpr.bc`;
-6. links the development `build/weavec` executable with compiler host support
-   and the native build driver.
-
-Release packaging relinks `build/weavec.bc` into separate static glibc and musl
-compiler executables, builds the matching private runtime archive, and tests the
-public `weavec build` contract from the exact package tree.
-
-## Tests
-
-`./test-all.sh` runs correctness, performance, quantum, end-to-end, and self-host
-checks. `bash test/diagnostics/test-build-diagnostics.sh` additionally verifies
-the machine-readable diagnostics contract. CI normally validates Linux glibc
-SDKs, Linux musl SDKs, and the macOS source fallback; when Actions capacity is
-unavailable the same scripts are run locally.
-
-Regenerate performance goldens only after an intentional backend-output change:
+Deep self-hosting is a separate permanent CI and release gate:
 
 ```sh
-./test/performance/regen-golden.sh
-git diff -- test/performance
-```
-
-## Deeper self-host
-
-```sh
+./build.sh
 ./selfhost.sh
 ```
 
-This builds `build/selfhost/stage1/weavec` and
-`build/selfhost/stage2/weavec`, then runs stage-2 fixture smokes. It remains a
-local release and architecture check because it rebuilds the large compiler
-multiple times.
+It builds:
 
-## Known limitations
+```text
+build/selfhost/stage1/weavec
+build/selfhost/stage2/weavec
+```
+
+Both generations currently use the self-hosted core-version-1 frontend/backend
+boundary. Stage 2 must reproduce representative surface WIR and native behavior.
+
+## Current limitations
 
 - Published compiler packages currently cover Linux x86-64 only.
-- Each package currently installs one native target; `--target` rejects targets
-  that are not present in that package.
-- The source-to-executable driver delegates LLVM object generation and target
-  linking to installed commands rather than bundling an LLVM linker.
-- Surface syntax preflight spans are exact. Some backend spans are currently
-  attached only when the diagnostic names a unique canonical-source token;
-  explicit location propagation through WIR remains future work.
+- Each package installs one native target; `--target` rejects absent targets.
+- Object generation and target linking use installed commands rather than a
+  bundled LLVM toolchain.
+- The seed bootstrap uses WIR core version 2 while the current self-hosted
+  frontend/backend still use core version 1; unifying them requires a future
+  coordinated compiler migration.
+- Some backend diagnostics still use conservative unique-token inference because
+  exact locations are not yet propagated through WIR.
 - `runtime/quantum_runtime.c` is a test stub, not a production quantum runtime.
+- Surface Weave remains pre-1.0 and continues to evolve in this repository.
+
+## Documentation
+
+Start with [`docs/index.md`](docs/index.md). Primary references are:
+
+- [Architecture](docs/architecture.md)
+- [Command reference](docs/command-reference.md)
+- [Surface language reference](docs/language-reference.md)
+- [Build manifests](docs/build-manifest.md)
+- [Machine-readable diagnostics](docs/diagnostics.md)
+- [Releasing](docs/releasing.md)
+
+Files under `docs/` use lowercase kebab-case names. Conventional root metadata
+retains standard uppercase names.
+
+## Contributing
+
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md) and the relevant design or protocol
+document before changing surface syntax, backend output, source ordering,
+runtime boundaries, automation schemas, target packaging, emitted WIR, or
+bootstrap pins.
 
 ## License
 
 Licensed under the Apache License, Version 2.0. See [`LICENSE`](LICENSE) and
 [`NOTICE`](NOTICE).
-
-## Contributing
-
-Read [`CONTRIBUTING.md`](CONTRIBUTING.md),
-[`docs/RELEASING.md`](docs/RELEASING.md), and the relevant design document before
-changing the surface contract, backend output, source ordering, runtime boundary,
-diagnostics schema, or bootstrap chain.

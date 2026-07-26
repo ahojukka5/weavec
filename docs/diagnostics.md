@@ -9,11 +9,12 @@ weavec build main.weave -o main \
   --diagnostics-json main.diagnostics.json
 ```
 
-The manifest and diagnostics paths must be different.
+The manifest and diagnostics paths must be different. The manifest protocol is
+documented separately in [Build manifests](build-manifest.md).
 
 ## Schema
 
-The initial schema is `weavec-diagnostics-v1`:
+The current schema is `weavec-diagnostics-v1`:
 
 ```json
 {
@@ -67,20 +68,38 @@ phase code:
 
 | Code | Meaning |
 |---:|---|
-| `0` | build succeeded |
-| `2` | invalid command-line request |
-| `10` | surface frontend or source parse failed |
-| `11` | WIR backend failed |
-| `12` | LLVM IR to object generation failed |
-| `13` | target linker failed |
-| `14` | atomic output publication failed |
-| `15` | build driver or toolchain setup failed |
+| `0` | Build succeeded. |
+| `2` | Invalid command-line request. |
+| `10` | Surface frontend or source parse failed. |
+| `11` | WIR backend failed. |
+| `12` | LLVM IR to object generation failed. |
+| `13` | Target linker failed. |
+| `14` | Atomic output publication failed. |
+| `15` | Build driver or toolchain setup failed. |
 
 `raw_exit_code` preserves the underlying subprocess or legacy driver status.
+The stable code is the automation contract; the raw status is diagnostic
+context.
+
+## Diagnostic fields
+
+| Field | Meaning |
+|---|---|
+| `code` | Stable machine-readable classification when one is available. |
+| `severity` | Currently `error` for failed builds. |
+| `phase` | Compiler or driver phase that produced the diagnostic. |
+| `message` | Human-readable message extracted from the existing stderr stream. |
+| `source` | Canonical input path associated with the diagnostic, when known. |
+| `span_origin` | Provenance and trust level of the source span. |
+| `span` | Source range or `null` when no trustworthy range is available. |
+
+The outer document may contain diagnostics without a source span for code
+generation, linking, publication, setup failures, or unclassified compiler
+errors.
 
 ## Span provenance
 
-`span_origin` is part of the contract:
+`span_origin` is part of the protocol:
 
 - `compiler-preflight` — exact source span produced by the compiler's canonical
   S-expression preflight scanner;
@@ -92,9 +111,13 @@ The compiler never invents a span when a token is ambiguous. Consumers may map
 an exact or uniquely inferred span into their own source maps, but should retain
 `span_origin` in the resulting diagnostic.
 
-## Current coverage
+Explicit source-location propagation through surface lowering and WIR is tracked
+as future compiler work. A future exact backend origin can be added without
+changing the `weavec-diagnostics-v1` outer document.
 
-The first version provides exact spans for:
+## Current exact coverage
+
+The current version provides exact preflight spans for:
 
 - unmatched closing parentheses;
 - unclosed lists;
@@ -102,17 +125,21 @@ The first version provides exact spans for:
 - unreadable source files as source-level diagnostics without spans.
 
 It also classifies common backend messages such as unknown expression operators,
-unknown identifiers, and wrong arity. A canonical-source span is attached only
-when the named token is unique.
-
-Code generation, linking, publishing, and unclassified compiler errors remain
-structured phase diagnostics without a source span. Future compiler work can
-replace inferred token spans with locations propagated explicitly through WIR;
-the `weavec-diagnostics-v1` outer document does not need to change for that
-extension.
+unknown identifiers, unresolved call targets, and wrong arity. A canonical-source
+span is attached only when the named token is unique.
 
 ## Human diagnostics
 
 stderr remains authoritative for interactive use and is replayed unchanged after
 capture. The JSON document is an automation side channel; enabling it does not
-silence or replace the existing messages.
+silence or replace existing messages.
+
+## Compatibility rules
+
+Consumers should:
+
+- require the exact `format` value they support;
+- accept additional diagnostic entries and future optional fields;
+- use `exit_code` for automation and retain `raw_exit_code` for investigation;
+- treat `span` as optional even for classified errors;
+- preserve `span_origin` whenever diagnostics are transformed or forwarded.

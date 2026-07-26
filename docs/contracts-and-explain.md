@@ -1,76 +1,64 @@
 # Executable contracts and explain mode
 
-Status: Implemented in weavec  
-Date: 2026-05-27  
-See also: [representation-lowering.md](representation-lowering.md)
+Status: implemented in `weavec`
 
-## Overview
+Weave functions may declare runtime preconditions and postconditions, plus
+conservatively checked effect contracts. The compiler can also explain and audit
+surface functions without generating WIR or LLVM.
 
-Weave surface functions may carry executable contracts: boolean promises checked
-at runtime during normal compilation. A separate compiler mode, `--explain`,
-prints those promises and a small audit summary without generating code.
+## Runtime contracts
 
-This is an MVP toward reproducible scientific and systems code where the
-compiler can both enforce and describe what a function claims.
-
-Non-goals in this version:
-
-- Static theorem proving or dependent types
-- Symbolic algebra over contract expressions
-- A separate contract language or non s-expression syntax
-
-## Surface syntax
-
-Contracts attach to the standard weavec function form. Optional
-`(requires …)` and `(ensures …)` clauses sit after `(returns …)` and before
-`(do …)`:
+Optional `(requires ...)` and `(ensures ...)` clauses appear after `(returns ...)`
+and before `(do ...)`:
 
 ```weave
-(program
-  (name "clamp-demo")
-  (version "0.1")
-  (entry main)
-  (fn clamp
-    (params (x i32) (lo i32) (hi i32))
-    (returns i32)
-    (requires (le_i32 lo hi))
-    (ensures (ge_i32 result lo))
-    (ensures (le_i32 result hi))
-    (do
-      (if
-        (condition (lt_i32 x lo))
-        (then (do (return lo)))
-        (else (do)))
-      (if
-        (condition (gt_i32 x hi))
-        (then (do (return hi)))
-        (else (do)))
-      (return x)))
-  (fn main
-    (params)
-    (returns i32)
-    (do
-      (return (call_i32 clamp (const_i32 12) (const_i32 0) (const_i32 10))))))
+(fn clamp
+  (params (x i32) (lo i32) (hi i32))
+  (returns i32)
+  (requires (le_i32 lo hi))
+  (ensures (ge_i32 result lo))
+  (ensures (le_i32 result hi))
+  (do
+    (if
+      (condition (lt_i32 x lo))
+      (then (do (return lo)))
+      (else (do)))
+    (if
+      (condition (gt_i32 x hi))
+      (then (do (return hi)))
+      (else (do)))
+    (return x)))
 ```
 
 Rules:
 
-- Multiple `(requires …)` and `(ensures …)` clauses are allowed.
-- Optional marker clauses `(pure)`, `(no_alloc)`, and `(deterministic)` declare
-  effect contracts audited by the compiler.
-- Contract expressions use the same boolean and integer forms as ordinary
-  surface code (`le_i32`, `ge_i32`, bare parameter names, literals, and so on).
-- In `(ensures …)` only, the identifier `result` refers to the value being
-  returned at that return site.
-- Using `result` inside `(requires …)` is rejected at compile time.
+- Multiple `requires` and `ensures` clauses are allowed.
+- Contract expressions use ordinary supported boolean and integer forms.
+- In `ensures` only, `result` denotes the value at the current return site.
+- Using `result` in `requires` is rejected during frontend lowering.
+- Functions without contract clauses compile unchanged.
 
-Functions without contract clauses compile unchanged.
+### Runtime behavior
 
-## Effect contracts (`pure`, `no_alloc`, `deterministic`)
+| Clause | Check point | Failure behavior |
+|---|---|---|
+| `requires` | Function entry | `contract failed: requires` on stderr, exit `1`. |
+| `ensures` | Before every return, including nested returns | `contract failed: ensures` on stderr, exit `1`. |
 
-Marker clauses `(pure)`, `(no_alloc)`, and `(deterministic)` sit after
-`(returns …)` and before `(do …)`, like `(requires …)` and `(ensures …)`. They
-have no expression child:
+The frontend inserts runtime checks during surface-to-WIR lowering. The current
+compiler does not attempt theorem proving or symbolic proof of these expressions.
+
+Relevant implementation boundaries are:
+
+- `src/frontend/contract-lower.weave` — contract lowering;
+- `runtime/portable.c` — compiler-host definition of
+  `weave_rt_contract_fail`;
+- `runtime/program.c` — program-runtime definition packaged privately;
+- `src/llvm/module.weave` — backend declaration used by linked programs.
+
+## Effect contracts
+
+Marker clauses have no expression child:
 
 ```weave
 (fn scale
@@ -83,103 +71,51 @@ have no expression child:
     (return (mul_i32 x (const_i32 2)))))
 ```
 
-| Clause | Meaning | Default `--frontend` | With `--strict-contracts` |
-|--------|---------|------------------------|---------------------------|
-| `pure` | No heap allocation and no known runtime I/O or libc calls | Compiles; audit reports status | `contract failed: pure` on stderr, exit 1 |
-| `no_alloc` | No heap allocation in the function body | Compiles; audit reports status | `contract failed: no_alloc` on stderr, exit 1 |
-| `deterministic` | No known nondeterministic or unknown external effects | Compiles; audit reports status | `contract failed: deterministic` on stderr, exit 1 |
+| Clause | Declared property |
+|---|---|
+| `pure` | No heap allocation and no known runtime I/O or impure external calls. |
+| `no_alloc` | No allocation in the function or reachable local callees. |
+| `deterministic` | No known nondeterministic or unknown external effects. |
 
-Malformed markers such as `(pure true)` are rejected at compile time with
-`malformed effect clause: … must have no arguments`.
+Malformed markers such as `(pure true)` are rejected.
 
-Analysis is conservative and name-based. Direct body effects are collected from
-the AST, then propagated across `(fn …)` and `(entry …)` calls in the same
-program:
+Analysis is conservative and name-based. Direct effects are collected from each
+function body and propagated through calls to local functions until a fixpoint is
+reached, including mutual recursion.
 
-- `no_alloc` fails when the function or any reachable local callee allocates
-  (`malloc`, `realloc`, or `(call_ptr malloc …)`).
-- `pure` fails on allocation, known I/O or fatal runtime calls (`puts`,
-  `putchar`, `weave_rt_write_file`, `weave_rt_fatal`, `free`, …), or unknown
-  external callees.
-- `deterministic` fails on known nondeterministic calls (`weave_rt_read_file`,
-  `read`, `open`, …) or unknown external callees.
+Examples of conservative classifications:
 
-Fixpoint iteration resolves mutual recursion (for example two `(pure)` functions
-that call each other with no heap or runtime effects still satisfy `(pure)`).
+- `no_alloc` fails on `malloc`, `realloc`, or reachable local allocation;
+- `pure` fails on allocation, known I/O/fatal calls, `free`, or unknown external
+  callees;
+- `deterministic` fails on known nondeterministic operations such as file reads
+  and on unknown external callees.
 
-Unlike `requires` and `ensures`, these markers are not lowered to runtime
-checks. Use `--audit` to review declared effect contracts; use
-`--frontend --strict-contracts` to reject violations at compile time.
+Effect markers do not insert runtime checks. Ordinary frontend compilation keeps
+working and audit output reports the result. Strict frontend mode rejects failed
+claims:
 
-Example audit excerpt:
-
-```text
-Effect contracts:
-  no_alloc: verified
-  pure: verified
-  deterministic: verified
+```sh
+weavec --frontend --strict-contracts output.wir input.weave
 ```
-
-On violation:
-
-```text
-Effect contracts:
-  pure: FAILED
-Reasons:
-  pure failed: calls allocation function malloc
-```
-
-Implementation: `src/frontend/contract-effects.weave`.
-
-## Runtime semantics
-
-| Clause | When checked | On failure |
-|--------|--------------|------------|
-| `requires` | Function entry | Message `contract failed: requires` on stderr, exit code 1 |
-| `ensures` | Immediately before each `return` (including returns nested in `if`) | Message `contract failed: ensures` on stderr, exit code 1 |
-
-Lowering inserts runtime checks in the WIR/LLVM pipeline. There is no static
-proof pass.
-
-Implementation files:
-
-- `src/frontend/contract-lower.weave` — contract lowering in the frontend
-- `runtime/portable.c` — `weave_rt_contract_fail`
-- `src/llvm/module.weave` — declares `weave_rt_contract_fail` for linked programs
 
 ## Explain mode
 
-Print a human-readable audit of each `(fn …)` in a source file:
+Print a structural summary without generating code:
 
 ```sh
-cd weave/weavec
-./build.sh
-./build/weavec --explain test/correctness/surface/64_contract_ensures_multi_return.weave
+./build/weavec --explain path/to/program.weave
 ```
 
-Example output (abbreviated):
+The report includes:
 
-```text
-Function: clamp
-Requires:
-  (le_i32 lo hi)
-Ensures:
-  (ge_i32 result lo)
-  (le_i32 result hi)
-Returns: i32
-Parameters:
-  x: i32
-  lo: i32
-  hi: i32
-Return sites: 3
-Contract checks inserted: 7
-Loop sites: 0
-Call sites: 0
-External calls: 0
-External callees:
-  (none)
-Allocations: 0
-```
+- function name and return type;
+- parameters;
+- `requires` and `ensures` clauses;
+- return, loop, and call-site counts;
+- external calls and callees;
+- allocation count;
+- number of runtime contract checks that lowering would insert.
 
 JSON output for tooling:
 
@@ -187,102 +123,99 @@ JSON output for tooling:
 ./build/weavec --explain-json path/to/program.weave
 ```
 
-Audit report (structured review output with purity and warnings):
+Explain mode parses the surface file and walks its AST. It does not write WIR,
+LLVM, or a native executable.
+
+## Audit mode
+
+Human-readable effect audit:
 
 ```sh
 ./build/weavec --audit path/to/program.weave
 ```
 
-JSON audit output for CI and tooling (explain counts plus effect-contract
-verification fields):
+JSON audit:
 
 ```sh
 ./build/weavec --audit-json path/to/program.weave
 ```
 
-Rich JSON fields per function when effect clauses are declared:
+Audit mode includes explain counts plus conservative purity and declared-effect
+results. Representative JSON fields are:
 
 ```json
-"effect_contracts": {"no_alloc": "verified", "pure": "failed", "deterministic": "unknown"},
-"effect_reasons": ["pure failed: calls impure function"],
-"purity": "impure"
+{
+  "effect_contracts": {
+    "no_alloc": "verified",
+    "pure": "failed",
+    "deterministic": "unknown"
+  },
+  "effect_reasons": [
+    "pure failed: calls impure function"
+  ],
+  "purity": "impure"
+}
 ```
 
-Functions without effect clauses use `"effect_contracts": null` and still report
-conservative `"purity"` from the effect table when audit JSON mode is active.
+Functions without effect declarations use `"effect_contracts": null` and still
+receive a conservative `purity` classification in audit JSON.
 
-The weavec build patches vendored weavec-bootstrap to link with a 16 MiB main-thread
-stack (`scripts/patch-weavec-bootstrap-stack.sh`); the default ~8 MiB stack overflows
-when lowering the combined frontend that includes audit JSON helpers.
+## Entry-point handling
 
-Explain and audit modes do not write WIR or LLVM. They parse the surface file and walk
-the AST only.
+Each full `(fn ...)` is reported. An `(entry ...)` body is included when no
+function with the same name exists. A stub `(entry name)` receives only an
+entry-only summary.
 
-Each `(fn …)` is listed. `(entry …)` forms are included when there is no
-matching `(fn …)` with the same name: a full entry with body is summarized like
-a function; a stub `(entry name)` only gets a minimal entry-only summary.
-
-### Audit fields
+## Field definitions
 
 | Field | Meaning |
-|-------|---------|
-| Return sites | Number of `(return …)` forms in the function body (including nested) |
-| Contract checks inserted | `requires` count + `ensures` count × return sites (what lowering would emit) |
-| Loop sites | Number of `(while …)` forms in the body |
-| Call sites | Number of `(call_i32 …)`, `(call_i64 …)`, `(call_ptr …)`, `(call_void …)` forms |
-| External calls | Call sites whose callee is not an `(fn …)` or `(entry …)` in the same program |
-| External callees | Sorted unique names of external callees (for example `malloc`, `free`) |
-| Allocations | `(let … ptr …)` bindings plus `(call_ptr malloc …)` sites |
+|---|---|
+| Return sites | Number of `return` forms, including nested returns. |
+| Contract checks inserted | Requires count plus ensures count multiplied by return sites. |
+| Loop sites | Number of `while` forms. |
+| Call sites | Number of typed and void call forms. |
+| External calls | Calls whose target is not a local function or entry. |
+| External callees | Sorted unique external target names. |
+| Allocations | Pointer bindings and allocation calls recognized by the analysis. |
 
-These counts are structural summaries for development and review, not dynamic
-profiling results.
+These are structural source summaries, not dynamic profiling measurements.
 
 ## Tests
 
-Correctness tests live under `test/correctness/surface/`:
+Correctness fixtures live under:
 
-| Test | Checks |
-|------|--------|
-| `61_contract_requires_ok.weave` | requires passes |
-| `62_contract_requires_fail.weave` | requires failure message and exit 1 |
-| `63_contract_ensures_ok.weave` | ensures passes |
-| `64_contract_ensures_multi_return.weave` | ensures at every return (clamp) |
-| `65_contract_ensures_fail.weave` | ensures failure |
-| `66_contract_clamp_requires_fail.weave` | requires failure on bad bounds |
-| `67_contract_pure_ok.weave` | `(pure)` satisfied; compiles with or without `--strict-contracts` |
-| `68_contract_pure_fail.weave` | `(pure)` violated; rejected only with `--strict-contracts` |
-| `69_contract_no_alloc_ok.weave` | `(no_alloc)` satisfied at compile time |
-| `70_contract_no_alloc_fail.weave` | `(no_alloc)` violated; rejected only with `--strict-contracts` |
-| `71_contract_pure_indirect_fail.weave` | `(pure)` violated via local callee |
-| `72_contract_no_alloc_indirect_fail.weave` | `(no_alloc)` violated via local callee |
-| `73_contract_pure_cycle_ok.weave` | mutually recursive `(pure)` functions |
+```text
+test/correctness/surface/
+test/correctness/contracts/
+```
 
-Golden explain output: `test/correctness/contracts/64_explain.expected.txt`
-(checked by `test/correctness/contracts/test-explain.sh`).
+They cover successful and failing runtime contracts, strict effect-contract
+validation, indirect effects, mutual recursion, malformed markers, explain text
+and JSON, and audit text and JSON.
 
-Malloc/while audit fixture: `test/correctness/contracts/explain_audit_malloc_while.weave`
-with text and JSON goldens (checked by `test/correctness/contracts/test-explain-audit.sh`).
-
-Audit report goldens: `test/correctness/contracts/audit_clamp.expected.txt`,
-`test/correctness/contracts/audit_malloc_while.expected.txt`
-(checked by `test/correctness/contracts/test-audit.sh`).
-
-Run all weavec tests:
+Run correctness tests with:
 
 ```sh
+./build.sh
 ./test.sh
 ```
 
-## Limitations and next steps
+Run the complete compiler ladder with:
 
-- Contract expressions are limited to forms the surface parser and lowering
-  already support; there is no dedicated contract sub-language.
-- Functions with contracts use a separate body-lowering path (no qgate peephole
-  merge in that path).
-- `declare void @weave_rt_contract_fail(ptr)` is emitted for all compiled
-  modules today; contract tests link `runtime/portable.c` for the definition.
+```sh
+./test-all.sh
+```
 
-Planned extensions:
+The full ladder also includes performance, quantum, quantum end-to-end, LLVM, and
+self-host checks.
 
-- Per-contract source spans in explain output
-- Conditional `declare` of the contract runtime helper
+## Limitations
+
+- Contract expressions are limited to forms already accepted by the surface
+  frontend.
+- Runtime contracts are executable checks, not static proofs.
+- Effect analysis is conservative and name-based; unknown external calls prevent
+  strong conclusions.
+- Exact per-contract source locations are not yet propagated through WIR.
+- Contracted functions currently use the contract-aware lowering path rather than
+  every optimization available to an uncontracted body.

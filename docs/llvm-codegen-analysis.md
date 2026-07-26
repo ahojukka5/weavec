@@ -1,147 +1,156 @@
-# LLVM codegen analysis (weavec performance goldens)
+# LLVM code-generation analysis
 
-This document explains what the performance demonstration LLVM files reveal
-about weavec codegen quality and where to invest for faster generated code.
+Status: current optimization snapshot for the checked-in performance goldens
 
-The suite is CPU-focused (`test/performance/`). Goldens are pre-optimization
-IR (what weavec emits today). LLVM `opt -O2` is not the baseline; we first
-make weavec output easy for LLVM to optimize.
+This document explains what the deterministic pre-optimization LLVM corpus under
+`test/performance/expected-llvm/` reveals about current backend output. It is an
+engineering snapshot, not a stable public compiler contract and not a claim about
+final optimized machine-code performance.
 
-## Tools
+The associated generated table is
+[`llvm-codegen-analysis-report.md`](llvm-codegen-analysis-report.md).
 
-```bash
-# Regenerate report table from all expected-llvm/*.ll
+## Regenerating the report
+
+```sh
 python3 scripts/analyze-performance-llvm.py
-
-# Write the same table to a file (for CI or diffs)
 python3 scripts/analyze-performance-llvm.py \
   --markdown docs/llvm-codegen-analysis-report.md
 ```
 
-Re-run the analyzer after changing goldens or the emitter.
+Regenerate the report whenever checked-in performance goldens change.
 
-## What “fast compiler” means here
+## Two different performance questions
 
-Two different goals:
+1. **Compiler throughput:** how much work `weavec` performs while parsing,
+   lowering, and printing LLVM.
+2. **Generated-program quality:** whether emitted LLVM has a shape that LLVM can
+   promote, simplify, vectorize, and optimize effectively.
 
-1. weavec compile time — smaller emitter, less redundant work while printing IR.
-2. Generated program speed — LLVM IR that promotes to registers and vectorizes.
+The current report measures static properties of generated LLVM and focuses on
+the second question. It does not measure wall-clock compilation or execution.
 
-This doc focuses on (2). The performance WIR programs are small; the LLVM
-shape is what matters for eventual machine code.
+## Strong current pattern: `i32` loop phis
 
-## Pattern: i32 loop phis work well
-
-`0073_factorial_iter_i32` promotes both `acc` and `i` to `%acc.phi0` /
-`%i.phi0`. The loop body uses SSA names, not repeated `load`/`store` on
-`%acc.addr` each iteration.
+Representative `i32` loops promote carried locals to explicit header phis:
 
 ```llvm
 %acc.phi0 = phi i32 [%acc.init0, %while.pre], [%acc.next0, %while.latch]
 %acc.next0 = mul i32 %acc.phi0, %i.phi0
 ```
 
-After `opt -mem2reg`, this is the shape LLVM expects for a tight multiply loop.
+This avoids repeated stack loads and stores in the loop body and gives later LLVM
+passes a conventional SSA shape.
 
-## Pattern: i64 / f32 / f64 carried locals stay on the stack
+The invariants are documented in
+[Loop-carried SSA contract](loop-phi-contract.md).
 
-Compare `0158_fibonacci30_i64` and `0171_factorial12_i64`:
+## Main current opportunity: wider carried locals
 
-- Loop index `i` gets a phi (i32 promotion).
-- `prev` / `cur` or `acc` (i64) use `%acc.addr` with `load`/`store` every trip.
+Many `i64`, `f32`, and `f64` carried locals remain stack-backed even when an
+`i32` loop index is promoted. A representative wide accumulator therefore looks
+like:
 
 ```llvm
-; 0171_factorial12_i64 while.body (abbreviated)
 %t1 = load i64, ptr %acc.addr
 %t2 = sext i32 %i.phi0 to i64
 %t3 = mul i64 %t1, %t2
 store i64 %t3, ptr %acc.addr
 ```
 
-Priority fix: extend `src/llvm/loop-phi.weave` beyond `type_id == i32` so
-`add_i64` / `mul_i64` / `add_f32` / `add_f64` on carried locals get `.nextN`
-phis the same way as `mul_i32`.
+The generated report identifies fixtures with loop-body loads, stores, and
+stack-carried names. Extending the existing loop-phi model beyond `i32` is the
+largest recurring backend cleanup visible in the current corpus.
 
-New fixtures documenting this gap:
+Representative fixtures include:
 
-| Id | Fixture |
-|----|---------|
-| 0171 | `0171_factorial12_i64` |
-| 0173 | `0173_sum_range_i64_acc` |
-| 0170 | `0170_sum_range_f64` (f64 acc on stack) |
-| 0172 | `0172_horner_poly_f32` (f32 acc on stack) |
+- `0158_fibonacci30_i64`;
+- `0161_collatz_peak_i64`;
+- `0166_sum_range_f32`;
+- `0168_newton_sqrt_f32`;
+- `0170_sum_range_f64`;
+- `0171_factorial12_i64`;
+- `0172_horner_poly_f32`;
+- `0173_sum_range_i64_acc`;
+- `0175_sum_squares_i64`.
 
-## Pattern: redundant `add %x, 0` phi back-edges
+## Copy-like phi back edges
 
-`0061_fibonacci_iterative` (i32) uses:
+Some `i32` assignments use an arithmetic identity to create the next SSA value:
 
 ```llvm
 %prev.next1 = add i32 %curr.phi1, 0
-%curr.next1 = add i32 %t2, 0
 ```
 
-when a direct phi operand would suffice (`%curr.phi1` as back-edge for `prev`).
+A direct carried-value edge would be simpler where the assignment is a pure copy.
+This is a code-quality opportunity rather than a semantic defect; the golden
+corpus keeps the current behavior reviewable.
 
-Fix: in loop-phi `set` lowering, detect `set name (local_get other)` with
-same carried binding and emit `%name.nextN = %other.phiN` without add-zero.
+## Floating conversion inside loops
 
-## Pattern: `sitofp` inside float loops
-
-`0166_sum_range_f32` and `0170_sum_range_f64` convert the loop index every
-iteration:
+Float accumulation fixtures may convert an integer loop index on every iteration:
 
 ```llvm
 %t5 = sitofp i32 %i.phi0 to float
 %t6 = fadd float %t4, %t5
 ```
 
-Improvements:
+Possible future improvements include a running floating index or safe conversion
+hoisting. These should be evaluated against clear source and WIR semantics rather
+than introduced only to make one golden smaller.
 
-- Hoist `sitofp` when the only use is adding the index to an accumulator.
-- Or keep a running float index (`f32` / `f64` phi) when the source WIR uses
-  float accumulation.
+`const_f32` and `const_f64` also currently lower from integer literal tokens
+through `sitofp`. Decimal literal syntax is a separate language and WIR design
+question.
 
-`const_f32` / `const_f64` in WIR still lower via `sitofp` from integer tokens
-until decimal literals exist — see `0172` (`sitofp i32 3` for coefficient 3).
+## Dead temporary storage
 
-## Pattern: dead intermediate `let` slots
+Some algorithm fixtures create a typed local used only to feed a subsequent
+assignment. Pre-optimization LLVM may retain an `alloca` for that temporary.
+Potential cleanup belongs in a general dead-binding or value-forwarding rule,
+with regressions proving that control-flow and contract semantics remain intact.
 
-`0158_fibonacci30_i64` WIR has `(let next i64 ...)` then only `set prev` /
-`set cur`. LLVM still allocates stack for `next` if not optimized away.
+## Heap and call-heavy fixtures
 
-Fix: frontend or lowering could fold `let`+`set` chains when the binding is
-not observed elsewhere.
+Heap-oriented fixtures exercise pointer arithmetic, typed loads/stores, external
+calls, and stride calculations. Their current value is primarily correctness and
+LLVM-shape coverage. SIMD, alias analysis, and target-specific optimization are
+premature until scalar carried-state and basic memory patterns are consistently
+clean.
 
-## Pattern: heap + calls (0174)
+## Interpreting the generated score
 
-`0174_matvec3_f32` exercises `load_f32` / `store_f32` / `call_f32` on heap
-arrays. Opportunity is correct GEP strides and eventually SIMD — out of
-scope until basic float loops promote.
+The report's opportunity score is a review aid based on static counts such as:
 
-## New fixtures (0169–0174)
+- `alloca`, `load`, and `store` instructions;
+- loop phis;
+- loads inside loop bodies;
+- copy-like `add ..., 0` operations;
+- `sitofp` conversions;
+- detected stack-carried local names.
 
-| Id | Focus |
-|----|--------|
-| 0169 | f64 smoke (`const_f64`, `fadd`) |
-| 0170 | f64 sum 1..120 (stack acc) |
-| 0171 | i64 factorial (stack acc vs i32 phi index) |
-| 0172 | f32 Horner recurrence in loop |
-| 0173 | i64 sum 1..200, i32 index |
-| 0174 | 3×3 f32 matvec on heap |
+A high score means “inspect this golden,” not “this program is slow.” LLVM may
+eliminate many pre-optimization artifacts, and instruction count alone does not
+predict target performance.
 
-Next free id: `0176`.
+## Recommended review order
 
-## Suggested implementation order
+When backend work resumes, review opportunities in this order:
 
-1. Loop-phi for i64 (`add_i64`, `mul_i64`, `set` from `local_get`).
-2. Loop-phi for f32/f64 (`fadd`, `fmul`, `add_f64`).
-3. Copy/set phi back-edge without `add ..., 0`.
-4. Fold dead `let` in fibonacci-style swaps.
-5. Optional: `opt -O2` comparison script (not replacing goldens) to measure
-   runtime of selected benchmarks.
+1. generalize carried-local phis to admitted wider scalar types;
+2. simplify copy-like back edges without breaking SSA provenance;
+3. remove dead temporary bindings through a general rule;
+4. assess conversion placement in floating loops;
+5. compare selected cases after normal LLVM optimization and, only then, add
+   runtime measurements where they answer a concrete question.
 
-## Related docs
+Every change requires regenerated goldens, `llvm-as` validation, semantic fixture
+execution, the complete test ladder, and deep self-hosting when compiler output
+changes.
 
-- [performance-demonstrations.md](performance-demonstrations.md) — workflow
-- [llvm-codegen-analysis-report.md](llvm-codegen-analysis-report.md) — auto-generated hotspot table
-- [loop-phi-contract.md](loop-phi-contract.md) — i32 phi rules today
+## Related documents
+
+- [Performance demonstrations](performance-demonstrations.md)
+- [Generated LLVM analysis report](llvm-codegen-analysis-report.md)
+- [Loop-carried SSA contract](loop-phi-contract.md)
+- [Architecture](architecture.md)
