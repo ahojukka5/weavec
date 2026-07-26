@@ -90,7 +90,8 @@ static int weave_source_location_option_takes_value(const char *arg) {
            strcmp(arg, "--target") == 0 || strcmp(arg, "--runtime") == 0 ||
            strcmp(arg, "--codegen") == 0 || strcmp(arg, "--linker") == 0 ||
            strcmp(arg, "--manifest-json") == 0 ||
-           strcmp(arg, "--diagnostics-json") == 0;
+           strcmp(arg, "--diagnostics-json") == 0 ||
+           strcmp(arg, "--trace-json") == 0;
 }
 
 static const char *weave_source_location_find_option(

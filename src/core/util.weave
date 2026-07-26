@@ -126,6 +126,71 @@
       (call_void write_bytes (param_get fd) (ptr_add (param_get source) (param_get start)) (param_get len))
       (return_void)))
 
+  ; Record a source-linked compilation event when trace output is enabled.
+  (fn trace_event_for_node
+    (params
+      (kind ptr) (pass_name ptr) (action ptr)
+      (source ptr) (tree ptr) (node i64) (detail_node i64))
+    (returns void)
+    (do
+      (if
+        (condition (eq_i64 (param_get node) (const_i64 -1)))
+        (then (do (return_void)))
+        (else (do)))
+      (let detail_start i64 (const_i64 -1))
+      (let detail_len i64 (const_i64 0))
+      (if
+        (condition (ne_i64 (param_get detail_node) (const_i64 -1)))
+        (then (do
+          (set detail_start
+            (call_i64 node_text_start (param_get tree) (param_get detail_node)))
+          (set detail_len
+            (call_i64 node_text_len (param_get tree) (param_get detail_node)))))
+        (else (do)))
+      (call_void weave_rt_trace_event
+        (param_get kind) (param_get pass_name) (param_get action)
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (param_get node))
+        (call_i64 node_text_len (param_get tree) (param_get node))
+        (local_get detail_start) (local_get detail_len))
+      (return_void)))
+
+  ; Record one event spanning two source nodes, inclusive.
+  (fn trace_event_for_range
+    (params
+      (kind ptr) (pass_name ptr) (action ptr)
+      (source ptr) (tree ptr) (first_node i64) (last_node i64)
+      (detail_node i64))
+    (returns void)
+    (do
+      (if
+        (condition (or_bool
+          (eq_i64 (param_get first_node) (const_i64 -1))
+          (eq_i64 (param_get last_node) (const_i64 -1))))
+        (then (do (return_void)))
+        (else (do)))
+      (let start i64
+        (call_i64 node_text_start (param_get tree) (param_get first_node)))
+      (let end i64
+        (add_i64
+          (call_i64 node_text_start (param_get tree) (param_get last_node))
+          (call_i64 node_text_len (param_get tree) (param_get last_node))))
+      (let detail_start i64 (const_i64 -1))
+      (let detail_len i64 (const_i64 0))
+      (if
+        (condition (ne_i64 (param_get detail_node) (const_i64 -1)))
+        (then (do
+          (set detail_start
+            (call_i64 node_text_start (param_get tree) (param_get detail_node)))
+          (set detail_len
+            (call_i64 node_text_len (param_get tree) (param_get detail_node)))))
+        (else (do)))
+      (call_void weave_rt_trace_event
+        (param_get kind) (param_get pass_name) (param_get action)
+        (param_get source) (local_get start) (sub_i64 (local_get end) (local_get start))
+        (local_get detail_start) (local_get detail_len))
+      (return_void)))
+
   ; True when two ident nodes name the same source slice.
   (fn ident_nodes_equal
     (params (tree ptr) (source ptr) (a i64) (b i64))

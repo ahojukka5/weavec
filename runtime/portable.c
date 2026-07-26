@@ -86,6 +86,18 @@ static char *weave_rt_mkdtemp(char *path_template) {
 }
 
 #define mkdtemp weave_rt_mkdtemp
+
+#ifndef WEAVEC_TRACE_EVENTS_ENV
+#define WEAVEC_TRACE_EVENTS_ENV "WEAVEC_INTERNAL_TRACE_EVENTS"
+#endif
+
+static int weave_trace_write_document(
+    const char *path,
+    const char *status,
+    const char *phase,
+    char **sources,
+    int source_count,
+    const char *events_path);
 // Keep the self-hosted compiler link command simple. The original build driver
 // remains the implementation core, while diagnostics_driver.c provides the
 // versioned public diagnostics facade without duplicating the phase pipeline.
@@ -96,3 +108,4 @@ static char *weave_rt_mkdtemp(char *path_template) {
 #include "diagnostics_driver.c"
 #undef weave_rt_build_main
 #include "source_locations.c"
+#include "trace_runtime.c"

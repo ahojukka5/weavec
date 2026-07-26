@@ -44,6 +44,7 @@ static void build_usage(void) {
     fputs(
         "usage: weavec build <input.weave> [input2.weave ...] -o <program>\n"
         "                    [--target <triple>] [--manifest-json <path>]\n"
+        "                    [--trace-json <path>]\n"
         "                    [--runtime <archive>] [--codegen <command>]\n"
         "                    [--linker <command>] [--keep-temporaries]\n",
         stderr);
@@ -297,6 +298,7 @@ int weave_rt_build_main(int argc, char **argv) {
     const char *codegen = getenv("WEAVEC_CODEGEN");
     const char *linker = getenv("WEAVEC_LINKER");
     const char *manifest = NULL;
+    const char *trace = NULL;
     int keep_temporaries = 0;
 
     if (codegen == NULL || *codegen == '\0') {
@@ -357,6 +359,13 @@ int weave_rt_build_main(int argc, char **argv) {
                 return 2;
             }
             manifest = argv[i];
+        } else if (strcmp(arg, "--trace-json") == 0) {
+            if (++i >= argc) {
+                build_usage();
+                free(sources);
+                return 2;
+            }
+            trace = argv[i];
         } else if (strcmp(arg, "--keep-temporaries") == 0) {
             keep_temporaries = 1;
         } else if (arg[0] == '-') {
@@ -371,6 +380,12 @@ int weave_rt_build_main(int argc, char **argv) {
 
     if (source_count == 0 || output == NULL) {
         build_usage();
+        free(sources);
+        return 2;
+    }
+    if ((manifest != NULL && trace != NULL && strcmp(manifest, trace) == 0) ||
+        (trace != NULL && strcmp(output, trace) == 0)) {
+        fputs("weavec: output, manifest, and trace paths must differ\n", stderr);
         free(sources);
         return 2;
     }
@@ -422,9 +437,12 @@ int weave_rt_build_main(int argc, char **argv) {
     char wir_path[PATH_MAX];
     char ll_path[PATH_MAX];
     char object_path[PATH_MAX];
+    char trace_events_path[PATH_MAX];
     snprintf(wir_path, sizeof(wir_path), "%s/program.wir", temporary);
     snprintf(ll_path, sizeof(ll_path), "%s/program.ll", temporary);
     snprintf(object_path, sizeof(object_path), "%s/program.o", temporary);
+    snprintf(trace_events_path, sizeof(trace_events_path),
+             "%s/program.trace.events", temporary);
 
     char **frontend = calloc((size_t)source_count + 4, sizeof(char *));
     if (frontend == NULL) {
@@ -441,12 +459,35 @@ int weave_rt_build_main(int argc, char **argv) {
     }
     frontend[3 + source_count] = NULL;
 
+    char *saved_trace_events = NULL;
+    const char *existing_trace_events = getenv(WEAVEC_TRACE_EVENTS_ENV);
+    if (existing_trace_events != NULL) {
+        saved_trace_events = strdup(existing_trace_events);
+    }
+    if (trace != NULL) {
+        unlink(trace_events_path);
+        (void)setenv(WEAVEC_TRACE_EVENTS_ENV, trace_events_path, 1);
+    }
+
     int status = run_process(frontend);
+    if (trace != NULL) {
+        if (saved_trace_events != NULL) {
+            (void)setenv(WEAVEC_TRACE_EVENTS_ENV, saved_trace_events, 1);
+        } else {
+            (void)unsetenv(WEAVEC_TRACE_EVENTS_ENV);
+        }
+    }
+    free(saved_trace_events);
     free(frontend);
+
     if (status != 0) {
         write_manifest(
             manifest, "failed", "frontend", target, compiler, runtime,
             codegen, linker, output, sources, source_count);
+        (void)weave_trace_write_document(
+            trace, "failed", "frontend", sources, source_count,
+            trace_events_path);
+        unlink(trace_events_path);
         cleanup_directory(
             temporary, wir_path, ll_path, object_path, keep_temporaries);
         free(sources);
@@ -459,6 +500,10 @@ int weave_rt_build_main(int argc, char **argv) {
         write_manifest(
             manifest, "failed", "backend", target, compiler, runtime,
             codegen, linker, output, sources, source_count);
+        (void)weave_trace_write_document(
+            trace, "failed", "backend", sources, source_count,
+            trace_events_path);
+        unlink(trace_events_path);
         cleanup_directory(
             temporary, wir_path, ll_path, object_path, keep_temporaries);
         free(sources);
@@ -472,6 +517,10 @@ int weave_rt_build_main(int argc, char **argv) {
         write_manifest(
             manifest, "failed", "codegen", target, compiler, runtime,
             codegen, linker, output, sources, source_count);
+        (void)weave_trace_write_document(
+            trace, "failed", "codegen", sources, source_count,
+            trace_events_path);
+        unlink(trace_events_path);
         cleanup_directory(
             temporary, wir_path, ll_path, object_path, keep_temporaries);
         free(sources);
@@ -482,6 +531,10 @@ int weave_rt_build_main(int argc, char **argv) {
     if (snprintf(output_template, sizeof(output_template), "%s.tmp.XXXXXX", output) >=
         (int)sizeof(output_template)) {
         fputs("weavec: output path is too long\n", stderr);
+        (void)weave_trace_write_document(
+            trace, "failed", "publish", sources, source_count,
+            trace_events_path);
+        unlink(trace_events_path);
         cleanup_directory(
             temporary, wir_path, ll_path, object_path, keep_temporaries);
         free(sources);
@@ -490,6 +543,10 @@ int weave_rt_build_main(int argc, char **argv) {
     int output_fd = mkstemp(output_template);
     if (output_fd < 0) {
         fprintf(stderr, "weavec: cannot create output beside %s: %s\n", output, strerror(errno));
+        (void)weave_trace_write_document(
+            trace, "failed", "publish", sources, source_count,
+            trace_events_path);
+        unlink(trace_events_path);
         cleanup_directory(
             temporary, wir_path, ll_path, object_path, keep_temporaries);
         free(sources);
@@ -506,6 +563,25 @@ int weave_rt_build_main(int argc, char **argv) {
         write_manifest(
             manifest, "failed", "link", target, compiler, runtime,
             codegen, linker, output, sources, source_count);
+        (void)weave_trace_write_document(
+            trace, "failed", "link", sources, source_count,
+            trace_events_path);
+        unlink(trace_events_path);
+        cleanup_directory(
+            temporary, wir_path, ll_path, object_path, keep_temporaries);
+        free(sources);
+        return status;
+    }
+
+    status = weave_trace_write_document(
+        trace, "succeeded", "complete", sources, source_count,
+        trace_events_path);
+    if (status != 0) {
+        unlink(output_template);
+        write_manifest(
+            manifest, "failed", "trace", target, compiler, runtime,
+            codegen, linker, output, sources, source_count);
+        unlink(trace_events_path);
         cleanup_directory(
             temporary, wir_path, ll_path, object_path, keep_temporaries);
         free(sources);
@@ -518,6 +594,10 @@ int weave_rt_build_main(int argc, char **argv) {
         write_manifest(
             manifest, "failed", "publish", target, compiler, runtime,
             codegen, linker, output, sources, source_count);
+        (void)weave_trace_write_document(
+            trace, "failed", "publish", sources, source_count,
+            trace_events_path);
+        unlink(trace_events_path);
         cleanup_directory(
             temporary, wir_path, ll_path, object_path, keep_temporaries);
         free(sources);
@@ -527,8 +607,9 @@ int weave_rt_build_main(int argc, char **argv) {
     write_manifest(
         manifest, "succeeded", "complete", target, compiler, runtime,
         codegen, linker, output, sources, source_count);
+    unlink(trace_events_path);
     cleanup_directory(
         temporary, wir_path, ll_path, object_path, keep_temporaries);
     free(sources);
-    return 0;
+    return status;
 }

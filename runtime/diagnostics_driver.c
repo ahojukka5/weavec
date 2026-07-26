@@ -571,12 +571,14 @@ static int weave_diag_option_takes_value(const char *arg) {
     return strcmp(arg, "-o") == 0 || strcmp(arg, "--output") == 0 ||
            strcmp(arg, "--target") == 0 || strcmp(arg, "--runtime") == 0 ||
            strcmp(arg, "--codegen") == 0 || strcmp(arg, "--linker") == 0 ||
-           strcmp(arg, "--manifest-json") == 0;
+           strcmp(arg, "--manifest-json") == 0 ||
+           strcmp(arg, "--trace-json") == 0;
 }
 
 int weave_rt_build_main(int argc, char **argv) {
     const char *diagnostics_path = NULL;
     const char *manifest_path = NULL;
+    const char *trace_path = NULL;
     char **filtered = calloc((size_t)argc + 4, sizeof(*filtered));
     char **sources = calloc((size_t)argc, sizeof(*sources));
     if (filtered == NULL || sources == NULL) {
@@ -604,6 +606,9 @@ int weave_rt_build_main(int argc, char **argv) {
         if (strcmp(argv[i], "--manifest-json") == 0 && i + 1 < argc) {
             manifest_path = argv[i + 1];
         }
+        if (strcmp(argv[i], "--trace-json") == 0 && i + 1 < argc) {
+            trace_path = argv[i + 1];
+        }
     }
     filtered[filtered_argc] = NULL;
 
@@ -613,13 +618,14 @@ int weave_rt_build_main(int argc, char **argv) {
         free(sources);
         return result;
     }
-    if (manifest_path != NULL && strcmp(manifest_path, diagnostics_path) == 0) {
-        fputs("weavec: manifest and diagnostics paths must differ\n", stderr);
+    if ((manifest_path != NULL && strcmp(manifest_path, diagnostics_path) == 0) ||
+        (trace_path != NULL && strcmp(trace_path, diagnostics_path) == 0)) {
+        fputs("weavec: manifest, trace, and diagnostics paths must differ\n", stderr);
         weave_diag_record record = {
             .code = "driver.conflicting-output-paths",
             .severity = "error",
             .phase = "driver",
-            .message = "manifest and diagnostics paths must differ",
+            .message = "manifest, trace, and diagnostics paths must differ",
             .span_origin = "none",
         };
         weave_diag_write_result(
@@ -665,6 +671,9 @@ int weave_rt_build_main(int argc, char **argv) {
             weave_diag_write_result(
                 diagnostics_path, "failed", record.phase,
                 exit_code, 1, &record);
+            (void)weave_trace_write_document(
+                trace_path, "failed", record.phase, sources, source_count,
+                NULL);
             weave_diag_record_clear(&record);
             free(filtered);
             free(sources);

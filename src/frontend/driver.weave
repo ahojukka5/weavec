@@ -86,6 +86,7 @@
       (call_i32 fchmod (local_get out_fd) (const_i32 420))
       ; Run lowering pass
       (call_void weave_rt_set_source_index (const_i64 0))
+      (call_void weave_rt_trace_set_source (const_i64 0) (param_get input_path))
       (let status i32 (call_i32 lower_program
         (local_get out_fd) (local_get source) (local_get tree)))
       (call_i32 close (local_get out_fd))
@@ -205,6 +206,8 @@
           (let input_path ptr (load_ptr (ptr_add (param_get argv) (mul_i64 (local_get i) (const_i64 8)))))
           (call_void weave_rt_set_source_index
             (sub_i64 (local_get i) (param_get first_input_index)))
+          (call_void weave_rt_trace_set_source
+            (sub_i64 (local_get i) (param_get first_input_index)) (local_get input_path))
           (let status i32 (call_i32 lower_source_file_pass
             (local_get input_path) (local_get out_fd) (const_i32 0)))
           (if
@@ -222,6 +225,8 @@
           (let input_path2 ptr (load_ptr (ptr_add (param_get argv) (mul_i64 (local_get i) (const_i64 8)))))
           (call_void weave_rt_set_source_index
             (sub_i64 (local_get i) (param_get first_input_index)))
+          (call_void weave_rt_trace_set_source
+            (sub_i64 (local_get i) (param_get first_input_index)) (local_get input_path2))
           (if
             (condition (ne_i32 (call_i32 path_ends_with
               (local_get input_path2) (const_string_ptr "main.weave") (const_i64 10)) (const_i32 0)))
@@ -244,6 +249,8 @@
           (let input_path3 ptr (load_ptr (ptr_add (param_get argv) (mul_i64 (local_get i) (const_i64 8)))))
           (call_void weave_rt_set_source_index
             (sub_i64 (local_get i) (param_get first_input_index)))
+          (call_void weave_rt_trace_set_source
+            (sub_i64 (local_get i) (param_get first_input_index)) (local_get input_path3))
           (if
             (condition (eq_i32 (call_i32 path_ends_with
               (local_get input_path3) (const_string_ptr "main.weave") (const_i64 10)) (const_i32 0)))

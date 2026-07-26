@@ -32,6 +32,14 @@
     (params (fd i32) (source ptr) (start i64) (len i64)) (returns void))
   (extern weave_rt_record_diagnostic_wir_span
     (params (fd i32) (start i64) (len i64)) (returns void))
+  (extern weave_rt_trace_set_source
+    (params (source_index i64) (source_path ptr)) (returns void))
+  (extern weave_rt_trace_event
+    (params
+      (kind ptr) (pass_name ptr) (action ptr)
+      (source ptr) (start i64) (len i64)
+      (detail_start i64) (detail_len i64))
+    (returns void))
 
   ; weavec-bootstrap C runtime — lex/parse
   (extern lex (params (source ptr) (length i64)) (returns ptr))
