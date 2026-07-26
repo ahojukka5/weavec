@@ -135,6 +135,8 @@
       (let name_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
       (let total_size i64 (call_i64 struct_total_size (param_get tree) (param_get source) (param_get node)))
       ; (fn NAME_new (params (FNAME0 FTYPE0) ...) (returns ptr)
+      (call_void emit_source_span_for_node
+        (param_get fd) (param_get source) (param_get tree) (param_get node))
       (call_void write_cstr (param_get fd) (const_string_ptr "    (fn "))
       (call_void write_node_text (param_get fd) (param_get source) (param_get tree) (local_get name_node))
       (call_void write_cstr (param_get fd) (const_string_ptr "_new (params"))
@@ -225,6 +227,8 @@
       (let fname i64 (call_i64 nth_child (param_get tree) (param_get field) (const_i64 1)))
       (let ftype i64 (call_i64 nth_child (param_get tree) (param_get field) (const_i64 2)))
       ; getter: (fn NAME_get_FNAME (params (self ptr)) (returns FTYPE) (do (return (load_OP ...))))
+      (call_void emit_source_span_for_node
+        (param_get fd) (param_get source) (param_get tree) (param_get field))
       (call_void write_cstr (param_get fd) (const_string_ptr "    (fn "))
       (call_void write_node_text (param_get fd) (param_get source) (param_get tree) (param_get struct_name))
       (call_void write_cstr (param_get fd) (const_string_ptr "_get_"))
@@ -246,6 +250,8 @@
           (call_void write_cstr (param_get fd) (const_string_ptr "))))))"))
           (call_void write_byte (param_get fd) (const_i32 10)))))
       ; setter: (fn NAME_set_FNAME (params (self ptr) (v FTYPE)) (returns void)
+      (call_void emit_source_span_for_node
+        (param_get fd) (param_get source) (param_get tree) (param_get field))
       (call_void write_cstr (param_get fd) (const_string_ptr "    (fn "))
       (call_void write_node_text (param_get fd) (param_get source) (param_get tree) (param_get struct_name))
       (call_void write_cstr (param_get fd) (const_string_ptr "_set_"))

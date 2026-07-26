@@ -208,6 +208,10 @@
             (sub_i64 (local_get i) (param_get first_input_index)))
           (call_void weave_rt_trace_set_source
             (sub_i64 (local_get i) (param_get first_input_index)) (local_get input_path))
+          (call_void weave_rt_emit_source_file
+            (local_get out_fd)
+            (sub_i64 (local_get i) (param_get first_input_index))
+            (local_get input_path))
           (let status i32 (call_i32 lower_source_file_pass
             (local_get input_path) (local_get out_fd) (const_i32 0)))
           (if

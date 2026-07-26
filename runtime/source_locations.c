@@ -1,23 +1,143 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Exact surface-source locations for machine-readable backend diagnostics.
+// Exact surface-source locations for diagnostics and LLVM inspection.
 //
-// Diagnostics builds enable comment-only WIR source maps. The frontend emits one
-// mapping comment before each copied AST node, while backend diagnostics record
-// the exact WIR token they print. Each mapping uses the source's stable argv index,
-// preserving file identity even when two inputs have identical bytes. This wrapper
-// joins the two private channels and rewrites only the diagnostics JSON span.
-// Ordinary frontend output, plain WIR,
-// human stderr, LLVM semantics, and non-diagnostics builds are unchanged.
+// Opt-in builds enable comment-only WIR source maps. The frontend emits stable
+// source-file and source-span comments, backend diagnostics map errors back to
+// surface bytes, and LLVM provenance maps emitted instruction groups to both
+// source and WIR forms. Ordinary frontend output, plain WIR, human stderr, and
+// code-generation semantics remain unchanged.
 
+#ifndef WEAVEC_SOURCE_MAP_ENV
 #define WEAVEC_SOURCE_MAP_ENV "WEAVEC_INTERNAL_SOURCE_LOCATIONS"
+#endif
+#ifndef WEAVEC_DIAGNOSTIC_SPAN_ENV
 #define WEAVEC_DIAGNOSTIC_SPAN_ENV "WEAVEC_INTERNAL_DIAGNOSTIC_WIR_SPAN"
+#endif
+#ifndef WEAVEC_LLVM_PROVENANCE_ENV
+#define WEAVEC_LLVM_PROVENANCE_ENV "WEAVEC_INTERNAL_LLVM_PROVENANCE"
+#endif
 #define WEAVEC_SOURCE_MAP_PREFIX "; weavec-source-span-v1 "
+#define WEAVEC_SOURCE_FILE_PREFIX "; weavec-source-file-v1 "
 
 static int64_t weave_source_location_source_index = -1;
 
+static size_t weave_source_sexpr_length(const char *source, size_t start) {
+    if (source == NULL || source[start] != '(') {
+        return 0;
+    }
+    size_t depth = 0;
+    int in_string = 0;
+    int escaped = 0;
+    int in_comment = 0;
+    for (size_t index = start; source[index] != '\0'; ++index) {
+        unsigned char ch = (unsigned char)source[index];
+        if (in_comment) {
+            if (ch == '\n') {
+                in_comment = 0;
+            }
+            continue;
+        }
+        if (in_string) {
+            if (escaped) {
+                escaped = 0;
+            } else if (ch == '\\') {
+                escaped = 1;
+            } else if (ch == '"') {
+                in_string = 0;
+            }
+            continue;
+        }
+        if (ch == ';') {
+            in_comment = 1;
+        } else if (ch == '"') {
+            in_string = 1;
+        } else if (ch == '(') {
+            ++depth;
+        } else if (ch == ')') {
+            if (depth == 0) {
+                return 0;
+            }
+            --depth;
+            if (depth == 0) {
+                return index - start + 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static size_t weave_source_form_end(
+    const char *source,
+    size_t start,
+    size_t fallback_length) {
+    size_t end = start + fallback_length;
+    if (source == NULL || source[start] != '(') {
+        return end;
+    }
+    size_t final_start = start;
+    if (fallback_length > 1 && source[end - 1] == '(') {
+        final_start = end - 1;
+    }
+    size_t final_length = weave_source_sexpr_length(source, final_start);
+    return final_length == 0 ? end : final_start + final_length;
+}
+
 void weave_rt_set_source_index(int64_t source_index) {
     weave_source_location_source_index = source_index;
+}
+
+static void weave_source_location_write_json_fd(int fd, const char *value) {
+    const unsigned char *cursor = (const unsigned char *)(value != NULL ? value : "");
+    (void)write(fd, "\"", 1);
+    while (*cursor != '\0') {
+        char escaped[7];
+        const char *bytes = (const char *)cursor;
+        size_t length = 1;
+        switch (*cursor) {
+            case '\\': bytes = "\\\\"; length = 2; break;
+            case '"': bytes = "\\\""; length = 2; break;
+            case '\n': bytes = "\\n"; length = 2; break;
+            case '\r': bytes = "\\r"; length = 2; break;
+            case '\t': bytes = "\\t"; length = 2; break;
+            default:
+                if (*cursor < 0x20) {
+                    int written = snprintf(
+                        escaped, sizeof(escaped), "\\u%04x", (unsigned int)*cursor);
+                    if (written == 6) {
+                        bytes = escaped;
+                        length = 6;
+                    }
+                }
+                break;
+        }
+        (void)write(fd, bytes, length);
+        ++cursor;
+    }
+    (void)write(fd, "\"", 1);
+}
+
+void weave_rt_emit_source_file(
+    int fd,
+    int64_t source_index,
+    const char *source_path) {
+    const char *enabled = getenv(WEAVEC_SOURCE_MAP_ENV);
+    if (enabled == NULL || strcmp(enabled, "1") != 0 || fd < 0 ||
+        source_index < 0 || source_path == NULL) {
+        return;
+    }
+    char prefix[96];
+    int written = snprintf(
+        prefix,
+        sizeof(prefix),
+        WEAVEC_SOURCE_FILE_PREFIX "%lld ",
+        (long long)source_index);
+    if (written <= 0 || (size_t)written >= sizeof(prefix)) {
+        return;
+    }
+    (void)write(fd, prefix, (size_t)written);
+    weave_source_location_write_json_fd(fd, source_path);
+    (void)write(fd, "\n", 1);
 }
 
 void weave_rt_emit_source_span(
@@ -31,17 +151,200 @@ void weave_rt_emit_source_span(
         weave_source_location_source_index < 0 || start < 0 || length < 0) {
         return;
     }
+    size_t expanded_end = weave_source_form_end(
+        source, (size_t)start, (size_t)length);
     char line[160];
     int written = snprintf(
         line,
         sizeof(line),
-        WEAVEC_SOURCE_MAP_PREFIX "%lld %lld %lld\n",
+        WEAVEC_SOURCE_MAP_PREFIX "%lld %lld %zu\n",
         (long long)weave_source_location_source_index,
         (long long)start,
-        (long long)(start + length));
+        expanded_end);
     if (written > 0 && (size_t)written < sizeof(line)) {
         (void)write(fd, line, (size_t)written);
     }
+}
+
+
+typedef struct weave_source_location_mapping {
+    size_t source_index;
+    size_t source_start;
+    size_t source_end;
+    const char *quoted_path;
+    size_t quoted_path_length;
+} weave_source_location_mapping;
+
+static int weave_source_location_parse_file_line(
+    const char *line,
+    const char *line_end,
+    size_t *source_index,
+    const char **quoted_path,
+    size_t *quoted_path_length) {
+    unsigned long long parsed_index = 0;
+    int consumed = 0;
+    if (line == NULL || line_end == NULL || line_end < line ||
+        strncmp(line, WEAVEC_SOURCE_FILE_PREFIX,
+                strlen(WEAVEC_SOURCE_FILE_PREFIX)) != 0 ||
+        sscanf(line + strlen(WEAVEC_SOURCE_FILE_PREFIX),
+               "%llu %n", &parsed_index, &consumed) != 1 ||
+        parsed_index > SIZE_MAX) {
+        return 0;
+    }
+    const char *quoted = line + strlen(WEAVEC_SOURCE_FILE_PREFIX) + consumed;
+    if (quoted >= line_end || *quoted != '"') {
+        return 0;
+    }
+    *source_index = (size_t)parsed_index;
+    *quoted_path = quoted;
+    *quoted_path_length = (size_t)(line_end - quoted);
+    return 1;
+}
+
+static int weave_source_location_parse_span_line(
+    const char *line,
+    size_t *source_index,
+    size_t *source_start,
+    size_t *source_end) {
+    unsigned long long parsed_index = 0;
+    unsigned long long parsed_start = 0;
+    unsigned long long parsed_end = 0;
+    if (line == NULL ||
+        strncmp(line, WEAVEC_SOURCE_MAP_PREFIX,
+                strlen(WEAVEC_SOURCE_MAP_PREFIX)) != 0 ||
+        sscanf(line + strlen(WEAVEC_SOURCE_MAP_PREFIX),
+               "%llu %llu %llu", &parsed_index, &parsed_start,
+               &parsed_end) != 3 ||
+        parsed_index > SIZE_MAX || parsed_start > parsed_end ||
+        parsed_start > SIZE_MAX || parsed_end > SIZE_MAX) {
+        return 0;
+    }
+    *source_index = (size_t)parsed_index;
+    *source_start = (size_t)parsed_start;
+    *source_end = (size_t)parsed_end;
+    return 1;
+}
+
+static int weave_source_location_lookup_wir(
+    const char *wir,
+    size_t wir_start,
+    weave_source_location_mapping *result) {
+    if (wir == NULL || result == NULL) {
+        return 0;
+    }
+    memset(result, 0, sizeof(*result));
+
+    int found_mapping = 0;
+    const char *cursor = wir;
+    while (cursor < wir + wir_start) {
+        const char *mapping = strstr(cursor, WEAVEC_SOURCE_MAP_PREFIX);
+        if (mapping == NULL || (size_t)(mapping - wir) >= wir_start) {
+            break;
+        }
+        const char *line_end = strchr(mapping, '\n');
+        if (line_end == NULL || (size_t)(line_end - wir) > wir_start) {
+            break;
+        }
+        size_t source_index = 0;
+        size_t source_start = 0;
+        size_t source_end = 0;
+        if (weave_source_location_parse_span_line(
+                mapping, &source_index, &source_start, &source_end)) {
+            result->source_index = source_index;
+            result->source_start = source_start;
+            result->source_end = source_end;
+            found_mapping = 1;
+        }
+        cursor = line_end + 1;
+    }
+    if (!found_mapping) {
+        return 0;
+    }
+
+    cursor = wir;
+    while (cursor < wir + wir_start) {
+        const char *file = strstr(cursor, WEAVEC_SOURCE_FILE_PREFIX);
+        if (file == NULL || (size_t)(file - wir) >= wir_start) {
+            break;
+        }
+        const char *line_end = strchr(file, '\n');
+        if (line_end == NULL || (size_t)(line_end - wir) > wir_start) {
+            break;
+        }
+        size_t source_index = 0;
+        const char *quoted_path = NULL;
+        size_t quoted_path_length = 0;
+        if (weave_source_location_parse_file_line(
+                file, line_end, &source_index, &quoted_path,
+                &quoted_path_length) &&
+            source_index == result->source_index) {
+            result->quoted_path = quoted_path;
+            result->quoted_path_length = quoted_path_length;
+        }
+        cursor = line_end + 1;
+    }
+    return 1;
+}
+
+void weave_rt_emit_llvm_source_span(
+    int fd,
+    const char *wir_source,
+    int64_t wir_start,
+    int64_t wir_length,
+    int64_t kind) {
+    const char *enabled = getenv(WEAVEC_LLVM_PROVENANCE_ENV);
+    if (enabled == NULL || strcmp(enabled, "1") != 0 || fd < 0 ||
+        wir_source == NULL || wir_start < 0 || wir_length < 0) {
+        return;
+    }
+    weave_source_location_mapping mapping;
+    if (!weave_source_location_lookup_wir(
+            wir_source, (size_t)wir_start, &mapping)) {
+        return;
+    }
+
+    static size_t last_index = SIZE_MAX;
+    static size_t last_start = SIZE_MAX;
+    static size_t last_end = SIZE_MAX;
+    static int64_t last_kind = -1;
+    static int64_t last_wir_start = -1;
+    if (mapping.source_index == last_index &&
+        mapping.source_start == last_start &&
+        mapping.source_end == last_end && kind == last_kind &&
+        wir_start == last_wir_start) {
+        return;
+    }
+    last_index = mapping.source_index;
+    last_start = mapping.source_start;
+    last_end = mapping.source_end;
+    last_kind = kind;
+    last_wir_start = wir_start;
+
+    size_t wir_end = weave_source_form_end(
+        wir_source, (size_t)wir_start, (size_t)wir_length);
+    const char *kind_name = kind == 0 ? "function" : "statement";
+    char prefix[256];
+    int written = snprintf(
+        prefix,
+        sizeof(prefix),
+        "; weave.source kind=%s index=%zu bytes=%zu..%zu "
+        "wir-bytes=%lld..%zu path=",
+        kind_name,
+        mapping.source_index,
+        mapping.source_start,
+        mapping.source_end,
+        (long long)wir_start,
+        wir_end);
+    if (written <= 0 || (size_t)written >= sizeof(prefix)) {
+        return;
+    }
+    (void)write(fd, prefix, (size_t)written);
+    if (mapping.quoted_path != NULL && mapping.quoted_path_length > 0) {
+        (void)write(fd, mapping.quoted_path, mapping.quoted_path_length);
+    } else {
+        (void)write(fd, "null", 4);
+    }
+    (void)write(fd, "\n", 1);
 }
 
 void weave_rt_record_diagnostic_wir_span(int fd, int64_t start, int64_t length) {
@@ -352,8 +655,9 @@ int weave_rt_build_main(int argc, char **argv) {
         return weave_rt_build_main_diagnostics_legacy(argc, argv);
     }
 
-    int user_keeps_temporaries = weave_source_location_has_flag(
-        argc, argv, "--keep-temporaries");
+    int user_keeps_temporaries =
+        weave_source_location_has_flag(argc, argv, "--keep-temporaries") ||
+        weave_source_location_has_flag(argc, argv, "--llvm-provenance");
     char **forwarded = calloc((size_t)argc + 2, sizeof(*forwarded));
     if (forwarded == NULL) {
         return weave_rt_build_main_diagnostics_legacy(argc, argv);

@@ -28,10 +28,15 @@
   (extern weave_rt_contract_fail (params (msg ptr)) (returns void))
   (extern weave_rt_build_main (params (argc i32) (argv ptr)) (returns i32))
   (extern weave_rt_set_source_index (params (source_index i64)) (returns void))
+  (extern weave_rt_emit_source_file
+    (params (fd i32) (source_index i64) (source_path ptr)) (returns void))
   (extern weave_rt_emit_source_span
     (params (fd i32) (source ptr) (start i64) (len i64)) (returns void))
   (extern weave_rt_record_diagnostic_wir_span
     (params (fd i32) (start i64) (len i64)) (returns void))
+  (extern weave_rt_emit_llvm_source_span
+    (params (fd i32) (wir_source ptr) (start i64) (len i64) (kind i64))
+    (returns void))
   (extern weave_rt_trace_set_source
     (params (source_index i64) (source_path ptr)) (returns void))
   (extern weave_rt_trace_event
