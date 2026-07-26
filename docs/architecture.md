@@ -14,15 +14,50 @@ weavec0 → weavec1 → weavec-bootstrap → weavec
 | Component | Stable responsibility |
 |---|---|
 | `weavec0` | Minimal hand-written LLVM-IR seed that builds Stage 1. |
-| `weavec1` | Complete stable WIR v2 to LLVM backend and Stage 1 SDK. |
-| `weavec-bootstrap` | Frozen surface-Weave to WIR v2 bootstrap frontend and parser SDK. |
-| `weavec` | Evolving user-facing compiler, native build driver, diagnostics, and product runtime boundary. |
+| `weavec1` | Complete stable WIR core version 2 to LLVM backend and Stage 1 SDK. |
+| `weavec-bootstrap` | Frozen surface-Weave to WIR core version 2 bootstrap frontend and parser SDK. |
+| `weavec` | Evolving user-facing compiler, self-hosted frontend/backend, native build driver, diagnostics, and product runtime boundary. |
 
 The three lower repositories are frozen bootstrap infrastructure. New surface
-language features and compiler-product behavior belong in `weavec` when they can
-be expressed through the admitted WIR v2 boundary. A WIR change requires an
-explicit coordinated compiler-chain transition; `weavec` must not create a
-private WIR dialect.
+language features and compiler-product behavior belong in `weavec`.
+
+## Current WIR version split
+
+The current chain has two distinct WIR boundaries that must not be conflated.
+
+### Seed bootstrap boundary
+
+The initial `./build.sh` compiler build uses:
+
+```text
+surface compiler sources
+        │ weavec-bootstrap v0.3.0
+        ▼
+WIR core version 2
+        │ weavec1 v0.3.1
+        ▼
+LLVM IR for the seed weavec compiler
+```
+
+This is the frozen lower-stage WIR v2 contract.
+
+### Self-hosted compiler boundary
+
+The current self-hosted `weavec --frontend` emits:
+
+```text
+(core-module (core-version 1) ...)
+```
+
+The current `weavec --backend` consumes that core-version-1 module shape. Surface
+correctness goldens, quantum goldens, `weavec build`, and stage-one/stage-two
+self-hosting therefore use the compiler's existing core-version-1 format.
+
+This split is current implementation reality, not the desired long-term design.
+New work must not extend core version 1 with additional private forms merely for
+convenience. Unifying the self-hosted frontend/backend on the stabilized WIR v2
+contract requires an explicit compiler change with regenerated goldens and full
+bootstrap/self-host validation.
 
 ## Product boundary
 
@@ -32,14 +67,14 @@ The normal interface is:
 weavec build main.weave -o main
 ```
 
-The complete product flow is:
+The current product flow is:
 
 ```text
 surface-Weave source files
         │
-        │ frontend lowering
+        │ self-hosted frontend lowering
         ▼
-WIR v2 module
+WIR core-version-1 module
         │
         │ self-hosted backend
         ▼
@@ -97,10 +132,11 @@ src/frontend/audit-report.weave
 ```
 
 This layer parses and combines ordered source modules, validates and lowers
-surface forms to WIR v2, performs the currently implemented quantum rewrites,
-lowers executable contracts, and implements explain/audit modes.
+surface forms to the current self-hosted core-version-1 WIR, performs implemented
+quantum rewrites, lowers executable contracts, and implements explain/audit
+modes.
 
-### WIR v2 backend
+### Self-hosted WIR backend
 
 ```text
 src/llvm/ctx.weave
@@ -114,10 +150,13 @@ src/llvm/fn.weave
 src/llvm/module.weave
 ```
 
-This layer reads WIR v2 and emits deterministic LLVM IR. It owns type spelling,
-locals, strings, expressions, statements, function/module emission, and the
-loop-carried SSA contract. Backend validation rejects unresolved call targets
-before opening the LLVM output file.
+This layer reads the current core-version-1 WIR shape and emits deterministic
+LLVM IR. It owns type spelling, locals, strings, expressions, statements,
+function/module emission, and the loop-carried SSA contract. Backend validation
+rejects unresolved call targets before opening the LLVM output file.
+
+This backend is distinct from the frozen `weavec1` WIR v2 backend used to build
+the initial compiler seed.
 
 ### Command entry point
 
@@ -189,9 +228,10 @@ runtime.
 
 1. resolve the published `weavec1` SDK or pinned source fallback;
 2. resolve the published `weavec-bootstrap` SDK or pinned source fallback;
-3. lower the ordered compiler sources into `build/weavec.wir`;
-4. compile that WIR into `build/weavec.ll` with `weavec1` or an explicitly
-   selected self-hosted backend;
+3. use `weavec-bootstrap` to lower ordered compiler sources into WIR core version
+   2 at `build/weavec.wir`;
+4. compile that WIR into `build/weavec.ll` with `weavec1`, or use an explicitly
+   selected self-hosted backend only when the supplied WIR is compatible with it;
 5. link compiler bitcode with `libweave-sexpr.bc` into `build/weavec.bc`;
 6. link the development `build/weavec` executable with compiler host support.
 
@@ -213,10 +253,11 @@ build/selfhost/stage1/weavec
 build/selfhost/stage2/weavec
 ```
 
-Each stage lowers the same ordered compiler sources, emits LLVM, builds the
-parser runtime modules, links the compiler, and must pass a frontend smoke before
-publication. Stage 2 then compiles representative surface fixtures and reproduces
-their expected WIR and native behavior.
+Each stage uses the current self-hosted frontend to emit core-version-1 WIR,
+uses the current self-hosted backend to emit LLVM, builds the parser runtime
+modules, links the compiler, and must pass a frontend smoke before publication.
+Stage 2 then compiles representative surface fixtures and reproduces their
+expected WIR and native behavior.
 
 Deep self-hosting is a permanent CI and release gate, not merely an optional
 local experiment.
@@ -258,8 +299,14 @@ Stable versioned automation contracts are:
 - `weavec-diagnostics-v1`;
 - public phase exit codes used with diagnostics output;
 - the private runtime package location;
-- the explicit `--frontend` and `--backend` low-level interfaces.
+- the explicit `--frontend` and `--backend` command shapes.
+
+The emitted WIR core version is also observable compiler behavior. At present it
+is core version 1 for self-hosted frontend/backend workflows and core version 2
+for the frozen lower-stage seed bootstrap. Documentation and tests must state
+which boundary they mean.
 
 Surface Weave continues to evolve in this repository. Changes to public syntax,
-semantics, command behavior, diagnostics, manifests, target packaging, or source
-ordering require corresponding documentation and regression coverage.
+semantics, command behavior, diagnostics, manifests, target packaging, emitted
+WIR, or source ordering require corresponding documentation and regression
+coverage.
