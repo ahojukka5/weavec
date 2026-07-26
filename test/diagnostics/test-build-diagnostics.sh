@@ -175,6 +175,34 @@ set -e
   exit 1
 }
 
+cat > "$TMP/identical-a.weave" <<'EOF'
+(program
+  (name "diagnostics-identical")
+  (version "0.1")
+  (fn shared
+    (params)
+    (returns i32)
+    (do (return (unknown_form 0)))))
+EOF
+cp "$TMP/identical-a.weave" "$TMP/identical-b.weave"
+
+set +e
+"$WEAVEC" build "$TMP/identical-a.weave" "$TMP/identical-b.weave" \
+  -o "$TMP/identical-inputs" \
+  --diagnostics-json "$TMP/identical-inputs.diagnostics.json" \
+  2>"$TMP/identical-inputs.stderr"
+identical_inputs_exit="$?"
+set -e
+[[ "$identical_inputs_exit" -eq 11 ]] || {
+  printf 'test-build-diagnostics: expected identical-input backend exit 11, got %s\n' \
+    "$identical_inputs_exit" >&2
+  exit 1
+}
+[[ ! -e "$TMP/identical-inputs" ]] || {
+  printf 'test-build-diagnostics: identical-input failure published an executable\n' >&2
+  exit 1
+}
+
 for stderr_file in "$TMP"/*.stderr; do
   if grep -q 'kept temporary build directory' "$stderr_file"; then
     printf 'test-build-diagnostics: internal temporary directory leaked to stderr: %s\n' \
@@ -264,6 +292,18 @@ assert entry["code"] == "backend.unknown-expression-operator"
 assert entry["span_origin"] == "propagated-wir-location"
 assert pathlib.Path(entry["source"]) == root / "duplicate-main.weave"
 source = (root / "duplicate-main.weave").read_bytes()
+start = entry["span"]["start_byte"]
+end = entry["span"]["end_byte"]
+assert source[start:end] == b"unknown_form"
+
+identical = json.loads((root / "identical-inputs.diagnostics.json").read_text())
+assert identical["phase"] == "backend"
+assert identical["exit_code"] == 11
+entry = identical["diagnostics"][0]
+assert entry["code"] == "backend.unknown-expression-operator"
+assert entry["span_origin"] == "propagated-wir-location"
+assert pathlib.Path(entry["source"]) == root / "identical-a.weave"
+source = (root / "identical-a.weave").read_bytes()
 start = entry["span"]["start_byte"]
 end = entry["span"]["end_byte"]
 assert source[start:end] == b"unknown_form"
