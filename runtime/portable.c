@@ -92,4 +92,7 @@ static char *weave_rt_mkdtemp(char *path_template) {
 #define weave_rt_build_main weave_rt_build_main_legacy
 #include "build_driver.c"
 #undef weave_rt_build_main
+#define weave_rt_build_main weave_rt_build_main_diagnostics_legacy
 #include "diagnostics_driver.c"
+#undef weave_rt_build_main
+#include "source_locations.c"

@@ -19,6 +19,8 @@ surface-language contract stabilises.
 - A compiler source and fixture style guide covering `.weave` conventions,
   resource ownership, deterministic emission, and regression metadata.
 - A WIR core version 2 contract document and permanent repository audit.
+- Exact backend diagnostic source spans propagated through deterministic,
+  comment-only WIR metadata, with unique-token inference retained as fallback.
 
 ### Changed
 

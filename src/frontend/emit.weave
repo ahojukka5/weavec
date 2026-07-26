@@ -269,6 +269,10 @@
     (params (fd i32) (source ptr) (tree ptr) (node i64))
     (returns void)
     (do
+      (call_void weave_rt_emit_source_span
+        (param_get fd) (param_get source)
+        (call_i64 node_text_start (param_get tree) (param_get node))
+        (call_i64 node_text_len (param_get tree) (param_get node)))
       (let kind i32 (call_i32 node_kind (param_get tree) (param_get node)))
       (if
         (condition (eq_i32 (local_get kind) (call_i32 node_list)))
