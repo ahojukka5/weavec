@@ -104,6 +104,8 @@
     (do
       (let ts i64 (call_i64 node_text_start (param_get tree) (param_get node)))
       (let tl i64 (call_i64 node_text_len (param_get tree) (param_get node)))
+      (call_void weave_rt_record_diagnostic_wir_span
+        (param_get fd) (local_get ts) (local_get tl))
       (call_void write_bytes (param_get fd) (ptr_add (param_get source) (local_get ts)) (local_get tl))
       (return_void)))
 

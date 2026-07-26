@@ -103,6 +103,8 @@ errors.
 
 - `compiler-preflight` — exact source span produced by the compiler's canonical
   S-expression preflight scanner;
+- `propagated-wir-location` — an exact surface byte span carried through
+  comment-only WIR source-map metadata during a diagnostics build;
 - `inferred-unique-token` — a human diagnostic named one token and that token
   occurred exactly once in all source inputs outside comments and strings;
 - `none` — no trustworthy canonical-source span is available.
@@ -111,9 +113,10 @@ The compiler never invents a span when a token is ambiguous. Consumers may map
 an exact or uniquely inferred span into their own source maps, but should retain
 `span_origin` in the resulting diagnostic.
 
-Explicit source-location propagation through surface lowering and WIR is tracked
-as future compiler work. A future exact backend origin can be added without
-changing the `weavec-diagnostics-v1` outer document.
+Diagnostics builds propagate exact source locations through comment-only WIR
+metadata. The comments are ignored by ordinary WIR consumers and do not alter the
+WIR v2 semantic contract. The unique-token inference remains a compatibility
+fallback for direct or older WIR without source-map comments.
 
 ## Current exact coverage
 
@@ -124,9 +127,10 @@ The current version provides exact preflight spans for:
 - unterminated string literals;
 - unreadable source files as source-level diagnostics without spans.
 
-It also classifies common backend messages such as unknown expression operators,
-unknown identifiers, unresolved call targets, and wrong arity. A canonical-source
-span is attached only when the named token is unique.
+It also provides exact propagated spans for backend unknown-expression,
+unknown-identifier, unresolved-call-target, wrong-arity, and expected-expression
+errors when the failing WIR token originated from a copied surface node. Direct or
+unannotated WIR retains conservative unique-token inference as a fallback.
 
 ## Human diagnostics
 
