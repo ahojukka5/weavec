@@ -259,6 +259,12 @@
                 (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
                   (const_string_ptr "requires") (const_i64 8)) (const_i32 0)))
                 (then (do
+                  (call_void trace_event_for_node
+                    (const_string_ptr "contract-check")
+                    (const_string_ptr "frontend.contract-lower")
+                    (const_string_ptr "insert-requires-check")
+                    (param_get source) (param_get tree) (local_get child)
+                    (call_i64 contract_clause_expr (param_get tree) (local_get child)))
                   (let st i32 (call_i32 emit_requires_check
                     (param_get fd) (param_get source) (param_get tree) (local_get child)))
                   (if
@@ -292,6 +298,11 @@
                   (const_string_ptr "ensures") (const_i64 7)) (const_i32 0)))
                 (then (do
                   (let expr i64 (call_i64 contract_clause_expr (param_get tree) (local_get child)))
+                  (call_void trace_event_for_node
+                    (const_string_ptr "contract-check")
+                    (const_string_ptr "frontend.contract-lower")
+                    (const_string_ptr "insert-ensures-check")
+                    (param_get source) (param_get tree) (local_get child) (local_get expr))
                   (call_void write_cstr (param_get fd) (const_string_ptr "(if (condition (not_bool "))
                   (call_void emit_contract_expr (param_get fd) (param_get source) (param_get tree) (local_get expr) (const_i32 1) (param_get return_val))
                   (call_void write_cstr (param_get fd) (const_string_ptr ")) (then (do "))
