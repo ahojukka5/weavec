@@ -1,0 +1,108 @@
+; SPDX-License-Identifier: Apache-2.0
+; trace_registry.weave — stable compilation-trace action metadata
+;
+; Each trace-action declaration is consumed by scripts/check-trace-registry.sh.
+; Keep the declaration, wrapper implementation, documentation, call site, and
+; regression expectation synchronized.
+;
+; trace-action trace_lower_qubit_to_i64 lowering frontend.types lower-qubit-to-i64 node
+; trace-action trace_wrap_typed_integer lowering frontend.typed-literals wrap-typed-integer node
+; trace-action trace_lower_gate_to_runtime_call lowering frontend.quantum lower-gate-to-runtime-call node
+; trace-action trace_decompose_h_to_rz_ry rewrite frontend.quantum-nativize decompose-h-to-rz-ry node
+; trace-action trace_cancel_self_inverse_pair optimization frontend.quantum-peephole cancel-self-inverse-pair range
+; trace-action trace_lower_measurement_to_runtime_call lowering frontend.quantum lower-measurement-to-runtime-call node
+; trace-action trace_insert_requires_check contract-check frontend.contract-lower insert-requires-check node
+; trace-action trace_insert_ensures_check contract-check frontend.contract-lower insert-ensures-check node
+
+(program
+  (name "trace_registry")
+  (version "0.1")
+
+  (fn trace_lower_qubit_to_i64
+    (params (source ptr) (tree ptr) (node i64) (detail i64))
+    (returns void)
+    (do
+      (call_void trace_event_for_node
+        (const_string_ptr "lowering")
+        (const_string_ptr "frontend.types")
+        (const_string_ptr "lower-qubit-to-i64")
+        (param_get source) (param_get tree) (param_get node) (param_get detail))
+      (return_void)))
+
+  (fn trace_wrap_typed_integer
+    (params (source ptr) (tree ptr) (node i64) (detail i64))
+    (returns void)
+    (do
+      (call_void trace_event_for_node
+        (const_string_ptr "lowering")
+        (const_string_ptr "frontend.typed-literals")
+        (const_string_ptr "wrap-typed-integer")
+        (param_get source) (param_get tree) (param_get node) (param_get detail))
+      (return_void)))
+
+  (fn trace_lower_gate_to_runtime_call
+    (params (source ptr) (tree ptr) (node i64) (detail i64))
+    (returns void)
+    (do
+      (call_void trace_event_for_node
+        (const_string_ptr "lowering")
+        (const_string_ptr "frontend.quantum")
+        (const_string_ptr "lower-gate-to-runtime-call")
+        (param_get source) (param_get tree) (param_get node) (param_get detail))
+      (return_void)))
+
+  (fn trace_decompose_h_to_rz_ry
+    (params (source ptr) (tree ptr) (node i64) (detail i64))
+    (returns void)
+    (do
+      (call_void trace_event_for_node
+        (const_string_ptr "rewrite")
+        (const_string_ptr "frontend.quantum-nativize")
+        (const_string_ptr "decompose-h-to-rz-ry")
+        (param_get source) (param_get tree) (param_get node) (param_get detail))
+      (return_void)))
+
+  (fn trace_cancel_self_inverse_pair
+    (params (source ptr) (tree ptr) (first_node i64) (last_node i64) (detail i64))
+    (returns void)
+    (do
+      (call_void trace_event_for_range
+        (const_string_ptr "optimization")
+        (const_string_ptr "frontend.quantum-peephole")
+        (const_string_ptr "cancel-self-inverse-pair")
+        (param_get source) (param_get tree)
+        (param_get first_node) (param_get last_node) (param_get detail))
+      (return_void)))
+
+  (fn trace_lower_measurement_to_runtime_call
+    (params (source ptr) (tree ptr) (node i64) (detail i64))
+    (returns void)
+    (do
+      (call_void trace_event_for_node
+        (const_string_ptr "lowering")
+        (const_string_ptr "frontend.quantum")
+        (const_string_ptr "lower-measurement-to-runtime-call")
+        (param_get source) (param_get tree) (param_get node) (param_get detail))
+      (return_void)))
+
+  (fn trace_insert_requires_check
+    (params (source ptr) (tree ptr) (node i64) (detail i64))
+    (returns void)
+    (do
+      (call_void trace_event_for_node
+        (const_string_ptr "contract-check")
+        (const_string_ptr "frontend.contract-lower")
+        (const_string_ptr "insert-requires-check")
+        (param_get source) (param_get tree) (param_get node) (param_get detail))
+      (return_void)))
+
+  (fn trace_insert_ensures_check
+    (params (source ptr) (tree ptr) (node i64) (detail i64))
+    (returns void)
+    (do
+      (call_void trace_event_for_node
+        (const_string_ptr "contract-check")
+        (const_string_ptr "frontend.contract-lower")
+        (const_string_ptr "insert-ensures-check")
+        (param_get source) (param_get tree) (param_get node) (param_get detail))
+      (return_void))))

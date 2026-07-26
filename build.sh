@@ -331,6 +331,7 @@ SOURCES=(
   src/core/extern.weave
   src/core/io.weave
   src/core/util.weave
+  src/core/trace_registry.weave
   src/frontend/quantum_optimize.weave
   src/frontend/quantum_nativize.weave
   src/frontend/quantum_stats.weave

@@ -27,6 +27,7 @@ SOURCES=(
   "$ROOT/src/core/extern.weave"
   "$ROOT/src/core/io.weave"
   "$ROOT/src/core/util.weave"
+  "$ROOT/src/core/trace_registry.weave"
   "$ROOT/src/frontend/quantum_optimize.weave"
   "$ROOT/src/frontend/quantum_nativize.weave"
   "$ROOT/src/frontend/quantum_stats.weave"

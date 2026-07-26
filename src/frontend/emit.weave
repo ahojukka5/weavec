@@ -44,10 +44,7 @@
         (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
           (const_string_ptr "Qubit") (const_i64 5)) (const_i32 0)))
         (then (do
-          (call_void trace_event_for_node
-            (const_string_ptr "lowering")
-            (const_string_ptr "frontend.types")
-            (const_string_ptr "lower-qubit-to-i64")
+          (call_void trace_lower_qubit_to_i64
             (param_get source) (param_get tree) (param_get type_node) (const_i64 -1))
           (call_void write_cstr (param_get fd) (const_string_ptr "i64"))
           (return_void)))
@@ -72,10 +69,7 @@
                 (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
                   (const_string_ptr "Qubit") (const_i64 5)) (const_i32 0)))))
             (then (do
-              (call_void trace_event_for_node
-                (const_string_ptr "lowering")
-                (const_string_ptr "frontend.typed-literals")
-                (const_string_ptr "wrap-typed-integer")
+              (call_void trace_wrap_typed_integer
                 (param_get source) (param_get tree)
                 (param_get expr_node) (param_get type_node))
               (call_void emit_const_for_type
@@ -116,10 +110,7 @@
         (then (do (return_void)))
         (else (do)))
       (let gate_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
-      (call_void trace_event_for_node
-        (const_string_ptr "lowering")
-        (const_string_ptr "frontend.quantum")
-        (const_string_ptr "lower-gate-to-runtime-call")
+      (call_void trace_lower_gate_to_runtime_call
         (param_get source) (param_get tree) (param_get node) (local_get gate_node))
       (if
         (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (local_get gate_node)
@@ -212,10 +203,7 @@
             (condition (ne_i32 (call_i32 qgate_self_inverse_match
               (param_get tree) (param_get source) (param_get pending) (param_get child)) (const_i32 0)))
             (then (do
-              (call_void trace_event_for_range
-                (const_string_ptr "optimization")
-                (const_string_ptr "frontend.quantum-peephole")
-                (const_string_ptr "cancel-self-inverse-pair")
+              (call_void trace_cancel_self_inverse_pair
                 (param_get source) (param_get tree)
                 (param_get pending) (param_get child)
                 (call_i64 nth_child (param_get tree) (param_get child) (const_i64 1)))
@@ -282,10 +270,7 @@
     (do
       (let qubit_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
       (let result_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 2)))
-      (call_void trace_event_for_node
-        (const_string_ptr "lowering")
-        (const_string_ptr "frontend.quantum")
-        (const_string_ptr "lower-measurement-to-runtime-call")
+      (call_void trace_lower_measurement_to_runtime_call
         (param_get source) (param_get tree) (param_get node) (local_get qubit_node))
       (call_void write_cstr (param_get fd) (const_string_ptr "(let "))
       (call_void emit_node_text (param_get fd) (param_get source) (param_get tree) (local_get result_node))
