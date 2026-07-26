@@ -5,6 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WEAVEC="${WEAVEC:-$ROOT/build/weavec}"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/weavec-trace-test-XXXXXX")"
+TMP="$(cd "$TMP" && pwd -P)"
 trap 'rm -rf "$TMP"' EXIT
 
 [[ -x "$WEAVEC" ]] || {
