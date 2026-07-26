@@ -21,6 +21,8 @@ names used when they were released.
   separate release-package `BUILD-MANIFEST`.
 - [Machine-readable diagnostics](diagnostics.md) —
   `weavec-diagnostics-v1`, stable phase exits, and source-span provenance.
+- [Source and fixture style](source-style.md) — `.weave` compiler conventions,
+  resource ownership, deterministic emission, and regression-fixture style.
 - [Releasing](releasing.md) — reusable package, validation, and publication
   procedure.
 
