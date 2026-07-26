@@ -44,7 +44,8 @@ static void build_usage(void) {
     fputs(
         "usage: weavec build <input.weave> [input2.weave ...] -o <program>\n"
         "                    [--target <triple>] [--manifest-json <path>]\n"
-        "                    [--trace-json <path>] [--llvm-provenance]\n"
+        "                    [--trace-json <path>] [--emit-wir <path>]\n"
+        "                    [--emit-llvm <path>] [--llvm-provenance]\n"
         "                    [--runtime <archive>] [--codegen <command>]\n"
         "                    [--linker <command>] [--keep-temporaries]\n",
         stderr);
@@ -275,6 +276,149 @@ static void write_manifest(
     fclose(stream);
 }
 
+static int same_path(const char *left, const char *right) {
+    return left != NULL && right != NULL && strcmp(left, right) == 0;
+}
+
+static int requested_paths_conflict(
+    const char *output,
+    const char *manifest,
+    const char *trace,
+    const char *emit_wir,
+    const char *emit_llvm) {
+    const char *paths[] = {output, manifest, trace, emit_wir, emit_llvm};
+    size_t count = sizeof(paths) / sizeof(paths[0]);
+    for (size_t i = 0; i < count; ++i) {
+        for (size_t j = i + 1; j < count; ++j) {
+            if (same_path(paths[i], paths[j])) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static int write_all(int fd, const unsigned char *data, size_t length) {
+    while (length > 0) {
+        ssize_t written = write(fd, data, length);
+        if (written < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return 0;
+        }
+        data += (size_t)written;
+        length -= (size_t)written;
+    }
+    return 1;
+}
+
+static int publish_artifact(
+    const char *source,
+    const char *destination,
+    const char *label) {
+    if (destination == NULL) {
+        return 0;
+    }
+
+    char temporary[PATH_MAX];
+    if (snprintf(
+            temporary,
+            sizeof(temporary),
+            "%s.tmp.XXXXXX",
+            destination) >= (int)sizeof(temporary)) {
+        fprintf(stderr, "weavec: %s path is too long: %s\n", label, destination);
+        return 1;
+    }
+
+    int input = open(source, O_RDONLY);
+    if (input < 0) {
+        fprintf(
+            stderr,
+            "weavec: cannot read %s source %s: %s\n",
+            label,
+            source,
+            strerror(errno));
+        return 1;
+    }
+
+    int output = mkstemp(temporary);
+    if (output < 0) {
+        fprintf(
+            stderr,
+            "weavec: cannot create %s beside %s: %s\n",
+            label,
+            destination,
+            strerror(errno));
+        close(input);
+        return 1;
+    }
+    if (fchmod(output, 0644) != 0) {
+        fprintf(
+            stderr,
+            "weavec: cannot set permissions on %s %s: %s\n",
+            label,
+            destination,
+            strerror(errno));
+        close(input);
+        close(output);
+        unlink(temporary);
+        return 1;
+    }
+
+    unsigned char buffer[16384];
+    int failed = 0;
+    for (;;) {
+        ssize_t length = read(input, buffer, sizeof(buffer));
+        if (length == 0) {
+            break;
+        }
+        if (length < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            failed = 1;
+            break;
+        }
+        if (!write_all(output, buffer, (size_t)length)) {
+            failed = 1;
+            break;
+        }
+    }
+
+    if (close(input) != 0) {
+        failed = 1;
+    }
+    if (!failed && fsync(output) != 0) {
+        failed = 1;
+    }
+    if (close(output) != 0) {
+        failed = 1;
+    }
+
+    if (failed) {
+        fprintf(
+            stderr,
+            "weavec: cannot write %s %s: %s\n",
+            label,
+            destination,
+            strerror(errno));
+        unlink(temporary);
+        return 1;
+    }
+    if (rename(temporary, destination) != 0) {
+        fprintf(
+            stderr,
+            "weavec: cannot publish %s %s: %s\n",
+            label,
+            destination,
+            strerror(errno));
+        unlink(temporary);
+        return 1;
+    }
+    return 0;
+}
+
 static void cleanup_directory(
     const char *directory,
     const char *wir_path,
@@ -299,6 +443,8 @@ int weave_rt_build_main(int argc, char **argv) {
     const char *linker = getenv("WEAVEC_LINKER");
     const char *manifest = NULL;
     const char *trace = NULL;
+    const char *emit_wir = NULL;
+    const char *emit_llvm = NULL;
     int keep_temporaries = 0;
     int llvm_provenance = 0;
 
@@ -367,11 +513,24 @@ int weave_rt_build_main(int argc, char **argv) {
                 return 2;
             }
             trace = argv[i];
+        } else if (strcmp(arg, "--emit-wir") == 0) {
+            if (++i >= argc) {
+                build_usage();
+                free(sources);
+                return 2;
+            }
+            emit_wir = argv[i];
+        } else if (strcmp(arg, "--emit-llvm") == 0) {
+            if (++i >= argc) {
+                build_usage();
+                free(sources);
+                return 2;
+            }
+            emit_llvm = argv[i];
         } else if (strcmp(arg, "--keep-temporaries") == 0) {
             keep_temporaries = 1;
         } else if (strcmp(arg, "--llvm-provenance") == 0) {
             llvm_provenance = 1;
-            keep_temporaries = 1;
         } else if (arg[0] == '-') {
             fprintf(stderr, "weavec: unknown build option: %s\n", arg);
             build_usage();
@@ -387,11 +546,13 @@ int weave_rt_build_main(int argc, char **argv) {
         free(sources);
         return 2;
     }
-    if ((manifest != NULL && trace != NULL && strcmp(manifest, trace) == 0) ||
-        (trace != NULL && strcmp(output, trace) == 0)) {
-        fputs("weavec: output, manifest, and trace paths must differ\n", stderr);
+    if (requested_paths_conflict(output, manifest, trace, emit_wir, emit_llvm)) {
+        fputs("weavec: all requested output paths must differ\n", stderr);
         free(sources);
         return 2;
+    }
+    if (llvm_provenance && emit_llvm == NULL) {
+        keep_temporaries = 1;
     }
     if (strcmp(target, WEAVEC_DEFAULT_TARGET) != 0) {
         fprintf(
@@ -515,6 +676,20 @@ int weave_rt_build_main(int argc, char **argv) {
         return status;
     }
 
+    if (publish_artifact(wir_path, emit_wir, "WIR artifact") != 0) {
+        write_manifest(
+            manifest, "failed", "publish", target, compiler, runtime,
+            codegen, linker, output, sources, source_count);
+        (void)weave_trace_write_document(
+            trace, "failed", "publish", sources, source_count,
+            trace_events_path);
+        unlink(trace_events_path);
+        cleanup_directory(
+            temporary, wir_path, ll_path, object_path, keep_temporaries);
+        free(sources);
+        return 1;
+    }
+
     char *saved_llvm_provenance = NULL;
     const char *existing_llvm_provenance = getenv(WEAVEC_LLVM_PROVENANCE_ENV);
     if (existing_llvm_provenance != NULL) {
@@ -546,6 +721,20 @@ int weave_rt_build_main(int argc, char **argv) {
             temporary, wir_path, ll_path, object_path, keep_temporaries);
         free(sources);
         return status;
+    }
+
+    if (publish_artifact(ll_path, emit_llvm, "LLVM artifact") != 0) {
+        write_manifest(
+            manifest, "failed", "publish", target, compiler, runtime,
+            codegen, linker, output, sources, source_count);
+        (void)weave_trace_write_document(
+            trace, "failed", "publish", sources, source_count,
+            trace_events_path);
+        unlink(trace_events_path);
+        cleanup_directory(
+            temporary, wir_path, ll_path, object_path, keep_temporaries);
+        free(sources);
+        return 1;
     }
 
     char *codegen_args[] = {

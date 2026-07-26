@@ -572,13 +572,18 @@ static int weave_diag_option_takes_value(const char *arg) {
            strcmp(arg, "--target") == 0 || strcmp(arg, "--runtime") == 0 ||
            strcmp(arg, "--codegen") == 0 || strcmp(arg, "--linker") == 0 ||
            strcmp(arg, "--manifest-json") == 0 ||
-           strcmp(arg, "--trace-json") == 0;
+           strcmp(arg, "--trace-json") == 0 ||
+           strcmp(arg, "--emit-wir") == 0 ||
+           strcmp(arg, "--emit-llvm") == 0;
 }
 
 int weave_rt_build_main(int argc, char **argv) {
     const char *diagnostics_path = NULL;
     const char *manifest_path = NULL;
     const char *trace_path = NULL;
+    const char *output_path = NULL;
+    const char *wir_path = NULL;
+    const char *llvm_path = NULL;
     char **filtered = calloc((size_t)argc + 4, sizeof(*filtered));
     char **sources = calloc((size_t)argc, sizeof(*sources));
     if (filtered == NULL || sources == NULL) {
@@ -603,11 +608,21 @@ int weave_rt_build_main(int argc, char **argv) {
             continue;
         }
         filtered[filtered_argc++] = argv[i];
+        if ((strcmp(argv[i], "-o") == 0 ||
+             strcmp(argv[i], "--output") == 0) && i + 1 < argc) {
+            output_path = argv[i + 1];
+        }
         if (strcmp(argv[i], "--manifest-json") == 0 && i + 1 < argc) {
             manifest_path = argv[i + 1];
         }
         if (strcmp(argv[i], "--trace-json") == 0 && i + 1 < argc) {
             trace_path = argv[i + 1];
+        }
+        if (strcmp(argv[i], "--emit-wir") == 0 && i + 1 < argc) {
+            wir_path = argv[i + 1];
+        }
+        if (strcmp(argv[i], "--emit-llvm") == 0 && i + 1 < argc) {
+            llvm_path = argv[i + 1];
         }
     }
     filtered[filtered_argc] = NULL;
@@ -618,14 +633,19 @@ int weave_rt_build_main(int argc, char **argv) {
         free(sources);
         return result;
     }
-    if ((manifest_path != NULL && strcmp(manifest_path, diagnostics_path) == 0) ||
-        (trace_path != NULL && strcmp(trace_path, diagnostics_path) == 0)) {
-        fputs("weavec: manifest, trace, and diagnostics paths must differ\n", stderr);
+    if (requested_paths_conflict(
+            output_path, manifest_path, trace_path, wir_path, llvm_path) ||
+        (output_path != NULL && strcmp(output_path, diagnostics_path) == 0) ||
+        (manifest_path != NULL && strcmp(manifest_path, diagnostics_path) == 0) ||
+        (trace_path != NULL && strcmp(trace_path, diagnostics_path) == 0) ||
+        (wir_path != NULL && strcmp(wir_path, diagnostics_path) == 0) ||
+        (llvm_path != NULL && strcmp(llvm_path, diagnostics_path) == 0)) {
+        fputs("weavec: all requested output paths must differ\n", stderr);
         weave_diag_record record = {
             .code = "driver.conflicting-output-paths",
             .severity = "error",
             .phase = "driver",
-            .message = "manifest, trace, and diagnostics paths must differ",
+            .message = "all requested output paths must differ",
             .span_origin = "none",
         };
         weave_diag_write_result(
