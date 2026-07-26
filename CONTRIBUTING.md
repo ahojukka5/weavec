@@ -26,6 +26,33 @@ incompatible WIR semantics require an explicit coordinated version transition,
 regenerated fixtures, and the complete bootstrap and self-host gates. See
 [`docs/wir.md`](docs/wir.md).
 
+## WIR evolution proposals
+
+When implementation work reveals a well-justified capability that WIR v2 cannot
+express cleanly, preserve the current specification and use a compatible
+workaround when possible. Create a feature-request issue in `weavec` so the idea
+can be evaluated with other candidates for the next coordinated WIR version.
+
+Use a title such as:
+
+```text
+WIR next-version candidate: <capability>
+```
+
+The issue should describe:
+
+- the concrete compiler, tooling, or user need;
+- the current WIR v2 workaround and its limitations;
+- why existing admitted forms are insufficient;
+- the proposed semantics, not merely an implementation sketch;
+- affected compiler stages, runtimes, validators, and tools;
+- migration, determinism, fixture, bootstrap, and self-host implications;
+- unresolved design questions and plausible alternatives.
+
+Do not modify WIR v2 merely to solve one local problem. Keep credible candidates
+open, periodically review them together, and implement a coherent set in one
+explicit specification bump across the complete compiler chain.
+
 ## Principles
 
 - **Surface Weave evolves here.** New surface forms, contracts, structs, quantum
@@ -51,6 +78,53 @@ regenerated fixtures, and the complete bootstrap and self-host gates. See
   diagnostics changes require a new format identifier.
 - **Keep documentation navigable.** Files under `docs/` use lowercase kebab-case
   names, and current local links must resolve.
+
+## Commit discipline
+
+Prefer small, targeted commits. Each commit must form one logical unit, group
+files that belong together meaningfully, and tell exactly one story. Separate
+unrelated refactoring, behavior changes, tests, generated output, and
+ documentation when they can stand independently.
+
+Use Conventional Commits:
+
+```text
+<type>(<optional-scope>): <description>
+```
+
+Common types include `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `build`,
+`ci`, and `chore`. Use `!` before the colon for an intentional breaking change.
+
+The subject line must:
+
+- be shorter than 72 characters;
+- describe only the commit's single logical change;
+- use an imperative, concise description;
+- omit a trailing period.
+
+Every commit must have a body separated from the subject by one blank line. The
+body must have exactly this structure:
+
+1. Open with a brief one-to-three-sentence summary of the commit content.
+2. Add an optional bullet-pointed list only when more specific detail is useful.
+3. End after the summary or optional bullet list; add no trailers, footers,
+   separate test-log sections, or unrelated notes.
+
+Wrap every commit-body line to at most 80 characters. Keep bullets concrete and
+limited to details that support the summary. Explain breaking behavior in the
+summary or bullets rather than adding a `BREAKING CHANGE` footer.
+
+Example:
+
+```text
+feat(frontend): preserve exact source identity
+
+Record the original build-input index in diagnostics-only WIR mappings.
+This keeps byte-identical files distinguishable without changing WIR v2.
+
+- Preserve ordinary frontend output.
+- Add identical-input and multifile regressions.
+```
 
 ## What does not belong here
 
