@@ -1,16 +1,14 @@
 name: restack-pr20
 
 on:
-  pull_request_target:
-    types:
-      - reopened
+  schedule:
+    - cron: '*/5 * * * *'
 
 permissions:
   contents: write
 
 jobs:
   restack:
-    if: github.event.pull_request.number == 20 && github.event.pull_request.head.ref == 'agent/wir-v2-selfhost'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +20,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if test "$(git rev-parse HEAD^)" = "2fb2a0837597884cdce4398ad272feb04e579d87"; then
+            echo 'PR branch is already restacked'
+            exit 0
+          fi
           validated_tree="$(git rev-parse 'HEAD^{tree}')"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
