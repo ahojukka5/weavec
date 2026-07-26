@@ -2,11 +2,11 @@
 
 Status: partially implemented and regression-tested
 
-Quantum operations are surface-Weave forms compiled by the same frontend and
-backend as classical code. There is no separate quantum source extension or
-parallel compiler. Current support demonstrates parsing, validation, selected
-rewrites, WIR lowering, LLVM emission, statistics, and execution against a test
-runtime stub.
+Quantum operations are surface-Weave forms compiled by the same self-hosted
+frontend and backend as classical code. There is no separate quantum source
+extension or parallel compiler. Current support demonstrates parsing, selected
+rewrites, current WIR lowering, LLVM emission, statistics, and execution against
+a test runtime stub.
 
 It is not yet a production quantum-hardware runtime or complete quantum language.
 
@@ -47,15 +47,34 @@ emission.
 
 ## Measurement
 
-Measurement is an expression:
+Measurement is a statement with a qubit handle and a result-local name:
 
 ```weave
-(let result i32 (qmeasure q0))
+(qmeasure q0 c0)
 ```
 
-The current lowering targets a test runtime call. Basis selection, ownership,
-hardware scheduling, and richer classical-bit types are not stable language
-contracts yet.
+The frontend lowers this to an `i32` call to `qrt_measure` and introduces the
+named local in emitted WIR. A complete current example is:
+
+```weave
+(program
+  (name "hadamard-measure")
+  (version "0.1")
+  (extern qrt_ry (params (q i64) (theta_nr i64)) (returns void))
+  (extern qrt_rz (params (q i64) (phi_nr i64)) (returns void))
+  (extern qrt_measure (params (q i64)) (returns i32))
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let q0 Qubit (const_i64 0))
+      (qgate H q0)
+      (qmeasure q0 c0)
+      (return (local_get c0)))))
+```
+
+Basis selection, ownership, hardware scheduling, and richer classical-bit types
+are not stable language contracts yet.
 
 ## Frontend pipeline
 
@@ -68,7 +87,7 @@ src/frontend/quantum_stats.weave
 src/frontend/emit.weave
 ```
 
-The compiler uses this conceptual sequence:
+The current self-hosted sequence is:
 
 ```text
 surface source
@@ -81,10 +100,10 @@ optimized quantum forms
     │ gate nativization
     ▼
 runtime-call-compatible forms
-    │ normal surface-to-WIR lowering
+    │ normal surface lowering
     ▼
-WIR v2
-    │ ordinary backend
+WIR core version 1
+    │ self-hosted backend
     ▼
 LLVM IR
 ```
@@ -92,25 +111,24 @@ LLVM IR
 The LLVM backend does not own high-level gate decomposition. It emits the WIR
 produced by the frontend, keeping quantum transformations in the surface compiler.
 
+The lower-stage seed bootstrap uses WIR core version 2; this quantum path uses the
+current self-hosted core-version-1 frontend/backend. See
+[Architecture](architecture.md).
+
 ## Hadamard nativization
 
-The implemented Hadamard rule lowers one `H` gate to native rotations:
-
-```weave
-(qgate H q0)
-```
-
-becomes calls corresponding to:
+The implemented Hadamard rule lowers one `H` gate to runtime calls corresponding
+to rotations. Current expected WIR orders them as:
 
 ```text
-qrt_ry(q0, π/2)
 qrt_rz(q0, π)
+qrt_ry(q0, π/2)
 ```
 
-The regression fixture declares the generated runtime targets explicitly and
-checks the expected WIR. Angle values use the current integer-number
-representation expected by the runtime stub; this is not yet a general
-floating-parameter quantum ABI.
+The regression fixture declares these runtime targets explicitly and compares the
+complete emitted WIR. Angle values use the current integer-number representation
+expected by the runtime stub; this is not yet a general floating-parameter
+quantum ABI.
 
 ## Peephole optimization
 
@@ -119,7 +137,7 @@ coverage includes cancellation of adjacent Hadamard operations where the
 implemented rules prove the pair redundant.
 
 These are deterministic compiler rewrites, not runtime circuit optimization.
-They must preserve the expected WIR/LLVM fixtures and quantum statistics.
+They must preserve expected WIR/LLVM fixtures and quantum statistics.
 
 ## Runtime boundary
 
@@ -135,7 +153,7 @@ test stub:
 - it does not submit work to quantum hardware;
 - it does not model full quantum state semantics;
 - it is not included as the production private program runtime contract;
-- it must not be presented as a supported device API.
+- it is not a supported device API.
 
 A future production runtime or target package requires its own versioned ABI,
 validation, and packaging design.
@@ -204,7 +222,8 @@ Future quantum features should continue to follow these boundaries:
 
 1. quantum code remains ordinary `.weave` source;
 2. high-level gate validation and decomposition belong in frontend passes;
-3. WIR changes require a coordinated versioned compiler-chain decision;
+3. new WIR forms require a coordinated versioned compiler-chain decision rather
+   than more core-version-1-only extensions;
 4. hardware/runtime interfaces require explicit versioned ABIs;
 5. every implemented form or rewrite requires surface, WIR/LLVM, and where
    applicable end-to-end regression coverage.
