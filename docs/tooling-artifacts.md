@@ -18,6 +18,17 @@ source lowering, WIR validation, LLVM emission, diagnostics, trace events, and
 source provenance. External tools such as `weave-loupe` own JSON parsing,
 comparison, visualization, LLM-assisted review, and HTML report generation.
 
+For example, a companion tool can capture the complete evidence set and derive a
+report without parsing human stderr or private temporary paths:
+
+```sh
+loupe capture library.weave main.weave --output application.loupe
+loupe report application.loupe --output application.html
+```
+
+`weavec` does not depend on that tool. The command only illustrates the stable
+consumer boundary provided by the artifact outputs above.
+
 ## Phase-scoped publication
 
 `--emit-wir <path>` atomically publishes the WIR file immediately after a
