@@ -186,6 +186,19 @@ jobs:
               exit 1
             }
 
+            provenance_output="$root/provenance-program"
+            provenance_stderr="$root/provenance.stderr"
+            "$compiler" build "$source_file" -o "$provenance_output" \
+              --llvm-provenance 2>"$provenance_stderr"
+            provenance_dir="$(sed -n \
+              's/^weavec: kept temporary build directory: //p' \
+              "$provenance_stderr" | tail -1)"
+            [[ -n "$provenance_dir" && -s "$provenance_dir/program.ll" ]] || exit 1
+            grep -q '^; weave.source kind=function index=0 ' "$provenance_dir/program.ll"
+            grep -q '^; weave.source kind=statement index=0 ' "$provenance_dir/program.ll"
+            llvm-as "$provenance_dir/program.ll" -o "$root/provenance.bc"
+            rm -rf "$provenance_dir"
+
             cat > "$root/frontend-failure.weave" <<'EOF'
           (program
             (name "archive-frontend-failure")
