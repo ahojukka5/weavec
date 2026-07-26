@@ -4,21 +4,20 @@
 //
 // Diagnostics builds enable comment-only WIR source maps. The frontend emits one
 // mapping comment before each copied AST node, while backend diagnostics record
-// the exact WIR token they print. This wrapper joins the two private channels and
-// rewrites only the diagnostics JSON span. Ordinary frontend output, plain WIR,
+// the exact WIR token they print. Each mapping uses the source's stable argv index,
+// preserving file identity even when two inputs have identical bytes. This wrapper
+// joins the two private channels and rewrites only the diagnostics JSON span.
+// Ordinary frontend output, plain WIR,
 // human stderr, LLVM semantics, and non-diagnostics builds are unchanged.
 
 #define WEAVEC_SOURCE_MAP_ENV "WEAVEC_INTERNAL_SOURCE_LOCATIONS"
 #define WEAVEC_DIAGNOSTIC_SPAN_ENV "WEAVEC_INTERNAL_DIAGNOSTIC_WIR_SPAN"
 #define WEAVEC_SOURCE_MAP_PREFIX "; weavec-source-span-v1 "
 
-static uint64_t weave_source_location_hash(const unsigned char *data, size_t length) {
-    uint64_t hash = UINT64_C(14695981039346656037);
-    for (size_t i = 0; i < length; ++i) {
-        hash ^= (uint64_t)data[i];
-        hash *= UINT64_C(1099511628211);
-    }
-    return hash;
+static int64_t weave_source_location_source_index = -1;
+
+void weave_rt_set_source_index(int64_t source_index) {
+    weave_source_location_source_index = source_index;
 }
 
 void weave_rt_emit_source_span(
@@ -27,18 +26,17 @@ void weave_rt_emit_source_span(
     int64_t start,
     int64_t length) {
     const char *enabled = getenv(WEAVEC_SOURCE_MAP_ENV);
+    (void)source;
     if (enabled == NULL || strcmp(enabled, "1") != 0 || fd < 0 ||
-        source == NULL || start < 0 || length < 0) {
+        weave_source_location_source_index < 0 || start < 0 || length < 0) {
         return;
     }
-    uint64_t fingerprint = weave_source_location_hash(
-        (const unsigned char *)source, strlen(source));
     char line[160];
     int written = snprintf(
         line,
         sizeof(line),
-        WEAVEC_SOURCE_MAP_PREFIX "%016llx %lld %lld\n",
-        (unsigned long long)fingerprint,
+        WEAVEC_SOURCE_MAP_PREFIX "%lld %lld %lld\n",
+        (long long)weave_source_location_source_index,
         (long long)start,
         (long long)(start + length));
     if (written > 0 && (size_t)written < sizeof(line)) {
@@ -270,7 +268,7 @@ static int weave_source_location_map_wir_span(
         return 0;
     }
 
-    uint64_t fingerprint = 0;
+    size_t source_index = 0;
     size_t source_start = 0;
     size_t source_end = 0;
     int found_mapping = 0;
@@ -284,19 +282,19 @@ static int weave_source_location_map_wir_span(
         if (line_end == NULL) {
             break;
         }
-        unsigned long long parsed_fingerprint = 0;
+        unsigned long long parsed_index = 0;
         unsigned long long parsed_start = 0;
         unsigned long long parsed_end = 0;
         if ((size_t)(line_end - (char *)wir) <= wir_start &&
             sscanf(
                 mapping + strlen(WEAVEC_SOURCE_MAP_PREFIX),
-                "%16llx %llu %llu",
-                &parsed_fingerprint,
+                "%llu %llu %llu",
+                &parsed_index,
                 &parsed_start,
                 &parsed_end) == 3 &&
-            parsed_start <= parsed_end && parsed_start <= SIZE_MAX &&
-            parsed_end <= SIZE_MAX) {
-            fingerprint = (uint64_t)parsed_fingerprint;
+            parsed_index <= SIZE_MAX && parsed_start <= parsed_end &&
+            parsed_start <= SIZE_MAX && parsed_end <= SIZE_MAX) {
+            source_index = (size_t)parsed_index;
             source_start = (size_t)parsed_start;
             source_end = (size_t)parsed_end;
             found_mapping = 1;
@@ -308,26 +306,19 @@ static int weave_source_location_map_wir_span(
         return 0;
     }
 
-    const char *matched_source = NULL;
-    int matches = 0;
-    for (int i = 0; i < source_count; ++i) {
-        size_t source_length = 0;
-        unsigned char *source = weave_diag_read_file(sources[i], &source_length);
-        if (source == NULL) {
-            continue;
-        }
-        uint64_t candidate = weave_source_location_hash(source, source_length);
-        if (candidate == fingerprint && source_end <= source_length) {
-            matched_source = sources[i];
-            ++matches;
-        }
-        free(source);
-    }
-    if (matches != 1) {
+    if (source_index >= (size_t)source_count || sources[source_index] == NULL) {
         return 0;
     }
+    size_t source_length = 0;
+    unsigned char *source = weave_diag_read_file(
+        sources[source_index], &source_length);
+    if (source == NULL || source_end > source_length) {
+        free(source);
+        return 0;
+    }
+    free(source);
 
-    record->source = matched_source;
+    record->source = sources[source_index];
     record->span_origin = "propagated-wir-location";
     record->start_byte = source_start;
     record->end_byte = source_end;
