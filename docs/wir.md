@@ -87,8 +87,8 @@ its temporary WIR. A mapping line has the form:
 ; weavec-source-span-v1 <source-index> <start-byte> <end-byte>
 ```
 
-The zero-based source index follows the original build input order, so file
-identity remains exact even for byte-identical inputs. The metadata is
+A zero-based source index follows the original build input order, preserving
+exact file identity even when two inputs are byte-identical. The metadata is
 deterministic, has no semantic meaning in WIR v2, and is ignored by the existing
 lexer as an ordinary comment. It is not emitted by normal
 `weavec --frontend`, build, fixture, or self-host flows. Backend diagnostics use
