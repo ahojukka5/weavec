@@ -122,6 +122,7 @@
       (let fd i32 (call_i32 ctx_get_fd (param_get ctx)))
       (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
       (let source ptr (call_ptr ctx_get_source (param_get ctx)))
+      (call_void emit_llvm_source_comment (param_get ctx) (param_get node) (const_i64 0))
       (let actual_args i64 (sub_i64 (call_i64 count_children (local_get tree) (param_get node)) (const_i64 1)))
       (if
         (condition (ne_i64 (local_get actual_args) (const_i64 4)))

@@ -91,6 +91,14 @@ static char *weave_rt_mkdtemp(char *path_template) {
 #define WEAVEC_TRACE_EVENTS_ENV "WEAVEC_INTERNAL_TRACE_EVENTS"
 #endif
 
+#ifndef WEAVEC_SOURCE_MAP_ENV
+#define WEAVEC_SOURCE_MAP_ENV "WEAVEC_INTERNAL_SOURCE_LOCATIONS"
+#endif
+#ifndef WEAVEC_LLVM_PROVENANCE_ENV
+#define WEAVEC_LLVM_PROVENANCE_ENV "WEAVEC_INTERNAL_LLVM_PROVENANCE"
+#endif
+
+
 static int weave_trace_write_document(
     const char *path,
     const char *status,

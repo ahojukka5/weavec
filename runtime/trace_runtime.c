@@ -45,69 +45,6 @@ static void weave_trace_json_cstr(FILE *stream, const char *value) {
         strlen(safe));
 }
 
-static size_t weave_trace_sexpr_length(const char *source, size_t start) {
-    if (source == NULL || source[start] != '(') {
-        return 0;
-    }
-
-    size_t depth = 0;
-    int in_string = 0;
-    int escaped = 0;
-    int in_comment = 0;
-    for (size_t index = start; source[index] != '\0'; ++index) {
-        unsigned char ch = (unsigned char)source[index];
-        if (in_comment) {
-            if (ch == '\n') {
-                in_comment = 0;
-            }
-            continue;
-        }
-        if (in_string) {
-            if (escaped) {
-                escaped = 0;
-            } else if (ch == '\\') {
-                escaped = 1;
-            } else if (ch == '"') {
-                in_string = 0;
-            }
-            continue;
-        }
-        if (ch == ';') {
-            in_comment = 1;
-        } else if (ch == '"') {
-            in_string = 1;
-        } else if (ch == '(') {
-            ++depth;
-        } else if (ch == ')') {
-            if (depth == 0) {
-                return 0;
-            }
-            --depth;
-            if (depth == 0) {
-                return index - start + 1;
-            }
-        }
-    }
-    return 0;
-}
-
-static size_t weave_trace_event_end(
-    const char *source,
-    size_t start,
-    size_t fallback_length) {
-    size_t end = start + fallback_length;
-    if (source == NULL || source[start] != '(') {
-        return end;
-    }
-
-    size_t final_start = start;
-    if (fallback_length > 1 && source[end - 1] == '(') {
-        final_start = end - 1;
-    }
-    size_t final_length = weave_trace_sexpr_length(source, final_start);
-    return final_length == 0 ? end : final_start + final_length;
-}
-
 void weave_rt_trace_set_source(int64_t source_index, const char *source_path) {
     weave_trace_source_index = source_index;
     weave_trace_source_path = source_path;
@@ -134,7 +71,7 @@ void weave_rt_trace_event(
     }
 
     size_t span_start = (size_t)start;
-    size_t span_end = weave_trace_event_end(
+    size_t span_end = weave_source_form_end(
         source, span_start, (size_t)length);
 
     fputs("{\"kind\":", stream);

@@ -44,7 +44,7 @@ static void build_usage(void) {
     fputs(
         "usage: weavec build <input.weave> [input2.weave ...] -o <program>\n"
         "                    [--target <triple>] [--manifest-json <path>]\n"
-        "                    [--trace-json <path>]\n"
+        "                    [--trace-json <path>] [--llvm-provenance]\n"
         "                    [--runtime <archive>] [--codegen <command>]\n"
         "                    [--linker <command>] [--keep-temporaries]\n",
         stderr);
@@ -300,6 +300,7 @@ int weave_rt_build_main(int argc, char **argv) {
     const char *manifest = NULL;
     const char *trace = NULL;
     int keep_temporaries = 0;
+    int llvm_provenance = 0;
 
     if (codegen == NULL || *codegen == '\0') {
         codegen = WEAVEC_DEFAULT_CODEGEN;
@@ -367,6 +368,9 @@ int weave_rt_build_main(int argc, char **argv) {
             }
             trace = argv[i];
         } else if (strcmp(arg, "--keep-temporaries") == 0) {
+            keep_temporaries = 1;
+        } else if (strcmp(arg, "--llvm-provenance") == 0) {
+            llvm_provenance = 1;
             keep_temporaries = 1;
         } else if (arg[0] == '-') {
             fprintf(stderr, "weavec: unknown build option: %s\n", arg);
@@ -469,7 +473,24 @@ int weave_rt_build_main(int argc, char **argv) {
         (void)setenv(WEAVEC_TRACE_EVENTS_ENV, trace_events_path, 1);
     }
 
+    char *saved_source_map = NULL;
+    const char *existing_source_map = getenv(WEAVEC_SOURCE_MAP_ENV);
+    if (existing_source_map != NULL) {
+        saved_source_map = strdup(existing_source_map);
+    }
+    if (llvm_provenance) {
+        (void)setenv(WEAVEC_SOURCE_MAP_ENV, "1", 1);
+    }
+
     int status = run_process(frontend);
+    if (llvm_provenance) {
+        if (saved_source_map != NULL) {
+            (void)setenv(WEAVEC_SOURCE_MAP_ENV, saved_source_map, 1);
+        } else {
+            (void)unsetenv(WEAVEC_SOURCE_MAP_ENV);
+        }
+    }
+    free(saved_source_map);
     if (trace != NULL) {
         if (saved_trace_events != NULL) {
             (void)setenv(WEAVEC_TRACE_EVENTS_ENV, saved_trace_events, 1);
@@ -494,8 +515,25 @@ int weave_rt_build_main(int argc, char **argv) {
         return status;
     }
 
+    char *saved_llvm_provenance = NULL;
+    const char *existing_llvm_provenance = getenv(WEAVEC_LLVM_PROVENANCE_ENV);
+    if (existing_llvm_provenance != NULL) {
+        saved_llvm_provenance = strdup(existing_llvm_provenance);
+    }
+    if (llvm_provenance) {
+        (void)setenv(WEAVEC_LLVM_PROVENANCE_ENV, "1", 1);
+    }
     char *backend[] = {compiler, "--backend", wir_path, ll_path, NULL};
     status = run_process(backend);
+    if (llvm_provenance) {
+        if (saved_llvm_provenance != NULL) {
+            (void)setenv(
+                WEAVEC_LLVM_PROVENANCE_ENV, saved_llvm_provenance, 1);
+        } else {
+            (void)unsetenv(WEAVEC_LLVM_PROVENANCE_ENV);
+        }
+    }
+    free(saved_llvm_provenance);
     if (status != 0) {
         write_manifest(
             manifest, "failed", "backend", target, compiler, runtime,

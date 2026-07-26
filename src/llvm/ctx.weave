@@ -126,6 +126,25 @@
     (do
       (return (load_ptr (ptr_add (param_get ctx) (const_i64 16))))))
 
+
+  ; Emit opt-in surface provenance before LLVM generated from a WIR node.
+  (fn emit_llvm_source_comment
+    (params (ctx ptr) (node i64) (kind i64))
+    (returns void)
+    (do
+      (if
+        (condition (eq_i64 (param_get node) (const_i64 -1)))
+        (then (do (return_void)))
+        (else (do)))
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (call_void weave_rt_emit_llvm_source_span
+        (call_i32 ctx_get_fd (param_get ctx))
+        (call_ptr ctx_get_source (param_get ctx))
+        (call_i64 node_text_start (local_get tree) (param_get node))
+        (call_i64 node_text_len (local_get tree) (param_get node))
+        (param_get kind))
+      (return_void)))
+
   ; Allocate next temp register index and return it.
   (fn ctx_alloc_temp
     (params (ctx ptr))
