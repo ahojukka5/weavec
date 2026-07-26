@@ -84,11 +84,13 @@ forms whenever possible.
 its temporary WIR. A mapping line has the form:
 
 ```text
-; weavec-source-span-v1 <source-fingerprint> <start-byte> <end-byte>
+; weavec-source-span-v1 <source-index> <start-byte> <end-byte>
 ```
 
-The metadata is deterministic, has no semantic meaning in WIR v2, and is ignored
-by the existing lexer as an ordinary comment. It is not emitted by normal
+The zero-based source index follows the original build input order, so file
+identity remains exact even for byte-identical inputs. The metadata is
+deterministic, has no semantic meaning in WIR v2, and is ignored by the existing
+lexer as an ordinary comment. It is not emitted by normal
 `weavec --frontend`, build, fixture, or self-host flows. Backend diagnostics use
 it only to recover an exact original surface span; direct and older WIR remain
 accepted and use the documented inference fallback.
