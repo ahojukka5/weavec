@@ -6,11 +6,13 @@ human-readable stderr stream:
 ```sh
 weavec build main.weave -o main \
   --manifest-json main.build.json \
-  --diagnostics-json main.diagnostics.json
+  --diagnostics-json main.diagnostics.json \
+  --trace-json main.trace.json
 ```
 
-The manifest and diagnostics paths must be different. The manifest protocol is
-documented separately in [Build manifests](build-manifest.md).
+The executable and requested JSON paths must all be different. The manifest and
+trace protocols are documented separately in [Build manifests](build-manifest.md)
+and [Source-linked compilation trace](compilation-trace.md).
 
 ## Schema
 

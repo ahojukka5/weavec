@@ -21,6 +21,8 @@ surface-language contract stabilises.
 - A WIR core version 2 contract document and permanent repository audit.
 - Exact backend diagnostic source spans propagated through deterministic,
   comment-only WIR metadata, with unique-token inference retained as fallback.
+- `weavec-compilation-trace-v1` output with deterministic, source-linked
+  lowering, rewrite, optimization, and executable-contract events.
 
 ### Changed
 

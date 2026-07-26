@@ -215,7 +215,7 @@ After publication:
 1. download every release asset into a fresh directory;
 2. run `sha256sum --check SHA256SUMS`;
 3. extract both archives;
-4. repeat successful native-build and failure-diagnostics smokes;
+4. repeat successful native-build, trace, and failure-diagnostics smokes;
 5. confirm the GitHub release target equals the release commit;
 6. confirm downstream documentation is updated only after the assets exist.
 
@@ -229,7 +229,8 @@ Before merging release preparation or creating the tag, confirm:
 - [ ] Deep self-hosting passes through stage 2.
 - [ ] Both static package archives pass exact-package smokes.
 - [ ] Private runtime paths and targets are correct.
-- [ ] Build-manifest and diagnostics protocols pass from extracted packages.
+- [ ] Build-manifest, diagnostics, and compilation-trace protocols pass from
+      extracted packages.
 - [ ] Failed builds publish no executable.
 - [ ] Checksums pass before and after publication.
 - [ ] Tag, source commit, package manifests, and release target agree.
