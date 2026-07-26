@@ -1,1 +1,1 @@
-test/diagnostics/test-build-diagnostics.sh: expected one match, found 0
+test/diagnostics/test-build-diagnostics.sh: expected one match, found 0: '[[ ! -e "$TMP/missing-call" ]] || {\n  printf \'test-build-diagnostics: unresolved call published an executable\n\' >&2\n  exit 1\n}\n\npython3 - "$TMP" <<\'PY\'\n'
