@@ -36,9 +36,9 @@ names used when they were released.
 - [LLVM code-generation analysis](llvm-codegen-analysis.md)
 - [Generated LLVM analysis report](llvm-codegen-analysis-report.md)
 
-The backend and performance documents describe current implementation behavior
-and optimization opportunities. They are not extensions to the public surface
-language or WIR v2 contracts.
+The backend and performance documents describe current self-hosted implementation
+behavior and optimization opportunities. They do not extend either the current
+core-version-1 format or the frozen lower-stage WIR v2 contract.
 
 ## Repository documents
 
