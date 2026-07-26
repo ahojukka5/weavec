@@ -1,9 +1,12 @@
 # Performance demonstrations
 
-Each fixture under `test/performance/wir/` is a small WIR v2 program whose
-pre-optimization LLVM output is checked into `test/performance/expected-llvm/`.
-The suite is a deterministic backend regression and code-review corpus, not a
-runtime benchmark leaderboard.
+Each fixture under `test/performance/wir/` is a small module in the current
+self-hosted core-version-1 WIR shape. Its pre-optimization LLVM output is checked
+into `test/performance/expected-llvm/`. The suite is a deterministic backend
+regression and code-review corpus, not a runtime benchmark leaderboard.
+
+The frozen seed bootstrap uses WIR v2; these fixtures exercise the separate
+self-hosted `weavec --backend` boundary. See [Architecture](architecture.md).
 
 ## Naming
 
@@ -112,8 +115,8 @@ This is expected current behavior and is measured by the generated analysis
 report.
 
 `const_f32` and `const_f64` currently lower from integer literal tokens through
-`sitofp`; decimal floating literals are not yet part of the stable source/WIR
-contract.
+`sitofp`; decimal floating literals are not yet part of the stable surface or
+current self-hosted WIR contract.
 
 See:
 
