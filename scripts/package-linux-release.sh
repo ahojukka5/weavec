@@ -261,7 +261,8 @@ assert backend["exit_code"] == 11
 backend_entry = backend["diagnostics"][0]
 assert backend_entry["code"] == "backend.unknown-expression-operator"
 assert backend_entry["message"] == "unknown expression operator: unknown_form"
-assert backend_entry["span_origin"] == "inferred-unique-token"
+assert backend_entry["span_origin"] == "propagated-wir-location"
+assert pathlib.Path(backend_entry["source"]) == backend_source_path
 span = backend_entry["span"]
 assert span is not None
 source = backend_source_path.read_bytes()
