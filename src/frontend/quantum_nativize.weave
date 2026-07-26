@@ -38,10 +38,7 @@
             (const_string_ptr "H") (const_i64 1)) (const_i32 0))
           (eq_i64 (call_i64 count_children (param_get tree) (param_get node)) (const_i64 3))))
         (then (do
-          (call_void trace_event_for_node
-            (const_string_ptr "rewrite")
-            (const_string_ptr "frontend.quantum-nativize")
-            (const_string_ptr "decompose-h-to-rz-ry")
+          (call_void trace_decompose_h_to_rz_ry
             (param_get source) (param_get tree) (param_get node) (local_get gate_node))
           (call_void rigetti_emit_h_decomposition
             (param_get fd) (param_get source) (param_get tree) (local_get qubit_node))
