@@ -27,6 +27,8 @@ surface-language contract stabilises.
   groups to exact surface and WIR byte ranges.
 - Structural LLVM quality budgets that ratchet instruction counts, memory
   traffic, control flow, semantic naming, and identity-operation regressions.
+- Stable `--emit-wir` and `--emit-llvm` build outputs with atomic,
+  phase-scoped publication for external compiler tooling.
 
 ### Changed
 

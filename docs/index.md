@@ -29,6 +29,8 @@ names used when they were released.
 - [LLVM source provenance and quality budgets](llvm-provenance.md) —
   comment-only source/WIR links, semantic IR naming, and structural regression
   ceilings for performance goldens.
+- [Tooling artifact outputs](tooling-artifacts.md) — stable WIR and LLVM output
+  paths, phase-scoped atomic publication, and the boundary with external tools.
 - [Source and fixture style](source-style.md) — `.weave` compiler conventions,
   resource ownership, deterministic emission, and regression-fixture style.
 - [Releasing](releasing.md) — reusable package, validation, and publication

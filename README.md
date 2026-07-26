@@ -89,9 +89,20 @@ weavec build main.weave -o main \
 
 The executable and requested JSON output paths must all be different.
 
-For direct code-generation inspection, add `--llvm-provenance`. It retains the
-build directory and annotates LLVM with comments linking each generated function
-and statement group to exact surface and WIR byte ranges. See
+External tooling can also request stable intermediate artifacts:
+
+```sh
+weavec build main.weave -o main \
+  --emit-wir main.wir \
+  --emit-llvm main.ll \
+  --llvm-provenance
+```
+
+The compiler publishes WIR after frontend success and LLVM after backend success,
+so later failures do not erase useful analysis inputs. Report generation,
+visualization, JSON parsing, and LLM-assisted review belong in tooling such as
+`weave-loupe`, not in the compiler. See
+[Tooling artifact outputs](docs/tooling-artifacts.md) and
 [LLVM source provenance and quality budgets](docs/llvm-provenance.md).
 
 ## Private target runtime
