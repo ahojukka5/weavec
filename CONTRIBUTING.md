@@ -84,7 +84,7 @@ explicit specification bump across the complete compiler chain.
 Prefer small, targeted commits. Each commit must form one logical unit, group
 files that belong together meaningfully, and tell exactly one story. Separate
 unrelated refactoring, behavior changes, tests, generated output, and
- documentation when they can stand independently.
+documentation when they can stand independently.
 
 Use Conventional Commits:
 
@@ -125,6 +125,23 @@ This keeps byte-identical files distinguishable without changing WIR v2.
 - Preserve ordinary frontend output.
 - Add identical-input and multifile regressions.
 ```
+
+## Task completion
+
+After completing a `weavec` task, report the finished result and propose concrete
+follow-up work. Suggestions should be specific, prioritized, and grounded in the
+code, tests, architecture, or product direction discovered during the task.
+
+Include useful candidates from one or both categories:
+
+- strengthening work that improves correctness, test coverage, diagnostics,
+  maintainability, performance, documentation, portability, or release quality;
+- functionality that fills a standard compiler gap or gives `weavec` a distinctive
+  capability compared with existing compilers.
+
+When a follow-up exposes a justified WIR capability gap, create a next-version
+feature-request issue using the WIR evolution process above. Do not propose a
+private WIR v2 extension as a shortcut.
 
 ## What does not belong here
 
