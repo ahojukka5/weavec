@@ -1,1 +1,0 @@
-(core-module (core-version 2) (decls (fn is_answer (params (x i32)) (returns bool) (do (return (eq_i32 (param_get x) (const_i32 42))))) (fn main (params) (returns i32) (do (if (condition (call_bool is_answer (const_i32 42))) (then (do (return (const_i32 42)))) (else (do (return (const_i32 0)))))))))

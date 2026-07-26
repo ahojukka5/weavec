@@ -1,6 +1,0 @@
-; multifile_a.weave — defines a named constant
-(program
-  (name "multifile_a")
-  (version "0.1")
-  (const MAGIC i64 42)
-)

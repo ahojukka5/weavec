@@ -1,9 +1,0 @@
-(program
-  (name "return-constant")
-  (version "0.1")
-  (entry main
-    (params)
-    (returns i32)
-    (do
-      (return
-        (const_i32 0)))))

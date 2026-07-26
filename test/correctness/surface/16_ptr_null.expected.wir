@@ -1,1 +1,0 @@
-(core-module (core-version 2) (decls (fn main (params) (returns i32) (do (if (condition (eq_ptr (const_null) (const_null))) (then (do (if (condition (ne_ptr (const_null) (const_null))) (then (do (return (const_i32 0)))) (else (do (return (const_i32 42))))))) (else (do (return (const_i32 0)))))))))

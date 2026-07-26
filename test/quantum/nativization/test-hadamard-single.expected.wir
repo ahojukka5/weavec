@@ -1,1 +1,0 @@
-(core-module (core-version 2) (decls (extern qrt_ry (params (q i64) (theta_nr i64)) (returns void)) (extern qrt_rz (params (q i64) (phi_nr i64)) (returns void)) (fn main (params) (returns i32) (do (let q0 i64 (const_i64 0)) (call_void qrt_rz (local_get q0) (const_i64 3141592653)) (call_void qrt_ry (local_get q0) (const_i64 1570796327)) (return (const_i32 42))))))

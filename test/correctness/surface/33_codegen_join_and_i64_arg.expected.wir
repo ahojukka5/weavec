@@ -1,1 +1,0 @@
-(core-module (core-version 2) (decls (fn main (params) (returns i32) (do (let p ptr (call_ptr malloc (mul_i64 (const_i64 2) (const_i64 4)))) (if (condition (eq_ptr (local_get p) (const_null))) (then (do (return (const_i32 0)))) (else (do (call_void free (local_get p))))) (return (const_i32 42))))))

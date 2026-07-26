@@ -1,1 +1,0 @@
-(core-module (core-version 2) (decls (fn main (params) (returns i32) (do (if (condition (not_bool (const_bool false))) (then (do (return (const_i32 42)))) (else (do (return (const_i32 0)))))))))

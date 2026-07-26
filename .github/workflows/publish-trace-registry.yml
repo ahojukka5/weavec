@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: Apache-2.0
+name: publish-trace-registry
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: github.head_ref == 'agent/trace-registry'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/trace-registry
+          fetch-depth: 0
+
+      - name: Verify product archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .trace-registry-payload/chunk-* \
+            > /tmp/weavec-trace-registry-product.tar.gz
+          printf '%s  %s\n' \
+            '164994c6dad0a04c0f67d795fdbd659b5e775a30fe0c2d5bfae0a344dadef064' \
+            /tmp/weavec-trace-registry-product.tar.gz | sha256sum --check -
+          gzip -t /tmp/weavec-trace-registry-product.tar.gz
+          test "$(tar -tzf /tmp/weavec-trace-registry-product.tar.gz | wc -l)" -eq 15
+          if tar -tzf /tmp/weavec-trace-registry-product.tar.gz \
+            | grep -Eq '(^|/)\.\.(/|$)|^/'; then
+            echo 'unsafe archive path' >&2
+            exit 1
+          fi
+
+      - name: Publish reviewed commits
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          git checkout -B agent/trace-registry-clean origin/master
+          tar -xzf /tmp/weavec-trace-registry-product.tar.gz
+          chmod 0755 scripts/check-trace-registry.sh test/trace/test.sh \
+            test-all.sh build.sh selfhost.sh \
+            scripts/test-weavec-bootstrap-stack.sh
+
+          git config user.name 'github-actions[bot]'
+          git config user.email \
+            '41898282+github-actions[bot]@users.noreply.github.com'
+
+          cat > /tmp/message <<'EOF'
+          refactor(trace): centralize action metadata
+
+          Move stable trace kind, pass, and action values into named Weave wrappers.
+          Frontend lowering sites now call semantic registry functions.
+
+          - Preserve the existing trace document and event order.
+          - Keep deterministic compiler source ordering synchronized.
+          EOF
+          sed -i 's/^          //' /tmp/message
+          git add build.sh selfhost.sh scripts/test-weavec-bootstrap-stack.sh \
+            src/core/trace_registry.weave src/frontend/emit.weave \
+            src/frontend/contract-lower.weave \
+            src/frontend/quantum_nativize.weave
+          git commit -F /tmp/message
+
+          cat > /tmp/message <<'EOF'
+          test(trace): enforce action registry coverage
+
+          Add a shell audit that keeps registered trace actions aligned with compiler
+          call sites, documentation, and the end-to-end trace regression.
+
+          - Reject raw action triples and direct generic helper calls.
+          - Load regression expectations from an audited plain-text action list.
+          EOF
+          sed -i 's/^          //' /tmp/message
+          git add scripts/check-trace-registry.sh \
+            test/trace/expected-actions.txt test/trace/test.sh test-all.sh
+          git commit -F /tmp/message
+
+          cat > /tmp/message <<'EOF'
+          docs(trace): define the action registry contract
+
+          Document the compiler-native registry and the required workflow for adding a
+          stable compilation-trace action.
+
+          - Describe the permanent drift audit and its rejection cases.
+          - Include registry and LLVM quality checks in the verification model.
+          EOF
+          sed -i 's/^          //' /tmp/message
+          git add CHANGELOG.md docs/architecture.md docs/compilation-trace.md \
+            docs/source-style.md
+          git commit -F /tmp/message
+
+          python3 scripts/check_commit_messages.py --range origin/master..HEAD
+          python3 scripts/check_wir_core_version.py
+          scripts/check-trace-registry.sh
+          bash -n scripts/check-trace-registry.sh test/trace/test.sh \
+            test-all.sh build.sh selfhost.sh \
+            scripts/test-weavec-bootstrap-stack.sh
+          test -z "$(git status --porcelain)"
+          git push --force origin HEAD:agent/trace-registry-clean

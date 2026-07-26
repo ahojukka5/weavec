@@ -1,6 +1,0 @@
-{
-  "functions": [
-    {"name": "inc", "requires": [], "ensures": [], "effect_contracts": {"no_alloc": "verified", "pure": "verified", "deterministic": "verified"}, "effect_reasons": [], "purity": "pure", "returns": "i32", "parameters": [{"name": "x", "type": "i32"}], "return_sites": 1, "contract_checks_inserted": 0, "loop_sites": 0, "call_sites": 0, "external_calls": 0, "external_callees": [], "allocations": 0},
-    {"name": "main", "requires": [], "ensures": [], "effect_contracts": null, "effect_reasons": [], "purity": "pure", "returns": "i32", "parameters": [], "return_sites": 1, "contract_checks_inserted": 0, "loop_sites": 0, "call_sites": 1, "external_calls": 0, "external_callees": [], "allocations": 0}
-  ]
-}

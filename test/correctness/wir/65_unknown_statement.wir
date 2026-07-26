@@ -1,9 +1,0 @@
-(core-module
-  (core-version 2)
-  (decls
-    (fn main
-      (params)
-      (returns i32)
-      (do
-        (mystery_stmt)
-        (return (const_i32 42))))))

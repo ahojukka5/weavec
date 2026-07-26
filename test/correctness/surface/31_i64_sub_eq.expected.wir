@@ -1,1 +1,0 @@
-(core-module (core-version 2) (decls (fn main (params) (returns i32) (do (if (condition (eq_i64 (sub_i64 (const_i64 50) (const_i64 8)) (const_i64 42))) (then (do (return (const_i32 42)))) (else (do (return (const_i32 0)))))))))

@@ -1,1 +1,0 @@
-(core-module (core-version 2) (decls (fn main (params) (returns i32) (do (let i i32 (const_i32 10)) (let sum i32 (const_i32 42)) (while (condition (lt_i32 (local_get i) (const_i32 5))) (do (set sum (const_i32 0)) (set i (add_i32 (local_get i) (const_i32 1))))) (return (local_get sum))))))

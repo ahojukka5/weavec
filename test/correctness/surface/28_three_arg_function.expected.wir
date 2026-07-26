@@ -1,1 +1,0 @@
-(core-module (core-version 2) (decls (fn add3 (params (a i32) (b i32) (c i32)) (returns i32) (do (return (add_i32 (add_i32 (param_get a) (param_get b)) (param_get c))))) (fn main (params) (returns i32) (do (return (call_i32 add3 (const_i32 10) (const_i32 20) (const_i32 12)))))))

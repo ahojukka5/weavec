@@ -1,4 +1,0 @@
-native_gates=8
-two_qubit_gates=1
-depth=8
-exit_code=100

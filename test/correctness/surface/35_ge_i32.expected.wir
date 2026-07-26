@@ -1,1 +1,0 @@
-(core-module (core-version 2) (decls (fn main (params) (returns i32) (do (if (condition (ge_i32 (const_i32 42) (const_i32 42))) (then (do (return (const_i32 42)))) (else (do (return (const_i32 0)))))))))

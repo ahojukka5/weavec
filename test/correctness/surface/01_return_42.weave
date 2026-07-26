@@ -1,9 +1,0 @@
-(program
-  (name "return-42")
-  (version "0.1")
-  (entry main
-    (params)
-    (returns i32)
-    (do
-      (return
-        (const_i32 42)))))

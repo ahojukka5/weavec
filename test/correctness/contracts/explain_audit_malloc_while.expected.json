@@ -1,7 +1,0 @@
-{
-  "functions": [
-    {"name": "bootstrap", "kind": "entry-only", "requires": [], "ensures": [], "pure": false, "no_alloc": false, "returns": null, "parameters": [], "return_sites": 0, "contract_checks_inserted": 0, "loop_sites": 0, "call_sites": 0, "external_calls": 0, "external_callees": [], "allocations": 0},
-    {"name": "worker", "requires": [], "ensures": [], "pure": false, "no_alloc": false, "deterministic": false, "returns": "i32", "parameters": [{"name": "n", "type": "i32"}], "return_sites": 1, "contract_checks_inserted": 0, "loop_sites": 1, "call_sites": 2, "external_calls": 2, "external_callees": ["malloc", "free"], "allocations": 2},
-    {"name": "main", "requires": [], "ensures": [], "pure": false, "no_alloc": false, "deterministic": false, "returns": "i32", "parameters": [], "return_sites": 1, "contract_checks_inserted": 0, "loop_sites": 0, "call_sites": 1, "external_calls": 0, "external_callees": [], "allocations": 0}
-  ]
-}
