@@ -280,6 +280,13 @@ The release workflow additionally:
 
 ## Stable and evolving contracts
 
+Source inspection can additionally enable comment-only LLVM provenance. The
+frontend carries exact surface file identities and spans through private WIR v2
+comments; the backend emits corresponding comments before generated function
+and statement groups. This path is opt-in and semantically inert. Structural
+LLVM budgets prevent instruction-count, stack-traffic, naming, and undefined-
+value regressions across the performance suite.
+
 Stable versioned automation contracts are:
 
 - `weavec-build-manifest-v1`;

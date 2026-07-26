@@ -13,6 +13,7 @@ weavec build <input.weave> [input2.weave ...] -o <program>
              [--manifest-json <path>]
              [--diagnostics-json <path>]
              [--trace-json <path>]
+             [--llvm-provenance]
              [--keep-temporaries]
 ```
 
@@ -62,6 +63,13 @@ public phase exit codes while preserving human-readable stderr. See
 `--trace-json <path>` writes `weavec-compilation-trace-v1`, a deterministic list
 of source-linked frontend transformations performed by the real lowering and
 optimization paths. See [Source-linked compilation trace](compilation-trace.md).
+
+`--llvm-provenance` adds comment-only function and statement provenance to the
+generated LLVM and implies `--keep-temporaries`, so the compiler prints the
+retained directory containing `program.ll`. The comments link exact surface and
+WIR byte ranges without changing ordinary WIR, LLVM semantics, or direct-WIR
+compatibility. See
+[LLVM source provenance and quality budgets](llvm-provenance.md).
 
 ### Temporary artifacts
 

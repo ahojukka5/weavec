@@ -23,6 +23,10 @@ surface-language contract stabilises.
   comment-only WIR metadata, with unique-token inference retained as fallback.
 - `weavec-compilation-trace-v1` output with deterministic, source-linked
   lowering, rewrite, optimization, and executable-contract events.
+- Opt-in LLVM provenance comments linking generated function and statement
+  groups to exact surface and WIR byte ranges.
+- Structural LLVM quality budgets that ratchet instruction counts, memory
+  traffic, control flow, semantic naming, and identity-operation regressions.
 
 ### Changed
 
