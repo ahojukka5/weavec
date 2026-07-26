@@ -10,9 +10,10 @@ The reproducible bootstrap path is:
 weavec0 → weavec1 → weavec-bootstrap → weavec
 ```
 
-Read [`docs/index.md`](docs/index.md) and
-[`docs/architecture.md`](docs/architecture.md) before changing compiler
-boundaries.
+Read [`docs/index.md`](docs/index.md),
+[`docs/architecture.md`](docs/architecture.md), and
+[`docs/source-style.md`](docs/source-style.md) before changing compiler
+boundaries or production `.weave` modules.
 
 ## Current WIR rule
 
@@ -70,8 +71,8 @@ propagated through the Stage 1 SDK, and then adopted by `weavec`.
 ## Development workflow
 
 1. Create a focused branch.
-2. Read the relevant architecture, command, language, diagnostics, manifest,
-   runtime, or backend contract document.
+2. Read the relevant architecture, source-style, command, language, diagnostics,
+   manifest, runtime, or backend contract document.
 3. Make the smallest coherent change.
 4. Add or update fixtures under the relevant test tree.
 5. Run the normal ladder:
@@ -168,6 +169,7 @@ See:
 
 - [`docs/command-reference.md`](docs/command-reference.md)
 - [`docs/language-reference.md`](docs/language-reference.md)
+- [`docs/source-style.md`](docs/source-style.md)
 - [`docs/build-manifest.md`](docs/build-manifest.md)
 - [`docs/diagnostics.md`](docs/diagnostics.md)
 - [`docs/releasing.md`](docs/releasing.md)
