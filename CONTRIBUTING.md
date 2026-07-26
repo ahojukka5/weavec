@@ -1,8 +1,8 @@
 # Contributing to weavec
 
 `weavec` is the user-facing self-hosted compiler written primarily in surface
-Weave. It combines surface lowering, analysis, WIR v2 to LLVM emission, native
-build orchestration, diagnostics, and package runtime discovery.
+Weave. It combines surface lowering, analysis, self-hosted WIR-to-LLVM emission,
+native build orchestration, diagnostics, and package runtime discovery.
 
 The reproducible bootstrap path is:
 
@@ -14,13 +14,26 @@ Read [`docs/index.md`](docs/index.md) and
 [`docs/architecture.md`](docs/architecture.md) before changing compiler
 boundaries.
 
+## Current WIR rule
+
+The repository currently has a documented version split:
+
+- the frozen seed bootstrap uses WIR core version 2 through
+  `weavec-bootstrap v0.3.0` and `weavec1 v0.3.1`;
+- the current self-hosted `weavec --frontend` and `weavec --backend` use core
+  version 1.
+
+Do not describe the two boundaries as one format. Do not add new
+core-version-1-only forms merely to implement a surface feature. Migrating the
+self-hosted frontend/backend to WIR v2 requires an explicit compiler change,
+regenerated fixtures, and the complete bootstrap and self-host gates.
+
 ## Principles
 
-- **WIR v2 is the backend boundary.** Coordinate WIR changes with the lower
-  compiler chain; do not add a private `weavec` dialect.
 - **Surface Weave evolves here.** New surface forms, contracts, structs, quantum
-  rewrites, and user-facing compiler behavior belong in this repository when
-  they lower through the admitted WIR contract.
+  rewrites, and user-facing compiler behavior belong in this repository.
+- **Do not deepen the WIR split.** Prefer lowering through existing admitted
+  forms; coordinate any new WIR semantics as a versioned compiler-chain change.
 - **No feature without a regression.** Add correctness, performance, quantum,
   diagnostics, package, or self-host coverage matching the changed boundary.
 - **Review LLVM goldens.** Regenerate them only after intentional backend-output
@@ -43,12 +56,11 @@ boundaries.
 
 ## What does not belong here
 
-- WIR primitives added only to make one surface feature convenient.
-- Uncoordinated changes to Stage 0 runtime externs or Stage 1 backend contracts.
+- A new private core-version-1 primitive added only to make one surface feature
+  convenient.
+- Uncoordinated changes to Stage 0 runtime externs or Stage 1 WIR v2 contracts.
 - General maintenance of the frozen `weavec-bootstrap` frontend.
 - Production quantum-runtime behavior hidden inside the current test stub.
-- Features that cannot be expressed through documented surface and WIR
-  boundaries.
 - Compatibility aliases for the retired `weavec2` or `weavefront` names.
 - Speculative syntax presented as implemented reference material.
 
@@ -69,8 +81,8 @@ propagated through the Stage 1 SDK, and then adopted by `weavec`.
    ./test-all.sh
    ```
 
-6. For frontend, backend, source-order, parser-boundary, or compiler-generation
-   changes, also run:
+6. For frontend, backend, emitted-WIR, source-order, parser-boundary, or
+   compiler-generation changes, also run:
 
    ```sh
    ./selfhost.sh
@@ -105,6 +117,7 @@ For a documentation-only pull request:
 - update all local links when moving a document;
 - distinguish implemented behavior, current limitations, historical notes, and
   future proposals;
+- state the relevant WIR core version when discussing frontend/backend behavior;
 - avoid workspace-specific paths or commands that assume sibling repositories;
 - record meaningful structural documentation changes under `Unreleased`.
 
@@ -144,6 +157,7 @@ Changes to any of the following require documentation and regression coverage:
 - `weavec build` command syntax or phase behavior;
 - low-level frontend/backend modes;
 - surface language syntax or semantics;
+- emitted WIR core version or forms;
 - `weavec-build-manifest-v1`;
 - `weavec-diagnostics-v1` and stable public exit codes;
 - private runtime discovery or target layout;
