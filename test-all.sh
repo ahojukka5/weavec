@@ -38,6 +38,9 @@ log 'compilation-trace'
 log 'LLVM provenance'
 "$ROOT/test/llvm-provenance/test.sh"
 
+log 'tooling artifacts'
+"$ROOT/test/tooling-artifacts/test.sh"
+
 log 'self-host'
 "$ROOT/test/selfhost/test.sh"
 
