@@ -1,9 +1,13 @@
 # Surface Weave language reference
 
 This document describes the surface forms implemented by the current `weavec`
-frontend. It is a reference for source `.weave` files, not for hand-written WIR
-v2. Low-level WIR forms remain the stable backend boundary maintained by
-`weavec1` and consumed through `weavec --backend`.
+frontend. It is a reference for source `.weave` files, not a reference for
+hand-written WIR.
+
+The current self-hosted frontend emits `(core-version 1)` modules for the current
+self-hosted backend. The initial seed compiler is built separately through the
+frozen WIR v2 lower-stage chain. See [Architecture](architecture.md) for the
+version split.
 
 Weave source is an S-expression language. Semicolons introduce line comments.
 Identifiers and operator names are case-sensitive.
@@ -23,9 +27,9 @@ A source module is a `program` form:
 provide an `entry main` body after all input files are combined.
 
 Multiple source files are accepted by `weavec build` and `weavec --frontend`.
-Their declarations are lowered into one WIR v2 module. Source argument order is
-preserved, while the frontend applies its deterministic main/declaration ordering
-rules to the combined output.
+Their declarations are lowered into one current core-version-1 WIR module. Source
+argument order is preserved, while the frontend applies deterministic
+main/declaration ordering rules to the combined output.
 
 ## Primitive types
 
@@ -159,7 +163,8 @@ Update an existing local with:
 ```
 
 The backend may represent loop-carried `i32` locals with LLVM phis. Other values
-may currently remain stack-backed. See [Loop-carried SSA contract](loop-phi-contract.md).
+may currently remain stack-backed. See
+[Loop-carried SSA contract](loop-phi-contract.md).
 
 ## Blocks and control flow
 
@@ -191,8 +196,11 @@ A `while` loop is:
     statements...))
 ```
 
-`return` takes one expression for a typed function. A void function uses the
-implemented void-return form admitted by the frontend/backend fixture contract.
+`return` takes one expression for a typed function. Void functions use:
+
+```weave
+(return_void)
+```
 
 ## Constants and scalar operations
 
@@ -233,7 +241,7 @@ Operations are named by operation and type. Representative forms are:
 ```
 
 The compiler rejects unknown operators and wrong arity rather than forwarding
-invalid calls to LLVM.
+invalid forms to LLVM.
 
 ## Typed calls
 
@@ -305,17 +313,33 @@ interfaces without changing code generation. See
 
 ## Quantum forms
 
-The implemented quantum statement and expression forms are:
+Gate application is a statement:
 
 ```weave
 (qgate H qubit)
 (qgate CNOT control target)
-(qmeasure qubit)
 ```
 
-Current lowering uses external quantum-runtime calls, and the included runtime is
-only a test stub. Hadamard nativization and selected peephole optimizations occur
-in frontend passes before WIR emission. See [Quantum surface support](quantum.md).
+Measurement is also a statement and names the resulting classical `i32` local:
+
+```weave
+(qmeasure qubit result_name)
+```
+
+For example:
+
+```weave
+(let q0 Qubit (const_i64 0))
+(qgate H q0)
+(qmeasure q0 c0)
+(return (local_get c0))
+```
+
+The frontend lowers measurement to an `i32` runtime call and introduces the
+named local in emitted WIR. Current lowering uses external quantum-runtime calls,
+and the included runtime is only a test stub. Hadamard nativization and selected
+peephole optimizations occur before WIR emission. See
+[Quantum surface support](quantum.md).
 
 ## Diagnostics and unsupported syntax
 
@@ -330,5 +354,5 @@ The following are not current surface contracts:
 - implicit numeric conversions;
 - a separate quantum source format;
 - arbitrary decimal floating literals;
-- a private `weavec`-only WIR dialect;
+- new private core-version-1 forms added without a coordinated WIR migration;
 - the removed implicit `weavec input.wir output.ll` backend command.
