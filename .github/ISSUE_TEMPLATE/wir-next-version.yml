@@ -1,0 +1,72 @@
+name: WIR next-version candidate
+description: Propose a capability for the next coordinated WIR specification bump.
+title: "WIR next-version candidate: "
+labels:
+  - wir-next-version
+body:
+  - type: markdown
+    attributes:
+      value: |
+        WIR v2 is frozen. Use this template only when a real compiler or tooling
+        need cannot be expressed cleanly with existing WIR v2 forms.
+
+  - type: textarea
+    id: need
+    attributes:
+      label: Concrete need
+      description: What compiler, tooling, or user problem requires this capability?
+      placeholder: Describe the observable need and who benefits from it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Current WIR v2 workaround
+      description: How is the need handled today, and where does that approach fail?
+      placeholder: Describe the compatible workaround and its limitations.
+    validations:
+      required: true
+
+  - type: textarea
+    id: insufficiency
+    attributes:
+      label: Why WIR v2 is insufficient
+      description: Explain why admitted forms cannot represent the capability cleanly.
+    validations:
+      required: true
+
+  - type: textarea
+    id: semantics
+    attributes:
+      label: Proposed semantics
+      description: Define the capability at specification level, not only as code changes.
+      placeholder: Describe invariants, optionality, validation, and consumer behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Compiler-chain impact
+      description: List affected stages, runtimes, validators, fixtures, and tools.
+    validations:
+      required: true
+
+  - type: textarea
+    id: migration
+    attributes:
+      label: Migration and determinism
+      description: |
+        Explain version transition, deterministic output, bootstrap, and
+        self-host impact.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and open questions
+      description: Record plausible designs, tradeoffs, and unresolved decisions.
+    validations:
+      required: true
