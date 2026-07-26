@@ -8,7 +8,7 @@
 ; If LLVM regresses: Table fill order wrong; max of three paths broken; stride
 ;   errors.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (extern malloc
       (params

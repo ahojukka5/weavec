@@ -7,7 +7,7 @@
 ;   emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Guess not updated; fdiv by zero; comparison uses icmp.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn sqrt_newton
       (params

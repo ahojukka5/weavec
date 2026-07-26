@@ -17,6 +17,8 @@ names used when they were released.
   compiler-development overrides, and low-level compiler modes.
 - [Language reference](language-reference.md) — the implemented surface-Weave
   forms accepted by the current compiler.
+- [WIR core version 2](wir.md) — the unified frontend/backend envelope,
+  compatibility policy, validation, and repository enforcement.
 - [Build manifest](build-manifest.md) — `weavec-build-manifest-v1` and the
   separate release-package `BUILD-MANIFEST`.
 - [Machine-readable diagnostics](diagnostics.md) —
@@ -39,8 +41,8 @@ names used when they were released.
 - [Generated LLVM analysis report](llvm-codegen-analysis-report.md)
 
 The backend and performance documents describe current self-hosted implementation
-behavior and optimization opportunities. They do not extend either the current
-core-version-1 format or the frozen lower-stage WIR v2 contract.
+behavior and optimization opportunities. They do not extend the stabilized WIR v2
+contract.
 
 ## Repository documents
 

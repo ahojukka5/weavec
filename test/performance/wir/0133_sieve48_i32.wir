@@ -8,7 +8,7 @@
 ; If LLVM regresses: Marks composites wrong; inner loop starts at wrong
 ;   multiple.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (extern malloc
       (params

@@ -130,6 +130,12 @@ expected_backend_error() {
     63_wrong_arity_if_too_few) echo "wrong arity for if: expected 3, got 2" ;;
     64_wrong_arity_fn_too_few) echo "wrong arity for fn: expected 4, got 3" ;;
     65_unknown_statement) echo "unknown expression operator: mystery_stmt" ;;
+    67_core_version_1_rejected) echo "expected exactly one (core-version 2), got 1" ;;
+    68_core_version_missing) echo "expected exactly one (core-version 2), found 0 declarations" ;;
+    69_core_version_duplicate) echo "expected exactly one (core-version 2), found 2 declarations" ;;
+    70_wrong_root) echo "expected WIR core-module root" ;;
+    71_core_version_missing_value) echo "expected exactly one (core-version 2), missing version value" ;;
+    72_core_version_string_rejected) echo "expected exactly one (core-version 2), got" ;;
     *) return 1 ;;
   esac
 }
@@ -223,6 +229,7 @@ for src in "$WIR_TEST_DIR"/*.wir; do
   expected_error="$(expected_backend_error "$name")"
 
   log "backend-fail $name"
+  rm -f "$ll" "$err"
 
   set +e
   "$WEAVEC" --backend "$src" "$ll" 2>"$err"
@@ -231,6 +238,11 @@ for src in "$WIR_TEST_DIR"/*.wir; do
 
   if [[ "$status" -eq 0 ]]; then
     fail "$name: expected backend failure"
+    continue
+  fi
+
+  if [[ -e "$ll" ]]; then
+    fail "$name: backend failure created output"
     continue
   fi
 
@@ -535,6 +547,29 @@ if [[ -x "$ROOT/test/correctness/contracts/test-audit-json.sh" ]]; then
     pass_count=$((pass_count + 1))
   else
     fail "audit-json output test"
+  fi
+fi
+
+log "effect allocation walk guards missing call_ptr callee"
+effect_src="$SURFACE_TEST_DIR/74_call_ptr_missing_callee.weave"
+effect_wir="$WIR_FROM_SURFACE_DIR/74_call_ptr_missing_callee.wir"
+effect_ll="$LL_DIR/surface_74_call_ptr_missing_callee.ll"
+effect_err="$BUILD_DIR/74_call_ptr_missing_callee.stderr"
+rm -f "$effect_wir" "$effect_ll" "$effect_err"
+if ! "$WEAVEC" --frontend "$effect_wir" "$effect_src"; then
+  fail "74_call_ptr_missing_callee: frontend failed"
+else
+  set +e
+  "$WEAVEC" --backend "$effect_wir" "$effect_ll" 2>"$effect_err"
+  effect_status="$?"
+  set -e
+  if [[ "$effect_status" -eq 0 ]]; then
+    fail "74_call_ptr_missing_callee: expected backend rejection"
+  elif [[ -e "$effect_ll" ]]; then
+    fail "74_call_ptr_missing_callee: backend failure created output"
+  else
+    log "ok effect allocation walk guard"
+    pass_count=$((pass_count + 1))
   fi
 fi
 

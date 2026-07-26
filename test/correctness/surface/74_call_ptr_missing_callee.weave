@@ -1,0 +1,11 @@
+; The frontend effect walk must not dereference a missing call_ptr callee.
+; Backend validation is expected to reject the malformed call after lowering.
+(program
+  (name "call_ptr_missing_callee")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let value ptr (call_ptr))
+      (return (const_i32 42)))))

@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+"""Audit the self-hosted compiler and repository corpus for WIR core version 2."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+INVALID_VERSION_FIXTURES = {
+    ROOT / "test/correctness/wir/67_core_version_1_rejected.wir": """(core-module
+  (core-version 1)
+  (decls
+    (fn main
+      (params)
+      (returns i32)
+      (do (return (const_i32 42))))))
+""",
+    ROOT / "test/correctness/wir/68_core_version_missing.wir": """(core-module
+  (decls
+    (fn main
+      (params)
+      (returns i32)
+      (do (return (const_i32 42))))))
+""",
+    ROOT / "test/correctness/wir/69_core_version_duplicate.wir": """(core-module
+  (core-version 2)
+  (core-version 2)
+  (decls
+    (fn main
+      (params)
+      (returns i32)
+      (do (return (const_i32 42))))))
+""",
+    ROOT / "test/correctness/wir/70_wrong_root.wir": """(program
+  (core-version 2)
+  (decls
+    (fn main
+      (params)
+      (returns i32)
+      (do (return (const_i32 42))))))
+""",
+    ROOT / "test/correctness/wir/71_core_version_missing_value.wir": """(core-module
+  (core-version)
+  (decls
+    (fn main
+      (params)
+      (returns i32)
+      (do (return (const_i32 42))))))
+""",
+    ROOT / "test/correctness/wir/72_core_version_string_rejected.wir": """(core-module
+  (core-version "2")
+  (decls
+    (fn main
+      (params)
+      (returns i32)
+      (do (return (const_i32 42))))))
+""",
+}
+
+AUDIT_ROOTS = (
+    ROOT / "src/runtime-wir",
+    ROOT / "test/correctness",
+    ROOT / "test/performance",
+    ROOT / "test/quantum",
+    ROOT / "test/selfhost",
+)
+
+CURRENT_DOCS = (
+    ROOT / "README.md",
+    ROOT / "CONTRIBUTING.md",
+    ROOT / "docs/index.md",
+    ROOT / "docs/architecture.md",
+    ROOT / "docs/command-reference.md",
+    ROOT / "docs/language-reference.md",
+    ROOT / "docs/quantum.md",
+    ROOT / "docs/source-style.md",
+)
+
+STALE_DOC_TERMS = (
+    "(core-version 1)",
+    "core version 1",
+    "core-version-1",
+    "version split",
+)
+
+SENTINEL_REGRESSION = ROOT / "test/correctness/surface/74_call_ptr_missing_callee.weave"
+
+
+def relative(path: Path) -> str:
+    return path.relative_to(ROOT).as_posix()
+
+
+def audit() -> list[str]:
+    errors: list[str] = []
+
+    lower_text = (ROOT / "src/frontend/lower.weave").read_text(encoding="utf-8")
+    if '(const_string_ptr "  (core-version 2)")' not in lower_text:
+        errors.append("src/frontend/lower.weave does not emit core version 2")
+    if "core-version 1" in lower_text:
+        errors.append("src/frontend/lower.weave still references core version 1")
+
+    module_text = (ROOT / "src/llvm/module.weave").read_text(encoding="utf-8")
+    for required in (
+        "(fn validate_core_module_v2",
+        "expected exactly one (core-version 2)",
+        "expected WIR core-module root",
+        "missing version value",
+        "(call_i32 node_int)",
+        "; core-version: 2",
+    ):
+        if required not in module_text:
+            errors.append(f"src/llvm/module.weave missing {required!r}")
+    if "core-version 1" in module_text:
+        errors.append("src/llvm/module.weave still references core version 1")
+
+    extern_text = (ROOT / "src/core/extern.weave").read_text(encoding="utf-8")
+    if "(extern unlink (params (path ptr)) (returns i32))" not in extern_text:
+        errors.append("src/core/extern.weave does not declare unlink")
+
+    util_text = (ROOT / "src/core/util.weave").read_text(encoding="utf-8")
+    for required in (
+        "Missing optional children use node -1",
+        "(condition (eq_i64 (param_get node) (const_i64 -1)))",
+        "(then (do (return (const_i32 0))))",
+    ):
+        if required not in util_text:
+            errors.append(f"src/core/util.weave missing sentinel guard {required!r}")
+
+    main_text = (ROOT / "src/main.weave").read_text(encoding="utf-8")
+    if "(call_i32 validate_core_module_v2" not in main_text:
+        errors.append("src/main.weave does not validate WIR v2 before output creation")
+    if "(call_i32 unlink (param_get output_path))" not in main_text:
+        errors.append("src/main.weave does not remove failed backend output")
+
+    for root in AUDIT_ROOTS:
+        for path in sorted(root.rglob("*")):
+            if not path.is_file() or path in INVALID_VERSION_FIXTURES:
+                continue
+            text = path.read_text(encoding="utf-8")
+            if path.suffix == ".wir":
+                if text.count("(core-version 2)") != 1:
+                    errors.append(
+                        f"{relative(path)} must contain exactly one (core-version 2)"
+                    )
+                if "(core-version 1)" in text:
+                    errors.append(f"{relative(path)} still declares core version 1")
+            elif path.suffix == ".ll":
+                if "; core-version: 1" in text:
+                    errors.append(f"{relative(path)} still records core version 1")
+                if "; generated by weavec" in text and "; core-version: 2" not in text:
+                    errors.append(f"{relative(path)} lacks the core-version-2 header")
+
+    for path, expected in INVALID_VERSION_FIXTURES.items():
+        if not path.exists():
+            errors.append(f"missing negative fixture {relative(path)}")
+        elif path.read_text(encoding="utf-8") != expected:
+            errors.append(f"negative fixture changed unexpectedly: {relative(path)}")
+
+    if not SENTINEL_REGRESSION.exists():
+        errors.append(f"missing sentinel regression {relative(SENTINEL_REGRESSION)}")
+    else:
+        sentinel_text = SENTINEL_REGRESSION.read_text(encoding="utf-8")
+        if "(call_ptr)" not in sentinel_text:
+            errors.append(f"{relative(SENTINEL_REGRESSION)} no longer exercises a missing callee")
+
+    test_text = (ROOT / "test.sh").read_text(encoding="utf-8")
+    for fixture in INVALID_VERSION_FIXTURES:
+        if fixture.stem not in test_text:
+            errors.append(f"test.sh does not register {fixture.stem}")
+    if "backend failure created output" not in test_text:
+        errors.append("test.sh does not reject partial backend outputs")
+    if "effect allocation walk guards missing call_ptr callee" not in test_text:
+        errors.append("test.sh does not run the AST sentinel regression")
+
+    test_all_text = (ROOT / "test-all.sh").read_text(encoding="utf-8")
+    if 'python3 "$ROOT/scripts/check_wir_core_version.py"' not in test_all_text:
+        errors.append("test-all.sh does not run the WIR core-version audit")
+
+    for path in CURRENT_DOCS:
+        text = path.read_text(encoding="utf-8")
+        for term in STALE_DOC_TERMS:
+            if term in text:
+                errors.append(f"{relative(path)} contains stale WIR text {term!r}")
+    index_text = (ROOT / "docs/index.md").read_text(encoding="utf-8")
+    if "[WIR core version 2](wir.md)" not in index_text:
+        errors.append("docs/index.md does not link the WIR v2 contract")
+
+    return errors
+
+
+def main() -> int:
+    errors = audit()
+    if errors:
+        for error in errors:
+            print(f"wir-core-version: error: {error}", file=sys.stderr)
+        return 1
+
+    print("wir-core-version: self-hosted compiler, fixtures, docs, and AST guards are valid")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

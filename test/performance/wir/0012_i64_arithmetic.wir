@@ -9,7 +9,7 @@
 ;   llvm-as accepts emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: 32-bit ops used where i64 required; nsw flags inconsistent.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn main
       (params)

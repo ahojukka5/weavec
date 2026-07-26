@@ -10,7 +10,7 @@
 ; If LLVM regresses: Becomes add with negative wrong; nsw missing where
 ;   expected.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn main
       (params)

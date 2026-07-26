@@ -1,1 +1,1 @@
-(core-module (core-version 1) (decls (fn same (params (x bool)) (returns bool) (do (return (param_get x)))) (fn main (params) (returns i32) (do (if (condition (call_bool same (const_bool true))) (then (do (return (const_i32 42)))) (else (do (return (const_i32 0)))))))))
+(core-module (core-version 2) (decls (fn same (params (x bool)) (returns bool) (do (return (param_get x)))) (fn main (params) (returns i32) (do (if (condition (call_bool same (const_bool true))) (then (do (return (const_i32 42)))) (else (do (return (const_i32 0)))))))))

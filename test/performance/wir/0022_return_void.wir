@@ -9,7 +9,7 @@
 ;   llvm-as accepts emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Inserts i32 ret in void function.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn noop
       (params)

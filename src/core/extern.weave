@@ -15,6 +15,7 @@
   ; posix I/O
   (extern open (params (path ptr) (flags i32) (mode i32)) (returns i32))
   (extern close (params (fd i32)) (returns i32))
+  (extern unlink (params (path ptr)) (returns i32))
   (extern fchmod (params (fd i32) (mode i32)) (returns i32))
   (extern read (params (fd i32) (buf ptr) (count i64)) (returns i64))
   (extern write (params (fd i32) (buf ptr) (count i64)) (returns i64))

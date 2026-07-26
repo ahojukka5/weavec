@@ -8,7 +8,7 @@
 ; the complex tree-building API used by the original weavec-bootstrap.
 ;
 ; Transformation rules:
-;   program wrapper    → core-module / core-version 1 / decls wrapper
+;   program wrapper    → core-module / core-version 2 / decls wrapper
 ;   extern decl        → emitted verbatim in the decls list
 ;   fn decl            → emitted verbatim in the decls list
 ;   entry NAME ...     → fn NAME ... (head renamed from entry to fn)
@@ -30,7 +30,7 @@
     (do
       (call_void write_cstr (param_get fd) (const_string_ptr "(core-module"))
       (call_void write_byte (param_get fd) (const_i32 10))
-      (call_void write_cstr (param_get fd) (const_string_ptr "  (core-version 1)"))
+      (call_void write_cstr (param_get fd) (const_string_ptr "  (core-version 2)"))
       (call_void write_byte (param_get fd) (const_i32 10))
       (call_void write_cstr (param_get fd) (const_string_ptr "  (decls"))
       (call_void write_byte (param_get fd) (const_i32 10))

@@ -141,9 +141,9 @@ Text emitters should be deterministic:
 - route platform-specific file creation through the portability boundary rather
   than embedding host flag values.
 
-The self-hosted frontend currently emits core-version-1 WIR. The seed bootstrap
-uses WIR v2. State the relevant version in comments and tests; do not add new
-core-version-1-only forms without an explicit migration decision.
+The seed bootstrap and self-hosted frontend emit WIR core version 2. State the
+version explicitly in format-sensitive comments and fixtures, and do not add private
+final-compiler forms without a coordinated version decision.
 
 ## C host-support files
 

@@ -1,1 +1,1 @@
-(core-module (core-version 1) (decls (extern free (params (p ptr)) (returns void)) (fn main (params) (returns i32) (do (call_void free (const_null)) (return (const_i32 42))))))
+(core-module (core-version 2) (decls (extern free (params (p ptr)) (returns void)) (fn main (params) (returns i32) (do (call_void free (const_null)) (return (const_i32 42))))))

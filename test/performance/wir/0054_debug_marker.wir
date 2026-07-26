@@ -9,7 +9,7 @@
 ;   becomes semantic by
 ;   accident.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn main
       (params)

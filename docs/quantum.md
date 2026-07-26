@@ -87,7 +87,7 @@ src/frontend/quantum_stats.weave
 src/frontend/emit.weave
 ```
 
-The current self-hosted sequence is:
+The self-hosted sequence is:
 
 ```text
 surface source
@@ -102,7 +102,7 @@ optimized quantum forms
 runtime-call-compatible forms
     │ normal surface lowering
     ▼
-WIR core version 1
+WIR core version 2
     │ self-hosted backend
     ▼
 LLVM IR
@@ -111,9 +111,8 @@ LLVM IR
 The LLVM backend does not own high-level gate decomposition. It emits the WIR
 produced by the frontend, keeping quantum transformations in the surface compiler.
 
-The lower-stage seed bootstrap uses WIR core version 2; this quantum path uses the
-current self-hosted core-version-1 frontend/backend. See
-[Architecture](architecture.md).
+The seed bootstrap and this quantum path use the same WIR core version 2
+boundary. See [Architecture](architecture.md) and [WIR core version 2](wir.md).
 
 ## Hadamard nativization
 
@@ -223,7 +222,7 @@ Future quantum features should continue to follow these boundaries:
 1. quantum code remains ordinary `.weave` source;
 2. high-level gate validation and decomposition belong in frontend passes;
 3. new WIR forms require a coordinated versioned compiler-chain decision rather
-   than more core-version-1-only extensions;
+   than a private final-compiler dialect;
 4. hardware/runtime interfaces require explicit versioned ABIs;
 5. every implemented form or rewrite requires surface, WIR/LLVM, and where
    applicable end-to-end regression coverage.

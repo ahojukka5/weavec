@@ -15,26 +15,23 @@ Read [`docs/index.md`](docs/index.md),
 [`docs/source-style.md`](docs/source-style.md) before changing compiler
 boundaries or production `.weave` modules.
 
-## Current WIR rule
+## WIR rule
 
-The repository currently has a documented version split:
+The complete chain uses WIR core version 2. The self-hosted frontend must emit
+exactly one `(core-version 2)` declaration, and the self-hosted backend must
+reject other envelopes before output creation.
 
-- the frozen seed bootstrap uses WIR core version 2 through
-  `weavec-bootstrap v0.3.0` and `weavec1 v0.3.1`;
-- the current self-hosted `weavec --frontend` and `weavec --backend` use core
-  version 1.
-
-Do not describe the two boundaries as one format. Do not add new
-core-version-1-only forms merely to implement a surface feature. Migrating the
-self-hosted frontend/backend to WIR v2 requires an explicit compiler change,
-regenerated fixtures, and the complete bootstrap and self-host gates.
+Do not add a private `weavec` WIR dialect. Prefer existing admitted WIR v2 forms;
+incompatible WIR semantics require an explicit coordinated version transition,
+regenerated fixtures, and the complete bootstrap and self-host gates. See
+[`docs/wir.md`](docs/wir.md).
 
 ## Principles
 
 - **Surface Weave evolves here.** New surface forms, contracts, structs, quantum
   rewrites, and user-facing compiler behavior belong in this repository.
-- **Do not deepen the WIR split.** Prefer lowering through existing admitted
-  forms; coordinate any new WIR semantics as a versioned compiler-chain change.
+- **Preserve the WIR v2 boundary.** Prefer existing admitted forms; coordinate
+  incompatible WIR semantics as a versioned compiler-chain change.
 - **No feature without a regression.** Add correctness, performance, quantum,
   diagnostics, package, or self-host coverage matching the changed boundary.
 - **Review LLVM goldens.** Regenerate them only after intentional backend-output
@@ -57,7 +54,7 @@ regenerated fixtures, and the complete bootstrap and self-host gates.
 
 ## What does not belong here
 
-- A new private core-version-1 primitive added only to make one surface feature
+- A private final-compiler WIR primitive added only to make one surface feature
   convenient.
 - Uncoordinated changes to Stage 0 runtime externs or Stage 1 WIR v2 contracts.
 - General maintenance of the frozen `weavec-bootstrap` frontend.
@@ -65,8 +62,10 @@ regenerated fixtures, and the complete bootstrap and self-host gates.
 - Compatibility aliases for the retired `weavec2` or `weavefront` names.
 - Speculative syntax presented as implemented reference material.
 
-A new runtime extern must be released through the required lower-stage boundary,
-propagated through the Stage 1 SDK, and then adopted by `weavec`.
+A new bootstrap-runtime ABI symbol must be released through the required
+lower-stage boundary and propagated through the Stage 1 SDK. An ordinary host or
+libc extern used only by the final compiler may be declared in `weavec` when it is
+portable across supported hosts and covered by the complete platform matrix.
 
 ## Development workflow
 

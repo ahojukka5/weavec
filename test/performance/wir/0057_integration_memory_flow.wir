@@ -10,7 +10,7 @@
 ;   reload of same
 ;   slot.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (extern
       malloc

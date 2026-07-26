@@ -2,7 +2,7 @@
 ; module.weave — top-level WIR module emission for weavec
 ;
 ; Structure of a WIR module:
-;   (core-module (core-version 1) (decls decl...))
+;   (core-module (core-version 2) (decls decl...))
 ; where each decl is (extern ...) or (fn ...).
 
 (program
@@ -26,10 +26,112 @@
           (call_void write_cstr (local_get fd) (param_get source_path))
           (call_void write_byte (local_get fd) (const_i32 10))))
         (else (do)))
-      (call_void write_cstr (local_get fd) (const_string_ptr "; core-version: 1"))
+      (call_void write_cstr (local_get fd) (const_string_ptr "; core-version: 2"))
       (call_void write_byte (local_get fd) (const_i32 10))
       (call_void write_byte (local_get fd) (const_i32 10))
       (return_void)))
+
+
+  ; Diagnose a malformed or unsupported WIR module-version declaration.
+  (fn diag_wir_core_version
+    (params (ctx ptr) (version_node i64) (version_count i64))
+    (returns void)
+    (do
+      (call_void diag_prefix)
+      (call_void write_cstr (const_i32 2)
+        (const_string_ptr "expected exactly one (core-version 2)"))
+      (if
+        (condition (eq_i64 (param_get version_count) (const_i64 1)))
+        (then (do
+          (if
+            (condition (eq_i64 (param_get version_node) (const_i64 -1)))
+            (then (do
+              (call_void write_cstr (const_i32 2)
+                (const_string_ptr ", missing version value"))))
+            (else (do
+              (call_void write_cstr (const_i32 2) (const_string_ptr ", got "))
+              (call_void diag_node_text (param_get ctx) (param_get version_node)))))))
+        (else (do
+          (call_void write_cstr (const_i32 2) (const_string_ptr ", found "))
+          (call_void write_i64_dec (const_i32 2) (param_get version_count))
+          (call_void write_cstr (const_i32 2) (const_string_ptr " declarations")))))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (return_void)))
+
+  ; Accept only the stabilized WIR v2 module envelope.
+  (fn validate_core_module_v2
+    (params (ctx ptr) (module_node i64))
+    (returns i32)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
+      (if
+        (condition (eq_i32 (call_i32 list_head_ne
+          (local_get tree) (local_get source) (param_get module_node)
+          (const_string_ptr "core-module") (const_i64 11)) (const_i32 0)))
+        (then (do
+          (call_void diag_prefix)
+          (call_void write_cstr (const_i32 2) (const_string_ptr "expected WIR core-module root"))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i32 1))))
+        (else (do)))
+      (let version_form i64 (const_i64 -1))
+      (let version_node i64 (const_i64 -1))
+      (let version_count i64 (const_i64 0))
+      (let child i64 (call_i64 node_first_child (local_get tree) (param_get module_node)))
+      ; skip the core-module head
+      (if
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (then (do
+          (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
+        (else (do)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 list_head_ne
+              (local_get tree) (local_get source) (local_get child)
+              (const_string_ptr "core-version") (const_i64 12)) (const_i32 0)))
+            (then (do
+              (set version_count (add_i64 (local_get version_count) (const_i64 1)))
+              (if
+                (condition (eq_i64 (local_get version_count) (const_i64 1)))
+                (then (do
+                  (set version_form (local_get child))
+                  (set version_node (call_i64 nth_child
+                    (local_get tree) (local_get child) (const_i64 1)))))
+                (else (do)))))
+            (else (do)))
+          (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
+      (if
+        (condition (ne_i64 (local_get version_count) (const_i64 1)))
+        (then (do
+          (call_void diag_wir_core_version
+            (param_get ctx) (local_get version_node) (local_get version_count))
+          (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i64
+          (call_i64 count_children (local_get tree) (local_get version_form))
+          (const_i64 2)))
+        (then (do
+          (call_void diag_wir_core_version
+            (param_get ctx) (local_get version_node) (local_get version_count))
+          (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 node_kind (local_get tree) (local_get version_node))
+            (call_i32 node_int))
+          (eq_i32 (call_i32 node_text_equals
+            (local_get tree) (local_get source) (local_get version_node)
+            (const_string_ptr "2") (const_i64 1)) (const_i32 0))))
+        (then (do
+          (call_void diag_wir_core_version
+            (param_get ctx) (local_get version_node) (local_get version_count))
+          (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
 
   ; Find the (decls ...) child of a (core-module ...) node.
   ; Returns the decls node index, or -1 if not found.
@@ -205,6 +307,11 @@
       ; In the weavec-bootstrap C runtime, parse() returns the root node index.
       ; We look for the (core-module ...) node — it's node 0 (the root).
       (let root i64 (const_i64 0))
+      (if
+        (condition (ne_i32 (call_i32 validate_core_module_v2
+          (param_get ctx) (local_get root)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
       ; Find (decls ...) node
       (let decls_node i64 (call_i64 find_decls_node (param_get ctx) (local_get root)))
       (if

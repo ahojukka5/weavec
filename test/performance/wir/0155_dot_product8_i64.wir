@@ -7,7 +7,7 @@
 ;   llvm-as accepts emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Uses i32 mul on loaded i64; alignment 4 on i64 load.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (extern malloc
       (params

@@ -9,7 +9,7 @@
 ;   accepts emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Unused declare removed but wrong one kept.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (extern puts
       (params
