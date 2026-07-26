@@ -78,12 +78,13 @@ Changing admitted WIR forms or semantics requires an explicit coordinated
 version transition. New surface features should lower through existing WIR v2
 forms whenever possible.
 
-## Diagnostic source maps
+## Diagnostic and LLVM source maps
 
 `weavec build --diagnostics-json` enables a private, comment-only source map in
-its temporary WIR. A mapping line has the form:
+its temporary WIR. The private comment forms are:
 
 ```text
+; weavec-source-file-v1 <source-index> "<path>"
 ; weavec-source-span-v1 <source-index> <start-byte> <end-byte>
 ```
 
@@ -92,8 +93,12 @@ exact file identity even when two inputs are byte-identical. The metadata is
 deterministic, has no semantic meaning in WIR v2, and is ignored by the existing
 lexer as an ordinary comment. It is not emitted by normal
 `weavec --frontend`, build, fixture, or self-host flows. Backend diagnostics use
-it only to recover an exact original surface span; direct and older WIR remain
-accepted and use the documented inference fallback.
+the spans to recover exact original surface locations.
+
+`weavec build --llvm-provenance` additionally consumes both comment forms to
+annotate LLVM function and statement groups with surface and WIR ranges. Direct
+and older WIR remain accepted and use the documented inference fallback; the
+comments never change WIR v2 semantics.
 
 ## Repository enforcement
 

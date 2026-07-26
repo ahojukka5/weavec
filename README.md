@@ -89,6 +89,11 @@ weavec build main.weave -o main \
 
 The executable and requested JSON output paths must all be different.
 
+For direct code-generation inspection, add `--llvm-provenance`. It retains the
+build directory and annotates LLVM with comments linking each generated function
+and statement group to exact surface and WIR byte ranges. See
+[LLVM source provenance and quality budgets](docs/llvm-provenance.md).
+
 ## Private target runtime
 
 Runtime support is part of the compiler product but is not a user-managed API.

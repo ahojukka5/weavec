@@ -26,6 +26,9 @@ names used when they were released.
 - [Source-linked compilation trace](compilation-trace.md) —
   `weavec-compilation-trace-v1`, deterministic lowering and optimization events,
   and exact original source spans.
+- [LLVM source provenance and quality budgets](llvm-provenance.md) —
+  comment-only source/WIR links, semantic IR naming, and structural regression
+  ceilings for performance goldens.
 - [Source and fixture style](source-style.md) — `.weave` compiler conventions,
   resource ownership, deterministic emission, and regression-fixture style.
 - [Releasing](releasing.md) — reusable package, validation, and publication
