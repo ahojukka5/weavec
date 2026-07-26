@@ -20,9 +20,9 @@ weavec0 → weavec1 → weavec-bootstrap → weavec
 | Component | Role |
 |---|---|
 | [`weavec0`](https://github.com/ahojukka5/weavec0) | Minimal hand-written LLVM-IR seed and Stage 0 SDK. |
-| [`weavec1`](https://github.com/ahojukka5/weavec1) | Complete stable WIR v2 to LLVM backend and Stage 1 SDK. |
-| [`weavec-bootstrap`](https://github.com/ahojukka5/weavec-bootstrap) | Frozen surface-Weave to WIR v2 bootstrap frontend and parser SDK. |
-| `weavec` | Evolving user-facing compiler, native build driver, diagnostics, and package runtime boundary. |
+| [`weavec1`](https://github.com/ahojukka5/weavec1) | Complete stable WIR core version 2 to LLVM backend and Stage 1 SDK. |
+| [`weavec-bootstrap`](https://github.com/ahojukka5/weavec-bootstrap) | Frozen surface-Weave to WIR core version 2 bootstrap frontend and parser SDK. |
+| `weavec` | Evolving user-facing compiler, self-hosted frontend/backend, native build driver, diagnostics, and package runtime boundary. |
 
 Normal users interact only with `weavec`. The three lower repositories are
 frozen bootstrap infrastructure.
@@ -40,12 +40,12 @@ Multi-file programs use the same command:
 weavec build main.weave library.weave platform.weave -o application
 ```
 
-Internally the compiler performs:
+The current self-hosted compiler performs:
 
 ```text
 surface Weave
     ↓ frontend
-WIR v2
+WIR core version 1
     ↓ backend
 LLVM IR
     ↓ LLVM code generation
@@ -54,6 +54,11 @@ native object
     ↓ target linker
 executable
 ```
+
+The initial seed compiler is built differently: `weavec-bootstrap v0.3.0`
+lowers the compiler sources to WIR core version 2, and `weavec1 v0.3.1` compiles
+that seed input to LLVM. The current self-hosted frontend/backend still use core
+version 1. See [Architecture](docs/architecture.md) for this version split.
 
 Intermediate files live in a private temporary directory. The linker writes a
 temporary executable beside the requested output, and the compiler publishes it
@@ -156,12 +161,12 @@ build/weavec
 
 There are no current `weavec2` or `weavefront` compatibility aliases.
 
-## SDK-first bootstrap
+## SDK-first seed bootstrap
 
-The normal Linux build downloads:
+The normal Linux seed build downloads:
 
-- `weavec1 v0.3.1` for WIR v2 to LLVM compilation;
-- `weavec-bootstrap v0.3.0` for surface lowering and
+- `weavec1 v0.3.1` for WIR core version 2 to LLVM compilation;
+- `weavec-bootstrap v0.3.0` for surface-to-WIR-v2 lowering and
   `libweave-sexpr.bc`.
 
 The selected glibc or musl archives are verified against release checksums and
@@ -180,9 +185,6 @@ weavec-bootstrap SDK/lib/libweave-sexpr.bc
 `weavec` does not consume individual generated parser modules or rewrite lower
 repository build scripts.
 
-See [Architecture](docs/architecture.md) for the complete module, runtime,
-bootstrap, and self-host model.
-
 ## Low-level compiler modes
 
 The public build command is supplemented by explicit compiler interfaces:
@@ -197,7 +199,10 @@ weavec --audit <input.weave>
 weavec --audit-json <input.weave>
 ```
 
-The former implicit `weavec input.wir output.ll` backend spelling is rejected.
+The current self-hosted `--frontend` emits core-version-1 WIR for the current
+self-hosted `--backend`. The former implicit `weavec input.wir output.ll`
+backend spelling is rejected.
+
 See the [command reference](docs/command-reference.md),
 [language reference](docs/language-reference.md), and
 [contracts and audit guide](docs/contracts-and-explain.md).
@@ -230,7 +235,8 @@ build/selfhost/stage1/weavec
 build/selfhost/stage2/weavec
 ```
 
-Stage 2 must reproduce representative surface WIR and native behavior.
+Both generations currently use the self-hosted core-version-1 frontend/backend
+boundary. Stage 2 must reproduce representative surface WIR and native behavior.
 
 ## Current limitations
 
@@ -238,6 +244,9 @@ Stage 2 must reproduce representative surface WIR and native behavior.
 - Each package installs one native target; `--target` rejects absent targets.
 - Object generation and target linking use installed commands rather than a
   bundled LLVM toolchain.
+- The seed bootstrap uses WIR core version 2 while the current self-hosted
+  frontend/backend still use core version 1; unifying them requires a future
+  coordinated compiler migration.
 - Some backend diagnostics still use conservative unique-token inference because
   exact locations are not yet propagated through WIR.
 - `runtime/quantum_runtime.c` is a test stub, not a production quantum runtime.
@@ -261,7 +270,8 @@ retains standard uppercase names.
 
 Read [`CONTRIBUTING.md`](CONTRIBUTING.md) and the relevant design or protocol
 document before changing surface syntax, backend output, source ordering,
-runtime boundaries, automation schemas, target packaging, or bootstrap pins.
+runtime boundaries, automation schemas, target packaging, emitted WIR, or
+bootstrap pins.
 
 ## License
 
