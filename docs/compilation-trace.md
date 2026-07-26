@@ -94,6 +94,30 @@ New actions may be added when they describe real compiler behavior without
 changing existing field meanings. Consumers should ignore unknown actions.
 Incompatible document changes require a new format identifier.
 
+## Action registry
+
+Stable action metadata is centralized in `src/core/trace_registry.weave`. Each
+entry has one semantic wrapper that owns its `kind`, `pass`, and `action` values.
+Frontend lowering, rewriting, optimization, and contract code calls those
+wrappers instead of passing free-form string triples to the generic trace
+runtime.
+
+`scripts/check-trace-registry.sh` is a permanent drift gate. It requires every
+registered action to have:
+
+- one unique declaration and wrapper implementation;
+- metadata matching the wrapper body;
+- at least one real frontend call site;
+- no direct generic trace-helper bypass in frontend code;
+- an entry in this reference table;
+- an entry in `test/trace/expected-actions.txt` used by the end-to-end regression;
+- the registry module in every deterministic compiler source list.
+
+Adding a stable action therefore changes the registry, compiler call site,
+documentation, and regression expectation as one logical unit. Renaming or
+removing an action is an automation-contract change and needs explicit review of
+Loupe and other consumers.
+
 ## Determinism and source identity
 
 For identical ordered inputs and compiler version, the trace is byte-for-byte

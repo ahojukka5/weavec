@@ -159,6 +159,25 @@ repository:
 
 Documentation-only changes must not reformat or alter these files.
 
+## Compilation-trace actions
+
+Do not embed trace `kind`, `pass`, and `action` strings directly in frontend
+lowering code. Add or reuse a semantic wrapper in
+`src/core/trace_registry.weave`, then call that wrapper from the transformation
+site.
+
+A new stable action requires one coherent change containing:
+
+- the registry declaration and wrapper implementation;
+- a real compiler call site;
+- the action table in `docs/compilation-trace.md`;
+- `test/trace/expected-actions.txt` and an end-to-end input that reaches it;
+- any consumer migration needed for a renamed or removed action.
+
+Run `scripts/check-trace-registry.sh` before the normal compiler ladder. The
+audit rejects free-form frontend metadata, generic helper bypasses, unused
+wrappers, and registry/documentation/regression drift.
+
 ## Correctness fixtures
 
 Surface correctness fixtures live under `test/correctness/surface/`. Begin new
