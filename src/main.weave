@@ -228,6 +228,14 @@
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 validate_core_module_v2
+          (local_get validation_ctx) (const_i64 0)) (const_i32 0)))
+        (then (do
+          (call_void ctx_free (local_get validation_ctx))
+          (call_void free (local_get source))
+          (return (const_i32 1))))
+        (else (do)))
       (let decls_node i64 (call_i64 find_decls_node (local_get validation_ctx) (const_i64 0)))
       (if
         (condition (or_bool
@@ -264,6 +272,10 @@
       (let status i32 (call_i32 emit_module (local_get ctx) (param_get input_path)))
       (call_void ctx_free (local_get ctx))
       (call_i32 close (local_get out_fd))
+      (if
+        (condition (ne_i32 (local_get status) (const_i32 0)))
+        (then (do (call_i32 unlink (param_get output_path))))
+        (else (do)))
       (call_void free (local_get source))
       (return (local_get status))))
 

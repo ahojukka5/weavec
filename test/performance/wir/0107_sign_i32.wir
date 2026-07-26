@@ -7,7 +7,7 @@
 ;   accepts emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Sign always 0; compares swapped.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn sign_i32
       (params

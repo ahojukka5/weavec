@@ -10,7 +10,7 @@
 ; If LLVM regresses: Argument passed in wrong register/stack slot; broken
 ;   calling convention.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn inc
       (params

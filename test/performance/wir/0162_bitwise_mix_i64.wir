@@ -8,7 +8,7 @@
 ; If LLVM regresses: Shr uses shl; and mask wrong width; xor optimized away
 ;   incorrectly.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn mix64
       (params

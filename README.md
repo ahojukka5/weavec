@@ -40,12 +40,12 @@ Multi-file programs use the same command:
 weavec build main.weave library.weave platform.weave -o application
 ```
 
-The current self-hosted compiler performs:
+The compiler performs:
 
 ```text
 surface Weave
     ↓ frontend
-WIR core version 1
+WIR core version 2
     ↓ backend
 LLVM IR
     ↓ LLVM code generation
@@ -55,10 +55,10 @@ native object
 executable
 ```
 
-The initial seed compiler is built differently: `weavec-bootstrap v0.3.0`
-lowers the compiler sources to WIR core version 2, and `weavec1 v0.3.1` compiles
-that seed input to LLVM. The current self-hosted frontend/backend still use core
-version 1. See [Architecture](docs/architecture.md) for this version split.
+The initial seed and subsequent self-hosted generations use the same WIR v2
+boundary. `weavec-bootstrap v0.3.0` and `weavec1 v0.3.1` construct the seed;
+the resulting compiler then emits and consumes WIR v2 itself. See
+[Architecture](docs/architecture.md) and [WIR v2](docs/wir.md).
 
 Intermediate files live in a private temporary directory. The linker writes a
 temporary executable beside the requested output, and the compiler publishes it
@@ -199,9 +199,9 @@ weavec --audit <input.weave>
 weavec --audit-json <input.weave>
 ```
 
-The current self-hosted `--frontend` emits core-version-1 WIR for the current
-self-hosted `--backend`. The former implicit `weavec input.wir output.ll`
-backend spelling is rejected.
+The self-hosted `--frontend` emits WIR core version 2 for the self-hosted
+`--backend`. The former implicit `weavec input.wir output.ll` backend spelling is
+rejected.
 
 See the [command reference](docs/command-reference.md),
 [language reference](docs/language-reference.md), and
@@ -235,8 +235,8 @@ build/selfhost/stage1/weavec
 build/selfhost/stage2/weavec
 ```
 
-Both generations currently use the self-hosted core-version-1 frontend/backend
-boundary. Stage 2 must reproduce representative surface WIR and native behavior.
+Both generations use the same WIR v2 frontend/backend boundary. Stage 2 must
+reproduce representative surface WIR and native behavior.
 
 ## Current limitations
 
@@ -244,9 +244,6 @@ boundary. Stage 2 must reproduce representative surface WIR and native behavior.
 - Each package installs one native target; `--target` rejects absent targets.
 - Object generation and target linking use installed commands rather than a
   bundled LLVM toolchain.
-- The seed bootstrap uses WIR core version 2 while the current self-hosted
-  frontend/backend still use core version 1; unifying them requires a future
-  coordinated compiler migration.
 - Some backend diagnostics still use conservative unique-token inference because
   exact locations are not yet propagated through WIR.
 - `runtime/quantum_runtime.c` is a test stub, not a production quantum runtime.

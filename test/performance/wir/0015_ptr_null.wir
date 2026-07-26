@@ -10,7 +10,7 @@
 ; If LLVM regresses: null not typed as pointer; comparison lowered to integer
 ;   eq.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn main
       (params)

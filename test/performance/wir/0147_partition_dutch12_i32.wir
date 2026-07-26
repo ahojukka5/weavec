@@ -8,7 +8,7 @@
 ; If LLVM regresses: Pointers cross; elements not grouped; infinite loop on
 ;   indices.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (extern malloc
       (params

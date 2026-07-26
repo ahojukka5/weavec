@@ -12,7 +12,7 @@
 ;   (a b c) becomes: LIST -> first_child=a, a->next_sibling=b, b->next_sibling=c
 
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
 
     ; External memory functions

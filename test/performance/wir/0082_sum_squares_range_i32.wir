@@ -9,7 +9,7 @@
 ;   accepts emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Square not squared (add instead of mul); sum uses stale i.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn sum_squares
       (params

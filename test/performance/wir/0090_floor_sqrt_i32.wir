@@ -7,7 +7,7 @@
 ;   llvm-as accepts emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Off-by-one sqrt; square overflows silently in i32.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn floor_sqrt
       (params

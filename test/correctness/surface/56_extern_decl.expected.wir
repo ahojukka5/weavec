@@ -1,1 +1,1 @@
-(core-module (core-version 1) (decls (extern puts (params (s ptr)) (returns i32)) (fn main (params) (returns i32) (do (call_i32 puts (const_string_ptr "hello from extern_decl")) (return (const_i32 42))))))
+(core-module (core-version 2) (decls (extern puts (params (s ptr)) (returns i32)) (fn main (params) (returns i32) (do (call_i32 puts (const_string_ptr "hello from extern_decl")) (return (const_i32 42))))))

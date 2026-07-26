@@ -9,7 +9,7 @@
 ;   optional extra check.
 ; If LLVM regresses: Returns wrong constant or emits dead allocas before ret.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn main
       (params)

@@ -2,12 +2,8 @@
 
 This document describes the surface forms implemented by the current `weavec`
 frontend. It is a reference for source `.weave` files, not a reference for
-hand-written WIR.
-
-The current self-hosted frontend emits `(core-version 1)` modules for the current
-self-hosted backend. The initial seed compiler is built separately through the
-frozen WIR v2 lower-stage chain. See [Architecture](architecture.md) for the
-version split.
+hand-written WIR. The frontend emits WIR core version 2; see
+[WIR core version 2](wir.md) for the intermediate-format contract.
 
 Weave source is an S-expression language. Semicolons introduce line comments.
 Identifiers and operator names are case-sensitive.
@@ -27,7 +23,7 @@ A source module is a `program` form:
 provide an `entry main` body after all input files are combined.
 
 Multiple source files are accepted by `weavec build` and `weavec --frontend`.
-Their declarations are lowered into one current core-version-1 WIR module. Source
+Their declarations are lowered into one WIR core-version-2 module. Source
 argument order is preserved, while the frontend applies deterministic
 main/declaration ordering rules to the combined output.
 
@@ -354,5 +350,5 @@ The following are not current surface contracts:
 - implicit numeric conversions;
 - a separate quantum source format;
 - arbitrary decimal floating literals;
-- new private core-version-1 forms added without a coordinated WIR migration;
+- private final-compiler WIR forms added without a coordinated version transition;
 - the removed implicit `weavec input.wir output.ll` backend command.

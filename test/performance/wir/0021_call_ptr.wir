@@ -10,7 +10,7 @@
 ; If LLVM regresses: Pointer return not marked noalias where needed; typed as
 ;   i64.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (extern malloc
       (params

@@ -34,10 +34,15 @@
       (return (local_get cnt))))
 
   ; Check if an ident node's text equals the given C string of length n.
+  ; Missing optional children use node -1 and never match an identifier.
   (fn ident_equals
     (params (tree ptr) (source ptr) (node i64) (ident_str ptr) (name_len i64))
     (returns i32)
     (do
+      (if
+        (condition (eq_i64 (param_get node) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
       (return (call_i32 node_text_equals
         (param_get tree) (param_get source) (param_get node)
         (param_get ident_str) (param_get name_len)))))

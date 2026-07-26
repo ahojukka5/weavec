@@ -18,6 +18,7 @@ surface-language contract stabilises.
   behavior from future runtime and target design.
 - A compiler source and fixture style guide covering `.weave` conventions,
   resource ownership, deterministic emission, and regression metadata.
+- A WIR core version 2 contract document and permanent repository audit.
 
 ### Changed
 
@@ -34,8 +35,15 @@ surface-language contract stabilises.
   stable language or performance contract.
 - Preserved short redirect documents for historical quantum and lowering links
   without retaining competing proposal text.
-- Documented the current split between the WIR v2 seed bootstrap and the
-  self-hosted core-version-1 frontend/backend path.
+- Migrated the self-hosted frontend, backend, runtime modules, correctness,
+  performance, quantum, and self-host corpora to WIR core version 2.
+- Added strict WIR v2 envelope validation and rejection fixtures for core version 1,
+  missing or duplicate versions, missing or non-integer version values, and
+  invalid roots.
+- Removed partial LLVM output after every backend emission failure.
+- Made identifier comparison sentinel-safe for missing optional AST children and
+  added a malformed `call_ptr` regression that exercises effect analysis during
+  self-hosted frontend lowering.
 
 ## [0.3.0] — 2026-07-25
 
@@ -45,166 +53,69 @@ surface-language contract stabilises.
 - Private target runtime discovery relative to the installed compiler package.
 - `weavec-build-manifest-v1` build provenance output through
   `--manifest-json <path>`.
-- `weavec-diagnostics-v1` machine-readable diagnostics through
-  `--diagnostics-json <path>`.
-- Stable phase exit codes for frontend, backend, LLVM code generation, target
-  linking, atomic publication, and build-driver failures.
-- Exact UTF-8 source spans for canonical S-expression parse preflight errors.
-- Conservative backend source spans when a diagnostic token occurs uniquely in
-  canonical source, with explicit `span_origin` provenance.
-- Documentation and regression coverage for the build-driver and diagnostics
-  contracts.
+- Versioned `weavec-diagnostics-v1` output with stable public build-phase exit
+  codes, exact frontend preflight spans, conservative backend token spans, and
+  explicit span provenance.
+- Static Linux x86-64 release packages for glibc and musl.
+- Fresh-extraction package verification for public build, diagnostics, runtime
+  discovery, and failure atomicity.
+- A permanent deep self-host CI gate that builds and verifies stage-one and
+  stage-two compiler generations.
 
 ### Changed
 
-- The reproducible compiler chain now pins `weavec0 v0.4.0`, `weavec1 v0.3.1`,
-  and `weavec-bootstrap v0.3.0`.
-- Normal users and downstream tools no longer need to invoke the surface
-  frontend, WIR backend, `clang`, or the runtime archive separately.
-- Linux glibc and musl compiler archives now include the private target runtime
-  under `lib/weavec/<target>/libweave-runtime.a`.
-- LLVM IR to object generation and target linking are separate internal driver
-  phases, allowing musl packages to use `clang` for code generation and
-  `musl-gcc` for final linking.
-- Output executables are published atomically only after every build phase has
-  succeeded.
-- Human-readable stderr remains unchanged when machine-readable diagnostics are
-  requested.
+- Renamed the final compiler product and repository from `weavec2` to `weavec`.
+- Renamed the former `weavefront` dependency to `weavec-bootstrap`.
+- Removed current `weavec2`, `weavefront`, `WEAVEC2_*`, and `WEAVEFRONT_*`
+  compatibility interfaces.
+- Made explicit `--frontend` and `--backend` modes the only low-level compiler
+  interfaces; removed implicit two-path backend invocation.
+- Switched normal Linux source builds to checksum-verified `weavec1` and
+  `weavec-bootstrap` SDK releases instead of cloning and building lower stages.
+- Linked parser support through the published `libweave-sexpr.bc` boundary rather
+  than individual generated modules.
+- Split compiler host support from the private target program runtime.
+- Made native output publication atomic and preserved existing output on failed
+  builds.
+- Updated CI and release workflows for Linux glibc SDKs, Linux musl SDKs, macOS
+  source fallback, static packages, and extracted-package verification.
 
 ### Fixed
 
-- The build driver now resolves its installed runtime without exposing a runtime
-  path to normal callers.
-- macOS temporary-directory creation no longer depends directly on an SDK
-  declaration of `mkdtemp`.
-- Failed compiler or linker phases cannot leave a partial executable at the
-  requested output path.
+- Rejected unresolved WIR call targets before opening LLVM output.
+- Preserved target-specific runtime and linker selection in release packages.
+- Prevented frontend and backend failures from publishing partial native
+  executables.
 
 ## [0.2.0] — 2026-07-24
 
 ### Added
 
-- Static Linux x86-64 compiler archives for glibc and musl.
-- `VERSION`, `BUILD-MANIFEST`, release checksums, installed-binary smoke tests,
-  and automated GitHub Release publication.
-- `docs/RELEASING.md` and `scripts/package-linux-release.sh` for the final
-  compiler package contract.
-- A correctness regression proving that implicit backend invocation is rejected
-  without creating output.
+- Native source-to-executable build orchestration through the compiler host
+  support layer.
+- Linux x86-64 package layouts with private target runtime archives.
+- Build provenance manifests and package smoke tests.
 
 ### Changed
 
-- Renamed the repository from `weavec2` to `weavec` because it is the final
-  user-facing compiler rather than another bootstrap stage.
-- Renamed all current compiler artifacts to the canonical paths
-  `build/weavec.{wir,ll,bc}` and `build/weavec`.
-- Renamed the bootstrap dependency and environment contract from
-  `weavefront`/`WEAVEFRONT_*` to
-  `weavec-bootstrap`/`WEAVEC_BOOTSTRAP_*`.
-- Documented the compiler chain as
-  `weavec0 → weavec1 → weavec-bootstrap → weavec`.
-- Replaced four cross-repository parser-module links with the single named
-  `libweave-sexpr.bc` SDK boundary.
-- Renamed the self-host backend override to `WEAVEC_BACKEND` and all stage
-  outputs to `weavec`.
-- Removed the remaining compatibility paths and former stack-patch helper
-  scripts.
-- Linux x86-64 now consumes checksum-verified `weavec1 v0.2.0` and
-  `weavec-bootstrap v0.2.0` SDKs instead of cloning and rebuilding lower
-  compiler repositories.
-- Added explicit glibc and musl SDK selection and extracted-SDK overrides.
-- Restricted Stage 0 and source-repository resolution to unsupported hosts or
-  explicit source fallback requests.
-- Expanded CI to require SDK mode on Linux glibc and musl and source mode on
-  macOS.
-- Removed the implicit `weavec input.wir output.ll` backend compatibility
-  syntax. Callers must use `weavec --backend input.wir output.ll`.
+- Made the final compiler the single user-facing command.
+- Replaced direct runtime arguments in normal user workflows with compiler-owned
+  runtime discovery.
 
-### Fixed
-
-- Tree walkers in the contract/explain frontend and LLVM backend no longer call
-  `head_equals` on non-list AST nodes. WIR `and_bool` is strict; unguarded walks
-  caused flaky SIGBUS during multi-file `--frontend`, `--explain`, and
-  `--audit`.
-- Backend codegen emits `(fn main ...)` first in string pre-scan and LLVM
-  function emission when present, so multifile `--frontend` with `main.weave`
-  last in argv matches bootstrap frontend concatenation stability.
-- `lower_sources` pass 2 emits `main.weave` declarations before other inputs,
-  matching the `SOURCES` order in `build.sh`.
-- `./selfhost.sh` uses a stronger stage1-to-stage2 link smoke test and retries
-  `clang` until the stage binary passes it.
-- `weavec` no longer rewrites a dependency's `build.sh`; the 16 MiB bootstrap
-  frontend stack contract is implemented and tested in `weavec-bootstrap`.
-- SDK archives and checksums are revalidated before extraction, preventing a
-  stale or mismatched download from entering the bootstrap chain.
-- Release packaging rejects dynamic ELF executables, tests both compiler stages,
-  verifies emitted LLVM IR, and retests the stripped archived binary.
-
-## [0.1.2] — 2026-05-27
-
-End-to-end self-hosting patch published under the repository name `weavec2`.
-
-### Fixed
-
-- Loop-phi optimisation produced silently wrong code for the
-  "set-then-read-in-same-iteration" pattern. `emit_set_stmt` emitted a new
-  `%NAME.next<TAG>` value, but the optimiser did not update current-value
-  tracking, so a later `(local_get NAME)` in the same block read the old phi
-  value.
-- A new `name_get_after_set_in_subtree` gate keeps affected locals on the alloca
-  path. The `0122_kadane5_i32` performance golden was regenerated.
-- The complete 124 + 168 + 4 + 1 + 1 ladder continued to pass and the deeper
-  self-host bootstrap completed through its three stage2 smoke fixtures.
+## [0.1.2] — 2026-07-24
 
 ### Changed
 
-- `selfhost.sh` links `runtime/portable.c` into stage1 and stage2 binaries so
-  `weave_rt_open_write_trunc` is available.
+- Renamed the repository from `weavec2` to `weavec` after this release.
 
-## [0.1.1] — 2026-05-27
-
-Cross-platform portability patch published under the name `weavec2`.
+## [0.1.1] — 2026-07-23
 
 ### Fixed
 
-- The compiler previously embedded the macOS value for
-  `O_WRONLY | O_CREAT | O_TRUNC`, causing Linux output-file creation to fail.
-  Calls now route through `runtime/portable.c::weave_rt_open_write_trunc`, which
-  uses symbolic `<fcntl.h>` flags.
-- The Linux and macOS CI matrix passed 124 correctness, 168 performance,
-  4 quantum, 1 quantum end-to-end, and 1 basic self-host check.
+- Corrected bootstrap and package naming inconsistencies.
 
-## [0.1.0] — 2026-05-27
-
-The first public release, published as `weavec2`.
+## [0.1.0] — 2026-07-23
 
 ### Added
 
-- Apache-2.0 licensing, notices, and SPDX headers.
-- `CONTRIBUTING.md`, this changelog, and repository formatting files.
-- GitHub Actions CI on Linux and macOS.
-- Surface correctness, WIR performance, quantum, and basic self-host ladders.
-
-### Changed
-
-- `build.sh` stopped assuming sibling checkouts and began resolving pinned
-  `weavec0`, `weavec1`, and then-`weavefront` source releases under
-  `build/vendor/`.
-- Dependency source trees were built once and shared through the bootstrap.
-
-### Fixed
-
-- Loop-phi LLVM code generation was guarded against several invalid-SSA
-  patterns, including multiple sets, inner lets, nested conditionals, and
-  return-terminated branches.
-- `emit_function` and `emit_extern_decl` accepted both `(params)` and the
-  surface-lowered `(params ())` form.
-
-### Historical known limitations
-
-- At release time, the deeper `selfhost.sh` flow was blocked by a
-  string-constant emission bug. This was fixed in `v0.1.2`; the deeper flow now
-  passes.
-- `surface-matrix.sh` reported counts rather than enforcing thresholds.
-- Vendor caches did not automatically switch refs when dependency pins changed.
-- No dedicated `.weave` source-style checker existed.
+- Initial self-hosted final compiler release under the `weavec2` name.

@@ -9,7 +9,7 @@
 ;   slot each
 ;   iteration instead of keeping values in registers after mem2reg.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (extern malloc
       (params

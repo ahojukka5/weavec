@@ -10,7 +10,7 @@
 ; If LLVM regresses: Inner backedge wired to outer header; induction vars
 ;   swapped.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn main
       (params)

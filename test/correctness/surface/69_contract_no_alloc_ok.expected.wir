@@ -1,1 +1,1 @@
-(core-module (core-version 1) (decls (fn scale (params (x i32)) (returns i32) (do (return (mul_i32 x (const_i32 2))))) (fn main (params) (returns i32) (do (return (call_i32 scale (const_i32 21)))))))
+(core-module (core-version 2) (decls (fn scale (params (x i32)) (returns i32) (do (return (mul_i32 x (const_i32 2))))) (fn main (params) (returns i32) (do (return (call_i32 scale (const_i32 21)))))))

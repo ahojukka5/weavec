@@ -2,7 +2,7 @@
 ; Tests: function calling function, forward declarations, multiple functions
 
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn calculate
       (params

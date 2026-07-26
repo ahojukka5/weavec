@@ -1,1 +1,1 @@
-(core-module (core-version 1) (decls (fn main (params) (returns i32) (do (let x i32 (const_i32 40)) (return (add_i32 (local_get x) (const_i32 2)))))))
+(core-module (core-version 2) (decls (fn main (params) (returns i32) (do (let x i32 (const_i32 40)) (return (add_i32 (local_get x) (const_i32 2)))))))

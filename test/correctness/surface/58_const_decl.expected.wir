@@ -1,5 +1,5 @@
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn ANSWER (params) (returns i64) (do (return (const_i64 42))))
     (fn LIMIT (params) (returns i32) (do (return (const_i32 100))))

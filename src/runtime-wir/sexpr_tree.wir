@@ -20,7 +20,7 @@
 ;     offset 16: i64 - node capacity
 
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
 
     ; External functions

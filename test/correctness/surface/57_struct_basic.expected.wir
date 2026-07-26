@@ -1,5 +1,5 @@
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (extern malloc (params (size i64)) (returns ptr))
     (fn Buffer_new (params (data ptr) (len i64) (cap i64)) (returns ptr)

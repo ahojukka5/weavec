@@ -1,5 +1,5 @@
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn ping (params (n i32)) (returns i32) (do (if (condition (le_i32 n (const_i32 0))) (then (do (return (const_i32 42)))) (else (do))) (return (call_i32 pong (sub_i32 n (const_i32 1))))))
     (fn pong (params (n i32)) (returns i32) (do (if (condition (le_i32 n (const_i32 0))) (then (do (return (const_i32 42)))) (else (do))) (return (call_i32 ping (sub_i32 n (const_i32 1))))))

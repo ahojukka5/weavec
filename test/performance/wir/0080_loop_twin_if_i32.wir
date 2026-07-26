@@ -9,7 +9,7 @@
 ;   clobbers first
 ;   update.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn run
       (params)

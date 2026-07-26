@@ -9,7 +9,7 @@
 ; If LLVM regresses: No backedge to header, phi missing for i, or body executed
 ;   one extra time.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn main
       (params)

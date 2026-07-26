@@ -13,7 +13,7 @@
 ;   stack every iteration, wrong backedge operands, or SSA violations after
 ;   llvm-as.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn run
       (params)

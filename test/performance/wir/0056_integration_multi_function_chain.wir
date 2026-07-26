@@ -9,7 +9,7 @@
 ; If LLVM regresses: Broken tail call or wrong return value register at end of
 ;   chain.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (fn calculate
       (params

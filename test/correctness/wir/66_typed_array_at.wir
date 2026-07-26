@@ -1,7 +1,7 @@
 ; Typed array address primitives
 ; Tests: array_i32_at, array_i64_at, array_ptr_at lower to typed element addresses
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (extern malloc
       (params

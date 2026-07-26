@@ -8,7 +8,7 @@
 ; If LLVM regresses: Infinite loop on bounds; mid computed with div rounding
 ;   error.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (extern malloc
       (params

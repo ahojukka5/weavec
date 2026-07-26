@@ -8,7 +8,7 @@
 ; If LLVM regresses: Dead code keeps alloca for unused return; extra stores to
 ;   dead slots.
 (core-module
-  (core-version 1)
+  (core-version 2)
   (decls
     (extern malloc (params (size i64)) (returns ptr))
     (fn touch (params (p ptr)) (returns i32)
