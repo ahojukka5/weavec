@@ -16,6 +16,8 @@ surface-language contract stabilises.
   language, `weavec-build-manifest-v1`, and release-package `BUILD-MANIFEST`.
 - A current quantum implementation guide that separates regression-tested
   behavior from future runtime and target design.
+- A compiler source and fixture style guide covering `.weave` conventions,
+  resource ownership, deterministic emission, and regression metadata.
 
 ### Changed
 
@@ -32,6 +34,8 @@ surface-language contract stabilises.
   stable language or performance contract.
 - Preserved short redirect documents for historical quantum and lowering links
   without retaining competing proposal text.
+- Documented the current split between the WIR v2 seed bootstrap and the
+  self-hosted core-version-1 frontend/backend path.
 
 ## [0.3.0] — 2026-07-25
 
