@@ -20,6 +20,9 @@ log 'correctness'
 log 'performance'
 "$ROOT/test/performance/test.sh"
 
+log 'LLVM structural quality'
+"$ROOT/scripts/check-llvm-quality.sh"
+
 log 'quantum'
 "$ROOT/test/quantum/test.sh"
 
@@ -31,6 +34,9 @@ log 'quantum-llvm'
 
 log 'compilation-trace'
 "$ROOT/test/trace/test.sh"
+
+log 'LLVM provenance'
+"$ROOT/test/llvm-provenance/test.sh"
 
 log 'self-host'
 "$ROOT/test/selfhost/test.sh"

@@ -62,6 +62,8 @@ BUILD_BIN="$RELEASE_BUILD/build-smoke"
 BUILD_MANIFEST="$RELEASE_BUILD/build-smoke.json"
 BUILD_DIAGNOSTICS="$RELEASE_BUILD/build-smoke.diagnostics.json"
 BUILD_TRACE="$RELEASE_BUILD/build-smoke.trace.json"
+PROVENANCE_BIN="$RELEASE_BUILD/provenance-smoke"
+PROVENANCE_STDERR="$RELEASE_BUILD/provenance-smoke.stderr"
 FRONTEND_FAILURE_SOURCE="$RELEASE_BUILD/frontend-failure.weave"
 FRONTEND_FAILURE_BIN="$RELEASE_BUILD/frontend-failure"
 FRONTEND_FAILURE_DIAGNOSTICS="$RELEASE_BUILD/frontend-failure.diagnostics.json"
@@ -189,6 +191,21 @@ if [[ "$build_status" -ne 42 ]]; then
 fi
 grep -F '"status": "succeeded"' "$BUILD_MANIFEST" >/dev/null
 grep -F "\"target\": \"$TARGET\"" "$BUILD_MANIFEST" >/dev/null
+
+rm -f "$PROVENANCE_BIN" "$PROVENANCE_STDERR"
+"$COMPILER" build "$BUILD_SOURCE" -o "$PROVENANCE_BIN" \
+  --llvm-provenance 2>"$PROVENANCE_STDERR"
+PROVENANCE_DIR="$(sed -n \
+  's/^weavec: kept temporary build directory: //p' \
+  "$PROVENANCE_STDERR" | tail -1)"
+[[ -n "$PROVENANCE_DIR" && -s "$PROVENANCE_DIR/program.ll" ]] || {
+  printf 'packaged compiler did not retain provenance LLVM\n' >&2
+  exit 1
+}
+grep -q '^; weave.source kind=function index=0 ' "$PROVENANCE_DIR/program.ll"
+grep -q '^; weave.source kind=statement index=0 ' "$PROVENANCE_DIR/program.ll"
+llvm-as "$PROVENANCE_DIR/program.ll" -o "$RELEASE_BUILD/provenance-smoke.bc"
+rm -rf "$PROVENANCE_DIR"
 
 cat > "$FRONTEND_FAILURE_SOURCE" <<'EOF'
 (program
@@ -371,6 +388,17 @@ assert trace["format"] == "weavec-compilation-trace-v1"
 assert trace["status"] == "succeeded"
 assert any(event["action"] == "wrap-typed-integer" for event in trace["events"])
 PY
+
+rm -f "$PROVENANCE_BIN" "$PROVENANCE_STDERR"
+"$COMPILER" build "$BUILD_SOURCE" -o "$PROVENANCE_BIN" \
+  --llvm-provenance 2>"$PROVENANCE_STDERR"
+PROVENANCE_DIR="$(sed -n \
+  's/^weavec: kept temporary build directory: //p' \
+  "$PROVENANCE_STDERR" | tail -1)"
+[[ -n "$PROVENANCE_DIR" && -s "$PROVENANCE_DIR/program.ll" ]]
+grep -q '^; weave.source kind=function index=0 ' "$PROVENANCE_DIR/program.ll"
+llvm-as "$PROVENANCE_DIR/program.ll" -o "$RELEASE_BUILD/provenance-stripped.bc"
+rm -rf "$PROVENANCE_DIR"
 
 rm -f "$ARCHIVE"
 tar -C "$RELEASE_BUILD" -czf "$ARCHIVE" "$PACKAGE_NAME"
