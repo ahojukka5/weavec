@@ -13,9 +13,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#ifndef WEAVEC_VERSION_STRING
-#define WEAVEC_VERSION_STRING "v0.0.0+unknown"
-#endif
+// Normal builds provide a strong definition from a generated LLVM module linked
+// into compiler bitcode. The weak fallback keeps direct host-runtime links valid.
+__attribute__((weak)) const char weave_compiler_version[] = "v0.0.0+unknown";
 
 #ifndef WEAVEC_DEFAULT_TARGET
 #if defined(__linux__) && defined(__x86_64__)
@@ -47,10 +47,11 @@ int weave_rt_print_version(void) {
     static const char prefix[] = "weavec ";
     static const char newline[] = "\n";
     const unsigned long prefix_length = sizeof(prefix) - 1;
-    const unsigned long version_length = sizeof(WEAVEC_VERSION_STRING) - 1;
+    const unsigned long version_length =
+        (unsigned long)__builtin_strlen(weave_compiler_version);
 
     if (write(1, prefix, prefix_length) != (ssize_t)prefix_length ||
-        write(1, WEAVEC_VERSION_STRING, version_length) !=
+        write(1, weave_compiler_version, version_length) !=
             (ssize_t)version_length ||
         write(1, newline, 1) != 1) {
         return 1;
