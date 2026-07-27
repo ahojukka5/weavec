@@ -42,6 +42,11 @@
 #ifndef WEAVEC_DEFAULT_LINKER
 #define WEAVEC_DEFAULT_LINKER "clang"
 #endif
+#if defined(__APPLE__)
+#define WEAVEC_LINK_DEAD_STRIP "-Wl,-dead_strip"
+#else
+#define WEAVEC_LINK_DEAD_STRIP "-Wl,--gc-sections"
+#endif
 
 static int llvm_definition_is_main(const char *line) {
     if (strncmp(line, "define ", 7) != 0) {
@@ -107,7 +112,9 @@ static int internalize_build_module(const char *path) {
         failed = 1;
     }
     free(line);
-    if (fclose(input) != 0 || fclose(output) != 0) {
+    int input_close_failed = fclose(input) != 0;
+    int output_close_failed = fclose(output) != 0;
+    if (input_close_failed || output_close_failed) {
         failed = 1;
     }
     if (failed) {
@@ -1125,7 +1132,7 @@ int weave_rt_build_main(int argc, char **argv) {
         "-fdata-sections",
         paths.object,
         runtime,
-        "-Wl,--gc-sections",
+        WEAVEC_LINK_DEAD_STRIP,
         "-o",
         output_template,
         NULL,
