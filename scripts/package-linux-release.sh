@@ -62,6 +62,11 @@ BUILD_BIN="$RELEASE_BUILD/build-smoke"
 BUILD_MANIFEST="$RELEASE_BUILD/build-smoke.json"
 BUILD_DIAGNOSTICS="$RELEASE_BUILD/build-smoke.diagnostics.json"
 BUILD_TRACE="$RELEASE_BUILD/build-smoke.trace.json"
+BUILD_RAW_LL="$RELEASE_BUILD/build-smoke.raw.ll"
+BUILD_OPT_LL="$RELEASE_BUILD/build-smoke.optimized.ll"
+BUILD_ASSEMBLY="$RELEASE_BUILD/build-smoke.s"
+BUILD_DISASSEMBLY="$RELEASE_BUILD/build-smoke.disasm"
+BUILD_OPT_RECORD="$RELEASE_BUILD/build-smoke.opt.yaml"
 PROVENANCE_BIN="$RELEASE_BUILD/provenance-smoke"
 PROVENANCE_STDERR="$RELEASE_BUILD/provenance-smoke.stderr"
 FRONTEND_FAILURE_SOURCE="$RELEASE_BUILD/frontend-failure.weave"
@@ -83,6 +88,8 @@ require_tool ar
 require_tool clang
 require_tool file
 require_tool llvm-as
+require_tool llc
+require_tool llvm-objdump
 require_tool python3
 require_tool readelf
 require_tool tar
@@ -169,15 +176,24 @@ cat > "$BUILD_SOURCE" <<'EOF'
       (let answer i32 42)
       (return (local_get answer)))))
 EOF
-rm -f "$BUILD_BIN" "$BUILD_MANIFEST" "$BUILD_DIAGNOSTICS" "$BUILD_TRACE"
+rm -f "$BUILD_BIN" "$BUILD_MANIFEST" "$BUILD_DIAGNOSTICS" "$BUILD_TRACE" \
+  "$BUILD_RAW_LL" "$BUILD_OPT_LL" "$BUILD_ASSEMBLY" \
+  "$BUILD_DISASSEMBLY" "$BUILD_OPT_RECORD"
 "$COMPILER" build \
   "$BUILD_SOURCE" \
   -o "$BUILD_BIN" \
   --manifest-json "$BUILD_MANIFEST" \
   --diagnostics-json "$BUILD_DIAGNOSTICS" \
-  --trace-json "$BUILD_TRACE"
+  --trace-json "$BUILD_TRACE" \
+  --emit-llvm "$BUILD_RAW_LL" \
+  --emit-optimized-llvm "$BUILD_OPT_LL" \
+  --emit-assembly "$BUILD_ASSEMBLY" \
+  --emit-disassembly "$BUILD_DISASSEMBLY" \
+  --optimization-record "$BUILD_OPT_RECORD"
 [[ -x "$BUILD_BIN" && -s "$BUILD_MANIFEST" && -s "$BUILD_DIAGNOSTICS" && \
-   -s "$BUILD_TRACE" ]] || {
+   -s "$BUILD_TRACE" && -s "$BUILD_RAW_LL" && -s "$BUILD_OPT_LL" && \
+   -s "$BUILD_ASSEMBLY" && -s "$BUILD_DISASSEMBLY" && \
+   -s "$BUILD_OPT_RECORD" ]] || {
   printf 'weavec build did not produce all requested automation outputs\n' >&2
   exit 1
 }
@@ -191,6 +207,11 @@ if [[ "$build_status" -ne 42 ]]; then
 fi
 grep -F '"status": "succeeded"' "$BUILD_MANIFEST" >/dev/null
 grep -F "\"target\": \"$TARGET\"" "$BUILD_MANIFEST" >/dev/null
+grep -F '"optimization": {"level": "O2", "cpu": null, "tune_cpu": null}' \
+  "$BUILD_MANIFEST" >/dev/null
+llvm-as "$BUILD_RAW_LL" -o "$RELEASE_BUILD/build-smoke.raw.bc"
+llvm-as "$BUILD_OPT_LL" -o "$RELEASE_BUILD/build-smoke.optimized.bc"
+grep -Eq '<_?main>:' "$BUILD_DISASSEMBLY"
 
 rm -f "$PROVENANCE_BIN" "$PROVENANCE_STDERR"
 "$COMPILER" build "$BUILD_SOURCE" -o "$PROVENANCE_BIN" \

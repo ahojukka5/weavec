@@ -143,30 +143,28 @@ def main() -> int:
         )
 
     lines.append("")
-    lines.append("## Recommended weavec improvements (priority)")
+    lines.append("## Evidence-first review order")
     lines.append("")
     lines.append(
-        "1. Extend loop-phi promotion to i64, f32, and f64 carried locals "
-        "(today i32-only in `src/llvm/loop-phi.weave`)."
+        "1. Compare each raw golden with the selected LLVM-optimized IR."
     )
     lines.append(
-        "2. Emit direct phi back-edges for `set x (local_get y)` when x and y "
-        "are the same loop-carried binding (avoid `add i32 %y, 0`)."
+        "2. Inspect final linked-binary disassembly before treating raw "
+        "instruction counts as code-generation defects."
     )
     lines.append(
-        "3. Hoist `sitofp` of loop indices out of the body when accumulating "
-        "float sums (see 0166_sum_range_f32)."
+        "3. A/B test the current custom loop-phi machinery against a simpler "
+        "uniform lowering under the same LLVM profile and CPU target."
     )
     lines.append(
-        "4. Drop dead `let` stack slots when the value is only consumed by "
-        "the next `set` on another carried local (0158 fibonacci `next`)."
+        "4. Remove custom transformations when optimized IR, machine code, "
+        "and measured performance are equivalent or better without them."
     )
     lines.append(
-        "5. After weavec emits cleaner IR, rely on LLVM `-O2` for final "
-        "codegen; goldens document pre-opt shape."
+        "5. Add backend logic only for a general semantic property that LLVM "
+        "cannot recover, never for one fixture-shaped pattern."
     )
     lines.append("")
-
     report = "\n".join(lines)
     print(report)
 

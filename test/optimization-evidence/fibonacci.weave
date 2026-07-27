@@ -1,0 +1,56 @@
+; SPDX-License-Identifier: Apache-2.0
+; Iterative Fibonacci fixture for the native optimization evidence pipeline.
+
+(program
+  (name "optimization-evidence-fibonacci")
+  (version "0.1")
+  (entry main)
+  (fn fib
+    (params
+      (n i32))
+    (returns i32)
+    (do
+      (if
+        (condition
+          (le_i32
+            (param_get n)
+            (const_i32 1)))
+        (then
+          (do
+            (return
+              (param_get n))))
+        (else
+          (do)))
+      (let prev i32
+        (const_i32 0))
+      (let curr i32
+        (const_i32 1))
+      (let i i32
+        (const_i32 2))
+      (while
+        (condition
+          (le_i32
+            (local_get i)
+            (param_get n)))
+        (do
+          (let next i32
+            (add_i32
+              (local_get prev)
+              (local_get curr)))
+          (set prev
+            (local_get curr))
+          (set curr
+            (local_get next))
+          (set i
+            (add_i32
+              (local_get i)
+              (const_i32 1)))))
+      (return
+        (local_get curr))))
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (return
+        (call_i32 fib
+          (const_i32 10))))))

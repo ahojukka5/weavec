@@ -41,6 +41,9 @@ log 'compilation-trace'
 log 'LLVM provenance'
 "$ROOT/test/llvm-provenance/test.sh"
 
+log 'optimization evidence'
+"$ROOT/test/optimization-evidence/test.sh"
+
 log 'self-host'
 "$ROOT/test/selfhost/test.sh"
 
