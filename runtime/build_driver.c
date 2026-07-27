@@ -33,8 +33,11 @@
 #ifndef WEAVEC_DEFAULT_TARGET
 #define WEAVEC_DEFAULT_TARGET "unknown-host"
 #endif
+#ifndef WEAVEC_DEFAULT_OPTIMIZER
+#define WEAVEC_DEFAULT_OPTIMIZER "clang"
+#endif
 #ifndef WEAVEC_DEFAULT_CODEGEN
-#define WEAVEC_DEFAULT_CODEGEN "clang"
+#define WEAVEC_DEFAULT_CODEGEN "llc"
 #endif
 #ifndef WEAVEC_DEFAULT_LINKER
 #define WEAVEC_DEFAULT_LINKER "clang"
@@ -45,9 +48,15 @@ static void build_usage(void) {
         "usage: weavec build <input.weave> [input2.weave ...] -o <program>\n"
         "                    [--target <triple>] [--manifest-json <path>]\n"
         "                    [--trace-json <path>] [--emit-wir <path>]\n"
-        "                    [--emit-llvm <path>] [--llvm-provenance]\n"
-        "                    [--runtime <archive>] [--codegen <command>]\n"
-        "                    [--linker <command>] [--keep-temporaries]\n",
+        "                    [--emit-llvm <path>] [--emit-optimized-llvm <path>]\n"
+        "                    [--emit-assembly <path>] [--emit-disassembly <path>]\n"
+        "                    [--optimization-record <path>] [--llvm-provenance]\n"
+        "                    [-O0|-O1|-O2|-O3|-Os|-Oz] [--native]\n"
+        "                    [--cpu <name>] [--tune-cpu <name>]\n"
+        "                    [--runtime <archive>] [--optimizer <command>]\n"
+        "                    [--target-codegen <command>] [--linker <command>]\n"
+        "                    [--objdump <command>]\n"
+        "                    [--keep-temporaries]\n",
         stderr);
 }
 
@@ -56,40 +65,13 @@ static int file_exists(const char *path) {
     return path != NULL && stat(path, &st) == 0 && S_ISREG(st.st_mode);
 }
 
-static int run_process(char *const args[]) {
-    pid_t pid = fork();
-    if (pid < 0) {
-        fprintf(stderr, "weavec: fork failed: %s\n", strerror(errno));
-        return 1;
-    }
-    if (pid == 0) {
-        execvp(args[0], args);
-        fprintf(stderr, "weavec: cannot execute %s: %s\n", args[0], strerror(errno));
-        _exit(127);
-    }
-
-    int status = 0;
-    while (waitpid(pid, &status, 0) < 0) {
-        if (errno != EINTR) {
-            fprintf(stderr, "weavec: waitpid failed: %s\n", strerror(errno));
-            return 1;
-        }
-    }
-    if (WIFEXITED(status)) {
-        return WEXITSTATUS(status);
-    }
-    if (WIFSIGNALED(status)) {
-        return 128 + WTERMSIG(status);
-    }
-    return 1;
-}
-
 static int copy_string(char *out, size_t out_size, const char *value) {
     int written = snprintf(out, out_size, "%s", value);
     return written >= 0 && (size_t)written < out_size;
 }
 
 static int resolve_from_path(const char *name, char *out, size_t out_size) {
+    (void)out_size;
     const char *path = getenv("PATH");
     if (path == NULL) {
         return 0;
@@ -236,8 +218,13 @@ static void write_manifest(
     const char *target,
     const char *compiler,
     const char *runtime,
+    const char *optimizer,
     const char *codegen,
     const char *linker,
+    const char *objdump,
+    const char *optimization,
+    const char *cpu,
+    const char *tune_cpu,
     const char *output,
     char **sources,
     int source_count) {
@@ -259,10 +246,29 @@ static void write_manifest(
     json_string(stream, compiler);
     fputs(",\n  \"runtime\": ", stream);
     json_string(stream, runtime);
+    fputs(",\n  \"optimizer\": ", stream);
+    json_string(stream, optimizer);
     fputs(",\n  \"codegen\": ", stream);
     json_string(stream, codegen);
     fputs(",\n  \"linker\": ", stream);
     json_string(stream, linker);
+    fputs(",\n  \"objdump\": ", stream);
+    json_string(stream, objdump);
+    fputs(",\n  \"optimization\": {\"level\": ", stream);
+    json_string(stream, optimization);
+    fputs(", \"cpu\": ", stream);
+    if (cpu == NULL) {
+        fputs("null", stream);
+    } else {
+        json_string(stream, cpu);
+    }
+    fputs(", \"tune_cpu\": ", stream);
+    if (tune_cpu == NULL) {
+        fputs("null", stream);
+    } else {
+        json_string(stream, tune_cpu);
+    }
+    fputs("}", stream);
     fputs(",\n  \"output\": ", stream);
     json_string(stream, output);
     fputs(",\n  \"sources\": [", stream);
@@ -281,13 +287,8 @@ static int same_path(const char *left, const char *right) {
 }
 
 static int requested_paths_conflict(
-    const char *output,
-    const char *manifest,
-    const char *trace,
-    const char *emit_wir,
-    const char *emit_llvm) {
-    const char *paths[] = {output, manifest, trace, emit_wir, emit_llvm};
-    size_t count = sizeof(paths) / sizeof(paths[0]);
+    const char *const paths[],
+    size_t count) {
     for (size_t i = 0; i < count; ++i) {
         for (size_t j = i + 1; j < count; ++j) {
             if (same_path(paths[i], paths[j])) {
@@ -419,40 +420,199 @@ static int publish_artifact(
     return 0;
 }
 
-static void cleanup_directory(
-    const char *directory,
-    const char *wir_path,
-    const char *ll_path,
-    const char *object_path,
-    int keep) {
+typedef struct weave_build_paths {
+    char directory[PATH_MAX];
+    char wir[PATH_MAX];
+    char raw_llvm[PATH_MAX];
+    char optimized_llvm[PATH_MAX];
+    char assembly[PATH_MAX];
+    char object[PATH_MAX];
+    char ir_remarks[PATH_MAX];
+    char codegen_remarks[PATH_MAX];
+    char optimization_record[PATH_MAX];
+    char trace_events[PATH_MAX];
+    char disassembly[PATH_MAX];
+} weave_build_paths;
+
+static void cleanup_build_directory(const weave_build_paths *paths, int keep) {
     if (keep) {
-        fprintf(stderr, "weavec: kept temporary build directory: %s\n", directory);
+        fprintf(
+            stderr,
+            "weavec: kept temporary build directory: %s\n",
+            paths->directory);
         return;
     }
-    unlink(wir_path);
-    unlink(ll_path);
-    unlink(object_path);
-    rmdir(directory);
+    unlink(paths->wir);
+    unlink(paths->raw_llvm);
+    unlink(paths->optimized_llvm);
+    unlink(paths->assembly);
+    unlink(paths->object);
+    unlink(paths->ir_remarks);
+    unlink(paths->codegen_remarks);
+    unlink(paths->optimization_record);
+    unlink(paths->trace_events);
+    unlink(paths->disassembly);
+    rmdir(paths->directory);
+}
+
+static int initialize_build_paths(
+    weave_build_paths *paths,
+    const char *tmp_root) {
+    if (snprintf(
+            paths->directory,
+            sizeof(paths->directory),
+            "%s/weavec-build-XXXXXX",
+            tmp_root) >= (int)sizeof(paths->directory) ||
+        mkdtemp(paths->directory) == NULL) {
+        return 0;
+    }
+#define WEAVE_BUILD_PATH(field, name) \
+    do { \
+        if (snprintf( \
+                paths->field, sizeof(paths->field), \
+                "%s/%s", paths->directory, name) >= \
+            (int)sizeof(paths->field)) { \
+            cleanup_build_directory(paths, 0); \
+            return 0; \
+        } \
+    } while (0)
+    WEAVE_BUILD_PATH(wir, "program.wir");
+    WEAVE_BUILD_PATH(raw_llvm, "program.ll");
+    WEAVE_BUILD_PATH(optimized_llvm, "program.optimized.ll");
+    WEAVE_BUILD_PATH(assembly, "program.s");
+    WEAVE_BUILD_PATH(object, "program.o");
+    WEAVE_BUILD_PATH(ir_remarks, "program.ir.opt.yaml");
+    WEAVE_BUILD_PATH(codegen_remarks, "program.codegen.opt.yaml");
+    WEAVE_BUILD_PATH(optimization_record, "program.opt.yaml");
+    WEAVE_BUILD_PATH(trace_events, "program.trace.events");
+    WEAVE_BUILD_PATH(disassembly, "program.disasm");
+#undef WEAVE_BUILD_PATH
+    return 1;
+}
+
+static int copy_stream(FILE *output, const char *path) {
+    FILE *input = fopen(path, "rb");
+    if (input == NULL) {
+        if (errno == ENOENT) {
+            return 1;
+        }
+        fprintf(stderr, "weavec: cannot read optimization record %s: %s\n", path, strerror(errno));
+        return 0;
+    }
+    unsigned char buffer[16384];
+    for (;;) {
+        size_t count = fread(buffer, 1, sizeof(buffer), input);
+        if (count > 0 && fwrite(buffer, 1, count, output) != count) {
+            fclose(input);
+            return 0;
+        }
+        if (count < sizeof(buffer)) {
+            if (ferror(input)) {
+                fclose(input);
+                return 0;
+            }
+            break;
+        }
+    }
+    return fclose(input) == 0;
+}
+
+static int combine_optimization_records(
+    const char *ir_record,
+    const char *codegen_record,
+    const char *output_path) {
+    FILE *output = fopen(output_path, "wb");
+    if (output == NULL) {
+        fprintf(
+            stderr,
+            "weavec: cannot create optimization record %s: %s\n",
+            output_path,
+            strerror(errno));
+        return 1;
+    }
+    int ok = fputs("# weavec optimization stage: llvm-ir\n", output) >= 0 &&
+        copy_stream(output, ir_record) &&
+        fputs("\n# weavec optimization stage: target-codegen\n", output) >= 0 &&
+        copy_stream(output, codegen_record);
+    if (fclose(output) != 0) {
+        ok = 0;
+    }
+    if (!ok) {
+        fprintf(stderr, "weavec: cannot write optimization record %s\n", output_path);
+        unlink(output_path);
+        return 1;
+    }
+    return 0;
+}
+
+static int optimization_option(const char *arg) {
+    return strcmp(arg, "-O0") == 0 || strcmp(arg, "-O1") == 0 ||
+           strcmp(arg, "-O2") == 0 || strcmp(arg, "-O3") == 0 ||
+           strcmp(arg, "-Os") == 0 || strcmp(arg, "-Oz") == 0;
+}
+
+static const char *optimization_name(const char *flag) {
+    return flag != NULL && flag[0] == '-' ? flag + 1 : flag;
+}
+
+static void write_build_manifest(
+    const char *path,
+    const char *status,
+    const char *phase,
+    const char *target,
+    const char *compiler,
+    const char *runtime,
+    const weave_llvm_config *llvm,
+    const char *linker,
+    const char *output,
+    char **sources,
+    int source_count) {
+    write_manifest(
+        path, status, phase, target, compiler, runtime,
+        llvm->optimizer, llvm->codegen, linker, llvm->objdump,
+        optimization_name(llvm->optimization), llvm->cpu, llvm->tune_cpu,
+        output, sources, source_count);
 }
 
 int weave_rt_build_main(int argc, char **argv) {
     const char *output = NULL;
     const char *target = WEAVEC_DEFAULT_TARGET;
     const char *runtime_override = NULL;
-    const char *codegen = getenv("WEAVEC_CODEGEN");
+    const char *optimizer = getenv("WEAVEC_OPTIMIZER");
+    if (optimizer == NULL || *optimizer == '\0') {
+        optimizer = getenv("WEAVEC_CODEGEN");
+    }
+    const char *codegen = getenv("WEAVEC_TARGET_CODEGEN");
+    if (codegen == NULL || *codegen == '\0') {
+        codegen = getenv("WEAVEC_LLC");
+    }
     const char *linker = getenv("WEAVEC_LINKER");
+    const char *objdump = getenv("WEAVEC_OBJDUMP");
     const char *manifest = NULL;
     const char *trace = NULL;
     const char *emit_wir = NULL;
     const char *emit_llvm = NULL;
+    const char *emit_optimized_llvm = NULL;
+    const char *emit_assembly = NULL;
+    const char *emit_disassembly = NULL;
+    const char *optimization_record = NULL;
+    const char *optimization = "-O2";
+    const char *cpu = NULL;
+    const char *tune_cpu = NULL;
     int keep_temporaries = 0;
     int llvm_provenance = 0;
 
+    if (optimizer == NULL || *optimizer == '\0') {
+        optimizer = WEAVEC_DEFAULT_OPTIMIZER;
+    }
     if (codegen == NULL || *codegen == '\0') {
         codegen = WEAVEC_DEFAULT_CODEGEN;
     }
     if (linker == NULL || *linker == '\0') {
         linker = WEAVEC_DEFAULT_LINKER;
+    }
+    if (objdump == NULL || *objdump == '\0') {
+        objdump = WEAVEC_DEFAULT_OBJDUMP;
     }
 
     char **sources = calloc((size_t)argc, sizeof(char *));
@@ -485,7 +645,16 @@ int weave_rt_build_main(int argc, char **argv) {
                 return 2;
             }
             runtime_override = argv[i];
-        } else if (strcmp(arg, "--codegen") == 0) {
+        } else if (strcmp(arg, "--optimizer") == 0 ||
+                   strcmp(arg, "--codegen") == 0) {
+            if (++i >= argc) {
+                build_usage();
+                free(sources);
+                return 2;
+            }
+            optimizer = argv[i];
+        } else if (strcmp(arg, "--target-codegen") == 0 ||
+                   strcmp(arg, "--llc") == 0) {
             if (++i >= argc) {
                 build_usage();
                 free(sources);
@@ -499,6 +668,13 @@ int weave_rt_build_main(int argc, char **argv) {
                 return 2;
             }
             linker = argv[i];
+        } else if (strcmp(arg, "--objdump") == 0) {
+            if (++i >= argc) {
+                build_usage();
+                free(sources);
+                return 2;
+            }
+            objdump = argv[i];
         } else if (strcmp(arg, "--manifest-json") == 0) {
             if (++i >= argc) {
                 build_usage();
@@ -527,6 +703,57 @@ int weave_rt_build_main(int argc, char **argv) {
                 return 2;
             }
             emit_llvm = argv[i];
+        } else if (strcmp(arg, "--emit-optimized-llvm") == 0) {
+            if (++i >= argc) {
+                build_usage();
+                free(sources);
+                return 2;
+            }
+            emit_optimized_llvm = argv[i];
+        } else if (strcmp(arg, "--emit-assembly") == 0) {
+            if (++i >= argc) {
+                build_usage();
+                free(sources);
+                return 2;
+            }
+            emit_assembly = argv[i];
+        } else if (strcmp(arg, "--emit-disassembly") == 0) {
+            if (++i >= argc) {
+                build_usage();
+                free(sources);
+                return 2;
+            }
+            emit_disassembly = argv[i];
+        } else if (strcmp(arg, "--optimization-record") == 0) {
+            if (++i >= argc) {
+                build_usage();
+                free(sources);
+                return 2;
+            }
+            optimization_record = argv[i];
+        } else if (strcmp(arg, "--cpu") == 0 || strcmp(arg, "--march") == 0) {
+            if (++i >= argc) {
+                build_usage();
+                free(sources);
+                return 2;
+            }
+            cpu = argv[i];
+        } else if (strncmp(arg, "--march=", 8) == 0) {
+            cpu = arg + 8;
+        } else if (strcmp(arg, "--tune-cpu") == 0 || strcmp(arg, "--mtune") == 0) {
+            if (++i >= argc) {
+                build_usage();
+                free(sources);
+                return 2;
+            }
+            tune_cpu = argv[i];
+        } else if (strncmp(arg, "--mtune=", 8) == 0) {
+            tune_cpu = arg + 8;
+        } else if (strcmp(arg, "--native") == 0) {
+            cpu = "native";
+            tune_cpu = "native";
+        } else if (optimization_option(arg)) {
+            optimization = arg;
         } else if (strcmp(arg, "--keep-temporaries") == 0) {
             keep_temporaries = 1;
         } else if (strcmp(arg, "--llvm-provenance") == 0) {
@@ -546,7 +773,26 @@ int weave_rt_build_main(int argc, char **argv) {
         free(sources);
         return 2;
     }
-    if (requested_paths_conflict(output, manifest, trace, emit_wir, emit_llvm)) {
+    if ((cpu != NULL && *cpu == '\0') ||
+        (tune_cpu != NULL && *tune_cpu == '\0')) {
+        fputs("weavec: CPU names must not be empty\n", stderr);
+        free(sources);
+        return 2;
+    }
+    const char *requested_paths[] = {
+        output,
+        manifest,
+        trace,
+        emit_wir,
+        emit_llvm,
+        emit_optimized_llvm,
+        emit_assembly,
+        emit_disassembly,
+        optimization_record,
+    };
+    if (requested_paths_conflict(
+            requested_paths,
+            sizeof(requested_paths) / sizeof(requested_paths[0]))) {
         fputs("weavec: all requested output paths must differ\n", stderr);
         free(sources);
         return 2;
@@ -587,38 +833,35 @@ int weave_rt_build_main(int argc, char **argv) {
         return 1;
     }
 
+    weave_llvm_config llvm = {
+        .optimizer = optimizer,
+        .codegen = codegen,
+        .objdump = objdump,
+        .optimization = optimization,
+        .cpu = cpu,
+        .tune_cpu = tune_cpu,
+    };
+
     const char *tmp_root = getenv("TMPDIR");
     if (tmp_root == NULL || *tmp_root == '\0') {
         tmp_root = "/tmp";
     }
-    char temporary[PATH_MAX];
-    if (snprintf(temporary, sizeof(temporary), "%s/weavec-build-XXXXXX", tmp_root) >=
-        (int)sizeof(temporary) || mkdtemp(temporary) == NULL) {
+    weave_build_paths paths = {0};
+    if (!initialize_build_paths(&paths, tmp_root)) {
         fprintf(stderr, "weavec: cannot create temporary directory: %s\n", strerror(errno));
         free(sources);
         return 1;
     }
 
-    char wir_path[PATH_MAX];
-    char ll_path[PATH_MAX];
-    char object_path[PATH_MAX];
-    char trace_events_path[PATH_MAX];
-    snprintf(wir_path, sizeof(wir_path), "%s/program.wir", temporary);
-    snprintf(ll_path, sizeof(ll_path), "%s/program.ll", temporary);
-    snprintf(object_path, sizeof(object_path), "%s/program.o", temporary);
-    snprintf(trace_events_path, sizeof(trace_events_path),
-             "%s/program.trace.events", temporary);
-
     char **frontend = calloc((size_t)source_count + 4, sizeof(char *));
     if (frontend == NULL) {
-        cleanup_directory(
-            temporary, wir_path, ll_path, object_path, keep_temporaries);
+        cleanup_build_directory(&paths, keep_temporaries);
         free(sources);
         return 1;
     }
     frontend[0] = compiler;
     frontend[1] = "--frontend";
-    frontend[2] = wir_path;
+    frontend[2] = paths.wir;
     for (int i = 0; i < source_count; ++i) {
         frontend[3 + i] = sources[i];
     }
@@ -630,8 +873,8 @@ int weave_rt_build_main(int argc, char **argv) {
         saved_trace_events = strdup(existing_trace_events);
     }
     if (trace != NULL) {
-        unlink(trace_events_path);
-        (void)setenv(WEAVEC_TRACE_EVENTS_ENV, trace_events_path, 1);
+        unlink(paths.trace_events);
+        (void)setenv(WEAVEC_TRACE_EVENTS_ENV, paths.trace_events, 1);
     }
 
     char *saved_source_map = NULL;
@@ -643,7 +886,7 @@ int weave_rt_build_main(int argc, char **argv) {
         (void)setenv(WEAVEC_SOURCE_MAP_ENV, "1", 1);
     }
 
-    int status = run_process(frontend);
+    int status = weave_run_process(frontend);
     if (llvm_provenance) {
         if (saved_source_map != NULL) {
             (void)setenv(WEAVEC_SOURCE_MAP_ENV, saved_source_map, 1);
@@ -662,32 +905,25 @@ int weave_rt_build_main(int argc, char **argv) {
     free(saved_trace_events);
     free(frontend);
 
-    if (status != 0) {
-        write_manifest(
-            manifest, "failed", "frontend", target, compiler, runtime,
-            codegen, linker, output, sources, source_count);
-        (void)weave_trace_write_document(
-            trace, "failed", "frontend", sources, source_count,
-            trace_events_path);
-        unlink(trace_events_path);
-        cleanup_directory(
-            temporary, wir_path, ll_path, object_path, keep_temporaries);
-        free(sources);
-        return status;
-    }
+#define FAIL_BUILD(phase_name, result) \
+    do { \
+        write_build_manifest( \
+            manifest, "failed", phase_name, target, compiler, runtime, \
+            &llvm, linker, output, sources, source_count); \
+        (void)weave_trace_write_document( \
+            trace, "failed", phase_name, sources, source_count, \
+            paths.trace_events); \
+        unlink(paths.trace_events); \
+        cleanup_build_directory(&paths, keep_temporaries); \
+        free(sources); \
+        return result; \
+    } while (0)
 
-    if (publish_artifact(wir_path, emit_wir, "WIR artifact") != 0) {
-        write_manifest(
-            manifest, "failed", "publish", target, compiler, runtime,
-            codegen, linker, output, sources, source_count);
-        (void)weave_trace_write_document(
-            trace, "failed", "publish", sources, source_count,
-            trace_events_path);
-        unlink(trace_events_path);
-        cleanup_directory(
-            temporary, wir_path, ll_path, object_path, keep_temporaries);
-        free(sources);
-        return 1;
+    if (status != 0) {
+        FAIL_BUILD("frontend", status);
+    }
+    if (publish_artifact(paths.wir, emit_wir, "WIR artifact") != 0) {
+        FAIL_BUILD("publish", 1);
     }
 
     char *saved_llvm_provenance = NULL;
@@ -698,145 +934,176 @@ int weave_rt_build_main(int argc, char **argv) {
     if (llvm_provenance) {
         (void)setenv(WEAVEC_LLVM_PROVENANCE_ENV, "1", 1);
     }
-    char *backend[] = {compiler, "--backend", wir_path, ll_path, NULL};
-    status = run_process(backend);
+    char *backend[] = {
+        compiler,
+        "--backend",
+        paths.wir,
+        paths.raw_llvm,
+        NULL,
+    };
+    status = weave_run_process(backend);
     if (llvm_provenance) {
         if (saved_llvm_provenance != NULL) {
             (void)setenv(
-                WEAVEC_LLVM_PROVENANCE_ENV, saved_llvm_provenance, 1);
+                WEAVEC_LLVM_PROVENANCE_ENV,
+                saved_llvm_provenance,
+                1);
         } else {
             (void)unsetenv(WEAVEC_LLVM_PROVENANCE_ENV);
         }
     }
     free(saved_llvm_provenance);
     if (status != 0) {
-        write_manifest(
-            manifest, "failed", "backend", target, compiler, runtime,
-            codegen, linker, output, sources, source_count);
-        (void)weave_trace_write_document(
-            trace, "failed", "backend", sources, source_count,
-            trace_events_path);
-        unlink(trace_events_path);
-        cleanup_directory(
-            temporary, wir_path, ll_path, object_path, keep_temporaries);
-        free(sources);
-        return status;
+        FAIL_BUILD("backend", status);
+    }
+    if (publish_artifact(paths.raw_llvm, emit_llvm, "raw LLVM artifact") != 0) {
+        FAIL_BUILD("publish", 1);
     }
 
-    if (publish_artifact(ll_path, emit_llvm, "LLVM artifact") != 0) {
-        write_manifest(
-            manifest, "failed", "publish", target, compiler, runtime,
-            codegen, linker, output, sources, source_count);
-        (void)weave_trace_write_document(
-            trace, "failed", "publish", sources, source_count,
-            trace_events_path);
-        unlink(trace_events_path);
-        cleanup_directory(
-            temporary, wir_path, ll_path, object_path, keep_temporaries);
-        free(sources);
-        return 1;
-    }
-
-    char *codegen_args[] = {
-        (char *)codegen, "-Wno-override-module", "-c", ll_path, "-o", object_path, NULL};
-    status = run_process(codegen_args);
+    status = weave_llvm_optimize_ir(
+        &llvm,
+        paths.raw_llvm,
+        paths.optimized_llvm,
+        optimization_record != NULL ? paths.ir_remarks : NULL);
     if (status != 0) {
-        write_manifest(
-            manifest, "failed", "codegen", target, compiler, runtime,
-            codegen, linker, output, sources, source_count);
-        (void)weave_trace_write_document(
-            trace, "failed", "codegen", sources, source_count,
-            trace_events_path);
-        unlink(trace_events_path);
-        cleanup_directory(
-            temporary, wir_path, ll_path, object_path, keep_temporaries);
-        free(sources);
-        return status;
+        FAIL_BUILD("optimize", status);
+    }
+    if (publish_artifact(
+            paths.optimized_llvm,
+            emit_optimized_llvm,
+            "optimized LLVM artifact") != 0) {
+        FAIL_BUILD("publish", 1);
+    }
+
+    if (emit_assembly != NULL) {
+        status = weave_llvm_emit_assembly(
+            &llvm,
+            paths.optimized_llvm,
+            paths.assembly);
+        if (status != 0) {
+            FAIL_BUILD("assembly", status);
+        }
+        if (publish_artifact(
+                paths.assembly,
+                emit_assembly,
+                "assembly artifact") != 0) {
+            FAIL_BUILD("publish", 1);
+        }
+    }
+
+    status = weave_llvm_emit_object(
+        &llvm,
+        paths.optimized_llvm,
+        paths.object,
+        optimization_record != NULL ? paths.codegen_remarks : NULL);
+    if (status != 0) {
+        FAIL_BUILD("codegen", status);
+    }
+    if (optimization_record != NULL) {
+        if (combine_optimization_records(
+                paths.ir_remarks,
+                paths.codegen_remarks,
+                paths.optimization_record) != 0) {
+            FAIL_BUILD("optimization-record", 1);
+        }
+        if (publish_artifact(
+                paths.optimization_record,
+                optimization_record,
+                "optimization record") != 0) {
+            FAIL_BUILD("publish", 1);
+        }
     }
 
     char output_template[PATH_MAX];
-    if (snprintf(output_template, sizeof(output_template), "%s.tmp.XXXXXX", output) >=
-        (int)sizeof(output_template)) {
+    if (snprintf(
+            output_template,
+            sizeof(output_template),
+            "%s.tmp.XXXXXX",
+            output) >= (int)sizeof(output_template)) {
         fputs("weavec: output path is too long\n", stderr);
-        (void)weave_trace_write_document(
-            trace, "failed", "publish", sources, source_count,
-            trace_events_path);
-        unlink(trace_events_path);
-        cleanup_directory(
-            temporary, wir_path, ll_path, object_path, keep_temporaries);
-        free(sources);
-        return 1;
+        FAIL_BUILD("publish", 1);
     }
     int output_fd = mkstemp(output_template);
     if (output_fd < 0) {
-        fprintf(stderr, "weavec: cannot create output beside %s: %s\n", output, strerror(errno));
-        (void)weave_trace_write_document(
-            trace, "failed", "publish", sources, source_count,
-            trace_events_path);
-        unlink(trace_events_path);
-        cleanup_directory(
-            temporary, wir_path, ll_path, object_path, keep_temporaries);
-        free(sources);
-        return 1;
+        fprintf(
+            stderr,
+            "weavec: cannot create output beside %s: %s\n",
+            output,
+            strerror(errno));
+        FAIL_BUILD("publish", 1);
     }
     close(output_fd);
     unlink(output_template);
 
     char *link_args[] = {
-        (char *)linker, object_path, runtime, "-o", output_template, NULL};
-    status = run_process(link_args);
+        (char *)linker,
+        paths.object,
+        runtime,
+        "-o",
+        output_template,
+        NULL,
+    };
+    status = weave_run_process(link_args);
     if (status != 0) {
         unlink(output_template);
-        write_manifest(
-            manifest, "failed", "link", target, compiler, runtime,
-            codegen, linker, output, sources, source_count);
-        (void)weave_trace_write_document(
-            trace, "failed", "link", sources, source_count,
-            trace_events_path);
-        unlink(trace_events_path);
-        cleanup_directory(
-            temporary, wir_path, ll_path, object_path, keep_temporaries);
-        free(sources);
-        return status;
+        FAIL_BUILD("link", status);
+    }
+
+    if (emit_disassembly != NULL) {
+        status = weave_llvm_disassemble(
+            &llvm,
+            output_template,
+            paths.disassembly);
+        if (status != 0) {
+            unlink(output_template);
+            FAIL_BUILD("disassemble", status);
+        }
+        if (publish_artifact(
+                paths.disassembly,
+                emit_disassembly,
+                "disassembly artifact") != 0) {
+            unlink(output_template);
+            FAIL_BUILD("publish", 1);
+        }
     }
 
     status = weave_trace_write_document(
-        trace, "succeeded", "complete", sources, source_count,
-        trace_events_path);
+        trace,
+        "succeeded",
+        "complete",
+        sources,
+        source_count,
+        paths.trace_events);
     if (status != 0) {
         unlink(output_template);
-        write_manifest(
-            manifest, "failed", "trace", target, compiler, runtime,
-            codegen, linker, output, sources, source_count);
-        unlink(trace_events_path);
-        cleanup_directory(
-            temporary, wir_path, ll_path, object_path, keep_temporaries);
-        free(sources);
-        return status;
+        FAIL_BUILD("trace", status);
     }
 
     if (rename(output_template, output) != 0) {
-        fprintf(stderr, "weavec: cannot publish output %s: %s\n", output, strerror(errno));
+        fprintf(
+            stderr,
+            "weavec: cannot publish output %s: %s\n",
+            output,
+            strerror(errno));
         unlink(output_template);
-        write_manifest(
-            manifest, "failed", "publish", target, compiler, runtime,
-            codegen, linker, output, sources, source_count);
-        (void)weave_trace_write_document(
-            trace, "failed", "publish", sources, source_count,
-            trace_events_path);
-        unlink(trace_events_path);
-        cleanup_directory(
-            temporary, wir_path, ll_path, object_path, keep_temporaries);
-        free(sources);
-        return 1;
+        FAIL_BUILD("publish", 1);
     }
 
-    write_manifest(
-        manifest, "succeeded", "complete", target, compiler, runtime,
-        codegen, linker, output, sources, source_count);
-    unlink(trace_events_path);
-    cleanup_directory(
-        temporary, wir_path, ll_path, object_path, keep_temporaries);
+    write_build_manifest(
+        manifest,
+        "succeeded",
+        "complete",
+        target,
+        compiler,
+        runtime,
+        &llvm,
+        linker,
+        output,
+        sources,
+        source_count);
+    unlink(paths.trace_events);
+    cleanup_build_directory(&paths, keep_temporaries);
     free(sources);
+#undef FAIL_BUILD
     return status;
 }

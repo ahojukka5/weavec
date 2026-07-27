@@ -391,7 +391,10 @@ static void weave_source_location_restore_env(
 static int weave_source_location_option_takes_value(const char *arg) {
     return strcmp(arg, "-o") == 0 || strcmp(arg, "--output") == 0 ||
            strcmp(arg, "--target") == 0 || strcmp(arg, "--runtime") == 0 ||
-           strcmp(arg, "--codegen") == 0 || strcmp(arg, "--linker") == 0 ||
+           strcmp(arg, "--optimizer") == 0 ||
+           strcmp(arg, "--codegen") == 0 ||
+           strcmp(arg, "--target-codegen") == 0 ||
+           strcmp(arg, "--llc") == 0 || strcmp(arg, "--linker") == 0 ||
            strcmp(arg, "--manifest-json") == 0 ||
            strcmp(arg, "--diagnostics-json") == 0 ||
            strcmp(arg, "--trace-json") == 0;
@@ -634,18 +637,26 @@ static void weave_source_location_cleanup_build_directory(const char *directory)
     if (directory == NULL || *directory == '\0') {
         return;
     }
-    char wir_path[PATH_MAX];
-    char ll_path[PATH_MAX];
-    char object_path[PATH_MAX];
-    if (snprintf(wir_path, sizeof(wir_path), "%s/program.wir", directory) >=
-            (int)sizeof(wir_path) ||
-        snprintf(ll_path, sizeof(ll_path), "%s/program.ll", directory) >=
-            (int)sizeof(ll_path) ||
-        snprintf(object_path, sizeof(object_path), "%s/program.o", directory) >=
-            (int)sizeof(object_path)) {
-        return;
+    const char *names[] = {
+        "program.wir",
+        "program.ll",
+        "program.optimized.ll",
+        "program.s",
+        "program.o",
+        "program.ir.opt.yaml",
+        "program.codegen.opt.yaml",
+        "program.opt.yaml",
+        "program.trace.events",
+        "program.disasm",
+    };
+    char path[PATH_MAX];
+    for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
+        if (snprintf(path, sizeof(path), "%s/%s", directory, names[i]) <
+            (int)sizeof(path)) {
+            unlink(path);
+        }
     }
-    cleanup_directory(directory, wir_path, ll_path, object_path, 0);
+    rmdir(directory);
 }
 
 int weave_rt_build_main(int argc, char **argv) {
