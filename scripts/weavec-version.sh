@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0
 
+weavec_validate_version() {
+  [[ "$1" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]
+}
+
 weavec_version_string() {
   local root="$1"
   local base sha exact dirty
@@ -8,6 +12,11 @@ weavec_version_string() {
   if [[ -n "${WEAVEC_VERSION_OVERRIDE:-}" ]]; then
     base="$WEAVEC_VERSION_OVERRIDE"
     [[ "$base" == v* ]] || base="v$base"
+    weavec_validate_version "$base" || {
+      printf 'invalid WEAVEC_VERSION_OVERRIDE: %s\n' \
+        "$WEAVEC_VERSION_OVERRIDE" >&2
+      return 1
+    }
     printf '%s\n' "$base"
     return 0
   fi
@@ -19,6 +28,10 @@ weavec_version_string() {
 
   base="$(tr -d '[:space:]' < "$root/VERSION")"
   [[ "$base" == v* ]] || base="v$base"
+  weavec_validate_version "$base" || {
+    printf 'invalid VERSION file value: %s\n' "$base" >&2
+    return 1
+  }
 
   if ! git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     printf '%s\n' "$base"
