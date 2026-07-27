@@ -175,8 +175,25 @@ jobs:
 
             output="$root/program"
             diagnostics="$root/success.json"
+            raw_llvm="$root/program.raw.ll"
+            optimized_llvm="$root/program.optimized.ll"
+            assembly="$root/program.s"
+            disassembly="$root/program.disasm"
+            optimization_record="$root/program.opt.yaml"
             "$compiler" build "$source_file" -o "$output" \
-              --diagnostics-json "$diagnostics"
+              --diagnostics-json "$diagnostics" \
+              --emit-llvm "$raw_llvm" \
+              --emit-optimized-llvm "$optimized_llvm" \
+              --emit-assembly "$assembly" \
+              --emit-disassembly "$disassembly" \
+              --optimization-record "$optimization_record"
+            for evidence in "$raw_llvm" "$optimized_llvm" "$assembly" \
+              "$disassembly" "$optimization_record"; do
+              [[ -s "$evidence" ]] || exit 1
+            done
+            llvm-as "$raw_llvm" -o "$root/program.raw.bc"
+            llvm-as "$optimized_llvm" -o "$root/program.optimized.bc"
+            grep -Eq '<_?main>:' "$disassembly"
             set +e
             "$output"
             status="$?"
