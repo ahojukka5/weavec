@@ -26,36 +26,29 @@ entry:
   ; let i
   store i32 0, ptr %i.addr
   ; while condition
-  br label %while.pre
-while.pre:
-  %acc.init0 = load i64, ptr %acc.addr
-  %i.init0 = load i32, ptr %i.addr
   br label %while.cond
 while.cond:
-  %acc.phi0 = phi i64 [%acc.init0, %while.pre], [%acc.next0, %while.latch]
-  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
-  %t0 = icmp slt i32 %i.phi0, 6
-  br i1 %t0, label %while.body, label %while.exit-merge
+  %t0 = load i32, ptr %i.addr
+  %t1 = icmp slt i32 %t0, 6
+  br i1 %t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; set acc
-  %t1 = mul i64 %acc.phi0, %x
-  %t2 = sext i32 %i.phi0 to i64
-  %t3 = add i64 1, %t2
-  %acc.next0 = add i64 %t1, %t3
+  %t2 = load i64, ptr %acc.addr
+  %t3 = mul i64 %t2, %x
+  %t4 = load i32, ptr %i.addr
+  %t5 = sext i32 %t4 to i64
+  %t6 = add i64 1, %t5
+  %t7 = add i64 %t3, %t6
+  store i64 %t7, ptr %acc.addr
   ; set i
-  %i.next0 = add i32 %i.phi0, 1
-  br label %while.latch
-while.latch:
+  %t8 = load i32, ptr %i.addr
+  %t9 = add i32 %t8, 1
+  store i32 %t9, ptr %i.addr
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i64 %acc.phi0, ptr %acc.addr
-  store i32 %i.phi0, ptr %i.addr
-  br label %while.end
 while.end:
   ; return
-  %t4 = load i64, ptr %acc.addr
-  ret i64 %t4
+  %t10 = load i64, ptr %acc.addr
+  ret i64 %t10
 }
 

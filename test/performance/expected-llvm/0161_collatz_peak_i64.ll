@@ -14,41 +14,34 @@ entry:
   ; let acc
   store i64 0, ptr %acc.addr
   ; while condition
-  br label %while.pre
-while.pre:
-  %acc.init0 = load i64, ptr %acc.addr
-  %k.init0 = load i32, ptr %k.addr
   br label %while.cond
 while.cond:
-  %acc.phi0 = phi i64 [%acc.init0, %while.pre], [%acc.next0, %while.latch]
-  %k.phi0 = phi i32 [%k.init0, %while.pre], [%k.next0, %while.latch]
-  %t0 = icmp sle i32 %k.phi0, 40
-  br i1 %t0, label %while.body, label %while.exit-merge
+  %t0 = load i32, ptr %k.addr
+  %t1 = icmp sle i32 %t0, 40
+  br i1 %t1, label %while.body, label %while.end
 while.body:
   ; while body
-  ; let start (deferred)
+  %t2 = load i32, ptr %k.addr
+  %t3 = sext i32 %t2 to i64
+  %t4 = mul i64 %t3, 37
+  %t5 = add i64 %t4, 100
+  ; let start
   ; set acc
-  %t1 = sext i32 %k.phi0 to i64
-  %t2 = mul i64 %t1, 37
-  %t3 = add i64 %t2, 100
-  %t4 = call i64 @collatz_peak(i64 %t3)
-  %acc.next0 = add i64 %acc.phi0, %t4
+  %t6 = load i64, ptr %acc.addr
+  %t7 = call i64 @collatz_peak(i64 %t5)
+  %t8 = add i64 %t6, %t7
+  store i64 %t8, ptr %acc.addr
   ; set k
-  %k.next0 = add i32 %k.phi0, 1
-  br label %while.latch
-while.latch:
+  %t9 = load i32, ptr %k.addr
+  %t10 = add i32 %t9, 1
+  store i32 %t10, ptr %k.addr
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i64 %acc.phi0, ptr %acc.addr
-  store i32 %k.phi0, ptr %k.addr
-  br label %while.end
 while.end:
   ; return
-  %t5 = load i64, ptr %acc.addr
-  %t6 = srem i64 %t5, 1000000007
-  %t7 = trunc i64 %t6 to i32
-  ret i32 %t7
+  %t11 = load i64, ptr %acc.addr
+  %t12 = srem i64 %t11, 1000000007
+  %t13 = trunc i64 %t12 to i32
+  ret i32 %t13
 }
 
 ; function: collatz_peak
@@ -66,64 +59,57 @@ entry:
   ; let steps
   store i64 0, ptr %steps.addr
   ; while condition
-  br label %while.pre
-while.pre:
-  %steps.init0 = load i64, ptr %steps.addr
   br label %while.cond
 while.cond:
-  %steps.phi0 = phi i64 [%steps.init0, %while.pre], [%steps.next0, %while.latch]
   %t0 = load i64, ptr %n.addr
   %t1 = icmp ne i64 %t0, 1
-  %t2 = icmp slt i64 %steps.phi0, 200
-  %t3 = and i1 %t1, %t2
-  br i1 %t3, label %while.body, label %while.exit-merge
+  %t2 = load i64, ptr %steps.addr
+  %t3 = icmp slt i64 %t2, 200
+  %t4 = and i1 %t1, %t3
+  br i1 %t4, label %while.body, label %while.end
 while.body:
   ; while body
   ; if condition
-  %t4 = load i64, ptr %n.addr
-  %t5 = srem i64 %t4, 2
-  %t6 = icmp eq i64 %t5, 0
-  br i1 %t6, label %then1, label %else1
+  %t5 = load i64, ptr %n.addr
+  %t6 = srem i64 %t5, 2
+  %t7 = icmp eq i64 %t6, 0
+  br i1 %t7, label %then1, label %else1
 then1:
   ; then
   ; set n
-  %t7 = load i64, ptr %n.addr
-  %t8 = sdiv i64 %t7, 2
-  store i64 %t8, ptr %n.addr
+  %t8 = load i64, ptr %n.addr
+  %t9 = sdiv i64 %t8, 2
+  store i64 %t9, ptr %n.addr
   br label %endif1
 else1:
   ; else
   ; set n
-  %t9 = load i64, ptr %n.addr
-  %t10 = mul i64 %t9, 3
-  %t11 = add i64 %t10, 1
-  store i64 %t11, ptr %n.addr
+  %t10 = load i64, ptr %n.addr
+  %t11 = mul i64 %t10, 3
+  %t12 = add i64 %t11, 1
+  store i64 %t12, ptr %n.addr
   br label %endif1
 endif1:
   ; if condition
-  %t12 = load i64, ptr %n.addr
-  %t13 = load i64, ptr %peak.addr
-  %t14 = icmp sgt i64 %t12, %t13
-  br i1 %t14, label %then2, label %endif2
+  %t13 = load i64, ptr %n.addr
+  %t14 = load i64, ptr %peak.addr
+  %t15 = icmp sgt i64 %t13, %t14
+  br i1 %t15, label %then2, label %endif2
 then2:
   ; then
   ; set peak
-  %t15 = load i64, ptr %n.addr
-  store i64 %t15, ptr %peak.addr
+  %t16 = load i64, ptr %n.addr
+  store i64 %t16, ptr %peak.addr
   br label %endif2
 endif2:
   ; set steps
-  %steps.next0 = add i64 %steps.phi0, 1
-  br label %while.latch
-while.latch:
+  %t17 = load i64, ptr %steps.addr
+  %t18 = add i64 %t17, 1
+  store i64 %t18, ptr %steps.addr
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i64 %steps.phi0, ptr %steps.addr
-  br label %while.end
 while.end:
   ; return
-  %t16 = load i64, ptr %peak.addr
-  ret i64 %t16
+  %t19 = load i64, ptr %peak.addr
+  ret i64 %t19
 }
 

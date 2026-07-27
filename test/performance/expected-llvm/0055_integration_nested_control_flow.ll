@@ -14,48 +14,44 @@ entry:
   ; let i
   store i64 0, ptr %i.addr
   ; while condition
-  br label %while.pre
-while.pre:
-  %i.init0 = load i64, ptr %i.addr
   br label %while.cond
 while.cond:
-  %i.phi0 = phi i64 [%i.init0, %while.pre], [%i.next0, %while.latch]
-  %t0 = icmp slt i64 %i.phi0, 10
-  br i1 %t0, label %while.body, label %while.exit-merge
+  %t0 = load i64, ptr %i.addr
+  %t1 = icmp slt i64 %t0, 10
+  br i1 %t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; if condition
-  %t1 = icmp sgt i64 %i.phi0, 5
-  br i1 %t1, label %then1, label %else1
+  %t2 = load i64, ptr %i.addr
+  %t3 = icmp sgt i64 %t2, 5
+  br i1 %t3, label %then1, label %else1
 then1:
   ; then
   ; set sum
-  %t2 = load i64, ptr %sum.addr
-  %t3 = mul i64 %i.phi0, 2
-  %t4 = add i64 %t2, %t3
-  store i64 %t4, ptr %sum.addr
+  %t4 = load i64, ptr %sum.addr
+  %t5 = load i64, ptr %i.addr
+  %t6 = mul i64 %t5, 2
+  %t7 = add i64 %t4, %t6
+  store i64 %t7, ptr %sum.addr
   br label %endif1
 else1:
   ; else
   ; set sum
-  %t5 = load i64, ptr %sum.addr
-  %t6 = add i64 %t5, %i.phi0
-  store i64 %t6, ptr %sum.addr
+  %t8 = load i64, ptr %sum.addr
+  %t9 = load i64, ptr %i.addr
+  %t10 = add i64 %t8, %t9
+  store i64 %t10, ptr %sum.addr
   br label %endif1
 endif1:
   ; set i
-  %i.next0 = add i64 %i.phi0, 1
-  br label %while.latch
-while.latch:
+  %t11 = load i64, ptr %i.addr
+  %t12 = add i64 %t11, 1
+  store i64 %t12, ptr %i.addr
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i64 %i.phi0, ptr %i.addr
-  br label %while.end
 while.end:
   ; return
-  %t7 = load i64, ptr %sum.addr
-  %t8 = trunc i64 %t7 to i32
-  ret i32 %t8
+  %t13 = load i64, ptr %sum.addr
+  %t14 = trunc i64 %t13 to i32
+  ret i32 %t14
 }
 

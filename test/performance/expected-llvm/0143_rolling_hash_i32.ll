@@ -26,36 +26,31 @@ endif:
   ; let k
   store i32 0, ptr %k.addr
   ; while condition
-  br label %while.pre1
-while.pre1:
-  %k.init1 = load i32, ptr %k.addr
   br label %while.cond1
 while.cond1:
-  %k.phi1 = phi i32 [%k.init1, %while.pre1], [%k.next1, %while.latch1]
-  %t2 = icmp slt i32 %k.phi1, 64
-  br i1 %t2, label %while.body1, label %while.exit-merge1
+  %t2 = load i32, ptr %k.addr
+  %t3 = icmp slt i32 %t2, 64
+  br i1 %t3, label %while.body1, label %while.end1
 while.body1:
   ; while body
-  %t3 = sext i32 %k.phi1 to i64
-  %t4 = getelementptr i32, ptr %t0, i64 %t3
-  %t5 = mul i32 %k.phi1, 7
-  %t6 = add i32 %t5, 13
-  store i32 %t6, ptr %t4
+  %t4 = load i32, ptr %k.addr
+  %t5 = sext i32 %t4 to i64
+  %t6 = getelementptr i32, ptr %t0, i64 %t5
+  %t7 = load i32, ptr %k.addr
+  %t8 = mul i32 %t7, 7
+  %t9 = add i32 %t8, 13
+  store i32 %t9, ptr %t6
   ; set k
-  %k.next1 = add i32 %k.phi1, 1
-  br label %while.latch1
-while.latch1:
+  %t10 = load i32, ptr %k.addr
+  %t11 = add i32 %t10, 1
+  store i32 %t11, ptr %k.addr
   br label %while.cond1
-while.exit-merge1:
-  ; sync loop-carried locals to stack
-  store i32 %k.phi1, ptr %k.addr
-  br label %while.end1
 while.end1:
-  %t7 = call i32 @hash64(ptr %t0)
+  %t12 = call i32 @hash64(ptr %t0)
   ; let ans
   call void @free(ptr %t0)
   ; return
-  ret i32 %t7
+  ret i32 %t12
 }
 
 ; function: hash64
@@ -70,40 +65,33 @@ entry:
   ; let i
   store i32 0, ptr %i.addr
   ; while condition
-  br label %while.pre
-while.pre:
-  %h.init0 = load i32, ptr %h.addr
-  %i.init0 = load i32, ptr %i.addr
   br label %while.cond
 while.cond:
-  %h.phi0 = phi i32 [%h.init0, %while.pre], [%h.next0, %while.latch]
-  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
-  %t0 = icmp slt i32 %i.phi0, 64
-  br i1 %t0, label %while.body, label %while.exit-merge
+  %t0 = load i32, ptr %i.addr
+  %t1 = icmp slt i32 %t0, 64
+  br i1 %t1, label %while.body, label %while.end
 while.body:
   ; while body
-  ; let b (deferred)
+  %t2 = load i32, ptr %i.addr
+  %t3 = sext i32 %t2 to i64
+  %t4 = getelementptr i32, ptr %data, i64 %t3
+  %t5 = load i32, ptr %t4
+  ; let b
   ; set h
-  %t1 = mul i32 %h.phi0, 31
-  %t2 = sext i32 %i.phi0 to i64
-  %t3 = getelementptr i32, ptr %data, i64 %t2
-  %t4 = load i32, ptr %t3
-  %t5 = add i32 %t1, %t4
-  %t6 = add i32 %t5, 1
-  %h.next0 = srem i32 %t6, 1000003
+  %t6 = load i32, ptr %h.addr
+  %t7 = mul i32 %t6, 31
+  %t8 = add i32 %t7, %t5
+  %t9 = add i32 %t8, 1
+  %t10 = srem i32 %t9, 1000003
+  store i32 %t10, ptr %h.addr
   ; set i
-  %i.next0 = add i32 %i.phi0, 1
-  br label %while.latch
-while.latch:
+  %t11 = load i32, ptr %i.addr
+  %t12 = add i32 %t11, 1
+  store i32 %t12, ptr %i.addr
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %h.phi0, ptr %h.addr
-  store i32 %i.phi0, ptr %i.addr
-  br label %while.end
 while.end:
   ; return
-  %t7 = load i32, ptr %h.addr
-  ret i32 %t7
+  %t13 = load i32, ptr %h.addr
+  ret i32 %t13
 }
 

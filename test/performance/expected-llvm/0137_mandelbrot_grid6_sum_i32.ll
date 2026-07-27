@@ -30,8 +30,6 @@ entry:
   ; let active
   store i32 1, ptr %active.addr
   ; while condition
-  br label %while.pre
-while.pre:
   br label %while.cond
 while.cond:
   %t0 = load i32, ptr %iter.addr
@@ -39,7 +37,7 @@ while.cond:
   %t2 = load i32, ptr %active.addr
   %t3 = icmp ne i32 %t2, 0
   %t4 = and i1 %t1, %t3
-  br i1 %t4, label %while.body, label %while.exit-merge
+  br i1 %t4, label %while.body, label %while.end
 while.body:
   ; while body
   %t5 = load i32, ptr %zx.addr
@@ -83,12 +81,7 @@ else1:
   store i32 %t24, ptr %iter.addr
   br label %endif1
 endif1:
-  br label %while.latch
-while.latch:
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  br label %while.end
 while.end:
   ; return
   %t25 = load i32, ptr %iter.addr
@@ -118,48 +111,41 @@ while.body:
   ; let px
   store i32 0, ptr %px.addr
   ; while condition
-  br label %while.pre1
-while.pre1:
-  %total.init1 = load i32, ptr %total.addr
-  %px.init1 = load i32, ptr %px.addr
   br label %while.cond1
 while.cond1:
-  %total.phi1 = phi i32 [%total.init1, %while.pre1], [%total.next1, %while.latch1]
-  %px.phi1 = phi i32 [%px.init1, %while.pre1], [%px.next1, %while.latch1]
-  %t2 = icmp slt i32 %px.phi1, 6
-  br i1 %t2, label %while.body1, label %while.exit-merge1
+  %t2 = load i32, ptr %px.addr
+  %t3 = icmp slt i32 %t2, 6
+  br i1 %t3, label %while.body1, label %while.end1
 while.body1:
   ; while body
-  %t3 = mul i32 %px.phi1, 500
-  %t4 = sub i32 %t3, 1500
+  %t4 = load i32, ptr %px.addr
+  %t5 = mul i32 %t4, 500
+  %t6 = sub i32 %t5, 1500
   ; let cx
-  %t5 = load i32, ptr %py.addr
-  %t6 = mul i32 %t5, 500
-  %t7 = sub i32 %t6, 1500
+  %t7 = load i32, ptr %py.addr
+  %t8 = mul i32 %t7, 500
+  %t9 = sub i32 %t8, 1500
   ; let cy
-  ; let esc (deferred)
+  %t10 = call i32 @escape_count(i32 %t6, i32 %t9, i32 32)
+  ; let esc
   ; set total
-  %t8 = call i32 @escape_count(i32 %t4, i32 %t7, i32 32)
-  %total.next1 = add i32 %total.phi1, %t8
+  %t11 = load i32, ptr %total.addr
+  %t12 = add i32 %t11, %t10
+  store i32 %t12, ptr %total.addr
   ; set px
-  %px.next1 = add i32 %px.phi1, 1
-  br label %while.latch1
-while.latch1:
+  %t13 = load i32, ptr %px.addr
+  %t14 = add i32 %t13, 1
+  store i32 %t14, ptr %px.addr
   br label %while.cond1
-while.exit-merge1:
-  ; sync loop-carried locals to stack
-  store i32 %total.phi1, ptr %total.addr
-  store i32 %px.phi1, ptr %px.addr
-  br label %while.end1
 while.end1:
   ; set py
-  %t9 = load i32, ptr %py.addr
-  %t10 = add i32 %t9, 1
-  store i32 %t10, ptr %py.addr
+  %t15 = load i32, ptr %py.addr
+  %t16 = add i32 %t15, 1
+  store i32 %t16, ptr %py.addr
   br label %while.cond
 while.end:
   ; return
-  %t11 = load i32, ptr %total.addr
-  ret i32 %t11
+  %t17 = load i32, ptr %total.addr
+  ret i32 %t17
 }
 

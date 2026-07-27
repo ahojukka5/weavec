@@ -1,6 +1,6 @@
 ; Performance: 0166_sum_range_f32
 ; tags = f32, float, loop, stress
-; Why hard: f32 sum 1..120; acc on stack (no f32 loop phis).
+; Why hard: f32 sum 1..120; f32 accumulator before LLVM promotion.
 ; Reveals: add_f32, cast_i32_to_f32, i32 loop index.
 ; Expected: main returns 7260 (float sum 1..120, fptosi). llvm-as accepts
 ;   emitted IR;

@@ -1,5 +1,5 @@
 ; Performance: 0043_if_fallthrough_join
-; tags = i32, loop-phi, smoke
+; tags = i32, loop-promotion, smoke
 ; Why hard: Smoke baseline for if join. Failures here usually indicate broken
 ;   lowering
 ;   shared by every later fixture.

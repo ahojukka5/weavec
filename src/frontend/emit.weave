@@ -190,7 +190,7 @@
   ; Returns the new pending node id (or -1).
   ;
   ; Lifted out of emit_do_body so the loop body has a single top-level
-  ; (set pending ...) and weavec's loop-phi pass handles the merge cleanly.
+  ; (set pending ...); LLVM promotes eligible mutable slots after lowering.
   (fn emit_do_step
     (params (fd i32) (source ptr) (tree ptr) (pending i64) (child i64))
     (returns i64)

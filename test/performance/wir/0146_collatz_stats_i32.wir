@@ -1,5 +1,5 @@
 ; Performance: 0146_collatz_stats_i32
-; tags = i32, loop, loop-phi, stress
+; tags = i32, loop, loop-promotion, stress
 ; Why hard: Collatz for n=1..80 with max steps and sum.
 ; Reveals: Inner collatz while + outer batch, multiple carried locals.
 ; Expected: Golden LLVM matches

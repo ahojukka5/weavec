@@ -65,57 +65,51 @@ entry:
   ; let cur
   store i32 0, ptr %cur.addr
   ; while condition
-  br label %while.pre
-while.pre:
-  %i.init0 = load i32, ptr %i.addr
   br label %while.cond
 while.cond:
-  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
-  %t0 = icmp slt i32 %i.phi0, 5
-  br i1 %t0, label %while.body, label %while.exit-merge
+  %t0 = load i32, ptr %i.addr
+  %t1 = icmp slt i32 %t0, 5
+  br i1 %t1, label %while.body, label %while.end
 while.body:
   ; while body
-  %t1 = call ptr @elem_ptr(ptr %items, i32 %i.phi0)
-  %t2 = load i32, ptr %t1
+  %t2 = load i32, ptr %i.addr
+  %t3 = call ptr @elem_ptr(ptr %items, i32 %t2)
+  %t4 = load i32, ptr %t3
   ; let v
   ; set cur
-  %t3 = load i32, ptr %cur.addr
-  %t4 = add i32 %t3, %t2
-  store i32 %t4, ptr %cur.addr
-  ; if condition
   %t5 = load i32, ptr %cur.addr
-  %t6 = icmp slt i32 %t5, %t2
-  br i1 %t6, label %then1, label %endif1
+  %t6 = add i32 %t5, %t4
+  store i32 %t6, ptr %cur.addr
+  ; if condition
+  %t7 = load i32, ptr %cur.addr
+  %t8 = icmp slt i32 %t7, %t4
+  br i1 %t8, label %then1, label %endif1
 then1:
   ; then
   ; set cur
-  store i32 %t2, ptr %cur.addr
+  store i32 %t4, ptr %cur.addr
   br label %endif1
 endif1:
   ; if condition
-  %t7 = load i32, ptr %cur.addr
-  %t8 = load i32, ptr %best.addr
-  %t9 = icmp sgt i32 %t7, %t8
-  br i1 %t9, label %then2, label %endif2
+  %t9 = load i32, ptr %cur.addr
+  %t10 = load i32, ptr %best.addr
+  %t11 = icmp sgt i32 %t9, %t10
+  br i1 %t11, label %then2, label %endif2
 then2:
   ; then
   ; set best
-  %t10 = load i32, ptr %cur.addr
-  store i32 %t10, ptr %best.addr
+  %t12 = load i32, ptr %cur.addr
+  store i32 %t12, ptr %best.addr
   br label %endif2
 endif2:
   ; set i
-  %i.next0 = add i32 %i.phi0, 1
-  br label %while.latch
-while.latch:
+  %t13 = load i32, ptr %i.addr
+  %t14 = add i32 %t13, 1
+  store i32 %t14, ptr %i.addr
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %i.phi0, ptr %i.addr
-  br label %while.end
 while.end:
   ; return
-  %t11 = load i32, ptr %best.addr
-  ret i32 %t11
+  %t15 = load i32, ptr %best.addr
+  ret i32 %t15
 }
 

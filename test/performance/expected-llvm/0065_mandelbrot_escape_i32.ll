@@ -30,8 +30,6 @@ entry:
   ; let active
   store i32 1, ptr %active.addr
   ; while condition
-  br label %while.pre
-while.pre:
   br label %while.cond
 while.cond:
   %t0 = load i32, ptr %iter.addr
@@ -39,7 +37,7 @@ while.cond:
   %t2 = load i32, ptr %active.addr
   %t3 = icmp ne i32 %t2, 0
   %t4 = and i1 %t1, %t3
-  br i1 %t4, label %while.body, label %while.exit-merge
+  br i1 %t4, label %while.body, label %while.end
 while.body:
   ; while body
   %t5 = load i32, ptr %zx.addr
@@ -83,12 +81,7 @@ else1:
   store i32 %t24, ptr %iter.addr
   br label %endif1
 endif1:
-  br label %while.latch
-while.latch:
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  br label %while.end
 while.end:
   ; return
   %t25 = load i32, ptr %iter.addr

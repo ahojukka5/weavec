@@ -111,9 +111,10 @@ state. Tree walkers must not call list-only helpers on scalar nodes. This rule i
 both a readability convention and a correctness requirement established by
 past multi-file and audit failures.
 
-For loops, preserve the backend's loop-carried value assumptions. Changes to
-nested `if`/`while` emission must be reviewed against
-[Loop-carried SSA contract](loop-phi-contract.md) and the performance goldens.
+For loops, preserve uniform mutable stack semantics and ordinary structured
+control flow. Changes to nested `if`/`while` emission must be reviewed against
+[Loop lowering contract](loop-lowering.md), optimized evidence, and the
+performance goldens.
 
 ## Resource ownership
 

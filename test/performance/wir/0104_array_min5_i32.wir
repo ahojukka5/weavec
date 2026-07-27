@@ -1,5 +1,5 @@
 ; Performance: 0104_array_min5_i32
-; tags = algorithm, heap, i32, loop-phi, memory
+; tags = algorithm, heap, i32, loop-promotion, memory
 ; Why hard: Min reduction five elements. Mirror of max5.
 ; Reveals: load, lt, conditional update.
 ; Expected: Golden LLVM matches

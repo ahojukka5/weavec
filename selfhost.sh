@@ -44,7 +44,6 @@ SOURCES=(
   "$ROOT/src/llvm/locals.weave"
   "$ROOT/src/llvm/strings.weave"
   "$ROOT/src/llvm/expr.weave"
-  "$ROOT/src/llvm/loop-phi.weave"
   "$ROOT/src/llvm/stmt.weave"
   "$ROOT/src/llvm/fn.weave"
   "$ROOT/src/llvm/module.weave"

@@ -90,40 +90,34 @@ entry:
   ; let sum
   store i64 0, ptr %sum.addr
   ; while condition
-  br label %while.pre
-while.pre:
-  %sum.init0 = load i64, ptr %sum.addr
-  %i.init0 = load i32, ptr %i.addr
   br label %while.cond
 while.cond:
-  %sum.phi0 = phi i64 [%sum.init0, %while.pre], [%sum.next0, %while.latch]
-  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
-  %t0 = icmp slt i32 %i.phi0, 8
-  br i1 %t0, label %while.body, label %while.exit-merge
+  %t0 = load i32, ptr %i.addr
+  %t1 = icmp slt i32 %t0, 8
+  br i1 %t1, label %while.body, label %while.end
 while.body:
   ; while body
-  ; let va (deferred)
-  ; let vb (deferred)
-  ; set sum
-  %t1 = call ptr @elem(ptr %a, i32 %i.phi0)
-  %t2 = load i64, ptr %t1
-  %t3 = call ptr @elem(ptr %b, i32 %i.phi0)
+  %t2 = load i32, ptr %i.addr
+  %t3 = call ptr @elem(ptr %a, i32 %t2)
   %t4 = load i64, ptr %t3
-  %t5 = mul i64 %t2, %t4
-  %sum.next0 = add i64 %sum.phi0, %t5
+  ; let va
+  %t5 = load i32, ptr %i.addr
+  %t6 = call ptr @elem(ptr %b, i32 %t5)
+  %t7 = load i64, ptr %t6
+  ; let vb
+  ; set sum
+  %t8 = load i64, ptr %sum.addr
+  %t9 = mul i64 %t4, %t7
+  %t10 = add i64 %t8, %t9
+  store i64 %t10, ptr %sum.addr
   ; set i
-  %i.next0 = add i32 %i.phi0, 1
-  br label %while.latch
-while.latch:
+  %t11 = load i32, ptr %i.addr
+  %t12 = add i32 %t11, 1
+  store i32 %t12, ptr %i.addr
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i64 %sum.phi0, ptr %sum.addr
-  store i32 %i.phi0, ptr %i.addr
-  br label %while.end
 while.end:
   ; return
-  %t6 = load i64, ptr %sum.addr
-  ret i64 %t6
+  %t13 = load i64, ptr %sum.addr
+  ret i64 %t13
 }
 

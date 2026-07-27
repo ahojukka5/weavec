@@ -29,33 +29,27 @@ endif:
   ; let v
   store i32 %n, ptr %v.addr
   ; while condition
-  br label %while.pre1
-while.pre1:
-  %v.init1 = load i32, ptr %v.addr
   br label %while.cond1
 while.cond1:
-  %v.phi1 = phi i32 [%v.init1, %while.pre1], [%v.next1, %while.latch1]
-  %t1 = icmp sgt i32 %v.phi1, 1
-  %t2 = srem i32 %v.phi1, 2
-  %t3 = icmp eq i32 %t2, 0
-  %t4 = and i1 %t1, %t3
-  br i1 %t4, label %while.body1, label %while.exit-merge1
+  %t1 = load i32, ptr %v.addr
+  %t2 = icmp sgt i32 %t1, 1
+  %t3 = load i32, ptr %v.addr
+  %t4 = srem i32 %t3, 2
+  %t5 = icmp eq i32 %t4, 0
+  %t6 = and i1 %t2, %t5
+  br i1 %t6, label %while.body1, label %while.end1
 while.body1:
   ; while body
   ; set v
-  %v.next1 = sdiv i32 %v.phi1, 2
-  br label %while.latch1
-while.latch1:
+  %t7 = load i32, ptr %v.addr
+  %t8 = sdiv i32 %t7, 2
+  store i32 %t8, ptr %v.addr
   br label %while.cond1
-while.exit-merge1:
-  ; sync loop-carried locals to stack
-  store i32 %v.phi1, ptr %v.addr
-  br label %while.end1
 while.end1:
   ; if condition
-  %t5 = load i32, ptr %v.addr
-  %t6 = icmp eq i32 %t5, 1
-  br i1 %t6, label %then2, label %else2
+  %t9 = load i32, ptr %v.addr
+  %t10 = icmp eq i32 %t9, 1
+  br i1 %t10, label %then2, label %else2
 then2:
   ; then
   ; return

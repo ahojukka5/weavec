@@ -5,7 +5,6 @@
 ;   Returns: ≥0 = temp register index
 ;            -2 = direct operand (constant or param_get, no instruction emitted)
 ;            -3 = direct immutable local operand
-;            -4 = loop phi local operand
 ;            -1 = error
 ;
 ; Callers use emit_operand(ctx, node, result) to write either %tN or the literal.
@@ -128,40 +127,6 @@
             (else (do
               (call_void emit_operand (param_get ctx) (local_get value_node) (local_get vr))
               (return_void))))))
-        (else (do)))
-      (if
-        (condition (eq_i64 (param_get result) (const_i64 -5)))
-        (then (do
-          (let merge_name i64 (param_get node))
-          (if
-            (condition (ne_i32 (call_i32 node_kind (local_get tree) (param_get node)) (call_i32 node_ident)))
-            (then (do
-              (set merge_name (call_i64 nth_child (local_get tree) (param_get node) (const_i64 1)))))
-            (else (do)))
-          (let merge_ps i64 (call_i64 node_text_start (local_get tree) (local_get merge_name)))
-          (let merge_pl i64 (call_i64 node_text_len (local_get tree) (local_get merge_name)))
-          (call_void write_byte (local_get fd) (const_i32 37))
-          (call_void emit_slice_text (local_get fd) (local_get source) (local_get merge_ps) (local_get merge_pl))
-          (call_void write_cstr (local_get fd) (const_string_ptr ".merge"))
-          (call_void write_i64_dec (local_get fd) (call_i64 local_loop_merge_suffix (param_get ctx) (local_get merge_ps) (local_get merge_pl)))
-          (return_void)))
-        (else (do)))
-      (if
-        (condition (eq_i64 (param_get result) (const_i64 -4)))
-        (then (do
-          (let phi_name i64 (param_get node))
-          (if
-            (condition (ne_i32 (call_i32 node_kind (local_get tree) (param_get node)) (call_i32 node_ident)))
-            (then (do
-              (set phi_name (call_i64 nth_child (local_get tree) (param_get node) (const_i64 1)))))
-            (else (do)))
-          (let ps i64 (call_i64 node_text_start (local_get tree) (local_get phi_name)))
-          (let pl i64 (call_i64 node_text_len (local_get tree) (local_get phi_name)))
-          (call_void write_byte (local_get fd) (const_i32 37))
-          (call_void emit_slice_text (local_get fd) (local_get source) (local_get ps) (local_get pl))
-          (call_void write_cstr (local_get fd) (const_string_ptr ".phi"))
-          (call_void write_i64_dec (local_get fd) (call_i64 local_loop_phi_suffix (param_get ctx) (local_get ps) (local_get pl)))
-          (return_void)))
         (else (do)))
       (if
         (condition (ne_i64 (param_get result) (const_i64 -2)))
@@ -561,14 +526,6 @@
         (condition (eq_i64 (call_i64 lookup_local_mode (param_get ctx) (local_get ns) (local_get nl)) (const_i64 2)))
         (then (do (return (const_i64 -3))))
         (else (do)))
-      (if
-        (condition (ne_i32 (call_i32 local_is_loop_merge (param_get ctx) (local_get ns) (local_get nl)) (const_i32 0)))
-        (then (do (return (const_i64 -5))))
-        (else (do)))
-      (if
-        (condition (ne_i32 (call_i32 local_is_loop_phi (param_get ctx) (local_get ns) (local_get nl)) (const_i32 0)))
-        (then (do (return (const_i64 -4))))
-        (else (do)))
       (let t i64 (call_i64 ctx_alloc_temp (param_get ctx)))
       (call_void write_cstr (local_get fd) (const_string_ptr "  %t"))
       (call_void write_i64_dec (local_get fd) (local_get t))
@@ -612,14 +569,6 @@
             (then (do (return (const_i64 -1))))
             (else (do)))
           (return (const_i64 -3))))
-        (else (do)))
-      (if
-        (condition (ne_i32 (call_i32 local_is_loop_merge (param_get ctx) (local_get ns) (local_get nl)) (const_i32 0)))
-        (then (do (return (const_i64 -5))))
-        (else (do)))
-      (if
-        (condition (ne_i32 (call_i32 local_is_loop_phi (param_get ctx) (local_get ns) (local_get nl)) (const_i32 0)))
-        (then (do (return (const_i64 -4))))
         (else (do)))
       (let t i64 (call_i64 ctx_alloc_temp (param_get ctx)))
       (call_void write_cstr (local_get fd) (const_string_ptr "  %t"))

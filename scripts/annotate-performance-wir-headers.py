@@ -548,7 +548,7 @@ STRESS(
 STRESS(
     "0139_loop_twin_parallel_if_i32",
     "Twin parallel if ladders updating x when i is 0 and 1 in same trip.",
-    "Sibling if merges, loop phi on x, merge/latch operand wiring.",
+    "Sibling branch joins and mutable loop-carried state.",
     PHI_FAIL,
 )
 STRESS(
@@ -559,7 +559,7 @@ STRESS(
 )
 STRESS(
     "0166_sum_range_f32",
-    "f32 sum 1..120; acc on stack (no f32 loop phis).",
+    "f32 sum 1..120 before LLVM promotion.",
     "add_f32, cast_i32_to_f32, i32 loop index.",
     "Accumulator widened to double; fadd uses i32 operands.",
 )
@@ -678,10 +678,10 @@ def infer_tags(stem: str, reveals: str, failure: str) -> list[str]:
             "loop_triple",
         )
     ):
-        tags.extend(["loop-phi", "if-merge"])
+        tags.extend(["loop-promotion", "if-merge"])
     if "phi" in failure.lower() or "merge" in failure.lower():
-        if "loop-phi" not in tags:
-            tags.append("loop-phi")
+        if "loop-promotion" not in tags:
+            tags.append("loop-promotion")
     if any(
         k in name
         for k in (

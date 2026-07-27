@@ -29,47 +29,42 @@ entry:
   ; let e
   store i32 %exp, ptr %e.addr
   ; while condition
-  br label %while.pre
-while.pre:
-  %b.init0 = load i64, ptr %b.addr
-  %e.init0 = load i32, ptr %e.addr
   br label %while.cond
 while.cond:
-  %b.phi0 = phi i64 [%b.init0, %while.pre], [%b.next0, %while.latch]
-  %e.phi0 = phi i32 [%e.init0, %while.pre], [%e.next0, %while.latch]
-  %t1 = icmp sgt i32 %e.phi0, 0
-  br i1 %t1, label %while.body, label %while.exit-merge
+  %t1 = load i32, ptr %e.addr
+  %t2 = icmp sgt i32 %t1, 0
+  br i1 %t2, label %while.body, label %while.end
 while.body:
   ; while body
   ; if condition
-  %t2 = srem i32 %e.phi0, 2
-  %t3 = icmp eq i32 %t2, 1
-  br i1 %t3, label %then1, label %endif1
+  %t3 = load i32, ptr %e.addr
+  %t4 = srem i32 %t3, 2
+  %t5 = icmp eq i32 %t4, 1
+  br i1 %t5, label %then1, label %endif1
 then1:
   ; then
   ; set result
-  %t4 = load i64, ptr %result.addr
-  %t5 = mul i64 %t4, %b.phi0
-  %t6 = srem i64 %t5, %modulus
-  store i64 %t6, ptr %result.addr
+  %t6 = load i64, ptr %result.addr
+  %t7 = load i64, ptr %b.addr
+  %t8 = mul i64 %t6, %t7
+  %t9 = srem i64 %t8, %modulus
+  store i64 %t9, ptr %result.addr
   br label %endif1
 endif1:
   ; set b
-  %t7 = mul i64 %b.phi0, %b.phi0
-  %b.next0 = srem i64 %t7, %modulus
+  %t10 = load i64, ptr %b.addr
+  %t11 = load i64, ptr %b.addr
+  %t12 = mul i64 %t10, %t11
+  %t13 = srem i64 %t12, %modulus
+  store i64 %t13, ptr %b.addr
   ; set e
-  %e.next0 = sdiv i32 %e.phi0, 2
-  br label %while.latch
-while.latch:
+  %t14 = load i32, ptr %e.addr
+  %t15 = sdiv i32 %t14, 2
+  store i32 %t15, ptr %e.addr
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i64 %b.phi0, ptr %b.addr
-  store i32 %e.phi0, ptr %e.addr
-  br label %while.end
 while.end:
   ; return
-  %t8 = load i64, ptr %result.addr
-  ret i64 %t8
+  %t16 = load i64, ptr %result.addr
+  ret i64 %t16
 }
 

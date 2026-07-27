@@ -1,5 +1,5 @@
 ; Performance: 0092_array_max5_i32
-; tags = algorithm, heap, i32, loop-phi, memory
+; tags = algorithm, heap, i32, loop-promotion, memory
 ; Why hard: Max of five heap values. Conditional update on carried max.
 ; Reveals: load, gt, set max in if.
 ; Expected: Golden LLVM matches

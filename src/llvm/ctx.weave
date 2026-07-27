@@ -1,7 +1,7 @@
 ; SPDX-License-Identifier: Apache-2.0
 ; ctx.weave — emission context for weavec
 ;
-; Layout (144 bytes):
+; Layout (96 bytes):
 ;   offset  0: out_fd    i64  (output fd as i64 for alignment)
 ;   offset  8: source    ptr  (source bytes)
 ;   offset 16: tree      ptr  (s-expression tree)
@@ -14,12 +14,6 @@
 ;   offset 72: params    ptr  (array of binding records)
 ;   offset 80: fn_has_set i64 (1 when current function contains set)
 ;   offset 88: fn_body   i64  (current function body node)
-;   offset 96: loop_depth i64 (current nested while depth)
-;   offset 104: loop_phi_blk i64 (active loop phi block id, else -1)
-;   offset 112: if_phi_blk i64 (active if block id for branch tags, else -1)
-;   offset 120: if_branch i64 (0 = then, 1 = else)
-;   offset 128: emit_blk i64 (suffix of block currently emitting, else -1)
-;   offset 136: loop_body_do i64 (active loop body node for phi helpers, else -1)
 ;
 ; Each binding record is 40 bytes:
 ;   {name_start i64, name_len i64, type i64, value_id i64, mode i64}.
@@ -47,7 +41,7 @@
     (params (fd i32) (source ptr) (tree ptr))
     (returns ptr)
     (do
-      (let ctx ptr (call_ptr malloc (const_i64 144)))
+      (let ctx ptr (call_ptr malloc (const_i64 96)))
       (if
         (condition (eq_ptr (local_get ctx) (const_null)))
         (then (do (return (const_null))))
@@ -79,12 +73,6 @@
       (store_ptr (ptr_add (local_get ctx) (const_i64 72)) (local_get params_buf))
       (store_i64 (ptr_add (local_get ctx) (const_i64 80)) (const_i64 0))
       (store_i64 (ptr_add (local_get ctx) (const_i64 88)) (const_i64 -1))
-      (store_i64 (ptr_add (local_get ctx) (const_i64 96)) (const_i64 0))
-      (store_i64 (ptr_add (local_get ctx) (const_i64 104)) (const_i64 -1))
-      (store_i64 (ptr_add (local_get ctx) (const_i64 112)) (const_i64 -1))
-      (store_i64 (ptr_add (local_get ctx) (const_i64 120)) (const_i64 0))
-      (store_i64 (ptr_add (local_get ctx) (const_i64 128)) (const_i64 -1))
-      (store_i64 (ptr_add (local_get ctx) (const_i64 136)) (const_i64 -1))
       (return (local_get ctx))))
 
   (fn ctx_free
@@ -251,18 +239,7 @@
       (store_i64 (ptr_add (param_get ctx) (const_i64 88)) (param_get node))
       (return_void)))
 
-  (fn ctx_get_loop_depth
-    (params (ctx ptr))
-    (returns i64)
-    (do
-      (return (load_i64 (ptr_add (param_get ctx) (const_i64 96))))))
 
-  (fn ctx_set_loop_depth
-    (params (ctx ptr) (depth i64))
-    (returns void)
-    (do
-      (store_i64 (ptr_add (param_get ctx) (const_i64 96)) (param_get depth))
-      (return_void)))
 
   ; Reset per-function state: temp_ctr, blk_ctr, n_locals, n_params, fn_has_set.
   (fn ctx_reset_fn
@@ -275,92 +252,16 @@
       (store_i64 (ptr_add (param_get ctx) (const_i64 64)) (const_i64 0))
       (store_i64 (ptr_add (param_get ctx) (const_i64 80)) (const_i64 0))
       (store_i64 (ptr_add (param_get ctx) (const_i64 88)) (const_i64 -1))
-      (store_i64 (ptr_add (param_get ctx) (const_i64 96)) (const_i64 0))
-      (store_i64 (ptr_add (param_get ctx) (const_i64 104)) (const_i64 -1))
-      (store_i64 (ptr_add (param_get ctx) (const_i64 112)) (const_i64 -1))
-      (store_i64 (ptr_add (param_get ctx) (const_i64 120)) (const_i64 0))
-      (store_i64 (ptr_add (param_get ctx) (const_i64 128)) (const_i64 -1))
-      (store_i64 (ptr_add (param_get ctx) (const_i64 136)) (const_i64 -1))
       (return_void)))
 
-  (fn ctx_get_emit_blk
-    (params (ctx ptr))
-    (returns i64)
-    (do
-      (return (load_i64 (ptr_add (param_get ctx) (const_i64 128))))))
 
-  (fn ctx_set_emit_blk
-    (params (ctx ptr) (blk i64))
-    (returns void)
-    (do
-      (store_i64 (ptr_add (param_get ctx) (const_i64 128)) (param_get blk))
-      (return_void)))
 
-  (fn ctx_get_loop_phi_blk
-    (params (ctx ptr))
-    (returns i64)
-    (do
-      (return (load_i64 (ptr_add (param_get ctx) (const_i64 104))))))
 
-  (fn ctx_set_loop_phi_blk
-    (params (ctx ptr) (blk i64))
-    (returns void)
-    (do
-      (store_i64 (ptr_add (param_get ctx) (const_i64 104)) (param_get blk))
-      (return_void)))
 
-  (fn ctx_get_if_phi_blk
-    (params (ctx ptr))
-    (returns i64)
-    (do
-      (return (load_i64 (ptr_add (param_get ctx) (const_i64 112))))))
 
-  (fn ctx_set_if_phi_blk
-    (params (ctx ptr) (blk i64))
-    (returns void)
-    (do
-      (store_i64 (ptr_add (param_get ctx) (const_i64 112)) (param_get blk))
-      (return_void)))
 
-  (fn ctx_get_if_branch
-    (params (ctx ptr))
-    (returns i64)
-    (do
-      (return (load_i64 (ptr_add (param_get ctx) (const_i64 120))))))
 
-  (fn ctx_set_if_branch
-    (params (ctx ptr) (branch i64))
-    (returns void)
-    (do
-      (store_i64 (ptr_add (param_get ctx) (const_i64 120)) (param_get branch))
-      (return_void)))
 
-  (fn ctx_get_loop_body_do
-    (params (ctx ptr))
-    (returns i64)
-    (do
-      (return (load_i64 (ptr_add (param_get ctx) (const_i64 136))))))
 
-  (fn ctx_set_loop_body_do
-    (params (ctx ptr) (body_do i64))
-    (returns void)
-    (do
-      (store_i64 (ptr_add (param_get ctx) (const_i64 136)) (param_get body_do))
-      (return_void)))
 
-  (fn ctx_phi_next_tag
-    (params (ctx ptr))
-    (returns i64)
-    (do
-      (let loop_blk i64 (call_i64 ctx_get_loop_phi_blk (param_get ctx)))
-      (let if_blk i64 (call_i64 ctx_get_if_phi_blk (param_get ctx)))
-      (if
-        (condition (lt_i64 (local_get if_blk) (const_i64 0)))
-        (then (do (return (local_get loop_blk))))
-        (else (do
-          (return (add_i64
-            (add_i64
-              (mul_i64 (local_get loop_blk) (const_i64 100))
-              (mul_i64 (local_get if_blk) (const_i64 10)))
-            (call_i64 ctx_get_if_branch (param_get ctx)))))))))
 )

@@ -1,7 +1,7 @@
 ; Performance: 0139_loop_twin_parallel_if_i32
-; tags = i32, if-merge, loop, loop-phi, stress
+; tags = i32, if-merge, loop, loop-promotion, stress
 ; Why hard: Twin parallel if ladders updating x when i is 0 and 1 in same trip.
-; Reveals: Sibling if merges, loop phi on x, merge/latch operand wiring.
+; Reveals: Sibling branch joins and mutable loop-carried state.
 ; Expected: main returns 110 (x+=10 at i=0, +=100 at i=1). llvm-as accepts
 ;   emitted IR;
 ;   opt -passes=mem2reg is an optional extra check.
