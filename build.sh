@@ -362,6 +362,12 @@ SOURCES=(
 build_weavec() {
   mkdir -p "$BUILD_DIR"
 
+  local version_ll="$BUILD_DIR/weavec-version.ll"
+  local version_bc="$BUILD_DIR/weavec-version.bc"
+  weavec_write_version_llvm "$WEAVEC_VERSION" "$version_ll"
+  llvm-as "$version_ll" -o "$version_bc" \
+    || fail "failed to assemble compiler version module"
+
   log "lowering compiler sources to WIR"
   : > "$BUILD_DIR/weavec.wir"
   WEAVEC_BOOTSTRAP="$WEAVEC_BOOTSTRAP_BIN" \
@@ -392,21 +398,19 @@ build_weavec() {
   llvm-link \
     "$BUILD_DIR/weavec.ll" \
     "$WEAVE_SEXPR_LIBRARY" \
+    "$version_bc" \
     -o "$BUILD_DIR/weavec.bc" \
     || fail "llvm-link failed"
 
   log "linking weavec executable"
   local stack_size="0x1000000"
-  local version_define="-DWEAVEC_VERSION_STRING=\"$WEAVEC_VERSION\""
   if [[ "$(uname -s)" == Darwin ]]; then
     clang "$BUILD_DIR/weavec.bc" "$WEAVEC_DIR/runtime/portable.c" \
-      "$version_define" \
       -o "$BUILD_DIR/weavec" \
       -Wl,-stack_size,"$stack_size" \
       || fail "clang failed"
   else
     clang "$BUILD_DIR/weavec.bc" "$WEAVEC_DIR/runtime/portable.c" \
-      "$version_define" \
       -o "$BUILD_DIR/weavec" \
       -Wl,-z,stack-size="$stack_size" \
       || fail "clang failed"
