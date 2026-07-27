@@ -8,6 +8,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SEED="$ROOT/build/weavec"
 BUILD_DIR="$ROOT/build/selfhost"
 
+# shellcheck source=scripts/weavec-version.sh
+source "$ROOT/scripts/weavec-version.sh"
+WEAVEC_VERSION="$(weavec_version_string "$ROOT")"
+
 log() { printf '[weavec-selfhost] %s\n' "$*"; }
 fail() { printf '[weavec-selfhost] error: %s\n' "$*" >&2; exit 1; }
 
@@ -63,6 +67,7 @@ link_stage_binary() {
   local bc="$1"
   local out_bin="$2"
   local stack_size="0x1000000"
+  local version_define="-DWEAVEC_VERSION_STRING=\"$WEAVEC_VERSION\""
   local tmp_bin smoke_wir attempt
 
   log "clang $out_bin"
@@ -71,17 +76,21 @@ link_stage_binary() {
     smoke_wir="$(mktemp /tmp/weavec-smoke.XXXXXX.wir)"
     rm -f "$out_bin"
     if [[ "$(uname -s)" == "Darwin" ]]; then
-      clang "$bc" "$ROOT/runtime/portable.c" -o "$tmp_bin" \
+      clang "$bc" "$ROOT/runtime/portable.c" "$version_define" \
+        -o "$tmp_bin" \
         -Wl,-stack_size,"$stack_size"
     else
-      clang "$bc" "$ROOT/runtime/portable.c" -o "$tmp_bin" \
+      clang "$bc" "$ROOT/runtime/portable.c" "$version_define" \
+        -o "$tmp_bin" \
         -Wl,-z,stack-size="$stack_size"
     fi
-    if "$tmp_bin" --frontend "$smoke_wir" \
-      "$ROOT/src/core/extern.weave" \
-      "$ROOT/src/main.weave" \
-      "$ROOT/src/frontend/driver.weave" \
-      "$ROOT/src/frontend/lower.weave" >/dev/null 2>&1; then
+    if [[ "$("$tmp_bin" --version 2>/dev/null)" == \
+          "weavec $WEAVEC_VERSION" ]] && \
+       "$tmp_bin" --frontend "$smoke_wir" \
+         "$ROOT/src/core/extern.weave" \
+         "$ROOT/src/main.weave" \
+         "$ROOT/src/frontend/driver.weave" \
+         "$ROOT/src/frontend/lower.weave" >/dev/null 2>&1; then
       mv "$tmp_bin" "$out_bin"
       rm -f "$smoke_wir"
       return 0
@@ -168,4 +177,5 @@ run_stage2_fixture 01_return_42 42
 run_stage2_fixture 59_bare_identifier_operands 42
 run_stage2_fixture 60_let_literal_sugar 42
 
+log "compiler version: $WEAVEC_VERSION"
 log "complete: $BUILD_DIR/stage2/weavec"
