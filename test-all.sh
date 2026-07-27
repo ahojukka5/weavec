@@ -15,7 +15,7 @@ log 'build'
 "$ROOT/build.sh"
 
 log 'compiler version'
-"$ROOT/test/version/test.sh"
+bash "$ROOT/test/version/test.sh"
 
 log 'correctness'
 "$ROOT/test.sh"
