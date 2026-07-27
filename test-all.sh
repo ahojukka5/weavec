@@ -14,6 +14,9 @@ python3 "$ROOT/scripts/check_wir_core_version.py"
 log 'build'
 "$ROOT/build.sh"
 
+log 'compiler version'
+"$ROOT/test/version/test.sh"
+
 log 'correctness'
 "$ROOT/test.sh"
 
