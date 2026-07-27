@@ -43,6 +43,87 @@
 #define WEAVEC_DEFAULT_LINKER "clang"
 #endif
 
+static int llvm_definition_is_main(const char *line) {
+    if (strncmp(line, "define ", 7) != 0) {
+        return 0;
+    }
+    const char *at = strchr(line, '@');
+    if (at == NULL) {
+        return 0;
+    }
+    ++at;
+    return strncmp(at, "main(", 5) == 0 ||
+           strncmp(at, "\"main\"(", 7) == 0;
+}
+
+static int internalize_build_module(const char *path) {
+    FILE *input = fopen(path, "r");
+    if (input == NULL) {
+        fprintf(stderr, "weavec: cannot read raw LLVM %s: %s\n", path, strerror(errno));
+        return 1;
+    }
+
+    char temporary[PATH_MAX];
+    if (snprintf(temporary, sizeof(temporary), "%s.internal.XXXXXX", path) >=
+        (int)sizeof(temporary)) {
+        fprintf(stderr, "weavec: raw LLVM path is too long: %s\n", path);
+        fclose(input);
+        return 1;
+    }
+    int output_fd = mkstemp(temporary);
+    if (output_fd < 0) {
+        fprintf(stderr, "weavec: cannot create internalized LLVM beside %s: %s\n",
+                path, strerror(errno));
+        fclose(input);
+        return 1;
+    }
+    FILE *output = fdopen(output_fd, "w");
+    if (output == NULL) {
+        fprintf(stderr, "weavec: cannot open internalized LLVM stream: %s\n",
+                strerror(errno));
+        close(output_fd);
+        unlink(temporary);
+        fclose(input);
+        return 1;
+    }
+
+    char *line = NULL;
+    size_t capacity = 0;
+    int failed = 0;
+    while (getline(&line, &capacity, input) >= 0) {
+        if (strncmp(line, "define ", 7) == 0 &&
+            !llvm_definition_is_main(line)) {
+            if (fputs("define internal ", output) == EOF ||
+                fputs(line + 7, output) == EOF) {
+                failed = 1;
+                break;
+            }
+        } else if (fputs(line, output) == EOF) {
+            failed = 1;
+            break;
+        }
+    }
+    if (ferror(input)) {
+        failed = 1;
+    }
+    free(line);
+    if (fclose(input) != 0 || fclose(output) != 0) {
+        failed = 1;
+    }
+    if (failed) {
+        fprintf(stderr, "weavec: failed to internalize raw LLVM %s\n", path);
+        unlink(temporary);
+        return 1;
+    }
+    if (rename(temporary, path) != 0) {
+        fprintf(stderr, "weavec: cannot publish internalized LLVM %s: %s\n",
+                path, strerror(errno));
+        unlink(temporary);
+        return 1;
+    }
+    return 0;
+}
+
 static void build_usage(void) {
     fputs(
         "usage: weavec build <input.weave> [input2.weave ...] -o <program>\n"
@@ -956,6 +1037,9 @@ int weave_rt_build_main(int argc, char **argv) {
     if (status != 0) {
         FAIL_BUILD("backend", status);
     }
+    if (internalize_build_module(paths.raw_llvm) != 0) {
+        FAIL_BUILD("backend", 1);
+    }
     if (publish_artifact(paths.raw_llvm, emit_llvm, "raw LLVM artifact") != 0) {
         FAIL_BUILD("publish", 1);
     }
@@ -1037,8 +1121,11 @@ int weave_rt_build_main(int argc, char **argv) {
 
     char *link_args[] = {
         (char *)linker,
+        "-ffunction-sections",
+        "-fdata-sections",
         paths.object,
         runtime,
+        "-Wl,--gc-sections",
         "-o",
         output_template,
         NULL,
