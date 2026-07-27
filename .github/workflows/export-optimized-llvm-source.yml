@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  issues: read
   pull-requests: read
 
 jobs:
@@ -23,7 +24,7 @@ jobs:
       - name: Recover and verify reviewed tree
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_URL: ${{ github.event.pull_request.url }}
+          COMMENTS_URL: ${{ github.event.pull_request.comments_url }}
         shell: bash
         run: |
           set -euo pipefail
@@ -31,10 +32,11 @@ jobs:
           import base64
           import json
           import os
+          import re
           import urllib.request
 
           request = urllib.request.Request(
-              os.environ['PR_URL'],
+              os.environ['COMMENTS_URL'] + '?per_page=100',
               headers={
                   'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
                   'Accept': 'application/vnd.github+json',
@@ -42,11 +44,27 @@ jobs:
               },
           )
           with urllib.request.urlopen(request) as response:
-              body = json.load(response).get('body') or ''
-          begin = '<!-- NATIVE_EVIDENCE_PAYLOAD_BEGIN -->'
-          end = '<!-- NATIVE_EVIDENCE_PAYLOAD_END -->'
-          encoded = body.split(begin, 1)[1].split(end, 1)[0]
-          encoded = ''.join(encoded.split())
+              comments = json.load(response)
+
+          chunks: dict[int, str] = {}
+          marker = re.compile(
+              r'^<!-- NATIVE_EVIDENCE_CHUNK (\d{2}) -->\s*(\S+)\s*$',
+              re.DOTALL,
+          )
+          for comment in comments:
+              match = marker.match(comment.get('body') or '')
+              if match:
+                  index = int(match.group(1))
+                  if index in chunks:
+                      raise SystemExit(f'duplicate evidence chunk {index:02d}')
+                  chunks[index] = ''.join(match.group(2).split())
+
+          expected = list(range(6))
+          if sorted(chunks) != expected:
+              raise SystemExit(
+                  f'evidence chunks differ: expected {expected}, got {sorted(chunks)}'
+              )
+          encoded = ''.join(chunks[index] for index in expected)
           with open('/tmp/native-evidence.tar.xz', 'wb') as stream:
               stream.write(base64.b64decode(encoded, validate=True))
           PY
