@@ -33,7 +33,8 @@ weavec_version_string() {
     return 1
   }
 
-  if ! git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  if ! command -v git >/dev/null 2>&1 || \
+     ! git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     printf '%s\n' "$base"
     return 0
   fi
@@ -50,4 +51,20 @@ weavec_version_string() {
   else
     printf '%s+git.%s%s\n' "$base" "$sha" "$dirty"
   fi
+}
+
+weavec_write_version_llvm() {
+  local version="$1"
+  local output="$2"
+  local length
+
+  weavec_validate_version "$version" || {
+    printf 'cannot embed invalid weavec version: %s\n' "$version" >&2
+    return 1
+  }
+  length=$((${#version} + 1))
+  cat > "$output" <<EOF
+; Generated compiler build identity. Do not edit.
+@weave_compiler_version = constant [$length x i8] c"$version\00"
+EOF
 }
