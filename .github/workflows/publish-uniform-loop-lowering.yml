@@ -4,12 +4,16 @@ on:
   push:
     branches:
       - tmp/publish-uniform-loop-lowering
+  pull_request:
+    branches:
+      - master
 
 permissions:
   contents: write
 
 jobs:
   publish:
+    if: github.head_ref == 'tmp/publish-uniform-loop-lowering' || github.ref_name == 'tmp/publish-uniform-loop-lowering'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
