@@ -13,6 +13,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#ifndef WEAVEC_VERSION_STRING
+#define WEAVEC_VERSION_STRING "v0.0.0+unknown"
+#endif
+
 #ifndef WEAVEC_DEFAULT_TARGET
 #if defined(__linux__) && defined(__x86_64__)
 #define WEAVEC_DEFAULT_TARGET "x86_64-unknown-linux-gnu"
@@ -37,6 +41,21 @@
 
 int weave_rt_open_write_trunc(const char *path, int mode) {
     return open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
+}
+
+int weave_rt_print_version(void) {
+    static const char prefix[] = "weavec ";
+    static const char newline[] = "\n";
+    const unsigned long prefix_length = sizeof(prefix) - 1;
+    const unsigned long version_length = sizeof(WEAVEC_VERSION_STRING) - 1;
+
+    if (write(1, prefix, prefix_length) != (ssize_t)prefix_length ||
+        write(1, WEAVEC_VERSION_STRING, version_length) !=
+            (ssize_t)version_length ||
+        write(1, newline, 1) != 1) {
+        return 1;
+    }
+    return 0;
 }
 
 // The compiler itself may contain lowered contract checks, so it retains this
