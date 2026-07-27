@@ -4,38 +4,38 @@
 
 Metrics are static counts on checked-in `expected-llvm/` output. High opportunity scores usually mean weavec emits stack slots where LLVM would prefer loop phis after mem2reg.
 
-Fixtures scanned: 167
-With stack-carried locals in loops (no phi): 27
+Fixtures scanned: 168
+With stack-carried locals in loops (no phi): 52
 
 ## Top optimization opportunities
 
 | Id | alloca | load | store | phi | loop-phi | body loads | add+0 | sitofp | stack-carried | score |
 |----|--------|------|-------|-----|----------|-----------|-------|--------|-----------------|-------|
-| 0161_collatz_peak_i64 | 5 | 13 | 11 | 1 | 1 | 3 | 0 | 0 | peak, steps, acc | 24 |
+| 0137_mandelbrot_grid6_sum_i32 | 7 | 16 | 14 | 2 | 2 | 5 | 0 | 0 | active, iter, zx, zy, … | 40 |
+| 0147_partition_dutch12_i32 | 3 | 17 | 23 | 0 | 0 | 6 | 0 | 0 | hi, lo, mid | 33 |
+| 0065_mandelbrot_escape_i32 | 4 | 10 | 8 | 0 | 0 | 4 | 0 | 0 | active, iter, zx, zy | 32 |
+| 0068_binary_search_i32 | 4 | 7 | 15 | 0 | 0 | 2 | 0 | 0 | active, high, low, result | 26 |
+| 0152_merge_sorted_halves8_i32 | 4 | 16 | 19 | 1 | 1 | 7 | 0 | 0 | checksum | 26 |
+| 0133_sieve48_i32 | 5 | 14 | 14 | 3 | 3 | 5 | 0 | 0 | count, p | 25 |
+| 0131_loop_triple_if_carried_i32 | 4 | 10 | 11 | 1 | 1 | 3 | 0 | 0 | a, b, c | 24 |
 | 0174_matvec3_f32 | 0 | 6 | 12 | 0 | 0 | 0 | 0 | 12 | - | 24 |
+| 0096_gcd_subtraction_i32 | 2 | 9 | 4 | 0 | 0 | 4 | 0 | 0 | x, y | 22 |
+| 0128_binary_search6_i32 | 3 | 7 | 12 | 0 | 0 | 2 | 0 | 0 | found, high, low | 21 |
+| 0149_binary_search_batch16_i32 | 5 | 10 | 26 | 2 | 2 | 2 | 0 | 0 | found, high, low | 21 |
 | 0168_newton_sqrt_f32 | 2 | 4 | 4 | 1 | 1 | 2 | 0 | 5 | guess | 21 |
-| 0156_gcd_i64 | 2 | 5 | 4 | 0 | 0 | 3 | 0 | 0 | x, y | 19 |
-| 0158_fibonacci30_i64 | 3 | 5 | 6 | 1 | 1 | 3 | 0 | 0 | cur, prev | 19 |
+| 0062_insertion_sort_i32 | 3 | 16 | 12 | 0 | 0 | 5 | 0 | 0 | done | 20 |
+| 0109_insertion_sort5_i32 | 3 | 13 | 13 | 0 | 0 | 5 | 0 | 0 | done | 20 |
+| 0146_collatz_stats_i32 | 5 | 11 | 11 | 3 | 3 | 3 | 0 | 0 | max_steps, x | 19 |
 | 0069_sieve_count_i32 | 4 | 14 | 14 | 4 | 4 | 4 | 0 | 0 | p | 17 |
-| 0133_sieve48_i32 | 5 | 14 | 14 | 5 | 4 | 4 | 0 | 0 | p | 17 |
-| 0159_power_mod_i64 | 3 | 6 | 6 | 1 | 1 | 2 | 0 | 0 | b, result | 16 |
+| 0121_second_max5_i32 | 4 | 9 | 13 | 2 | 2 | 2 | 0 | 0 | m, second | 16 |
+| 0122_kadane5_i32 | 3 | 8 | 12 | 1 | 1 | 2 | 0 | 0 | best, cur | 16 |
 | 0167_dot_product4_f32 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 8 | - | 16 |
 | 0134_floyd_warshall4_i32 | 3 | 14 | 23 | 1 | 1 | 5 | 0 | 0 | - | 15 |
-| 0055_integration_nested_control_flow | 2 | 8 | 5 | 0 | 0 | 3 | 0 | 0 | sum | 14 |
-| 0164_matmul2x2_i64 | 4 | 14 | 17 | 1 | 1 | 3 | 0 | 0 | sum | 14 |
-| 0172_horner_poly_f32 | 2 | 3 | 4 | 1 | 1 | 1 | 0 | 3 | acc | 14 |
-| 0166_sum_range_f32 | 2 | 3 | 4 | 1 | 1 | 1 | 0 | 2 | sum | 12 |
-| 0170_sum_range_f64 | 2 | 3 | 4 | 1 | 1 | 1 | 0 | 2 | sum | 12 |
-| 0150_edit_distance6_i32 | 2 | 15 | 6 | 1 | 1 | 3 | 1 | 0 | - | 11 |
-| 0162_bitwise_mix_i64 | 2 | 4 | 4 | 1 | 1 | 2 | 0 | 0 | x | 11 |
-| 0142_heap_sift_down4_i32 | 2 | 14 | 9 | 2 | 1 | 1 | 1 | 0 | largest | 10 |
-| 0077_selection_sort4_i32 | 3 | 17 | 12 | 3 | 2 | 2 | 1 | 0 | - | 8 |
-| 0123_selection_sort5_i32 | 3 | 15 | 13 | 3 | 2 | 2 | 1 | 0 | - | 8 |
 
-## Recommended weavec improvements (priority)
+## Evidence-first review order
 
-1. Extend loop-phi promotion to i64, f32, and f64 carried locals (today i32-only in `src/llvm/loop-phi.weave`).
-2. Emit direct phi back-edges for `set x (local_get y)` when x and y are the same loop-carried binding (avoid `add i32 %y, 0`).
-3. Hoist `sitofp` of loop indices out of the body when accumulating float sums (see 0166_sum_range_f32).
-4. Drop dead `let` stack slots when the value is only consumed by the next `set` on another carried local (0158 fibonacci `next`).
-5. After weavec emits cleaner IR, rely on LLVM `-O2` for final codegen; goldens document pre-opt shape.
+1. Compare each raw golden with the selected LLVM-optimized IR.
+2. Inspect final linked-binary disassembly before treating raw instruction counts as code-generation defects.
+3. A/B test the current custom loop-phi machinery against a simpler uniform lowering under the same LLVM profile and CPU target.
+4. Remove custom transformations when optimized IR, machine code, and measured performance are equivalent or better without them.
+5. Add backend logic only for a general semantic property that LLVM cannot recover, never for one fixture-shaped pattern.
