@@ -25,8 +25,11 @@
 #endif
 #endif
 
+#ifndef WEAVEC_DEFAULT_OPTIMIZER
+#define WEAVEC_DEFAULT_OPTIMIZER "clang"
+#endif
 #ifndef WEAVEC_DEFAULT_CODEGEN
-#define WEAVEC_DEFAULT_CODEGEN "clang"
+#define WEAVEC_DEFAULT_CODEGEN "llc"
 #endif
 #ifndef WEAVEC_DEFAULT_LINKER
 #define WEAVEC_DEFAULT_LINKER "clang"
@@ -109,6 +112,7 @@ static int weave_trace_write_document(
 // Keep the self-hosted compiler link command simple. The original build driver
 // remains the implementation core, while diagnostics_driver.c provides the
 // versioned public diagnostics facade without duplicating the phase pipeline.
+#include "llvm_toolchain.c"
 #define weave_rt_build_main weave_rt_build_main_legacy
 #include "build_driver.c"
 #undef weave_rt_build_main

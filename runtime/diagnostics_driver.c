@@ -335,31 +335,43 @@ static int weave_diag_unique_token_span(
 }
 
 static char *weave_diag_trimmed_message(const char *stderr_text) {
-    const char *prefix = "weavec: error: ";
-    const char *start = strstr(stderr_text != NULL ? stderr_text : "", prefix);
-    if (start != NULL) {
-        start += strlen(prefix);
-    } else {
-        start = stderr_text != NULL ? stderr_text : "";
-        while (*start == '\n' || *start == '\r' || *start == ' ' || *start == '\t') {
-            ++start;
+    const char *cursor = stderr_text != NULL ? stderr_text : "";
+    const char *error_prefix = "weavec: error: ";
+    const char *temporary_prefix = "weavec: kept temporary build directory: ";
+    while (*cursor != '\0') {
+        while (*cursor == '\n' || *cursor == '\r' ||
+               *cursor == ' ' || *cursor == '\t') {
+            ++cursor;
         }
+        if (*cursor == '\0') {
+            break;
+        }
+        const char *end = cursor;
+        while (*end != '\0' && *end != '\n' && *end != '\r') {
+            ++end;
+        }
+        if (strncmp(cursor, temporary_prefix, strlen(temporary_prefix)) == 0) {
+            cursor = end;
+            continue;
+        }
+        const char *start = cursor;
+        if (strncmp(start, error_prefix, strlen(error_prefix)) == 0) {
+            start += strlen(error_prefix);
+        }
+        size_t length = (size_t)(end - start);
+        if (length == 0) {
+            cursor = end;
+            continue;
+        }
+        char *message = malloc(length + 1);
+        if (message == NULL) {
+            return NULL;
+        }
+        memcpy(message, start, length);
+        message[length] = '\0';
+        return message;
     }
-    const char *end = start;
-    while (*end != '\0' && *end != '\n' && *end != '\r') {
-        ++end;
-    }
-    if (end == start) {
-        return strdup("compiler phase failed; see stderr");
-    }
-    size_t length = (size_t)(end - start);
-    char *message = malloc(length + 1);
-    if (message == NULL) {
-        return NULL;
-    }
-    memcpy(message, start, length);
-    message[length] = '\0';
-    return message;
+    return strdup("compiler phase failed; see stderr");
 }
 
 static char *weave_diag_extract_token(
@@ -430,8 +442,16 @@ static void weave_diag_classify_compiler_error(
         record->code = "frontend.failed";
     } else if (strcmp(phase, "backend") == 0) {
         record->code = "backend.failed";
+    } else if (strcmp(phase, "optimize") == 0) {
+        record->code = "codegen.optimize-failed";
+    } else if (strcmp(phase, "assembly") == 0) {
+        record->code = "codegen.assembly-failed";
     } else if (strcmp(phase, "codegen") == 0) {
         record->code = "codegen.failed";
+    } else if (strcmp(phase, "optimization-record") == 0) {
+        record->code = "codegen.optimization-record-failed";
+    } else if (strcmp(phase, "disassemble") == 0) {
+        record->code = "codegen.disassembly-failed";
     } else if (strcmp(phase, "link") == 0) {
         record->code = "link.failed";
     } else if (strcmp(phase, "publish") == 0) {
@@ -456,7 +476,11 @@ static int weave_diag_stable_exit_code(const char *phase, int raw_exit_code) {
     }
     if (strcmp(phase, "frontend") == 0) return WEAVEC_EXIT_FRONTEND;
     if (strcmp(phase, "backend") == 0) return WEAVEC_EXIT_BACKEND;
-    if (strcmp(phase, "codegen") == 0) return WEAVEC_EXIT_CODEGEN;
+    if (strcmp(phase, "optimize") == 0 ||
+        strcmp(phase, "assembly") == 0 ||
+        strcmp(phase, "codegen") == 0 ||
+        strcmp(phase, "optimization-record") == 0 ||
+        strcmp(phase, "disassemble") == 0) return WEAVEC_EXIT_CODEGEN;
     if (strcmp(phase, "link") == 0) return WEAVEC_EXIT_LINK;
     if (strcmp(phase, "publish") == 0) return WEAVEC_EXIT_PUBLISH;
     if (raw_exit_code == 2) return 2;
@@ -570,11 +594,21 @@ static char *weave_diag_read_text(const char *path) {
 static int weave_diag_option_takes_value(const char *arg) {
     return strcmp(arg, "-o") == 0 || strcmp(arg, "--output") == 0 ||
            strcmp(arg, "--target") == 0 || strcmp(arg, "--runtime") == 0 ||
-           strcmp(arg, "--codegen") == 0 || strcmp(arg, "--linker") == 0 ||
+           strcmp(arg, "--optimizer") == 0 ||
+           strcmp(arg, "--codegen") == 0 ||
+           strcmp(arg, "--target-codegen") == 0 ||
+           strcmp(arg, "--llc") == 0 || strcmp(arg, "--linker") == 0 ||
+           strcmp(arg, "--objdump") == 0 ||
            strcmp(arg, "--manifest-json") == 0 ||
            strcmp(arg, "--trace-json") == 0 ||
            strcmp(arg, "--emit-wir") == 0 ||
-           strcmp(arg, "--emit-llvm") == 0;
+           strcmp(arg, "--emit-llvm") == 0 ||
+           strcmp(arg, "--emit-optimized-llvm") == 0 ||
+           strcmp(arg, "--emit-assembly") == 0 ||
+           strcmp(arg, "--emit-disassembly") == 0 ||
+           strcmp(arg, "--optimization-record") == 0 ||
+           strcmp(arg, "--cpu") == 0 || strcmp(arg, "--march") == 0 ||
+           strcmp(arg, "--tune-cpu") == 0 || strcmp(arg, "--mtune") == 0;
 }
 
 int weave_rt_build_main(int argc, char **argv) {
@@ -584,6 +618,10 @@ int weave_rt_build_main(int argc, char **argv) {
     const char *output_path = NULL;
     const char *wir_path = NULL;
     const char *llvm_path = NULL;
+    const char *optimized_llvm_path = NULL;
+    const char *assembly_path = NULL;
+    const char *disassembly_path = NULL;
+    const char *optimization_record_path = NULL;
     char **filtered = calloc((size_t)argc + 4, sizeof(*filtered));
     char **sources = calloc((size_t)argc, sizeof(*sources));
     if (filtered == NULL || sources == NULL) {
@@ -624,6 +662,18 @@ int weave_rt_build_main(int argc, char **argv) {
         if (strcmp(argv[i], "--emit-llvm") == 0 && i + 1 < argc) {
             llvm_path = argv[i + 1];
         }
+        if (strcmp(argv[i], "--emit-optimized-llvm") == 0 && i + 1 < argc) {
+            optimized_llvm_path = argv[i + 1];
+        }
+        if (strcmp(argv[i], "--emit-assembly") == 0 && i + 1 < argc) {
+            assembly_path = argv[i + 1];
+        }
+        if (strcmp(argv[i], "--emit-disassembly") == 0 && i + 1 < argc) {
+            disassembly_path = argv[i + 1];
+        }
+        if (strcmp(argv[i], "--optimization-record") == 0 && i + 1 < argc) {
+            optimization_record_path = argv[i + 1];
+        }
     }
     filtered[filtered_argc] = NULL;
 
@@ -633,13 +683,21 @@ int weave_rt_build_main(int argc, char **argv) {
         free(sources);
         return result;
     }
+    const char *requested_paths[] = {
+        output_path,
+        manifest_path,
+        trace_path,
+        wir_path,
+        llvm_path,
+        optimized_llvm_path,
+        assembly_path,
+        disassembly_path,
+        optimization_record_path,
+        diagnostics_path,
+    };
     if (requested_paths_conflict(
-            output_path, manifest_path, trace_path, wir_path, llvm_path) ||
-        (output_path != NULL && strcmp(output_path, diagnostics_path) == 0) ||
-        (manifest_path != NULL && strcmp(manifest_path, diagnostics_path) == 0) ||
-        (trace_path != NULL && strcmp(trace_path, diagnostics_path) == 0) ||
-        (wir_path != NULL && strcmp(wir_path, diagnostics_path) == 0) ||
-        (llvm_path != NULL && strcmp(llvm_path, diagnostics_path) == 0)) {
+            requested_paths,
+            sizeof(requested_paths) / sizeof(requested_paths[0]))) {
         fputs("weavec: all requested output paths must differ\n", stderr);
         weave_diag_record record = {
             .code = "driver.conflicting-output-paths",
