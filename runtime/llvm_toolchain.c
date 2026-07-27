@@ -199,9 +199,7 @@ static size_t weave_llc_codegen_args(
     char **args,
     size_t index,
     char *cpu_flag,
-    size_t cpu_flag_size,
-    char *tune_flag,
-    size_t tune_flag_size) {
+    size_t cpu_flag_size) {
     args[index++] = (char *)config->codegen;
     args[index++] = (char *)weave_llc_optimization(config->optimization);
     args[index++] = "-relocation-model=pic";
@@ -210,12 +208,6 @@ static size_t weave_llc_codegen_args(
             return 0;
         }
         args[index++] = cpu_flag;
-    }
-    if (config->tune_cpu != NULL && *config->tune_cpu != '\0') {
-        if (!weave_llvm_tune_flag(config->tune_cpu, tune_flag, tune_flag_size)) {
-            return 0;
-        }
-        args[index++] = tune_flag;
     }
     return index;
 }
@@ -263,11 +255,9 @@ static int weave_llvm_emit_assembly(
     const char *input,
     const char *output) {
     char cpu_flag[PATH_MAX];
-    char tune_flag[PATH_MAX];
     char *args[16];
     size_t count = weave_llc_codegen_args(
-        config, args, 0,
-        cpu_flag, sizeof(cpu_flag), tune_flag, sizeof(tune_flag));
+        config, args, 0, cpu_flag, sizeof(cpu_flag));
     if (count == 0) {
         fputs("weavec: LLVM target option is too long\n", stderr);
         return 1;
@@ -286,12 +276,10 @@ static int weave_llvm_emit_object(
     const char *output,
     const char *remarks) {
     char cpu_flag[PATH_MAX];
-    char tune_flag[PATH_MAX];
     char remarks_flag[PATH_MAX];
     char *args[20];
     size_t count = weave_llc_codegen_args(
-        config, args, 0,
-        cpu_flag, sizeof(cpu_flag), tune_flag, sizeof(tune_flag));
+        config, args, 0, cpu_flag, sizeof(cpu_flag));
     if (count == 0) {
         fputs("weavec: LLVM target option is too long\n", stderr);
         return 1;
