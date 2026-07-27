@@ -25,6 +25,7 @@
   ; portable.c owns host portability helpers; build_driver.c owns the public
   ; source-to-executable orchestration and private runtime discovery.
   (extern weave_rt_open_write_trunc (params (path ptr) (mode i32)) (returns i32))
+  (extern weave_rt_print_version (params) (returns i32))
   (extern weave_rt_contract_fail (params (msg ptr)) (returns void))
   (extern weave_rt_build_main (params (argc i32) (argv ptr)) (returns i32))
   (extern weave_rt_set_source_index (params (source_index i64)) (returns void))
