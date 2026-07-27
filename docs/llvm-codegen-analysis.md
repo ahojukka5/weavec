@@ -135,14 +135,16 @@ predict target performance.
 
 ## Recommended review order
 
-When backend work resumes, review opportunities in this order:
+Raw LLVM metrics identify lowering shapes, not final machine-code defects. Review
+opportunities in this order:
 
-1. generalize carried-local phis to admitted wider scalar types;
-2. simplify copy-like back edges without breaking SSA provenance;
-3. remove dead temporary bindings through a general rule;
-4. assess conversion placement in floating loops;
-5. compare selected cases after normal LLVM optimization and, only then, add
-   runtime measurements where they answer a concrete question.
+1. compare raw LLVM with the selected LLVM-optimized artifact;
+2. inspect assembly and final linked-binary disassembly;
+3. A/B test the current custom loop-phi machinery against simpler uniform
+   lowering under the same optimization profile and CPU target;
+4. remove custom transformations when optimized IR, machine code, and measured
+   performance are equivalent or better without them;
+5. add backend logic only for a general semantic property LLVM cannot recover.
 
 Every change requires regenerated goldens, `llvm-as` validation, semantic fixture
 execution, the complete test ladder, and deep self-hosting when compiler output

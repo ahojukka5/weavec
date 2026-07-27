@@ -15,6 +15,13 @@ weavec build <input.weave> [input2.weave ...] -o <program>
              [--trace-json <path>]
              [--emit-wir <path>]
              [--emit-llvm <path>]
+             [--emit-optimized-llvm <path>]
+             [--emit-assembly <path>]
+             [--emit-disassembly <path>]
+             [--optimization-record <path>]
+             [-O0|-O1|-O2|-O3|-Os|-Oz]
+             [--native]
+             [--cpu <name>] [--tune-cpu <name>]
              [--llvm-provenance]
              [--keep-temporaries]
 ```
@@ -27,8 +34,9 @@ weavec build main.weave library.weave -o application
 ```
 
 The command performs surface lowering to WIR core version 2, self-hosted
-backend compilation to LLVM IR, object generation, private runtime selection,
-target linking, and atomic output publication. The seed and self-hosted compiler
+backend compilation to raw LLVM IR, explicit LLVM optimization, target assembly
+and object generation, private runtime selection, target linking, optional final
+disassembly, and atomic output publication. The seed and self-hosted compiler
 generations use the same WIR v2 boundary. See [Architecture](architecture.md) and
 [WIR core version 2](wir.md).
 
@@ -37,8 +45,8 @@ generations use the same WIR v2 boundary. See [Architecture](architecture.md) an
 - At least one `.weave` source is required.
 - `-o` and `--output` name the native executable.
 - Source order is preserved in the build manifest and passed to the frontend.
-- Executable, WIR, LLVM, manifest, diagnostics, and trace paths must be distinct
-  when the corresponding outputs are requested.
+- Executable, WIR, raw LLVM, optimized LLVM, assembly, disassembly, optimization
+  record, manifest, diagnostics, and trace paths must be distinct when requested.
 - A failed build does not publish a partial executable at the requested path.
 
 ### Target selection
@@ -52,6 +60,37 @@ Current release archives install one target:
 A package rejects any target not present in that package. The option establishes
 the multi-target command contract; current packages do not perform arbitrary
 cross-compilation.
+
+### Optimization and native CPU selection
+
+The default build profile is portable `-O2`. The optimization level is explicit
+and can be selected with `-O0`, `-O1`, `-O2`, `-O3`, `-Os`, or `-Oz`.
+
+`--native` requests the current host CPU and tuning model. `--cpu <name>` and
+`--tune-cpu <name>` select them independently. `--march` and `--mtune` are
+familiar aliases. Native artifacts may not run on another machine.
+
+The current subprocess adapter uses Clang for the LLVM IR optimization profile
+and `llc` for target assembly and object generation. These are public semantic
+build choices, not a permanent commitment to subprocess invocation; a future
+in-process LLVM implementation must preserve the same behavior.
+
+### Native-code evidence outputs
+
+`--emit-llvm <path>` publishes raw backend LLVM.
+
+`--emit-optimized-llvm <path>` publishes the readable LLVM IR produced by the
+selected LLVM optimization profile.
+
+`--emit-assembly <path>` publishes target assembly.
+
+`--emit-disassembly <path>` disassembles the actual linked executable with
+`llvm-objdump` (or the `--objdump` override) and publishes the result.
+
+`--optimization-record <path>` combines LLVM IR and target-code-generation
+optimization remarks into one YAML stream.
+
+See [Native optimization and machine-code evidence](native-code-evidence.md).
 
 ### Automation outputs
 
@@ -92,17 +131,25 @@ The public build command accepts explicit overrides:
 
 ```text
 --runtime <path>
---codegen <command>
+--optimizer <command>
+--target-codegen <command>
 --linker <command>
+--objdump <command>
 ```
 
-Equivalent environment variables are:
+`--codegen` remains a compatibility alias for `--optimizer`; `--llc` is an
+alias for `--target-codegen`. Equivalent environment variables are:
 
 ```text
 WEAVEC_RUNTIME
-WEAVEC_CODEGEN
+WEAVEC_OPTIMIZER
+WEAVEC_TARGET_CODEGEN
 WEAVEC_LINKER
+WEAVEC_OBJDUMP
 ```
+
+`WEAVEC_CODEGEN` remains a compatibility fallback for `WEAVEC_OPTIMIZER`, and
+`WEAVEC_LLC` remains a compatibility fallback for `WEAVEC_TARGET_CODEGEN`.
 
 Normal users should not set these. Installed packages discover their private
 runtime automatically and define appropriate default code-generator and linker

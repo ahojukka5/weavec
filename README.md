@@ -47,8 +47,10 @@ surface Weave
     ↓ frontend
 WIR core version 2
     ↓ backend
-LLVM IR
-    ↓ LLVM code generation
+raw LLVM IR
+    ↓ explicit LLVM optimization
+optimized LLVM IR
+    ↓ target code generation
 native object
     + private target runtime
     ↓ target linker
@@ -93,17 +95,25 @@ External tooling can also request stable intermediate artifacts:
 
 ```sh
 weavec build main.weave -o main \
+  -O3 --native \
   --emit-wir main.wir \
-  --emit-llvm main.ll \
+  --emit-llvm main.raw.ll \
+  --emit-optimized-llvm main.optimized.ll \
+  --emit-assembly main.s \
+  --emit-disassembly main.disasm \
+  --optimization-record main.opt.yaml \
   --llvm-provenance
 ```
 
-The compiler publishes WIR after frontend success and LLVM after backend success,
-so later failures do not erase useful analysis inputs. Report generation,
+The compiler publishes WIR and raw LLVM at their completed phases, then exposes
+LLVM-optimized IR, target assembly, optimization remarks, and disassembly from
+the final linked executable. Later failures do not erase completed evidence.
+Report generation,
 visualization, JSON parsing, and LLM-assisted review belong in tooling such as
 `weave-loupe`, not in the compiler. See
-[Tooling artifact outputs](docs/tooling-artifacts.md) and
-[LLVM source provenance and quality budgets](docs/llvm-provenance.md).
+[Tooling artifact outputs](docs/tooling-artifacts.md),
+[Native optimization and machine-code evidence](docs/native-code-evidence.md),
+and [LLVM source provenance and quality budgets](docs/llvm-provenance.md).
 
 ## Private target runtime
 
@@ -141,8 +151,11 @@ weavec-vX.Y.Z-linux-x86_64-<libc>/
 After extracting, add the package `bin` directory to `PATH`. The current driver
 uses installed LLVM tools internally:
 
-- glibc package: `clang` for code generation and linking;
-- musl package: `clang` for code generation and `musl-gcc` for linking.
+- glibc package: `clang` for LLVM IR optimization, `llc` for target code
+  generation, and `clang` for linking;
+- musl package: `clang` for LLVM IR optimization, `llc` for target code
+  generation, and `musl-gcc` for linking;
+- `llvm-objdump` is required only when `--emit-disassembly` is requested.
 
 Release downloads include `SHA256SUMS`. See the reusable
 [release procedure](docs/releasing.md).

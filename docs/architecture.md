@@ -65,9 +65,13 @@ WIR core-version-2 module
         │
         │ self-hosted backend
         ▼
-LLVM IR
+raw LLVM IR
         │
-        │ installed LLVM code generator
+        │ explicit installed LLVM optimization profile
+        ▼
+optimized LLVM IR
+        │
+        │ installed LLVM target code generator
         ▼
 native object
         │
@@ -82,9 +86,10 @@ temporary executable beside requested output
 requested executable
 ```
 
-Intermediate WIR, LLVM IR, and object files live in a private temporary
-directory. The linker writes a temporary executable beside the requested output.
-Only a successful atomic rename publishes the final program, so a failed build
+Intermediate WIR, raw LLVM, optimized LLVM, assembly, optimization records,
+and object files live in a private temporary directory. The linker writes a
+temporary executable beside the requested output. Only a successful atomic
+rename publishes the final program, so a failed build
 does not replace an existing output.
 
 ## Source layers
@@ -187,10 +192,17 @@ The build-driver implementation owns:
 - compiler executable and private runtime discovery;
 - temporary artifact paths;
 - frontend and backend subprocess phases;
-- LLVM IR to object generation;
+- optimization-profile and CPU selection;
+- phase-scoped raw LLVM, optimized LLVM, assembly, remarks, and disassembly
+  publication;
 - target linker execution;
 - build-manifest output;
 - atomic output publication.
+
+`runtime/llvm_toolchain.c` is the narrow host adapter for LLVM operations. It
+currently invokes command-line tools, but the build driver depends on semantic
+operations rather than concrete arguments. A future in-process LLVM integration
+can replace this adapter without changing the public artifact contract.
 
 The diagnostics driver wraps this pipeline with stable phase exit codes and
 `weavec-diagnostics-v1` while preserving human-readable stderr.

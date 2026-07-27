@@ -27,8 +27,11 @@ A representative successful document is:
   "target": "x86_64-unknown-linux-gnu",
   "compiler": "/opt/weavec/bin/weavec",
   "runtime": "/opt/weavec/lib/weavec/x86_64-unknown-linux-gnu/libweave-runtime.a",
-  "codegen": "clang",
+  "optimizer": "clang",
+  "codegen": "llc",
   "linker": "clang",
+  "objdump": "llvm-objdump",
+  "optimization": {"level": "O2", "cpu": null, "tune_cpu": null},
   "output": "main",
   "sources": ["main.weave"]
 }
@@ -47,8 +50,11 @@ open the requested manifest path.
 | `target` | string | Selected installed target triple. |
 | `compiler` | string | Resolved compiler executable path. |
 | `runtime` | string | Resolved private runtime resource. |
-| `codegen` | string | LLVM IR to object command. |
+| `optimizer` | string | Raw-to-optimized LLVM command. |
+| `codegen` | string | Optimized LLVM to target assembly/object command. |
 | `linker` | string | Final target linker command. |
+| `objdump` | string | Final executable disassembler command. |
+| `optimization` | object | Selected level, instruction-set CPU, and tuning CPU. |
 | `output` | string | Requested executable path. |
 | `sources` | array of strings | Ordered source arguments. |
 
@@ -59,8 +65,12 @@ Current phase values are:
 | Phase | Meaning |
 |---|---|
 | `frontend` | Surface source to WIR failed. |
-| `backend` | WIR to LLVM failed. |
-| `codegen` | LLVM IR to object generation failed. |
+| `backend` | WIR to raw LLVM failed. |
+| `optimize` | Raw LLVM optimization failed. |
+| `assembly` | Requested target assembly emission failed. |
+| `codegen` | Optimized LLVM to object generation failed. |
+| `optimization-record` | Optimization-record aggregation failed. |
+| `disassemble` | Requested final executable disassembly failed. |
 | `link` | Target linker failed. |
 | `publish` | Atomic rename to the requested output failed. |
 | `complete` | The executable was published successfully. |
@@ -80,7 +90,12 @@ For reproducible automation, consumers should retain:
 - the selected target package;
 - the manifest itself;
 - the ordered source inputs and their own content hashes;
-- any explicit codegen, linker, or runtime overrides.
+- the optimization level and CPU/tuning selection;
+- any explicit optimizer, codegen, linker, objdump, or runtime overrides.
+
+The `optimizer`, `optimization`, and `objdump` fields are additive fields in
+manifest v1. Old consumers may ignore unknown fields; new consumers must not infer native CPU
+selection when the values are `null`.
 
 The current schema does not include source hashes or tool version output. Adding
 new required fields would require a new manifest format version.
