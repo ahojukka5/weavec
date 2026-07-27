@@ -24,12 +24,17 @@ set -euo pipefail
 #   WEAVEC_BOOTSTRAP_REF=v0.3.0
 #
 #   WEAVEC_BACKEND=/path/to/self-hosted/weavec
+#   WEAVEC_VERSION_OVERRIDE=v0.3.0
 # =============================================================================
 
 WEAVEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="$WEAVEC_DIR/build"
 VENDOR_DIR="$BUILD_DIR/vendor"
 DOWNLOAD_DIR="$BUILD_DIR/downloads"
+
+# shellcheck source=scripts/weavec-version.sh
+source "$WEAVEC_DIR/scripts/weavec-version.sh"
+WEAVEC_VERSION="$(weavec_version_string "$WEAVEC_DIR")"
 
 WEAVEC0_TAG="${WEAVEC0_TAG:-v0.4.0}"
 WEAVEC0_REPO="https://github.com/ahojukka5/weavec0.git"
@@ -357,6 +362,12 @@ SOURCES=(
 build_weavec() {
   mkdir -p "$BUILD_DIR"
 
+  local version_ll="$BUILD_DIR/weavec-version.ll"
+  local version_bc="$BUILD_DIR/weavec-version.bc"
+  weavec_write_version_llvm "$WEAVEC_VERSION" "$version_ll"
+  llvm-as "$version_ll" -o "$version_bc" \
+    || fail "failed to assemble compiler version module"
+
   log "lowering compiler sources to WIR"
   : > "$BUILD_DIR/weavec.wir"
   WEAVEC_BOOTSTRAP="$WEAVEC_BOOTSTRAP_BIN" \
@@ -387,6 +398,7 @@ build_weavec() {
   llvm-link \
     "$BUILD_DIR/weavec.ll" \
     "$WEAVE_SEXPR_LIBRARY" \
+    "$version_bc" \
     -o "$BUILD_DIR/weavec.bc" \
     || fail "llvm-link failed"
 
@@ -414,6 +426,7 @@ main() {
   ensure_weavec1
   ensure_weavec_bootstrap
   build_weavec
+  log "compiler version: $WEAVEC_VERSION"
   log "dependency modes: weavec1=$WEAVEC1_MODE bootstrap=$WEAVEC_BOOTSTRAP_MODE"
   log "build complete: $BUILD_DIR/weavec"
 }

@@ -7,6 +7,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SEED="$ROOT/build/weavec"
 BUILD_DIR="$ROOT/build/selfhost"
+VERSION_LL="$BUILD_DIR/weavec-version.ll"
+VERSION_BC="$BUILD_DIR/weavec-version.bc"
+
+# shellcheck source=scripts/weavec-version.sh
+source "$ROOT/scripts/weavec-version.sh"
+WEAVEC_VERSION="$(weavec_version_string "$ROOT")"
 
 log() { printf '[weavec-selfhost] %s\n' "$*"; }
 fail() { printf '[weavec-selfhost] error: %s\n' "$*" >&2; exit 1; }
@@ -21,6 +27,9 @@ require_tool llvm-as
 require_tool clang
 
 chmod -R u+rw "$BUILD_DIR" 2>/dev/null || true
+mkdir -p "$BUILD_DIR"
+weavec_write_version_llvm "$WEAVEC_VERSION" "$VERSION_LL"
+llvm-as "$VERSION_LL" -o "$VERSION_BC"
 
 # Keep in sync with SOURCES in build.sh (same order, $ROOT-prefixed paths).
 SOURCES=(
@@ -77,11 +86,13 @@ link_stage_binary() {
       clang "$bc" "$ROOT/runtime/portable.c" -o "$tmp_bin" \
         -Wl,-z,stack-size="$stack_size"
     fi
-    if "$tmp_bin" --frontend "$smoke_wir" \
-      "$ROOT/src/core/extern.weave" \
-      "$ROOT/src/main.weave" \
-      "$ROOT/src/frontend/driver.weave" \
-      "$ROOT/src/frontend/lower.weave" >/dev/null 2>&1; then
+    if [[ "$("$tmp_bin" --version 2>/dev/null)" == \
+          "weavec $WEAVEC_VERSION" ]] && \
+       "$tmp_bin" --frontend "$smoke_wir" \
+         "$ROOT/src/core/extern.weave" \
+         "$ROOT/src/main.weave" \
+         "$ROOT/src/frontend/driver.weave" \
+         "$ROOT/src/frontend/lower.weave" >/dev/null 2>&1; then
       mv "$tmp_bin" "$out_bin"
       rm -f "$smoke_wir"
       return 0
@@ -115,7 +126,8 @@ build_stage() {
   done
 
   log "link $out_dir/weavec.bc"
-  llvm-link "$out_dir/weavec.ll" "${runtime_ll[@]}" -o "$out_dir/weavec.bc"
+  llvm-link "$out_dir/weavec.ll" "${runtime_ll[@]}" "$VERSION_BC" \
+    -o "$out_dir/weavec.bc"
 
   link_stage_binary "$out_dir/weavec.bc" "$out_bin"
 }
@@ -168,4 +180,5 @@ run_stage2_fixture 01_return_42 42
 run_stage2_fixture 59_bare_identifier_operands 42
 run_stage2_fixture 60_let_literal_sugar 42
 
+log "compiler version: $WEAVEC_VERSION"
 log "complete: $BUILD_DIR/stage2/weavec"

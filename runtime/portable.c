@@ -13,6 +13,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+// Normal builds provide a strong definition from a generated LLVM module linked
+// into compiler bitcode. The weak fallback keeps direct host-runtime links valid.
+__attribute__((weak)) const char weave_compiler_version[] = "v0.0.0+unknown";
+
 #ifndef WEAVEC_DEFAULT_TARGET
 #if defined(__linux__) && defined(__x86_64__)
 #define WEAVEC_DEFAULT_TARGET "x86_64-unknown-linux-gnu"
@@ -37,6 +41,22 @@
 
 int weave_rt_open_write_trunc(const char *path, int mode) {
     return open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
+}
+
+int weave_rt_print_version(void) {
+    static const char prefix[] = "weavec ";
+    static const char newline[] = "\n";
+    const unsigned long prefix_length = sizeof(prefix) - 1;
+    const unsigned long version_length =
+        (unsigned long)__builtin_strlen(weave_compiler_version);
+
+    if (write(1, prefix, prefix_length) != (ssize_t)prefix_length ||
+        write(1, weave_compiler_version, version_length) !=
+            (ssize_t)version_length ||
+        write(1, newline, 1) != 1) {
+        return 1;
+    }
+    return 0;
 }
 
 // The compiler itself may contain lowered contract checks, so it retains this

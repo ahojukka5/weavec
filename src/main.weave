@@ -2,6 +2,7 @@
 ; main.weave — entry point for weavec
 ;
 ; Usage:
+;   weavec --version
 ;   weavec build <input.weave> [input2.weave ...] -o <program>
 ;   weavec --backend <input.wir> <output.ll>
 ;   weavec --frontend [--strict-contracts] <output.wir> <input.weave> [input2.weave ...]
@@ -285,10 +286,24 @@
     (returns i32)
     (do
       (if
-        (condition (lt_i32 (param_get argc) (const_i32 3)))
+        (condition (lt_i32 (param_get argc) (const_i32 2)))
         (then (do (return (const_i32 1))))
         (else (do)))
       (let arg1 ptr (load_ptr (ptr_add (param_get argv) (const_i64 8))))
+      (if
+        (condition (ne_i32 (call_i32 cstr_equals
+          (local_get arg1) (const_string_ptr "--version") (const_i64 9)) (const_i32 0)))
+        (then (do
+          (if
+            (condition (ne_i32 (param_get argc) (const_i32 2)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (return (call_i32 weave_rt_print_version))))
+        (else (do)))
+      (if
+        (condition (lt_i32 (param_get argc) (const_i32 3)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
       (if
         (condition (ne_i32 (call_i32 cstr_equals
           (local_get arg1) (const_string_ptr "build") (const_i64 5)) (const_i32 0)))
