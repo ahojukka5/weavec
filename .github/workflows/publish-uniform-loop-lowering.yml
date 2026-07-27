@@ -32,11 +32,22 @@ jobs:
           diagnostics = []
           try:
               parts = sorted(root.glob('part-*'))
-              joined = b''.join(path.read_bytes() for path in parts)
+              transported = b''.join(path.read_bytes() for path in parts)
               diagnostics.append(f'parts={len(parts)}')
               diagnostics.append(f'part_sizes={[path.stat().st_size for path in parts]}')
+              diagnostics.append(f'transported_base64_size={len(transported)}')
+              diagnostics.append(f'transported_base64_sha256={hashlib.sha256(transported).hexdigest()}')
+
+              # The contents API transport dropped the two characters "Ea" from
+              # one chunk. Repair that transport-only omission before validating
+              # the exact local artifact hashes.
+              marker = b'vu5wdatZe'
+              assert transported.count(marker) == 1
+              joined = transported.replace(marker, b'vu5wEadatZe', 1)
               diagnostics.append(f'base64_size={len(joined)}')
               diagnostics.append(f'base64_sha256={hashlib.sha256(joined).hexdigest()}')
+              assert hashlib.sha256(joined).hexdigest() == 'bb5aca5774c5997dfb7eb646620d928eba6e864cb1fe0b2a3902531be7a82303'
+
               compressed = base64.b64decode(joined, validate=True)
               Path('/tmp/patch.gz').write_bytes(compressed)
               diagnostics.append(f'gzip_size={len(compressed)}')
