@@ -377,7 +377,7 @@
             (then (do (return (const_i32 1))))
             (else (do)))
           (let explain_in ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
-          (return (call_i32 explain_file (local_get explain_in))))
+          (return (call_i32 explain_file (local_get explain_in)))))
         (else (do)))
       (if
         (condition (ne_i32 (call_i32 cstr_equals
@@ -388,7 +388,7 @@
             (then (do (return (const_i32 1))))
             (else (do)))
           (let audit_in ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
-          (return (call_i32 audit_file (local_get audit_in))))
+          (return (call_i32 audit_file (local_get audit_in)))))
         (else (do)))
       (if
         (condition (ne_i32 (call_i32 cstr_equals
