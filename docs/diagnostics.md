@@ -74,7 +74,7 @@ phase code:
 | `2` | Invalid command-line request. |
 | `10` | Surface frontend or source parse failed. |
 | `11` | WIR backend failed. |
-| `12` | LLVM IR to object generation failed. |
+| `12` | LLVM optimization or target code generation failed. |
 | `13` | Target linker failed. |
 | `14` | Atomic output publication failed. |
 | `15` | Build driver or toolchain setup failed. |

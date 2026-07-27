@@ -6,7 +6,11 @@ reproducible paths for external analysis tools:
 ```sh
 weavec build library.weave main.weave -o application \
   --emit-wir application.wir \
-  --emit-llvm application.ll \
+  --emit-llvm application.raw.ll \
+  --emit-optimized-llvm application.optimized.ll \
+  --emit-assembly application.s \
+  --emit-disassembly application.disasm \
+  --optimization-record application.opt.yaml \
   --trace-json application.trace.json \
   --diagnostics-json application.diagnostics.json \
   --manifest-json application.build.json \
@@ -14,8 +18,9 @@ weavec build library.weave main.weave -o application \
 ```
 
 These options define the compiler/tooling boundary. `weavec` owns deterministic
-source lowering, WIR validation, LLVM emission, diagnostics, trace events, and
-source provenance. External tools such as `weave-loupe` own JSON parsing,
+source lowering, WIR validation, raw LLVM emission, explicit LLVM optimization,
+target code generation, final executable disassembly, diagnostics, trace events,
+and source provenance. External tools such as `weave-loupe` own JSON parsing,
 comparison, visualization, LLM-assisted review, and HTML report generation.
 
 For example, a companion tool can capture the complete evidence set and derive a
@@ -36,9 +41,15 @@ successful frontend phase. If a later backend, code-generation, link, trace, or
 executable-publication phase fails, the WIR artifact remains available for
 analysis.
 
-`--emit-llvm <path>` atomically publishes the LLVM file immediately after a
-successful backend phase. If code generation or any later phase fails, the LLVM
-artifact remains available.
+`--emit-llvm <path>` atomically publishes raw backend LLVM immediately after a
+successful backend phase. If optimization or any later phase fails, raw LLVM
+remains available.
+
+`--emit-optimized-llvm <path>` publishes after LLVM optimization succeeds.
+`--emit-assembly <path>` publishes after target assembly emission succeeds.
+`--optimization-record <path>` publishes after object generation succeeds.
+`--emit-disassembly <path>` publishes after the temporary linked executable has
+been disassembled successfully.
 
 A phase that fails does not replace the corresponding existing artifact. For
 example, a frontend failure leaves an existing `--emit-wir` destination
@@ -56,16 +67,18 @@ the stable inspection location and the private temporary directory is not kept
 unless `--keep-temporaries` was also requested.
 
 Without `--emit-llvm`, `--llvm-provenance` retains the historical behavior of
-keeping the temporary directory so `program.ll` remains inspectable.
+keeping the temporary directory so raw `program.ll`, optimized
+`program.optimized.ll`, and other completed private artifacts remain inspectable.
 
 ## Path rules
 
-The executable, WIR, LLVM, manifest, diagnostics, and trace destinations must all
-be distinct. Conflicts are rejected before compilation. Artifact files are
+The executable, WIR, raw LLVM, optimized LLVM, assembly, disassembly,
+optimization record, manifest, diagnostics, and trace destinations must all be
+distinct. Conflicts are rejected before compilation. Artifact files are
 written beside their requested destinations and atomically renamed into place.
 
-The output files contain compiler artifacts only. `weavec` deliberately does not
-produce report-specific JSON aggregates, databases, HTML, JavaScript, charts, or
+The output files contain compiler and native-code evidence only. `weavec`
+deliberately does not produce report-specific JSON aggregates, databases, HTML, JavaScript, charts, or
 LLM prompts. Those higher-level concerns belong in tooling repositories.
 
 ## Low-level modes

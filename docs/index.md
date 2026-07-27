@@ -31,6 +31,9 @@ names used when they were released.
   ceilings for performance goldens.
 - [Tooling artifact outputs](tooling-artifacts.md) — stable WIR and LLVM output
   paths, phase-scoped atomic publication, and the boundary with external tools.
+- [Native optimization and machine-code evidence](native-code-evidence.md) —
+  explicit LLVM profiles, optimized IR, assembly, final disassembly, remarks,
+  and evidence-based evaluation of backend transformations.
 - [Source and fixture style](source-style.md) — `.weave` compiler conventions,
   resource ownership, deterministic emission, and regression-fixture style.
 - [Releasing](releasing.md) — reusable package, validation, and publication

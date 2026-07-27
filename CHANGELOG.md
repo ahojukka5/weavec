@@ -29,6 +29,9 @@ surface-language contract stabilises.
   traffic, control flow, semantic naming, and identity-operation regressions.
 - A compiler-native compilation-trace action registry with a permanent drift
   audit covering metadata, frontend call sites, documentation, and regressions.
+- An explicit LLVM optimization and native-code evidence pipeline with portable
+  `O2` defaults, `O3`/native profiles, optimized LLVM, assembly, optimization
+  records, final executable disassembly, and phase-scoped publication.
 
 ### Changed
 
