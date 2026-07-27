@@ -84,78 +84,73 @@ entry:
   ; let checksum
   store i32 0, ptr %checksum.addr
   ; while condition
-  br label %while.pre
-while.pre:
-  %k.init0 = load i32, ptr %k.addr
   br label %while.cond
 while.cond:
-  %k.phi0 = phi i32 [%k.init0, %while.pre], [%k.next0, %while.latch]
-  %t0 = icmp slt i32 %k.phi0, 8
-  br i1 %t0, label %while.body, label %while.exit-merge
+  %t0 = load i32, ptr %k.addr
+  %t1 = icmp slt i32 %t0, 8
+  br i1 %t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; if condition
-  %t1 = load i32, ptr %i.addr
-  %t2 = icmp slt i32 %t1, 4
-  %t3 = load i32, ptr %j.addr
-  %t4 = icmp sge i32 %t3, 4
-  %t5 = load i32, ptr %i.addr
-  %t6 = call ptr @elem(ptr %left, i32 %t5)
-  %t7 = load i32, ptr %t6
-  %t8 = load i32, ptr %j.addr
-  %t9 = call ptr @elem(ptr %right, i32 %t8)
-  %t10 = load i32, ptr %t9
-  %t11 = icmp sle i32 %t7, %t10
-  %t12 = or i1 %t4, %t11
-  %t13 = and i1 %t2, %t12
-  br i1 %t13, label %then1, label %else1
+  %t2 = load i32, ptr %i.addr
+  %t3 = icmp slt i32 %t2, 4
+  %t4 = load i32, ptr %j.addr
+  %t5 = icmp sge i32 %t4, 4
+  %t6 = load i32, ptr %i.addr
+  %t7 = call ptr @elem(ptr %left, i32 %t6)
+  %t8 = load i32, ptr %t7
+  %t9 = load i32, ptr %j.addr
+  %t10 = call ptr @elem(ptr %right, i32 %t9)
+  %t11 = load i32, ptr %t10
+  %t12 = icmp sle i32 %t8, %t11
+  %t13 = or i1 %t5, %t12
+  %t14 = and i1 %t3, %t13
+  br i1 %t14, label %then1, label %else1
 then1:
   ; then
-  %t14 = load i32, ptr %i.addr
-  %t15 = call ptr @elem(ptr %left, i32 %t14)
-  %t16 = load i32, ptr %t15
+  %t15 = load i32, ptr %i.addr
+  %t16 = call ptr @elem(ptr %left, i32 %t15)
+  %t17 = load i32, ptr %t16
   ; let v
-  %t17 = call ptr @elem(ptr %out, i32 %k.phi0)
-  store i32 %t16, ptr %t17
+  %t18 = load i32, ptr %k.addr
+  %t19 = call ptr @elem(ptr %out, i32 %t18)
+  store i32 %t17, ptr %t19
   ; set checksum
-  %t18 = load i32, ptr %checksum.addr
-  %t19 = add i32 %t18, %t16
-  store i32 %t19, ptr %checksum.addr
+  %t20 = load i32, ptr %checksum.addr
+  %t21 = add i32 %t20, %t17
+  store i32 %t21, ptr %checksum.addr
   ; set i
-  %t20 = load i32, ptr %i.addr
-  %t21 = add i32 %t20, 1
-  store i32 %t21, ptr %i.addr
+  %t22 = load i32, ptr %i.addr
+  %t23 = add i32 %t22, 1
+  store i32 %t23, ptr %i.addr
   br label %endif1
 else1:
   ; else
-  %t22 = load i32, ptr %j.addr
-  %t23 = call ptr @elem(ptr %right, i32 %t22)
-  %t24 = load i32, ptr %t23
+  %t24 = load i32, ptr %j.addr
+  %t25 = call ptr @elem(ptr %right, i32 %t24)
+  %t26 = load i32, ptr %t25
   ; let w
-  %t25 = call ptr @elem(ptr %out, i32 %k.phi0)
-  store i32 %t24, ptr %t25
+  %t27 = load i32, ptr %k.addr
+  %t28 = call ptr @elem(ptr %out, i32 %t27)
+  store i32 %t26, ptr %t28
   ; set checksum
-  %t26 = load i32, ptr %checksum.addr
-  %t27 = add i32 %t26, %t24
-  store i32 %t27, ptr %checksum.addr
+  %t29 = load i32, ptr %checksum.addr
+  %t30 = add i32 %t29, %t26
+  store i32 %t30, ptr %checksum.addr
   ; set j
-  %t28 = load i32, ptr %j.addr
-  %t29 = add i32 %t28, 1
-  store i32 %t29, ptr %j.addr
+  %t31 = load i32, ptr %j.addr
+  %t32 = add i32 %t31, 1
+  store i32 %t32, ptr %j.addr
   br label %endif1
 endif1:
   ; set k
-  %k.next0 = add i32 %k.phi0, 1
-  br label %while.latch
-while.latch:
+  %t33 = load i32, ptr %k.addr
+  %t34 = add i32 %t33, 1
+  store i32 %t34, ptr %k.addr
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %k.phi0, ptr %k.addr
-  br label %while.end
 while.end:
   ; return
-  %t30 = load i32, ptr %checksum.addr
-  ret i32 %t30
+  %t35 = load i32, ptr %checksum.addr
+  ret i32 %t35
 }
 

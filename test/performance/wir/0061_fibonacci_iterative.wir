@@ -1,5 +1,5 @@
 ; Performance: 0061_fibonacci_iterative
-; tags = algorithm, i32, loop, loop-phi
+; tags = algorithm, i32, loop, loop-promotion
 ; Why hard: Two carried locals swap each iteration; classic phi stress.
 ; Reveals: while with add, two i32 carried (a,b), i32 index.
 ; Expected: Golden LLVM matches

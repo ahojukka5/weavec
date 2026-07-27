@@ -15,7 +15,7 @@ SOURCES=(
   src/frontend/driver.weave src/frontend/explain-audit.weave
   src/frontend/contract-effects.weave src/frontend/audit-report.weave
   src/llvm/ctx.weave src/llvm/types.weave src/llvm/locals.weave
-  src/llvm/strings.weave src/llvm/expr.weave src/llvm/loop-phi.weave
+  src/llvm/strings.weave src/llvm/expr.weave
   src/llvm/stmt.weave src/llvm/fn.weave src/llvm/module.weave src/main.weave
 )
 

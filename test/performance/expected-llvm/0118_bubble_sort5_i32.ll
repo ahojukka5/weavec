@@ -72,51 +72,48 @@ while.body:
   ; let j
   store i32 0, ptr %j.addr
   ; while condition
-  br label %while.pre1
-while.pre1:
-  %j.init1 = load i32, ptr %j.addr
   br label %while.cond1
 while.cond1:
-  %j.phi1 = phi i32 [%j.init1, %while.pre1], [%j.next1, %while.latch1]
-  %t2 = load i32, ptr %pass.addr
-  %t3 = sub i32 4, %t2
-  %t4 = icmp slt i32 %j.phi1, %t3
-  br i1 %t4, label %while.body1, label %while.exit-merge1
+  %t2 = load i32, ptr %j.addr
+  %t3 = load i32, ptr %pass.addr
+  %t4 = sub i32 4, %t3
+  %t5 = icmp slt i32 %t2, %t4
+  br i1 %t5, label %while.body1, label %while.end1
 while.body1:
   ; while body
-  %t5 = call ptr @elem_ptr(ptr %items, i32 %j.phi1)
-  %t6 = load i32, ptr %t5
+  %t6 = load i32, ptr %j.addr
+  %t7 = call ptr @elem_ptr(ptr %items, i32 %t6)
+  %t8 = load i32, ptr %t7
   ; let a
-  %t7 = add i32 %j.phi1, 1
-  %t8 = call ptr @elem_ptr(ptr %items, i32 %t7)
-  %t9 = load i32, ptr %t8
+  %t9 = load i32, ptr %j.addr
+  %t10 = add i32 %t9, 1
+  %t11 = call ptr @elem_ptr(ptr %items, i32 %t10)
+  %t12 = load i32, ptr %t11
   ; let b
   ; if condition
-  %t10 = icmp sgt i32 %t6, %t9
-  br i1 %t10, label %then2, label %endif2
+  %t13 = icmp sgt i32 %t8, %t12
+  br i1 %t13, label %then2, label %endif2
 then2:
   ; then
-  %t11 = call ptr @elem_ptr(ptr %items, i32 %j.phi1)
-  store i32 %t9, ptr %t11
-  %t12 = add i32 %j.phi1, 1
-  %t13 = call ptr @elem_ptr(ptr %items, i32 %t12)
-  store i32 %t6, ptr %t13
+  %t14 = load i32, ptr %j.addr
+  %t15 = call ptr @elem_ptr(ptr %items, i32 %t14)
+  store i32 %t12, ptr %t15
+  %t16 = load i32, ptr %j.addr
+  %t17 = add i32 %t16, 1
+  %t18 = call ptr @elem_ptr(ptr %items, i32 %t17)
+  store i32 %t8, ptr %t18
   br label %endif2
 endif2:
   ; set j
-  %j.next1 = add i32 %j.phi1, 1
-  br label %while.latch1
-while.latch1:
+  %t19 = load i32, ptr %j.addr
+  %t20 = add i32 %t19, 1
+  store i32 %t20, ptr %j.addr
   br label %while.cond1
-while.exit-merge1:
-  ; sync loop-carried locals to stack
-  store i32 %j.phi1, ptr %j.addr
-  br label %while.end1
 while.end1:
   ; set pass
-  %t14 = load i32, ptr %pass.addr
-  %t15 = add i32 %t14, 1
-  store i32 %t15, ptr %pass.addr
+  %t21 = load i32, ptr %pass.addr
+  %t22 = add i32 %t21, 1
+  store i32 %t22, ptr %pass.addr
   br label %while.cond
 while.end:
   ret void

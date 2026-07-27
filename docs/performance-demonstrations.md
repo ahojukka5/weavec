@@ -60,7 +60,7 @@ Ranges are conventions, not parser behavior.
 | `0136` | `0136_knapsack01_i32` | Knapsack DP table. |
 | `0137` | `0137_mandelbrot_grid6_sum_i32` | Grid and nested numeric control flow. |
 | `0138` | `0138_mod_div_nested_accum_i32` | Modulo/division in nested branches. |
-| `0139` | `0139_twin_parallel_if_ladders_i32` | Parallel if ladders and loop-phi merging. |
+| `0139` | `0139_twin_parallel_if_ladders_i32` | Parallel branch joins and loop-carried state. |
 | `0140` | `0140_selection_sort8_i32` | Selection-sort control flow. |
 
 ### Second hard batch (`0141–0152`)
@@ -109,10 +109,10 @@ The next free identifier is `0176`.
 
 ## Current code-generation observations
 
-Loop-phi promotion is currently strongest for `i32`. Many `i64`, `f32`, and
-`f64` carried locals remain stack-backed in the emitted pre-optimization LLVM.
-This is expected current behavior and is measured by the generated analysis
-report.
+Mutable loop-carried values are stack-backed in raw LLVM for every scalar type.
+The selected LLVM profile promotes eligible slots uniformly. The generated raw
+analysis report measures promotion pressure; final conclusions use optimized LLVM
+and machine-code evidence.
 
 `const_f32` and `const_f64` currently lower from integer literal tokens through
 `sitofp`; decimal floating literals are not yet part of the stable surface or
@@ -122,7 +122,7 @@ See:
 
 - [LLVM code-generation analysis](llvm-codegen-analysis.md)
 - [Generated LLVM analysis report](llvm-codegen-analysis-report.md)
-- [Loop-carried SSA contract](loop-phi-contract.md)
+- [Loop lowering contract](loop-lowering.md)
 
 ## Required WIR header
 
@@ -148,7 +148,7 @@ Common tags include:
 | `algorithm` | Classical algorithm. |
 | `stress` | Hard code-generation shape. |
 | `i32`, `i64`, `f32`, `f64` | Primary scalar type. |
-| `loop`, `loop-phi`, `if-merge` | Control-flow focus. |
+| `loop`, `loop-promotion`, `if-merge` | Control-flow focus. |
 | `heap`, `memory` | Load/store or allocation focus. |
 | `dp`, `sort`, `search` | Algorithm family. |
 | `call`, `numeric`, `float`, `bitwise` | Operation family. |

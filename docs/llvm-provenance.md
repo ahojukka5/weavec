@@ -52,14 +52,13 @@ Generated LLVM deliberately uses stable semantic names where the compiler knows
 the role:
 
 - `%name.addr` for mutable stack storage;
-- `%name.phiN`, `%name.nextN`, and `%name.mergeN` for loop-carried values;
 - `while.*`, `then*`, `else*`, and `endif*` for control-flow blocks;
 - `%tN` only for short-lived expression temporaries.
 
 This keeps the pre-optimization IR reviewable. A provenance comment establishes
-the surface and WIR context; semantic SSA and block names then make unnecessary
-loads, stores, casts, branches, and identity operations visible within that
-context.
+the surface and WIR context; semantic block names and stable local slots then make the lowering
+visible in that context. Optimized LLVM and final disassembly determine whether raw loads,
+stores, casts, branches, or identity operations survive the selected profile.
 
 ## Structural quality budgets
 
@@ -85,12 +84,11 @@ explicit baseline update and review:
 scripts/check-llvm-quality.sh --write-baseline
 ```
 
-The budgets are regression guards, not a mathematical proof of globally optimal
-machine code. They create a ratchet: as code generation improves, budgets can be
-lowered and cannot silently rise again. LLVM optimization tools may still be
-used to identify remaining headroom, but the long-term target is for important
-performance fixtures to approach an optimization fixed point where generic LLVM
-passes cannot remove meaningful work.
+The budgets are raw-lowering regression guards, not a proof of globally optimal
+machine code. They create a ratchet within the chosen lowering architecture: as
+raw code generation improves, ceilings can be lowered and cannot silently rise.
+Performance conclusions still come from optimized LLVM, assembly, linked-image
+disassembly, and representative runtime measurements.
 
 ## Relationship to the compilation trace
 

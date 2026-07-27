@@ -1,5 +1,5 @@
 ; Performance: 0079_loop_if_else_passthrough_i32
-; tags = algorithm, i32, loop, loop-phi
+; tags = algorithm, i32, loop, loop-promotion
 ; Why hard: Loop with if/else that must merge before next iteration.
 ; Reveals: if inside while on carried acc.
 ; Expected: Golden LLVM matches

@@ -61,43 +61,40 @@ entry:
   ; let right
   store i32 3, ptr %right.addr
   ; while condition
-  br label %while.pre
-while.pre:
-  %left.init0 = load i32, ptr %left.addr
-  %right.init0 = load i32, ptr %right.addr
   br label %while.cond
 while.cond:
-  %left.phi0 = phi i32 [%left.init0, %while.pre], [%left.next0, %while.latch]
-  %right.phi0 = phi i32 [%right.init0, %while.pre], [%right.next0, %while.latch]
-  %t0 = icmp slt i32 %left.phi0, %right.phi0
-  br i1 %t0, label %while.body, label %while.exit-merge
+  %t0 = load i32, ptr %left.addr
+  %t1 = load i32, ptr %right.addr
+  %t2 = icmp slt i32 %t0, %t1
+  br i1 %t2, label %while.body, label %while.end
 while.body:
   ; while body
-  %t1 = call ptr @elem_ptr(ptr %items, i32 %left.phi0)
-  %t2 = load i32, ptr %t1
-  ; let tmp
-  %t3 = call ptr @elem_ptr(ptr %items, i32 %left.phi0)
-  %t4 = call ptr @elem_ptr(ptr %items, i32 %right.phi0)
+  %t3 = load i32, ptr %left.addr
+  %t4 = call ptr @elem_ptr(ptr %items, i32 %t3)
   %t5 = load i32, ptr %t4
-  store i32 %t5, ptr %t3
-  %t6 = call ptr @elem_ptr(ptr %items, i32 %right.phi0)
-  store i32 %t2, ptr %t6
+  ; let tmp
+  %t6 = load i32, ptr %left.addr
+  %t7 = call ptr @elem_ptr(ptr %items, i32 %t6)
+  %t8 = load i32, ptr %right.addr
+  %t9 = call ptr @elem_ptr(ptr %items, i32 %t8)
+  %t10 = load i32, ptr %t9
+  store i32 %t10, ptr %t7
+  %t11 = load i32, ptr %right.addr
+  %t12 = call ptr @elem_ptr(ptr %items, i32 %t11)
+  store i32 %t5, ptr %t12
   ; set left
-  %left.next0 = add i32 %left.phi0, 1
+  %t13 = load i32, ptr %left.addr
+  %t14 = add i32 %t13, 1
+  store i32 %t14, ptr %left.addr
   ; set right
-  %right.next0 = sub i32 %right.phi0, 1
-  br label %while.latch
-while.latch:
+  %t15 = load i32, ptr %right.addr
+  %t16 = sub i32 %t15, 1
+  store i32 %t16, ptr %right.addr
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %left.phi0, ptr %left.addr
-  store i32 %right.phi0, ptr %right.addr
-  br label %while.end
 while.end:
   ; return
-  %t7 = call ptr @elem_ptr(ptr %items, i32 1)
-  %t8 = load i32, ptr %t7
-  ret i32 %t8
+  %t17 = call ptr @elem_ptr(ptr %items, i32 1)
+  %t18 = load i32, ptr %t17
+  ret i32 %t18
 }
 

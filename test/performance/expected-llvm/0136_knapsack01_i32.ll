@@ -144,92 +144,91 @@ while.body:
   ; let w
   store i32 0, ptr %w.addr
   ; while condition
-  br label %while.pre1
-while.pre1:
-  %w.init1 = load i32, ptr %w.addr
   br label %while.cond1
 while.cond1:
-  %w.phi1 = phi i32 [%w.init1, %while.pre1], [%w.next1, %while.latch1]
-  %t2 = icmp sle i32 %w.phi1, 11
-  br i1 %t2, label %while.body1, label %while.exit-merge1
+  %t2 = load i32, ptr %w.addr
+  %t3 = icmp sle i32 %t2, 11
+  br i1 %t3, label %while.body1, label %while.end1
 while.body1:
   ; while body
   ; if condition
-  %t3 = load i32, ptr %i.addr
-  %t4 = icmp eq i32 %t3, 0
-  br i1 %t4, label %then2, label %else2
+  %t4 = load i32, ptr %i.addr
+  %t5 = icmp eq i32 %t4, 0
+  br i1 %t5, label %then2, label %else2
 then2:
   ; then
-  %t5 = load i32, ptr %i.addr
-  %t6 = call ptr @dp_at(ptr %dp, i32 %t5, i32 %w.phi1)
-  store i32 0, ptr %t6
+  %t6 = load i32, ptr %i.addr
+  %t7 = load i32, ptr %w.addr
+  %t8 = call ptr @dp_at(ptr %dp, i32 %t6, i32 %t7)
+  store i32 0, ptr %t8
   br label %endif2
 else2:
   ; else
-  %t7 = load i32, ptr %i.addr
-  %t8 = sub i32 %t7, 1
-  %t9 = call i32 @weight_of(i32 %t8)
+  %t9 = load i32, ptr %i.addr
+  %t10 = sub i32 %t9, 1
+  %t11 = call i32 @weight_of(i32 %t10)
   ; let wt
-  %t10 = load i32, ptr %i.addr
-  %t11 = sub i32 %t10, 1
-  %t12 = call ptr @dp_at(ptr %dp, i32 %t11, i32 %w.phi1)
-  %t13 = load i32, ptr %t12
+  %t12 = load i32, ptr %i.addr
+  %t13 = sub i32 %t12, 1
+  %t14 = load i32, ptr %w.addr
+  %t15 = call ptr @dp_at(ptr %dp, i32 %t13, i32 %t14)
+  %t16 = load i32, ptr %t15
   ; let skip
   ; let take
   ; if condition
-  %t14 = icmp sge i32 %w.phi1, %t9
-  br i1 %t14, label %then3, label %endif3
+  %t17 = load i32, ptr %w.addr
+  %t18 = icmp sge i32 %t17, %t11
+  br i1 %t18, label %then3, label %endif3
 then3:
   ; then
-  %t15 = load i32, ptr %i.addr
-  %t16 = sub i32 %t15, 1
-  %t17 = call i32 @value_of(i32 %t16)
-  %t18 = load i32, ptr %i.addr
-  %t19 = sub i32 %t18, 1
-  %t20 = sub i32 %w.phi1, %t9
-  %t21 = call ptr @dp_at(ptr %dp, i32 %t19, i32 %t20)
-  %t22 = load i32, ptr %t21
-  %t23 = add i32 %t17, %t22
+  %t19 = load i32, ptr %i.addr
+  %t20 = sub i32 %t19, 1
+  %t21 = call i32 @value_of(i32 %t20)
+  %t22 = load i32, ptr %i.addr
+  %t23 = sub i32 %t22, 1
+  %t24 = load i32, ptr %w.addr
+  %t25 = sub i32 %t24, %t11
+  %t26 = call ptr @dp_at(ptr %dp, i32 %t23, i32 %t25)
+  %t27 = load i32, ptr %t26
+  %t28 = add i32 %t21, %t27
   ; let take
   br label %endif3
 endif3:
   ; if condition
-  %t24 = icmp sgt i32 0, %t13
-  br i1 %t24, label %then4, label %else4
+  %t29 = icmp sgt i32 0, %t16
+  br i1 %t29, label %then4, label %else4
 then4:
   ; then
-  %t25 = load i32, ptr %i.addr
-  %t26 = call ptr @dp_at(ptr %dp, i32 %t25, i32 %w.phi1)
-  store i32 0, ptr %t26
+  %t30 = load i32, ptr %i.addr
+  %t31 = load i32, ptr %w.addr
+  %t32 = call ptr @dp_at(ptr %dp, i32 %t30, i32 %t31)
+  store i32 0, ptr %t32
   br label %endif4
 else4:
   ; else
-  %t27 = load i32, ptr %i.addr
-  %t28 = call ptr @dp_at(ptr %dp, i32 %t27, i32 %w.phi1)
-  store i32 %t13, ptr %t28
+  %t33 = load i32, ptr %i.addr
+  %t34 = load i32, ptr %w.addr
+  %t35 = call ptr @dp_at(ptr %dp, i32 %t33, i32 %t34)
+  store i32 %t16, ptr %t35
   br label %endif4
 endif4:
   br label %endif2
 endif2:
   ; set w
-  %w.next1 = add i32 %w.phi1, 1
-  br label %while.latch1
-while.latch1:
+  %t36 = load i32, ptr %w.addr
+  %t37 = add i32 %t36, 1
+  store i32 %t37, ptr %w.addr
   br label %while.cond1
-while.exit-merge1:
-  ; sync loop-carried locals to stack
-  store i32 %w.phi1, ptr %w.addr
-  br label %while.end1
 while.end1:
   ; set i
-  %t29 = load i32, ptr %i.addr
-  %t30 = add i32 %t29, 1
-  store i32 %t30, ptr %i.addr
+  %t38 = load i32, ptr %i.addr
+  %t39 = add i32 %t38, 1
+  store i32 %t39, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t31 = call ptr @dp_at(ptr %dp, i32 5, i32 11)
-  %t32 = load i32, ptr %t31
-  ret i32 %t32
+  %t40 = call ptr @dp_at(ptr %dp, i32 5, i32 11)
+  %t41 = load i32, ptr %t40
+  ret i32 %t41
 }
 

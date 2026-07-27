@@ -1,5 +1,5 @@
 ; Performance: 0055_integration_nested_control_flow
-; tags = control-flow, i32, integration, loop-phi
+; tags = control-flow, i32, integration, loop-promotion
 ; Why hard: Combines nested if/while; easy to mis-wire merge edges.
 ; Reveals: Nested if inside while, multiple join points.
 ; Expected: Golden LLVM matches

@@ -1,5 +1,5 @@
 ; Performance: 0108_hailstone_peak_i32
-; tags = algorithm, i32, loop-phi
+; tags = algorithm, i32, loop-promotion
 ; Why hard: Collatz peak tracking. Inner while + max on carried peak.
 ; Reveals: div/mod branch, gt update.
 ; Expected: Golden LLVM matches

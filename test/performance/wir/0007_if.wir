@@ -1,5 +1,5 @@
 ; Performance: 0007_if
-; tags = i32, loop-phi, smoke
+; tags = i32, loop-promotion, smoke
 ; Why hard: Smoke baseline for conditional branch. Failures here usually
 ;   indicate broken
 ;   lowering shared by every later fixture.

@@ -1,5 +1,5 @@
 ; Performance: 0080_loop_twin_if_i32
-; tags = algorithm, i32, if-merge, loop, loop-phi, memory
+; tags = algorithm, i32, if-merge, loop, loop-promotion, memory
 ; Why hard: Two sibling ifs updating same carried local in one iteration.
 ; Reveals: Twin if merges, loop-carried x, merge suffix allocation.
 ; Expected: main returns 3 (x=0+1 then +2 on i=0,1). llvm-as accepts emitted IR;

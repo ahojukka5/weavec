@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-"""Summarize weavec performance LLVM goldens for codegen quality.
+"""Summarize raw LLVM lowering pressure in the performance goldens.
 
-Reads test/performance/expected-llvm/*.ll and prints metrics that highlight
-missed SSA promotion, memory traffic, and other speed-related patterns.
+Reads test/performance/expected-llvm/*.ll and reports the mutable stack traffic
+that the selected LLVM optimization profile is expected to promote or simplify.
 
 Usage:
   python3 scripts/analyze-performance-llvm.py
@@ -27,7 +27,6 @@ def analyze_ll(text: str) -> dict[str, int | bool | list[str]]:
     m["load"] = len(re.findall(r"\bload\b", text))
     m["store"] = len(re.findall(r"\bstore\b", text))
     m["phi"] = len(re.findall(r"\bphi\b", text))
-    m["loop_phi"] = len(re.findall(r"\.phi\d*\s*=", text))
     m["sitofp"] = len(re.findall(r"\bsitofp\b", text))
     m["fadd"] = len(re.findall(r"\bfadd\b", text))
     m["add_i64"] = len(re.findall(r"\badd i64\b", text))
@@ -47,7 +46,7 @@ def analyze_ll(text: str) -> dict[str, int | bool | list[str]]:
             body_loads += 1
     m["loop_body_addr_loads"] = body_loads
 
-  # Locals with .addr but no .phi in the same function.
+    # Mutable locals used in functions containing loops.
     funcs = re.split(r"(?=define )", text)
     stack_only: list[str] = []
     for func in funcs:
@@ -67,8 +66,8 @@ def analyze_ll(text: str) -> dict[str, int | bool | list[str]]:
     return m
 
 
-def score_opportunity(m: dict) -> int:
-    """Higher = more obvious room for weavec speedups (not runtime of benchmark)."""
+def score_promotion_pressure(m: dict) -> int:
+    """Higher means more raw work is intentionally delegated to LLVM."""
     s = 0
     s += m["loop_body_addr_loads"] * 3
     s += len(m["stack_carried_candidates"]) * 5
@@ -100,7 +99,7 @@ def main() -> int:
     for path in sorted(LLVM_DIR.glob("*.ll")):
         text = path.read_text(encoding="utf-8")
         metrics = analyze_ll(text)
-        opp = score_opportunity(metrics)
+        opp = score_promotion_pressure(metrics)
         rows.append((path.stem, metrics, opp))
         if metrics["has_stack_carried"]:
             by_tag["stack_carried"].append(opp)
@@ -108,29 +107,29 @@ def main() -> int:
     rows.sort(key=lambda r: r[2], reverse=True)
 
     lines: list[str] = []
-    lines.append("# LLVM golden analysis (generated)")
+    lines.append("# Raw LLVM lowering analysis (generated)")
     lines.append("")
     lines.append(
-        "Metrics are static counts on checked-in `expected-llvm/` output. "
-        "High opportunity scores usually mean weavec emits stack slots where "
-        "LLVM would prefer loop phis after mem2reg."
+        "Metrics are static counts on checked-in raw `expected-llvm/` output. "
+        "High promotion pressure is expected for mutable loops: `weavec` emits "
+        "uniform stack semantics and the selected LLVM profile constructs SSA."
     )
     lines.append("")
     lines.append(f"Fixtures scanned: {len(rows)}")
     lines.append(
-        f"With stack-carried locals in loops (no phi): "
+        f"With mutable locals used in loop-bearing functions: "
         f"{sum(1 for _, m, _ in rows if m['has_stack_carried'])}"
     )
     lines.append("")
-    lines.append("## Top optimization opportunities")
+    lines.append("## Highest raw promotion pressure")
     lines.append("")
     lines.append(
-        "| Id | alloca | load | store | phi | loop-phi | "
-        "body loads | add+0 | sitofp | stack-carried | score |"
+        "| Id | alloca | load | store | phi | body loads | add+0 | "
+        "sitofp | mutable candidates | pressure |"
     )
     lines.append(
-        "|----|--------|------|-------|-----|----------|"
-        "-----------|-------|--------|-----------------|-------|"
+        "|----|--------|------|-------|-----|-----------|-------|"
+        "--------|--------------------|----------|"
     )
     for stem, m, opp in rows[: args.top]:
         sc = ", ".join(m["stack_carried_candidates"][:4])
@@ -138,8 +137,8 @@ def main() -> int:
             sc += ", …"
         lines.append(
             f"| {stem} | {m['alloca']} | {m['load']} | {m['store']} | "
-            f"{m['phi']} | {m['loop_phi']} | {m['loop_body_addr_loads']} | "
-            f"{m['add_zero']} | {m['sitofp']} | {sc or '-'} | {opp} |"
+            f"{m['phi']} | {m['loop_body_addr_loads']} | {m['add_zero']} | "
+            f"{m['sitofp']} | {sc or '-'} | {opp} |"
         )
 
     lines.append("")
@@ -153,16 +152,12 @@ def main() -> int:
         "instruction counts as code-generation defects."
     )
     lines.append(
-        "3. A/B test the current custom loop-phi machinery against a simpler "
-        "uniform lowering under the same LLVM profile and CPU target."
+        "3. Treat raw stack traffic as an LLVM workload, not by itself as a "
+        "compiler defect."
     )
     lines.append(
-        "4. Remove custom transformations when optimized IR, machine code, "
-        "and measured performance are equivalent or better without them."
-    )
-    lines.append(
-        "5. Add backend logic only for a general semantic property that LLVM "
-        "cannot recover, never for one fixture-shaped pattern."
+        "4. Add backend transformations only for semantic information that "
+        "LLVM cannot reconstruct from correct raw IR."
     )
     lines.append("")
     report = "\n".join(lines)

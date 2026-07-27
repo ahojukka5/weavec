@@ -15,34 +15,28 @@ entry:
   ; let sum
   store float %t0, ptr %sum.addr
   ; while condition
-  br label %while.pre
-while.pre:
-  %i.init0 = load i32, ptr %i.addr
   br label %while.cond
 while.cond:
-  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
-  %t1 = icmp sle i32 %i.phi0, 120
-  br i1 %t1, label %while.body, label %while.exit-merge
+  %t1 = load i32, ptr %i.addr
+  %t2 = icmp sle i32 %t1, 120
+  br i1 %t2, label %while.body, label %while.end
 while.body:
   ; while body
   ; set sum
-  %t2 = load float, ptr %sum.addr
-  %t3 = sitofp i32 %i.phi0 to float
-  %t4 = fadd float %t2, %t3
-  store float %t4, ptr %sum.addr
+  %t3 = load float, ptr %sum.addr
+  %t4 = load i32, ptr %i.addr
+  %t5 = sitofp i32 %t4 to float
+  %t6 = fadd float %t3, %t5
+  store float %t6, ptr %sum.addr
   ; set i
-  %i.next0 = add i32 %i.phi0, 1
-  br label %while.latch
-while.latch:
+  %t7 = load i32, ptr %i.addr
+  %t8 = add i32 %t7, 1
+  store i32 %t8, ptr %i.addr
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %i.phi0, ptr %i.addr
-  br label %while.end
 while.end:
   ; return
-  %t5 = load float, ptr %sum.addr
-  %t6 = fptosi float %t5 to i32
-  ret i32 %t6
+  %t9 = load float, ptr %sum.addr
+  %t10 = fptosi float %t9 to i32
+  ret i32 %t10
 }
 

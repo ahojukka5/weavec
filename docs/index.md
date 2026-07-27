@@ -46,7 +46,8 @@ names used when they were released.
 
 ## Backend and performance notes
 
-- [Loop-carried SSA contract](loop-phi-contract.md)
+- [Loop lowering contract](loop-lowering.md)
+- [Loop-lowering A/B evidence](loop-lowering-ab.md)
 - [Performance demonstrations](performance-demonstrations.md)
 - [LLVM code-generation analysis](llvm-codegen-analysis.md)
 - [Generated LLVM analysis report](llvm-codegen-analysis-report.md)

@@ -1,5 +1,5 @@
 ; Performance: 0131_loop_triple_if_carried_i32
-; tags = i32, if-merge, loop, loop-phi, stress
+; tags = i32, if-merge, loop, loop-promotion, stress
 ; Why hard: One loop, three nested if levels, three loop-carried i32 locals—deep
 ;   merge
 ;   graph.

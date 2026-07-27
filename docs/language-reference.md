@@ -158,9 +158,9 @@ Update an existing local with:
 (set answer (add_i32 answer (const_i32 1)))
 ```
 
-The backend may represent loop-carried `i32` locals with LLVM phis. Other values
-may currently remain stack-backed. See
-[Loop-carried SSA contract](loop-phi-contract.md).
+The raw backend represents mutable locals with stack slots. The selected LLVM
+optimization profile promotes eligible loop-carried values to SSA phis. See
+[Loop lowering contract](loop-lowering.md).
 
 ## Blocks and control flow
 

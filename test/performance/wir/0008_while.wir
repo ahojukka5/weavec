@@ -1,5 +1,5 @@
 ; Performance: 0008_while
-; tags = i32, loop, loop-phi, smoke
+; tags = i32, loop, loop-promotion, smoke
 ; Why hard: Smoke baseline for while loop. Failures here usually indicate broken
 ;   lowering shared by every later fixture.
 ; Reveals: condition block, backedge, carried i

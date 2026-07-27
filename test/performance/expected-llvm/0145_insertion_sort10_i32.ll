@@ -88,43 +88,39 @@ while.body:
   ; let j
   store i32 %t6, ptr %j.addr
   ; while condition
-  br label %while.pre1
-while.pre1:
-  %j.init1 = load i32, ptr %j.addr
   br label %while.cond1
 while.cond1:
-  %j.phi1 = phi i32 [%j.init1, %while.pre1], [%j.next1, %while.latch1]
-  %t7 = icmp sge i32 %j.phi1, 0
-  %t8 = call ptr @elem(ptr %a, i32 %j.phi1)
-  %t9 = load i32, ptr %t8
-  %t10 = icmp sgt i32 %t9, %t4
-  %t11 = and i1 %t7, %t10
-  br i1 %t11, label %while.body1, label %while.exit-merge1
+  %t7 = load i32, ptr %j.addr
+  %t8 = icmp sge i32 %t7, 0
+  %t9 = load i32, ptr %j.addr
+  %t10 = call ptr @elem(ptr %a, i32 %t9)
+  %t11 = load i32, ptr %t10
+  %t12 = icmp sgt i32 %t11, %t4
+  %t13 = and i1 %t8, %t12
+  br i1 %t13, label %while.body1, label %while.end1
 while.body1:
   ; while body
-  %t12 = add i32 %j.phi1, 1
-  %t13 = call ptr @elem(ptr %a, i32 %t12)
-  %t14 = call ptr @elem(ptr %a, i32 %j.phi1)
-  %t15 = load i32, ptr %t14
-  store i32 %t15, ptr %t13
-  ; set j
-  %j.next1 = sub i32 %j.phi1, 1
-  br label %while.latch1
-while.latch1:
-  br label %while.cond1
-while.exit-merge1:
-  ; sync loop-carried locals to stack
-  store i32 %j.phi1, ptr %j.addr
-  br label %while.end1
-while.end1:
-  %t16 = load i32, ptr %j.addr
-  %t17 = add i32 %t16, 1
+  %t14 = load i32, ptr %j.addr
+  %t15 = add i32 %t14, 1
+  %t16 = call ptr @elem(ptr %a, i32 %t15)
+  %t17 = load i32, ptr %j.addr
   %t18 = call ptr @elem(ptr %a, i32 %t17)
-  store i32 %t4, ptr %t18
+  %t19 = load i32, ptr %t18
+  store i32 %t19, ptr %t16
+  ; set j
+  %t20 = load i32, ptr %j.addr
+  %t21 = sub i32 %t20, 1
+  store i32 %t21, ptr %j.addr
+  br label %while.cond1
+while.end1:
+  %t22 = load i32, ptr %j.addr
+  %t23 = add i32 %t22, 1
+  %t24 = call ptr @elem(ptr %a, i32 %t23)
+  store i32 %t4, ptr %t24
   ; set i
-  %t19 = load i32, ptr %i.addr
-  %t20 = add i32 %t19, 1
-  store i32 %t20, ptr %i.addr
+  %t25 = load i32, ptr %i.addr
+  %t26 = add i32 %t25, 1
+  store i32 %t26, ptr %i.addr
   br label %while.cond
 while.end:
   ret void

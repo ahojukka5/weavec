@@ -105,7 +105,8 @@ The repository fixture is
 `test/optimization-evidence/fibonacci.weave`. It computes `fib(10)` and exits
 with status `55`.
 
-The current raw LLVM contains explicit loop-carried state and backend bookkeeping.
+The current raw LLVM contains explicit mutable stack state and structured loop
+control flow.
 Under LLVM 17 on an x86-64 native `O3` profile, the representative structural
 instruction count falls from 31 to 12. Exact counts and assembly vary with LLVM
 version and CPU, so tests require a real simplification rather than freezing one

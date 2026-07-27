@@ -61,40 +61,33 @@ endif:
   ; let sum
   store i32 0, ptr %sum.addr
   ; while condition
-  br label %while.pre1
-while.pre1:
-  %sum.init1 = load i32, ptr %sum.addr
-  %t.init1 = load i32, ptr %t.addr
   br label %while.cond1
 while.cond1:
-  %sum.phi1 = phi i32 [%sum.init1, %while.pre1], [%sum.next1, %while.latch1]
-  %t.phi1 = phi i32 [%t.init1, %while.pre1], [%t.next1, %while.latch1]
-  %t18 = icmp slt i32 %t.phi1, 12
-  br i1 %t18, label %while.body1, label %while.exit-merge1
+  %t18 = load i32, ptr %t.addr
+  %t19 = icmp slt i32 %t18, 12
+  br i1 %t19, label %while.body1, label %while.end1
 while.body1:
   ; while body
-  %t19 = mul i32 %t.phi1, 3
-  %t20 = add i32 %t19, 7
+  %t20 = load i32, ptr %t.addr
+  %t21 = mul i32 %t20, 3
+  %t22 = add i32 %t21, 7
   ; let target
-  ; let idx (deferred)
+  %t23 = call i32 @search16(ptr %t0, i32 %t22)
+  ; let idx
   ; set sum
-  %t21 = call i32 @search16(ptr %t0, i32 %t20)
-  %sum.next1 = add i32 %sum.phi1, %t21
+  %t24 = load i32, ptr %sum.addr
+  %t25 = add i32 %t24, %t23
+  store i32 %t25, ptr %sum.addr
   ; set t
-  %t.next1 = add i32 %t.phi1, 1
-  br label %while.latch1
-while.latch1:
+  %t26 = load i32, ptr %t.addr
+  %t27 = add i32 %t26, 1
+  store i32 %t27, ptr %t.addr
   br label %while.cond1
-while.exit-merge1:
-  ; sync loop-carried locals to stack
-  store i32 %sum.phi1, ptr %sum.addr
-  store i32 %t.phi1, ptr %t.addr
-  br label %while.end1
 while.end1:
   call void @free(ptr %t0)
   ; return
-  %t22 = load i32, ptr %sum.addr
-  ret i32 %t22
+  %t28 = load i32, ptr %sum.addr
+  ret i32 %t28
 }
 
 ; function: elem_ptr
@@ -123,8 +116,6 @@ entry:
   ; let found
   store i32 -1, ptr %found.addr
   ; while condition
-  br label %while.pre
-while.pre:
   br label %while.cond
 while.cond:
   %t0 = load i32, ptr %low.addr
@@ -133,7 +124,7 @@ while.cond:
   %t3 = load i32, ptr %found.addr
   %t4 = icmp eq i32 %t3, -1
   %t5 = and i1 %t2, %t4
-  br i1 %t5, label %while.body, label %while.exit-merge
+  br i1 %t5, label %while.body, label %while.end
 while.body:
   ; while body
   %t6 = load i32, ptr %low.addr
@@ -172,12 +163,7 @@ else2:
 endif2:
   br label %endif1
 endif1:
-  br label %while.latch
-while.latch:
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  br label %while.end
 while.end:
   ; return
   %t16 = load i32, ptr %found.addr

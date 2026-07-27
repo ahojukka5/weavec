@@ -1,5 +1,5 @@
 ; Performance: 0081_sum_range_i32
-; tags = algorithm, i32, loop, loop-phi
+; tags = algorithm, i32, loop, loop-promotion
 ; Why hard: Sum 1..n (triangular number). Simple but canonical loop-carried
 ;   accumulator.
 ; Reveals: while, add_i32 on sum, i32 index.

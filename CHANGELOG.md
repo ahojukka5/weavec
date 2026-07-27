@@ -35,6 +35,10 @@ surface-language contract stabilises.
 
 ### Changed
 
+- Replaced the 1,529-line custom loop-phi and branch-merge subsystem with
+  uniform mutable stack lowering after a 168-fixture A/B test found identical
+  optimized LLVM structure, equal behavior, and no systematic native-code or
+  runtime benefit.
 - Standardized maintained files under `docs/` on lowercase kebab-case names.
 - Refocused the root README on the user-facing compiler product and moved detailed
   contracts into linked reference documents.

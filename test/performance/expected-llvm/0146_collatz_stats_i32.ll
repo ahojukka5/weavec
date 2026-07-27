@@ -17,48 +17,41 @@ entry:
   ; let sum_steps
   store i32 0, ptr %sum_steps.addr
   ; while condition
-  br label %while.pre
-while.pre:
-  %sum_steps.init0 = load i32, ptr %sum_steps.addr
-  %n.init0 = load i32, ptr %n.addr
   br label %while.cond
 while.cond:
-  %sum_steps.phi0 = phi i32 [%sum_steps.init0, %while.pre], [%sum_steps.next0, %while.latch]
-  %n.phi0 = phi i32 [%n.init0, %while.pre], [%n.next0, %while.latch]
-  %t0 = icmp sle i32 %n.phi0, 80
-  br i1 %t0, label %while.body, label %while.exit-merge
+  %t0 = load i32, ptr %n.addr
+  %t1 = icmp sle i32 %t0, 80
+  br i1 %t1, label %while.body, label %while.end
 while.body:
   ; while body
-  %t1 = call i32 @collatz_steps(i32 %n.phi0)
+  %t2 = load i32, ptr %n.addr
+  %t3 = call i32 @collatz_steps(i32 %t2)
   ; let s
   ; if condition
-  %t2 = load i32, ptr %max_steps.addr
-  %t3 = icmp sgt i32 %t1, %t2
-  br i1 %t3, label %then1, label %endif1
+  %t4 = load i32, ptr %max_steps.addr
+  %t5 = icmp sgt i32 %t3, %t4
+  br i1 %t5, label %then1, label %endif1
 then1:
   ; then
   ; set max_steps
-  store i32 %t1, ptr %max_steps.addr
+  store i32 %t3, ptr %max_steps.addr
   br label %endif1
 endif1:
   ; set sum_steps
-  %sum_steps.next0 = add i32 %sum_steps.phi0, %t1
+  %t6 = load i32, ptr %sum_steps.addr
+  %t7 = add i32 %t6, %t3
+  store i32 %t7, ptr %sum_steps.addr
   ; set n
-  %n.next0 = add i32 %n.phi0, 1
-  br label %while.latch
-while.latch:
+  %t8 = load i32, ptr %n.addr
+  %t9 = add i32 %t8, 1
+  store i32 %t9, ptr %n.addr
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %sum_steps.phi0, ptr %sum_steps.addr
-  store i32 %n.phi0, ptr %n.addr
-  br label %while.end
 while.end:
   ; return
-  %t4 = load i32, ptr %max_steps.addr
-  %t5 = load i32, ptr %sum_steps.addr
-  %t6 = add i32 %t4, %t5
-  ret i32 %t6
+  %t10 = load i32, ptr %max_steps.addr
+  %t11 = load i32, ptr %sum_steps.addr
+  %t12 = add i32 %t10, %t11
+  ret i32 %t12
 }
 
 ; function: collatz_steps
@@ -73,15 +66,11 @@ entry:
   ; let steps
   store i32 0, ptr %steps.addr
   ; while condition
-  br label %while.pre
-while.pre:
-  %steps.init0 = load i32, ptr %steps.addr
   br label %while.cond
 while.cond:
-  %steps.phi0 = phi i32 [%steps.init0, %while.pre], [%steps.next0, %while.latch]
   %t0 = load i32, ptr %x.addr
   %t1 = icmp ne i32 %t0, 1
-  br i1 %t1, label %while.body, label %while.exit-merge
+  br i1 %t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; if condition
@@ -106,17 +95,13 @@ else1:
   br label %endif1
 endif1:
   ; set steps
-  %steps.next0 = add i32 %steps.phi0, 1
-  br label %while.latch
-while.latch:
+  %t10 = load i32, ptr %steps.addr
+  %t11 = add i32 %t10, 1
+  store i32 %t11, ptr %steps.addr
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %steps.phi0, ptr %steps.addr
-  br label %while.end
 while.end:
   ; return
-  %t10 = load i32, ptr %steps.addr
-  ret i32 %t10
+  %t12 = load i32, ptr %steps.addr
+  ret i32 %t12
 }
 

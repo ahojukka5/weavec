@@ -73,40 +73,34 @@ entry:
   ; let sum
   store i32 0, ptr %sum.addr
   ; while condition
-  br label %while.pre
-while.pre:
-  %sum.init0 = load i32, ptr %sum.addr
-  %i.init0 = load i32, ptr %i.addr
   br label %while.cond
 while.cond:
-  %sum.phi0 = phi i32 [%sum.init0, %while.pre], [%sum.next0, %while.latch]
-  %i.phi0 = phi i32 [%i.init0, %while.pre], [%i.next0, %while.latch]
-  %t0 = icmp slt i32 %i.phi0, 4
-  br i1 %t0, label %while.body, label %while.exit-merge
+  %t0 = load i32, ptr %i.addr
+  %t1 = icmp slt i32 %t0, 4
+  br i1 %t1, label %while.body, label %while.end
 while.body:
   ; while body
-  ; let av (deferred)
-  ; let bv (deferred)
-  ; set sum
-  %t1 = call ptr @i32_at(ptr %a, i32 %i.phi0)
-  %t2 = load i32, ptr %t1
-  %t3 = call ptr @i32_at(ptr %b, i32 %i.phi0)
+  %t2 = load i32, ptr %i.addr
+  %t3 = call ptr @i32_at(ptr %a, i32 %t2)
   %t4 = load i32, ptr %t3
-  %t5 = mul i32 %t2, %t4
-  %sum.next0 = add i32 %sum.phi0, %t5
+  ; let av
+  %t5 = load i32, ptr %i.addr
+  %t6 = call ptr @i32_at(ptr %b, i32 %t5)
+  %t7 = load i32, ptr %t6
+  ; let bv
+  ; set sum
+  %t8 = load i32, ptr %sum.addr
+  %t9 = mul i32 %t4, %t7
+  %t10 = add i32 %t8, %t9
+  store i32 %t10, ptr %sum.addr
   ; set i
-  %i.next0 = add i32 %i.phi0, 1
-  br label %while.latch
-while.latch:
+  %t11 = load i32, ptr %i.addr
+  %t12 = add i32 %t11, 1
+  store i32 %t12, ptr %i.addr
   br label %while.cond
-while.exit-merge:
-  ; sync loop-carried locals to stack
-  store i32 %sum.phi0, ptr %sum.addr
-  store i32 %i.phi0, ptr %i.addr
-  br label %while.end
 while.end:
   ; return
-  %t6 = load i32, ptr %sum.addr
-  ret i32 %t6
+  %t13 = load i32, ptr %sum.addr
+  ret i32 %t13
 }
 

@@ -139,7 +139,6 @@ src/llvm/types.weave
 src/llvm/locals.weave
 src/llvm/strings.weave
 src/llvm/expr.weave
-src/llvm/loop-phi.weave
 src/llvm/stmt.weave
 src/llvm/fn.weave
 src/llvm/module.weave
@@ -147,7 +146,8 @@ src/llvm/module.weave
 
 This layer validates WIR core version 2 and emits deterministic LLVM IR. It
 owns type spelling, locals, strings, expressions, statements, function/module
-emission, and the loop-carried SSA contract. Envelope and call-target validation
+emission, and uniform mutable control-flow lowering. LLVM owns scalar SSA
+promotion in the selected optimization profile. Envelope and call-target validation
 occur before output creation; emission failures remove partial LLVM output.
 
 The implementation is self-hosted, while the frozen `weavec1` WIR v2 backend is
