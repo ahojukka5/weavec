@@ -204,6 +204,7 @@ static size_t weave_llc_codegen_args(
     size_t tune_flag_size) {
     args[index++] = (char *)config->codegen;
     args[index++] = (char *)weave_llc_optimization(config->optimization);
+    args[index++] = "-relocation-model=pic";
     if (config->cpu != NULL && *config->cpu != '\0') {
         if (!weave_llvm_mcpu_flag(config->cpu, cpu_flag, cpu_flag_size)) {
             return 0;
