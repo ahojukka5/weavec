@@ -1,0 +1,26 @@
+name: export-loop-phi-ab-source
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    if: github.head_ref == 'tmp/loop-phi-ab-source-export'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+      - name: Create source archive
+        run: |
+          tar --exclude=.git --exclude=build --exclude=.cache -czf /tmp/weavec-master.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: weavec-master-source
+          path: /tmp/weavec-master.tar.gz
+          if-no-files-found: error
+          retention-days: 1
