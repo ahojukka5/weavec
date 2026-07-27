@@ -24,12 +24,17 @@ set -euo pipefail
 #   WEAVEC_BOOTSTRAP_REF=v0.3.0
 #
 #   WEAVEC_BACKEND=/path/to/self-hosted/weavec
+#   WEAVEC_VERSION_OVERRIDE=v0.3.0
 # =============================================================================
 
 WEAVEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="$WEAVEC_DIR/build"
 VENDOR_DIR="$BUILD_DIR/vendor"
 DOWNLOAD_DIR="$BUILD_DIR/downloads"
+
+# shellcheck source=scripts/weavec-version.sh
+source "$WEAVEC_DIR/scripts/weavec-version.sh"
+WEAVEC_VERSION="$(weavec_version_string "$WEAVEC_DIR")"
 
 WEAVEC0_TAG="${WEAVEC0_TAG:-v0.4.0}"
 WEAVEC0_REPO="https://github.com/ahojukka5/weavec0.git"
@@ -392,13 +397,16 @@ build_weavec() {
 
   log "linking weavec executable"
   local stack_size="0x1000000"
+  local version_define="-DWEAVEC_VERSION_STRING=\"$WEAVEC_VERSION\""
   if [[ "$(uname -s)" == Darwin ]]; then
     clang "$BUILD_DIR/weavec.bc" "$WEAVEC_DIR/runtime/portable.c" \
+      "$version_define" \
       -o "$BUILD_DIR/weavec" \
       -Wl,-stack_size,"$stack_size" \
       || fail "clang failed"
   else
     clang "$BUILD_DIR/weavec.bc" "$WEAVEC_DIR/runtime/portable.c" \
+      "$version_define" \
       -o "$BUILD_DIR/weavec" \
       -Wl,-z,stack-size="$stack_size" \
       || fail "clang failed"
@@ -414,6 +422,7 @@ main() {
   ensure_weavec1
   ensure_weavec_bootstrap
   build_weavec
+  log "compiler version: $WEAVEC_VERSION"
   log "dependency modes: weavec1=$WEAVEC1_MODE bootstrap=$WEAVEC_BOOTSTRAP_MODE"
   log "build complete: $BUILD_DIR/weavec"
 }
