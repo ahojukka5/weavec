@@ -11,9 +11,10 @@ the native executable:
    `internal` linkage before optimization. This allows inlining, constant folding,
    and global dead-code elimination to remove functions that no longer have a
    reachable caller.
-2. The final link uses function/data sections and linker section garbage
-   collection. Unused private-runtime helpers and their otherwise unnecessary
-   imports are excluded from the executable.
+2. The final link uses function/data sections and platform-native linker dead
+   stripping: `--gc-sections` on ELF platforms and `-dead_strip` on Darwin.
+   Unused private-runtime helpers and their otherwise unnecessary imports are
+   excluded from the executable.
 
 The low-level `--backend` interface remains unchanged. Internalization belongs to
 the executable-oriented `build` pipeline because library/export semantics have not
