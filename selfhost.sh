@@ -7,6 +7,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SEED="$ROOT/build/weavec"
 BUILD_DIR="$ROOT/build/selfhost"
+VERSION_LL="$BUILD_DIR/weavec-version.ll"
+VERSION_BC="$BUILD_DIR/weavec-version.bc"
 
 # shellcheck source=scripts/weavec-version.sh
 source "$ROOT/scripts/weavec-version.sh"
@@ -25,6 +27,9 @@ require_tool llvm-as
 require_tool clang
 
 chmod -R u+rw "$BUILD_DIR" 2>/dev/null || true
+mkdir -p "$BUILD_DIR"
+weavec_write_version_llvm "$WEAVEC_VERSION" "$VERSION_LL"
+llvm-as "$VERSION_LL" -o "$VERSION_BC"
 
 # Keep in sync with SOURCES in build.sh (same order, $ROOT-prefixed paths).
 SOURCES=(
@@ -67,7 +72,6 @@ link_stage_binary() {
   local bc="$1"
   local out_bin="$2"
   local stack_size="0x1000000"
-  local version_define="-DWEAVEC_VERSION_STRING=\"$WEAVEC_VERSION\""
   local tmp_bin smoke_wir attempt
 
   log "clang $out_bin"
@@ -76,12 +80,10 @@ link_stage_binary() {
     smoke_wir="$(mktemp /tmp/weavec-smoke.XXXXXX.wir)"
     rm -f "$out_bin"
     if [[ "$(uname -s)" == "Darwin" ]]; then
-      clang "$bc" "$ROOT/runtime/portable.c" "$version_define" \
-        -o "$tmp_bin" \
+      clang "$bc" "$ROOT/runtime/portable.c" -o "$tmp_bin" \
         -Wl,-stack_size,"$stack_size"
     else
-      clang "$bc" "$ROOT/runtime/portable.c" "$version_define" \
-        -o "$tmp_bin" \
+      clang "$bc" "$ROOT/runtime/portable.c" -o "$tmp_bin" \
         -Wl,-z,stack-size="$stack_size"
     fi
     if [[ "$("$tmp_bin" --version 2>/dev/null)" == \
@@ -124,7 +126,8 @@ build_stage() {
   done
 
   log "link $out_dir/weavec.bc"
-  llvm-link "$out_dir/weavec.ll" "${runtime_ll[@]}" -o "$out_dir/weavec.bc"
+  llvm-link "$out_dir/weavec.ll" "${runtime_ll[@]}" "$VERSION_BC" \
+    -o "$out_dir/weavec.bc"
 
   link_stage_binary "$out_dir/weavec.bc" "$out_bin"
 }
