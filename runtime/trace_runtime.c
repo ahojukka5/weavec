@@ -81,7 +81,8 @@ void weave_rt_trace_event(
     ok = ok &&
         weave_json_object_end(&writer) &&
         weave_json_writer_finish(&writer);
-    if (!ok || fclose(stream) != 0) {
+    int close_failed = fclose(stream) != 0;
+    if (!ok || close_failed) {
         return;
     }
 }
