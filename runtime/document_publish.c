@@ -42,6 +42,12 @@ static int weave_write_json_document_stream(
         weave_json_writer_finish(&writer);
 }
 
+static void weave_publish_record_error(int *saved, int fallback) {
+    if (*saved == 0) {
+        *saved = errno != 0 ? errno : fallback;
+    }
+}
+
 static int weave_publish_document(
     const char *destination,
     const char *label,
@@ -68,6 +74,7 @@ static int weave_publish_document(
             "weavec: %s path is too long: %s\n",
             label,
             destination);
+        errno = ENAMETOOLONG;
         return 1;
     }
 
@@ -83,8 +90,10 @@ static int weave_publish_document(
     }
 
     int failed = 0;
+    int saved_error = 0;
     if (fchmod(fd, mode) != 0) {
         failed = 1;
+        weave_publish_record_error(&saved_error, EIO);
     }
 
     FILE *stream = NULL;
@@ -92,48 +101,62 @@ static int weave_publish_document(
         stream = fdopen(fd, "wb");
         if (stream == NULL) {
             failed = 1;
+            weave_publish_record_error(&saved_error, EIO);
         }
     }
 
     if (stream != NULL) {
-        if (!write(stream, context) ||
-            ferror(stream) ||
-            fflush(stream) != 0) {
+        if (!write(stream, context)) {
             failed = 1;
+            weave_publish_record_error(&saved_error, EIO);
+        }
+        if (ferror(stream)) {
+            failed = 1;
+            weave_publish_record_error(&saved_error, EIO);
+        }
+        if (fflush(stream) != 0) {
+            failed = 1;
+            weave_publish_record_error(&saved_error, EIO);
         }
         if (!failed && fsync(fileno(stream)) != 0) {
             failed = 1;
+            weave_publish_record_error(&saved_error, EIO);
         }
         if (fclose(stream) != 0) {
             failed = 1;
+            weave_publish_record_error(&saved_error, EIO);
         }
     } else {
-        (void)close(fd);
+        if (close(fd) != 0) {
+            weave_publish_record_error(&saved_error, EIO);
+        }
     }
 
     if (failed) {
-        int saved = errno;
+        if (saved_error == 0) {
+            saved_error = EIO;
+        }
         fprintf(
             stderr,
             "weavec: cannot write %s %s: %s\n",
             label,
             destination,
-            strerror(saved != 0 ? saved : EIO));
+            strerror(saved_error));
         (void)unlink(temporary);
-        errno = saved;
+        errno = saved_error;
         return 1;
     }
 
     if (rename(temporary, destination) != 0) {
-        int saved = errno;
+        int rename_error = errno;
         fprintf(
             stderr,
             "weavec: cannot publish %s %s: %s\n",
             label,
             destination,
-            strerror(saved));
+            strerror(rename_error));
         (void)unlink(temporary);
-        errno = saved;
+        errno = rename_error;
         return 1;
     }
     return 0;
