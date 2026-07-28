@@ -279,97 +279,6 @@ static int locate_runtime(
     return written >= 0 && (size_t)written < out_size && file_exists(out);
 }
 
-static void json_string(FILE *stream, const char *value) {
-    fputc('"', stream);
-    for (const unsigned char *p = (const unsigned char *)value; *p != '\0'; ++p) {
-        switch (*p) {
-            case '\\': fputs("\\\\", stream); break;
-            case '"': fputs("\\\"", stream); break;
-            case '\n': fputs("\\n", stream); break;
-            case '\r': fputs("\\r", stream); break;
-            case '\t': fputs("\\t", stream); break;
-            default:
-                if (*p < 0x20) {
-                    fprintf(stream, "\\u%04x", (unsigned int)*p);
-                } else {
-                    fputc(*p, stream);
-                }
-        }
-    }
-    fputc('"', stream);
-}
-
-static void write_manifest(
-    const char *path,
-    const char *status,
-    const char *phase,
-    const char *target,
-    const char *compiler,
-    const char *runtime,
-    const char *optimizer,
-    const char *codegen,
-    const char *linker,
-    const char *objdump,
-    const char *optimization,
-    const char *cpu,
-    const char *tune_cpu,
-    const char *output,
-    char **sources,
-    int source_count) {
-    if (path == NULL) {
-        return;
-    }
-    FILE *stream = fopen(path, "w");
-    if (stream == NULL) {
-        fprintf(stderr, "weavec: cannot write manifest %s: %s\n", path, strerror(errno));
-        return;
-    }
-    fputs("{\n  \"format\": \"weavec-build-manifest-v1\",\n  \"status\": ", stream);
-    json_string(stream, status);
-    fputs(",\n  \"phase\": ", stream);
-    json_string(stream, phase);
-    fputs(",\n  \"target\": ", stream);
-    json_string(stream, target);
-    fputs(",\n  \"compiler\": ", stream);
-    json_string(stream, compiler);
-    fputs(",\n  \"runtime\": ", stream);
-    json_string(stream, runtime);
-    fputs(",\n  \"optimizer\": ", stream);
-    json_string(stream, optimizer);
-    fputs(",\n  \"codegen\": ", stream);
-    json_string(stream, codegen);
-    fputs(",\n  \"linker\": ", stream);
-    json_string(stream, linker);
-    fputs(",\n  \"objdump\": ", stream);
-    json_string(stream, objdump);
-    fputs(",\n  \"optimization\": {\"level\": ", stream);
-    json_string(stream, optimization);
-    fputs(", \"cpu\": ", stream);
-    if (cpu == NULL) {
-        fputs("null", stream);
-    } else {
-        json_string(stream, cpu);
-    }
-    fputs(", \"tune_cpu\": ", stream);
-    if (tune_cpu == NULL) {
-        fputs("null", stream);
-    } else {
-        json_string(stream, tune_cpu);
-    }
-    fputs("}", stream);
-    fputs(",\n  \"output\": ", stream);
-    json_string(stream, output);
-    fputs(",\n  \"sources\": [", stream);
-    for (int i = 0; i < source_count; ++i) {
-        if (i != 0) {
-            fputs(", ", stream);
-        }
-        json_string(stream, sources[i]);
-    }
-    fputs("]\n}\n", stream);
-    fclose(stream);
-}
-
 static int same_path(const char *left, const char *right) {
     return left != NULL && right != NULL && strcmp(left, right) == 0;
 }
@@ -643,7 +552,7 @@ static const char *optimization_name(const char *flag) {
     return flag != NULL && flag[0] == '-' ? flag + 1 : flag;
 }
 
-static void write_build_manifest(
+static int write_build_manifest(
     const char *path,
     const char *status,
     const char *phase,
@@ -655,7 +564,7 @@ static void write_build_manifest(
     const char *output,
     char **sources,
     int source_count) {
-    write_manifest(
+    return weave_build_manifest_write(
         path, status, phase, target, compiler, runtime,
         llvm->optimizer, llvm->codegen, linker, llvm->objdump,
         optimization_name(llvm->optimization), llvm->cpu, llvm->tune_cpu,
@@ -995,15 +904,18 @@ int weave_rt_build_main(int argc, char **argv) {
 
 #define FAIL_BUILD(phase_name, result) \
     do { \
-        write_build_manifest( \
+        int manifest_failed = write_build_manifest( \
             manifest, "failed", phase_name, target, compiler, runtime, \
             &llvm, linker, output, sources, source_count); \
-        (void)weave_trace_write_document( \
+        int trace_failed = weave_trace_write_document( \
             trace, "failed", phase_name, sources, source_count, \
             paths.trace_events); \
         unlink(paths.trace_events); \
         cleanup_build_directory(&paths, keep_temporaries); \
         free(sources); \
+        if (manifest_failed != 0 || trace_failed != 0) { \
+            return (result) != 0 ? (result) : 1; \
+        } \
         return result; \
     } while (0)
 
@@ -1183,7 +1095,7 @@ int weave_rt_build_main(int argc, char **argv) {
         FAIL_BUILD("publish", 1);
     }
 
-    write_build_manifest(
+    status = write_build_manifest(
         manifest,
         "succeeded",
         "complete",
@@ -1195,6 +1107,13 @@ int weave_rt_build_main(int argc, char **argv) {
         output,
         sources,
         source_count);
+    if (status != 0) {
+        unlink(paths.trace_events);
+        cleanup_build_directory(&paths, keep_temporaries);
+        free(sources);
+#undef FAIL_BUILD
+        return status;
+    }
     unlink(paths.trace_events);
     cleanup_build_directory(&paths, keep_temporaries);
     free(sources);

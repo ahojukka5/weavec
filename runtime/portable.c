@@ -123,6 +123,7 @@ static char *weave_rt_mkdtemp(char *path_template) {
 
 #include "json_writer.c"
 #include "document_publish.c"
+#include "build_manifest_json.c"
 
 static int weave_trace_write_document(
     const char *path,

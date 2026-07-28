@@ -304,11 +304,6 @@ static int weave_json_nullable_string(
         : weave_json_null(writer);
 }
 
-static int weave_json_boolean(weave_json_writer *writer, int value) {
-    return weave_json_before_value(writer) &&
-        weave_json_write_cstr(writer, value ? "true" : "false");
-}
-
 static int weave_json_int64(weave_json_writer *writer, int64_t value) {
     char buffer[32];
     int length = snprintf(buffer, sizeof(buffer), "%lld", (long long)value);
