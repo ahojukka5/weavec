@@ -376,16 +376,11 @@ build_weavec() {
     || fail "weavec-bootstrap multifile lowering failed"
   chmod u+rw "$BUILD_DIR/weavec.wir" 2>/dev/null || true
 
-  if [[ -z "${WEAVEC_BACKEND:-}" && \
-        -x "$BUILD_DIR/selfhost/stage2/weavec" ]]; then
-    WEAVEC_BACKEND="$BUILD_DIR/selfhost/stage2/weavec"
-    log "auto-selected WEAVEC_BACKEND=$WEAVEC_BACKEND"
-  fi
-
   log "compiling WIR to LLVM IR"
   if [[ -n "${WEAVEC_BACKEND:-}" ]]; then
     [[ -x "$WEAVEC_BACKEND" ]] || \
       fail "WEAVEC_BACKEND is not executable: $WEAVEC_BACKEND"
+    log "using explicit WEAVEC_BACKEND=$WEAVEC_BACKEND"
     "$WEAVEC_BACKEND" --backend "$BUILD_DIR/weavec.wir" \
       "$BUILD_DIR/weavec.ll" \
       || fail "self-hosted backend failed to compile weavec.wir"

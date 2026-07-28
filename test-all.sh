@@ -11,6 +11,9 @@ log() {
 log 'WIR core-version audit'
 python3 "$ROOT/scripts/check_wir_core_version.py"
 
+log 'build boundary'
+"$ROOT/test/build-boundary/test.sh"
+
 log 'build'
 "$ROOT/build.sh"
 
