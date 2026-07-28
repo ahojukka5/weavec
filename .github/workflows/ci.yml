@@ -133,13 +133,18 @@ jobs:
           test -x build/selfhost/stage1/weavec
           test -x build/selfhost/stage2/weavec
 
-      - name: Upload failed self-host logs
+      - name: Upload failed self-host evidence
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: selfhost-log-${{ github.run_id }}
+          name: selfhost-evidence-${{ github.run_id }}
           path: |
             selfhost-seed.log
             selfhost.log
+            build/selfhost/**/*.failed
+            build/selfhost/**/*.version.txt
+            build/selfhost/**/*.smoke.wir
+            build/selfhost/**/*.smoke.stdout
+            build/selfhost/**/*.smoke.stderr
           if-no-files-found: warn
           retention-days: 7

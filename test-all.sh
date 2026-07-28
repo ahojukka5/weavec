@@ -14,6 +14,9 @@ python3 "$ROOT/scripts/check_wir_core_version.py"
 log 'build boundary'
 "$ROOT/test/build-boundary/test.sh"
 
+log 'self-host link policy'
+bash "$ROOT/test/selfhost-link-policy/test.sh"
+
 log 'build'
 "$ROOT/build.sh"
 
