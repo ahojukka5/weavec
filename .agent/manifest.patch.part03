@@ -1,0 +1,140 @@
++
++ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
++WORK="$(mktemp -d)"
++trap 'rm -rf "$WORK"' EXIT
++
++cat > "$WORK/test.c" <<'C'
++#define _POSIX_C_SOURCE 200809L
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/stat.h>
++#include <unistd.h>
++
++#include "json_writer.c"
++#include "document_publish.c"
++#include "build_manifest_json.c"
++
++static char *read_all(const char *path) {
++    FILE *stream = fopen(path, "rb");
++    if (stream == NULL) {
++        return NULL;
++    }
++    if (fseek(stream, 0, SEEK_END) != 0) {
++        fclose(stream);
++        return NULL;
++    }
++    long end = ftell(stream);
++    if (end < 0 || fseek(stream, 0, SEEK_SET) != 0) {
++        fclose(stream);
++        return NULL;
++    }
++    char *data = malloc((size_t)end + 1);
++    if (data == NULL) {
++        fclose(stream);
++        return NULL;
++    }
++    if (fread(data, 1, (size_t)end, stream) != (size_t)end) {
++        free(data);
++        fclose(stream);
++        return NULL;
++    }
++    data[end] = '\0';
++    fclose(stream);
++    return data;
++}
++
++static void exercise_remaining_json_operations(void) {
++    FILE *stream = tmpfile();
++    if (stream == NULL) {
++        abort();
++    }
++    weave_json_writer writer;
++    weave_json_writer_init_mode(&writer, stream, 0);
++    if (!weave_json_array_begin(&writer) ||
++        !weave_json_int64(&writer, -1) ||
++        !weave_json_uint64(&writer, 2) ||
++        !weave_json_trusted_value(
++            &writer,
++            (const unsigned char *)"false",
++            5) ||
++        !weave_json_array_end(&writer) ||
++        !weave_json_writer_finish(&writer)) {
++        abort();
++    }
++    fclose(stream);
++}
++
++int main(int argc, char **argv) {
++    if (argc != 2) {
++        return 1;
++    }
++    exercise_remaining_json_operations();
++
++    const char *path = argv[1];
++    FILE *seed = fopen(path, "wb");
++    if (seed == NULL || fputs("old\n", seed) == EOF || fclose(seed) != 0) {
++        return 2;
++    }
++
++    char *sources[] = {"one.weave", "two\n.weave"};
++    if (weave_build_manifest_write(
++            path,
++            NULL,
++            "complete",
++            "x86_64-unknown-linux-gnu",
++            "/compiler/path",
++            "/runtime/path",
++            "clang",
++            "llc",
++            "clang",
++            "llvm-objdump",
++            "O3",
++            "native",
++            NULL,
++            "program",
++            sources,
++            2) == 0) {
++        return 3;
++    }
++    char *old = read_all(path);
++    if (old == NULL || strcmp(old, "old\n") != 0) {
++        free(old);
++        return 4;
++    }
++    free(old);
++
++    if (weave_build_manifest_write(
++            path,
++            "succeeded",
++            "complete",
++            "x86_64-unknown-linux-gnu",
++            "/compiler\"path",
++            "/runtime/path",
++            "clang",
++            "llc",
++            "clang",
++            "llvm-objdump",
++            "O3",
++            "native",
++            NULL,
++            "program",
++            sources,
++            2) != 0) {
++        return 5;
++    }
++    return 0;
++}
++C
++
++cc -std=c11 -Wall -Wextra -Werror \
++  -I"$ROOT/runtime" \
++  "$WORK/test.c" -o "$WORK/test"
++
++MANIFEST="$WORK/manifest.json"
++"$WORK/test" "$MANIFEST"
++python3 - <<'PY' "$MANIFEST"
++import json
++import sys
++
++with open(sys.argv[1], encoding="utf-8") as stream:
