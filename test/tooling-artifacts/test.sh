@@ -211,4 +211,27 @@ set -e
 grep -q 'driver.output-aliases-source' "$TMP/emit.json"
 grep -q '"phase": "driver"' "$TMP/emit-trace.json"
 
+diagnostics_directory="$TMP/diagnostics-directory"
+mkdir "$diagnostics_directory"
+diagnostics_program="$TMP/diagnostics-publication-program"
+set +e
+"$WEAVEC" build "$SOURCE" -o "$diagnostics_program" \
+  "${RUNTIME_ARGS[@]}" \
+  --diagnostics-json "$diagnostics_directory" \
+  >/dev/null 2>&1
+diagnostics_status=$?
+set -e
+[[ "$diagnostics_status" -eq 14 ]]
+[[ -x "$diagnostics_program" ]]
+[[ -d "$diagnostics_directory" ]]
+set +e
+"$diagnostics_program"
+program_status=$?
+set -e
+[[ "$program_status" -eq 42 ]]
+if compgen -G "$diagnostics_directory.tmp.*" >/dev/null; then
+  printf 'tooling-artifacts: diagnostics temporary file leaked\n' >&2
+  exit 1
+fi
+
 printf 'tooling-artifacts: passed\n'

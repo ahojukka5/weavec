@@ -50,6 +50,23 @@ Offsets are UTF-8 byte offsets with an exclusive end. Lines and columns are
 one-based. Columns count Unicode code points rather than UTF-8 continuation
 bytes.
 
+## Serialization and publication
+
+The compiler models diagnostics as a typed v1 document and serializes it through
+the shared checked JSON writer. Diagnostic classification and source-span
+inference remain separate from JSON syntax and filesystem publication.
+
+A requested diagnostics document is published transactionally through a sibling
+temporary file. Serialization, flush, `fsync`, close, and final rename are all
+checked. A failed publication removes the temporary file and leaves any previous
+diagnostics document unchanged.
+
+If compilation succeeds but the requested diagnostics document cannot be
+published, the executable remains available and `weavec build` returns stable
+publication code `14`. If compilation has already failed, its original stable
+phase code remains authoritative while the diagnostics publication error is
+reported on stderr.
+
 A successful build writes:
 
 ```json

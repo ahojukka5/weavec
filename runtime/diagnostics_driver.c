@@ -36,30 +36,6 @@ static void weave_diag_record_clear(weave_diag_record *record) {
     memset(record, 0, sizeof(*record));
 }
 
-static void weave_diag_json_string(FILE *stream, const char *value) {
-    if (value == NULL) {
-        fputs("null", stream);
-        return;
-    }
-    fputc('"', stream);
-    for (const unsigned char *p = (const unsigned char *)value; *p != '\0'; ++p) {
-        switch (*p) {
-            case '\\': fputs("\\\\", stream); break;
-            case '"': fputs("\\\"", stream); break;
-            case '\n': fputs("\\n", stream); break;
-            case '\r': fputs("\\r", stream); break;
-            case '\t': fputs("\\t", stream); break;
-            default:
-                if (*p < 0x20) {
-                    fprintf(stream, "\\u%04x", (unsigned int)*p);
-                } else {
-                    fputc(*p, stream);
-                }
-        }
-    }
-    fputc('"', stream);
-}
-
 static void weave_diag_position(
     const unsigned char *data,
     size_t length,
@@ -518,72 +494,7 @@ static void weave_diag_read_manifest_phase(
     free(data);
 }
 
-static void weave_diag_write_result(
-    const char *path,
-    const char *status,
-    const char *phase,
-    int stable_exit_code,
-    int raw_exit_code,
-    const weave_diag_record *record) {
-    if (path == NULL) {
-        return;
-    }
-    FILE *stream = fopen(path, "w");
-    if (stream == NULL) {
-        fprintf(stderr, "weavec: cannot write diagnostics %s: %s\n", path, strerror(errno));
-        return;
-    }
-    fputs("{\n  \"format\": \"weavec-diagnostics-v1\",\n  \"status\": ", stream);
-    weave_diag_json_string(stream, status);
-    fputs(",\n  \"phase\": ", stream);
-    weave_diag_json_string(stream, phase);
-    fprintf(stream, ",\n  \"exit_code\": %d,\n  \"raw_exit_code\": %d,\n", stable_exit_code, raw_exit_code);
-    fputs("  \"diagnostics\": [", stream);
-    if (record != NULL && record->code != NULL) {
-        size_t start_line = 0, start_column = 0, end_line = 0, end_column = 0;
-        unsigned char *source_data = NULL;
-        size_t source_length = 0;
-        if (record->has_span && record->source != NULL) {
-            source_data = weave_diag_read_file(record->source, &source_length);
-            if (source_data != NULL) {
-                weave_diag_position(
-                    source_data, source_length, record->start_byte,
-                    &start_line, &start_column);
-                weave_diag_position(
-                    source_data, source_length, record->end_byte,
-                    &end_line, &end_column);
-            }
-        }
-        fputs("\n    {\n      \"code\": ", stream);
-        weave_diag_json_string(stream, record->code);
-        fputs(",\n      \"severity\": ", stream);
-        weave_diag_json_string(stream, record->severity != NULL ? record->severity : "error");
-        fputs(",\n      \"phase\": ", stream);
-        weave_diag_json_string(stream, record->phase != NULL ? record->phase : phase);
-        fputs(",\n      \"message\": ", stream);
-        weave_diag_json_string(stream, record->message != NULL ? record->message : "compiler failed");
-        fputs(",\n      \"source\": ", stream);
-        weave_diag_json_string(stream, record->source);
-        fputs(",\n      \"span_origin\": ", stream);
-        weave_diag_json_string(stream, record->span_origin != NULL ? record->span_origin : "none");
-        fputs(",\n      \"span\": ", stream);
-        if (record->has_span && source_data != NULL) {
-            fprintf(
-                stream,
-                "{\"start_byte\": %zu, \"end_byte\": %zu, "
-                "\"start_line\": %zu, \"start_column\": %zu, "
-                "\"end_line\": %zu, \"end_column\": %zu}",
-                record->start_byte, record->end_byte,
-                start_line, start_column, end_line, end_column);
-        } else {
-            fputs("null", stream);
-        }
-        fputs("\n    }\n  ", stream);
-        free(source_data);
-    }
-    fputs("]\n}\n", stream);
-    fclose(stream);
-}
+#include "diagnostics_json.c"
 
 static char *weave_diag_read_text(const char *path) {
     size_t length = 0;
@@ -847,13 +758,16 @@ int weave_rt_build_main(int argc, char **argv) {
         weave_diag_classify_compiler_error(
             phase, stderr_text, sources, source_count, &record);
     }
-    weave_diag_write_result(
+    int diagnostics_failed = weave_diag_write_result(
         diagnostics_path,
         raw_exit_code == 0 ? "succeeded" : "failed",
         phase,
         stable_exit_code,
         raw_exit_code,
         raw_exit_code == 0 ? NULL : &record);
+    if (raw_exit_code == 0 && diagnostics_failed != 0) {
+        stable_exit_code = WEAVEC_EXIT_PUBLISH;
+    }
 
     weave_diag_record_clear(&record);
     free(stderr_text);
