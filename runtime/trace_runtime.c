@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Private event transport for weavec-compilation-trace-v1.
-//
-// The self-hosted frontend calls these helpers only at real lowering and
-// optimization sites. The child frontend appends deterministic JSON objects to
-// a private event stream; build_driver.c wraps them in the public trace document.
+// Private event transport and public weavec-compilation-trace-v1 serializer.
+// Both event records and the final document use the shared checked JSON writer.
 
 #ifndef WEAVEC_TRACE_EVENTS_ENV
 #define WEAVEC_TRACE_EVENTS_ENV "WEAVEC_INTERNAL_TRACE_EVENTS"
@@ -12,38 +9,6 @@
 
 static int64_t weave_trace_source_index = -1;
 static const char *weave_trace_source_path = NULL;
-
-static void weave_trace_json_bytes(
-    FILE *stream,
-    const unsigned char *data,
-    size_t length) {
-    fputc('"', stream);
-    for (size_t i = 0; i < length; ++i) {
-        unsigned char ch = data[i];
-        switch (ch) {
-            case '\\': fputs("\\\\", stream); break;
-            case '"': fputs("\\\"", stream); break;
-            case '\n': fputs("\\n", stream); break;
-            case '\r': fputs("\\r", stream); break;
-            case '\t': fputs("\\t", stream); break;
-            default:
-                if (ch < 0x20) {
-                    fprintf(stream, "\\u%04x", (unsigned int)ch);
-                } else {
-                    fputc(ch, stream);
-                }
-        }
-    }
-    fputc('"', stream);
-}
-
-static void weave_trace_json_cstr(FILE *stream, const char *value) {
-    const char *safe = value != NULL ? value : "";
-    weave_trace_json_bytes(
-        stream,
-        (const unsigned char *)safe,
-        strlen(safe));
-}
 
 void weave_rt_trace_set_source(int64_t source_index, const char *source_path) {
     weave_trace_source_index = source_index;
@@ -74,35 +39,127 @@ void weave_rt_trace_event(
     size_t span_end = weave_source_form_end(
         source, span_start, (size_t)length);
 
-    fputs("{\"kind\":", stream);
-    weave_trace_json_cstr(stream, kind);
-    fputs(",\"pass\":", stream);
-    weave_trace_json_cstr(stream, pass);
-    fputs(",\"action\":", stream);
-    weave_trace_json_cstr(stream, action);
-    fprintf(stream, ",\"source_index\":%lld,\"source\":",
-            (long long)weave_trace_source_index);
-    weave_trace_json_cstr(stream, weave_trace_source_path);
-    fprintf(stream,
-            ",\"span\":{\"start_byte\":%lld,\"end_byte\":%lld},"
-            "\"surface\":",
-            (long long)span_start,
-            (long long)span_end);
-    weave_trace_json_bytes(
-        stream,
-        (const unsigned char *)source + span_start,
-        span_end - span_start);
-    fputs(",\"detail\":", stream);
-    if (detail_start >= 0 && detail_length >= 0) {
-        weave_trace_json_bytes(
-            stream,
-            (const unsigned char *)source + detail_start,
-            (size_t)detail_length);
-    } else {
-        fputs("null", stream);
+    weave_json_writer writer;
+    weave_json_writer_init_mode(&writer, stream, 0);
+    int ok =
+        weave_json_object_begin(&writer) &&
+        weave_json_key(&writer, "kind") &&
+        weave_json_string(&writer, kind != NULL ? kind : "") &&
+        weave_json_key(&writer, "pass") &&
+        weave_json_string(&writer, pass != NULL ? pass : "") &&
+        weave_json_key(&writer, "action") &&
+        weave_json_string(&writer, action != NULL ? action : "") &&
+        weave_json_key(&writer, "source_index") &&
+        weave_json_int64(&writer, weave_trace_source_index) &&
+        weave_json_key(&writer, "source") &&
+        weave_json_string(
+            &writer,
+            weave_trace_source_path != NULL ? weave_trace_source_path : "") &&
+        weave_json_key(&writer, "span") &&
+        weave_json_object_begin(&writer) &&
+        weave_json_key(&writer, "start_byte") &&
+        weave_json_uint64(&writer, (uint64_t)span_start) &&
+        weave_json_key(&writer, "end_byte") &&
+        weave_json_uint64(&writer, (uint64_t)span_end) &&
+        weave_json_object_end(&writer) &&
+        weave_json_key(&writer, "surface") &&
+        weave_json_string_bytes(
+            &writer,
+            (const unsigned char *)source + span_start,
+            span_end - span_start) &&
+        weave_json_key(&writer, "detail");
+    if (ok) {
+        if (detail_start >= 0 && detail_length >= 0) {
+            ok = weave_json_string_bytes(
+                &writer,
+                (const unsigned char *)source + (size_t)detail_start,
+                (size_t)detail_length);
+        } else {
+            ok = weave_json_null(&writer);
+        }
     }
-    fputs("}\n", stream);
-    fclose(stream);
+    ok = ok &&
+        weave_json_object_end(&writer) &&
+        weave_json_writer_finish(&writer);
+    if (!ok || fclose(stream) != 0) {
+        return;
+    }
+}
+
+typedef struct weave_trace_document {
+    const char *status;
+    const char *phase;
+    char **sources;
+    int source_count;
+    const char *events_path;
+} weave_trace_document;
+
+static int weave_trace_serialize_document(
+    weave_json_writer *writer,
+    const void *opaque) {
+    const weave_trace_document *document = opaque;
+    if (!weave_json_object_begin(writer) ||
+        !weave_json_key(writer, "format") ||
+        !weave_json_string(writer, "weavec-compilation-trace-v1") ||
+        !weave_json_key(writer, "status") ||
+        !weave_json_string(writer, document->status) ||
+        !weave_json_key(writer, "phase") ||
+        !weave_json_string(writer, document->phase) ||
+        !weave_json_key(writer, "sources") ||
+        !weave_json_array_begin(writer)) {
+        return 1;
+    }
+    for (int i = 0; i < document->source_count; ++i) {
+        if (!weave_json_string(writer, document->sources[i])) {
+            return 1;
+        }
+    }
+    if (!weave_json_array_end(writer) ||
+        !weave_json_key(writer, "events") ||
+        !weave_json_array_begin(writer)) {
+        return 1;
+    }
+
+    FILE *events = NULL;
+    if (document->events_path != NULL) {
+        events = fopen(document->events_path, "r");
+        if (events == NULL && errno != ENOENT) {
+            return 1;
+        }
+    }
+    if (events != NULL) {
+        char *line = NULL;
+        size_t capacity = 0;
+        ssize_t length;
+        while ((length = getline(&line, &capacity, events)) >= 0) {
+            while (length > 0 &&
+                   (line[length - 1] == '\n' ||
+                    line[length - 1] == '\r')) {
+                --length;
+            }
+            if (length != 0 && !weave_json_trusted_value(
+                    writer,
+                    (const unsigned char *)line,
+                    (size_t)length)) {
+                free(line);
+                fclose(events);
+                return 1;
+            }
+        }
+        int failed = ferror(events);
+        free(line);
+        if (fclose(events) != 0) {
+            failed = 1;
+        }
+        if (failed) {
+            return 1;
+        }
+    }
+
+    return weave_json_array_end(writer) &&
+        weave_json_object_end(writer)
+        ? 0
+        : 1;
 }
 
 static int weave_trace_write_document(
@@ -115,63 +172,16 @@ static int weave_trace_write_document(
     if (path == NULL) {
         return 0;
     }
-
-    FILE *output = fopen(path, "w");
-    if (output == NULL) {
-        fprintf(stderr, "weavec: cannot write trace %s: %s\n",
-                path, strerror(errno));
-        return 1;
-    }
-
-    fputs("{\n  \"format\": \"weavec-compilation-trace-v1\",\n", output);
-    fputs("  \"status\": ", output);
-    weave_trace_json_cstr(output, status);
-    fputs(",\n  \"phase\": ", output);
-    weave_trace_json_cstr(output, phase);
-    fputs(",\n  \"sources\": [", output);
-    for (int i = 0; i < source_count; ++i) {
-        if (i != 0) {
-            fputs(", ", output);
-        }
-        weave_trace_json_cstr(output, sources[i]);
-    }
-    fputs("],\n  \"events\": [", output);
-
-    FILE *events = events_path != NULL ? fopen(events_path, "r") : NULL;
-    if (events != NULL) {
-        char *line = NULL;
-        size_t capacity = 0;
-        ssize_t length;
-        int first = 1;
-        while ((length = getline(&line, &capacity, events)) >= 0) {
-            while (length > 0 &&
-                   (line[length - 1] == '\n' || line[length - 1] == '\r')) {
-                line[--length] = '\0';
-            }
-            if (length == 0) {
-                continue;
-            }
-            fputs(first ? "\n    " : ",\n    ", output);
-            fwrite(line, 1, (size_t)length, output);
-            first = 0;
-        }
-        free(line);
-        fclose(events);
-        if (!first) {
-            fputs("\n  ", output);
-        }
-    }
-    fputs("]\n}\n", output);
-
-    int failed = ferror(output);
-    if (fclose(output) != 0) {
-        failed = 1;
-    }
-    if (failed) {
-        fprintf(stderr, "weavec: cannot finish trace %s: %s\n",
-                path, strerror(errno));
-        unlink(path);
-        return 1;
-    }
-    return 0;
+    weave_trace_document document = {
+        .status = status,
+        .phase = phase,
+        .sources = sources,
+        .source_count = source_count,
+        .events_path = events_path,
+    };
+    return weave_publish_json_document(
+        path,
+        "trace document",
+        weave_trace_serialize_document,
+        &document);
 }
