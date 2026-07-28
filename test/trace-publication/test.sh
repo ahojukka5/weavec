@@ -122,7 +122,7 @@ assert document["phase"] == "complete"
 assert document["sources"] == ["source.weave"]
 assert len(document["events"]) == 1
 assert document["events"][0]["source"] == "source.weave"
-assert document["events"][0]["detail"] == '"a\\n'
+assert document["events"][0]["detail"] == '"a\\nb"'
 PY
 
 printf 'trace-publication: checked event and document serialization passed\n'
