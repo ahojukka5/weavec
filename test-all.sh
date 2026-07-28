@@ -20,6 +20,9 @@ bash "$ROOT/test/selfhost-link-policy/test.sh"
 log 'JSON publication'
 bash "$ROOT/test/json-publication/test.sh"
 
+log 'trace publication'
+bash "$ROOT/test/trace-publication/test.sh"
+
 log 'build'
 "$ROOT/build.sh"
 
