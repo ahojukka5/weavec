@@ -13,14 +13,26 @@ fail() {
 
 weavec_load_compiler_sources "$ROOT"
 [[ "${#WEAVEC_COMPILER_SOURCES[@]}" -gt 0 ]] || \
-  fail 'canonical manifest produced no compiler sources'
+  fail 'canonical manifest produced no linked compiler sources'
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 printf '%s\n' "${WEAVEC_COMPILER_SOURCES[@]}" > "$WORK/loaded.list"
-grep -Ev '^(#|$)' "$ROOT/compiler/sources.list" > "$WORK/declared.list"
+grep -Ev '^(#|$|!)' "$ROOT/compiler/sources.list" > "$WORK/declared.list"
 diff -u "$WORK/declared.list" "$WORK/loaded.list" || \
   fail 'loader changed canonical source ordering'
+
+{
+  printf '%s\n' "${WEAVEC_COMPILER_SOURCES[@]}"
+  if [[ "${#WEAVEC_NONLINKED_SOURCES[@]}" -gt 0 ]]; then
+    printf '%s\n' "${WEAVEC_NONLINKED_SOURCES[@]}"
+  fi
+} | LC_ALL=C sort > "$WORK/classified.list"
+find "$ROOT/src" -type f -name '*.weave' -print |
+  sed "s#^$ROOT/##" |
+  LC_ALL=C sort > "$WORK/discovered.list"
+diff -u "$WORK/discovered.list" "$WORK/classified.list" || \
+  fail 'src/*.weave files are not completely classified by compiler/sources.list'
 
 for consumer in \
   "$ROOT/build.sh" \
@@ -43,8 +55,9 @@ expect_rejected() {
   fi
 }
 
-expect_rejected duplicate $'src/core/extern.weave\nsrc/core/extern.weave'
+expect_rejected duplicate $'src/core/extern.weave\n!src/core/extern.weave'
 expect_rejected absolute '/tmp/source.weave'
+expect_rejected excluded_absolute '!/tmp/source.weave'
 expect_rejected traversal 'src/core/../main.weave'
 expect_rejected missing 'src/core/not-present.weave'
 expect_rejected whitespace 'src/core/extern.weave '
