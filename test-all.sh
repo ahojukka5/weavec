@@ -17,6 +17,9 @@ log 'build boundary'
 log 'self-host link policy'
 bash "$ROOT/test/selfhost-link-policy/test.sh"
 
+log 'JSON publication'
+bash "$ROOT/test/json-publication/test.sh"
+
 log 'build'
 "$ROOT/build.sh"
 
