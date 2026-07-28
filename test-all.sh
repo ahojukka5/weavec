@@ -24,48 +24,48 @@ log 'trace publication'
 bash "$ROOT/test/trace-publication/test.sh"
 
 log 'build'
-"$ROOT/build.sh"
+bash "$ROOT/build.sh"
 
 log 'compiler version'
 bash "$ROOT/test/version/test.sh"
 
 log 'correctness'
-"$ROOT/test.sh"
+bash "$ROOT/test.sh"
 
 log 'diagnostics'
-"$ROOT/test/diagnostics/test-build-diagnostics.sh"
+bash "$ROOT/test/diagnostics/test-build-diagnostics.sh"
 
 log 'performance'
-"$ROOT/test/performance/test.sh"
+bash "$ROOT/test/performance/test.sh"
 
 log 'LLVM structural quality'
-"$ROOT/scripts/check-llvm-quality.sh"
+bash "$ROOT/scripts/check-llvm-quality.sh"
 
 log 'quantum'
-"$ROOT/test/quantum/test.sh"
+bash "$ROOT/test/quantum/test.sh"
 
 log 'quantum-e2e'
-"$ROOT/test/quantum/test-e2e.sh"
+bash "$ROOT/test/quantum/test-e2e.sh"
 
 log 'quantum-llvm'
-"$ROOT/test/quantum/test-llvm.sh"
+bash "$ROOT/test/quantum/test-llvm.sh"
 
 log 'trace-registry'
-"$ROOT/scripts/check-trace-registry.sh"
+bash "$ROOT/scripts/check-trace-registry.sh"
 
 log 'compilation-trace'
-"$ROOT/test/trace/test.sh"
+bash "$ROOT/test/trace/test.sh"
 
 log 'LLVM provenance'
-"$ROOT/test/llvm-provenance/test.sh"
+bash "$ROOT/test/llvm-provenance/test.sh"
 
 log 'tooling artifacts'
-"$ROOT/test/tooling-artifacts/test.sh"
+bash "$ROOT/test/tooling-artifacts/test.sh"
 
 log 'optimization evidence'
-"$ROOT/test/optimization-evidence/test.sh"
+bash "$ROOT/test/optimization-evidence/test.sh"
 
 log 'self-host'
-"$ROOT/test/selfhost/test.sh"
+bash "$ROOT/test/selfhost/test.sh"
 
 log 'all weavec checks passed'
