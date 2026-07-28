@@ -10,9 +10,10 @@ weavec_compiler_sources_error() {
 weavec_load_compiler_sources() {
   local root="$1"
   local manifest="${2:-$root/compiler/sources.list}"
-  local line line_number=0 existing
+  local line line_number=0 path classification seen=$'\n'
 
   WEAVEC_COMPILER_SOURCES=()
+  WEAVEC_NONLINKED_SOURCES=()
 
   [[ -f "$manifest" ]] || {
     weavec_compiler_sources_error "manifest not found: $manifest"
@@ -32,7 +33,16 @@ weavec_load_compiler_sources() {
       return 1
     fi
 
+    classification=linked
+    path="$line"
     case "$line" in
+      !*)
+        classification=nonlinked
+        path="${line#!}"
+        ;;
+    esac
+
+    case "$path" in
       src/*.weave) ;;
       *)
         weavec_compiler_sources_error \
@@ -41,7 +51,7 @@ weavec_load_compiler_sources() {
         ;;
     esac
 
-    case "/$line/" in
+    case "/$path/" in
       *'/../'*|*'/./'*|*'//'*)
         weavec_compiler_sources_error \
           "$manifest:$line_number: non-canonical source path: $line"
@@ -49,30 +59,35 @@ weavec_load_compiler_sources() {
         ;;
     esac
 
-    for existing in "${WEAVEC_COMPILER_SOURCES[@]}"; do
-      if [[ "$existing" == "$line" ]]; then
+    case "$seen" in
+      *$'\n'"$path"$'\n'*)
         weavec_compiler_sources_error \
-          "$manifest:$line_number: duplicate source entry: $line"
+          "$manifest:$line_number: duplicate source entry: $path"
         return 1
-      fi
-    done
+        ;;
+    esac
+    seen+="$path"$'\n'
 
-    [[ -f "$root/$line" ]] || {
+    [[ -f "$root/$path" ]] || {
       weavec_compiler_sources_error \
-        "$manifest:$line_number: source does not exist: $line"
+        "$manifest:$line_number: source does not exist: $path"
       return 1
     }
-    [[ ! -L "$root/$line" ]] || {
+    [[ ! -L "$root/$path" ]] || {
       weavec_compiler_sources_error \
-        "$manifest:$line_number: compiler sources must not be symbolic links: $line"
+        "$manifest:$line_number: compiler sources must not be symbolic links: $path"
       return 1
     }
 
-    WEAVEC_COMPILER_SOURCES+=("$line")
+    if [[ "$classification" == linked ]]; then
+      WEAVEC_COMPILER_SOURCES+=("$path")
+    else
+      WEAVEC_NONLINKED_SOURCES+=("$path")
+    fi
   done < "$manifest"
 
   if [[ "${#WEAVEC_COMPILER_SOURCES[@]}" -eq 0 ]]; then
-    weavec_compiler_sources_error "$manifest: no compiler sources declared"
+    weavec_compiler_sources_error "$manifest: no linked compiler sources declared"
     return 1
   fi
 }

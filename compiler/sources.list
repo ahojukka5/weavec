@@ -28,3 +28,9 @@ src/llvm/stmt.weave
 src/llvm/fn.weave
 src/llvm/module.weave
 src/main.weave
+
+# Source-maintained reference/declarative modules that are intentionally not
+# linked into the current compiler binary. The leading ! makes exclusion
+# explicit so every src/*.weave file is classified by this manifest.
+!src/frontend/quantum_typecheck.weave
+!src/frontend/targets/rigetti-nativize.weave
