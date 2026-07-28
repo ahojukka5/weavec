@@ -2,8 +2,8 @@
 name: runtime-source-export
 
 on:
-  push:
-    branches: [agent/typed-build-manifest]
+  pull_request:
+    branches: [master]
 
 permissions:
   contents: read
