@@ -28,6 +28,7 @@ typedef struct weave_json_writer {
     weave_json_context stack[WEAVE_JSON_MAX_DEPTH];
     size_t depth;
     int root_written;
+    int pretty;
     int failed;
 } weave_json_writer;
 
@@ -67,6 +68,9 @@ static int weave_json_write_char(weave_json_writer *writer, int value) {
 }
 
 static int weave_json_indent(weave_json_writer *writer, size_t depth) {
+    if (!writer->pretty) {
+        return 1;
+    }
     if (!weave_json_write_char(writer, '\n')) {
         return 0;
     }
@@ -159,14 +163,22 @@ static int weave_json_write_quoted_bytes(
     return weave_json_write_char(writer, '"');
 }
 
-static void weave_json_writer_init(
+static void weave_json_writer_init_mode(
     weave_json_writer *writer,
-    FILE *stream) {
+    FILE *stream,
+    int pretty) {
     memset(writer, 0, sizeof(*writer));
     writer->stream = stream;
+    writer->pretty = pretty ? 1 : 0;
     if (stream == NULL) {
         writer->failed = 1;
     }
+}
+
+static void weave_json_writer_init(
+    weave_json_writer *writer,
+    FILE *stream) {
+    weave_json_writer_init_mode(writer, stream, 1);
 }
 
 static int weave_json_key(
@@ -189,7 +201,7 @@ static int weave_json_key(
             writer,
             (const unsigned char *)key,
             strlen(key)) ||
-        !weave_json_write_cstr(writer, ": ")) {
+        !weave_json_write_cstr(writer, writer->pretty ? ": " : ":")) {
         return 0;
     }
     context->key_pending = 1;
