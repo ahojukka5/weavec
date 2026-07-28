@@ -139,5 +139,8 @@ static int weave_trace_write_document(
 #define weave_rt_build_main weave_rt_build_main_diagnostics_legacy
 #include "diagnostics_driver.c"
 #undef weave_rt_build_main
+#define weave_rt_build_main weave_rt_build_main_source_locations_legacy
 #include "source_locations.c"
+#undef weave_rt_build_main
 #include "trace_runtime.c"
+#include "path_safety.c"
