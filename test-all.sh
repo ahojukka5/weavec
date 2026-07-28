@@ -20,6 +20,9 @@ bash "$ROOT/test/version/test.sh"
 log 'correctness'
 "$ROOT/test.sh"
 
+log 'diagnostics'
+"$ROOT/test/diagnostics/test-build-diagnostics.sh"
+
 log 'performance'
 "$ROOT/test/performance/test.sh"
 
@@ -43,6 +46,9 @@ log 'compilation-trace'
 
 log 'LLVM provenance'
 "$ROOT/test/llvm-provenance/test.sh"
+
+log 'tooling artifacts'
+"$ROOT/test/tooling-artifacts/test.sh"
 
 log 'optimization evidence'
 "$ROOT/test/optimization-evidence/test.sh"
