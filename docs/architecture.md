@@ -94,8 +94,15 @@ does not replace an existing output.
 
 ## Source layers
 
-The deterministic compiler source order is declared identically in `build.sh`
-and `selfhost.sh`. Source ordering is part of the bootstrap contract.
+The deterministic compiler source order is declared once in
+`compiler/sources.list`. `build.sh`, `selfhost.sh`, and bootstrap-stack
+qualification all load and validate that same manifest. Source ordering is part
+of the bootstrap contract; entries must be canonical relative `src/*.weave`
+paths, unique, present, and non-symlinked.
+
+Other `.weave` files under `src/` may be reference implementations or
+optional target modules. They are not compiler inputs unless explicitly added
+to the canonical manifest.
 
 ### Core support
 
@@ -243,7 +250,8 @@ fallback must be built.
 
 ## Self-host generations
 
-`./selfhost.sh` starts from `build/weavec` and builds two further generations:
+`./selfhost.sh` starts from `build/weavec` and builds two further generations
+from the same canonical ordered compiler source manifest:
 
 ```text
 bootstrap-built seed
@@ -257,12 +265,24 @@ build/selfhost/stage2/weavec
 
 Each stage uses the self-hosted frontend to emit WIR core version 2, uses the
 self-hosted backend to emit LLVM, builds the parser runtime modules, links the
-compiler, and must pass a frontend smoke before publication.
-Stage 2 then compiles representative surface fixtures and reproduces their
-expected WIR and native behavior.
+compiler exactly once, and must pass version and frontend smoke validation before
+publication.
 
-Deep self-hosting is a permanent CI and release gate, not merely an optional
-local experiment.
+After both generations exist, self-host qualification verifies a fixed point:
+
+- normalized stage-1 and stage-2 compiler WIR must match;
+- normalized compiler and parser-runtime LLVM must match;
+- exported defined symbol sets must match independently of linked addresses;
+- normalized hashes, LLVM structure summaries, symbol sets, and unified diffs are
+  retained under `build/selfhost/fixed-point` when any comparison fails.
+
+The stage-2 compiler then runs the full correctness suite plus the diagnostics,
+compilation-trace, and tooling-artifact protocol suites. Those tests use the
+stage-2 binary directly and isolate their generated correctness artifacts under
+`build/selfhost/stage2-tests`.
+
+Deep self-hosting is a release and manual qualification gate, not merely an
+optional experiment.
 
 ## Verification model
 
@@ -276,11 +296,13 @@ local experiment.
 6. quantum LLVM checks;
 7. compilation-trace registry drift audit;
 8. source-linked compilation-trace protocol tests;
-9. basic self-host integration tests.
+9. compiler-source manifest and fixed-point verifier regressions;
+10. basic self-host integration tests.
 
-CI executes this ladder with Linux glibc SDKs, Linux musl SDKs, and the macOS
-source fallback. A separate deep-selfhost job verifies two self-hosted compiler
-generations.
+Platform automation may execute this ladder, but the repository contract does
+not depend on hosted CI availability. `./selfhost.sh` itself verifies two
+self-hosted compiler generations, their fixed point, and stage-2 protocol
+behavior so the same qualification can be run locally.
 
 The release workflow additionally:
 
