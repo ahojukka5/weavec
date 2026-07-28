@@ -116,4 +116,99 @@ set -e
 [[ ! -e "$TMP/conflict" ]]
 grep -q 'driver.conflicting-output-paths' "$TMP/conflict.json"
 
+protected_source="$TMP/protected.weave"
+cp "$SOURCE" "$protected_source"
+protected_contents="$(cat "$protected_source")"
+set +e
+"$WEAVEC" build "$protected_source" -o "$protected_source" \
+  "${RUNTIME_ARGS[@]}" \
+  --diagnostics-json "$TMP/protected.json" \
+  >/dev/null 2>&1
+status=$?
+set -e
+[[ "$status" -eq 2 ]]
+[[ "$(cat "$protected_source")" == "$protected_contents" ]]
+grep -q 'driver.output-aliases-source' "$TMP/protected.json"
+
+mkdir -p "$TMP/relative"
+relative_source="$TMP/relative/source.weave"
+cp "$SOURCE" "$relative_source"
+relative_contents="$(cat "$relative_source")"
+set +e
+"$WEAVEC" build "$relative_source" -o "$TMP/relative/./source.weave" \
+  "${RUNTIME_ARGS[@]}" \
+  --diagnostics-json "$TMP/relative.json" \
+  >/dev/null 2>&1
+status=$?
+set -e
+[[ "$status" -eq 2 ]]
+[[ "$(cat "$relative_source")" == "$relative_contents" ]]
+grep -q 'driver.output-aliases-source' "$TMP/relative.json"
+
+hardlink_source="$TMP/hardlink-source.weave"
+hardlink_output="$TMP/hardlink-output"
+cp "$SOURCE" "$hardlink_source"
+ln "$hardlink_source" "$hardlink_output"
+hardlink_contents="$(cat "$hardlink_source")"
+set +e
+"$WEAVEC" build "$hardlink_source" -o "$hardlink_output" \
+  "${RUNTIME_ARGS[@]}" \
+  --diagnostics-json "$TMP/hardlink.json" \
+  >/dev/null 2>&1
+status=$?
+set -e
+[[ "$status" -eq 2 ]]
+[[ "$(cat "$hardlink_source")" == "$hardlink_contents" ]]
+[[ "$hardlink_source" -ef "$hardlink_output" ]]
+grep -q 'driver.output-aliases-source' "$TMP/hardlink.json"
+
+symlink_source="$TMP/symlink-source.weave"
+symlink_output="$TMP/symlink-output"
+cp "$SOURCE" "$symlink_source"
+ln -s "$symlink_source" "$symlink_output"
+symlink_contents="$(cat "$symlink_source")"
+set +e
+"$WEAVEC" build "$symlink_source" -o "$symlink_output" \
+  "${RUNTIME_ARGS[@]}" \
+  --diagnostics-json "$TMP/symlink.json" \
+  >/dev/null 2>&1
+status=$?
+set -e
+[[ "$status" -eq 2 ]]
+[[ "$(cat "$symlink_source")" == "$symlink_contents" ]]
+[[ -L "$symlink_output" ]]
+grep -q 'driver.output-aliases-source' "$TMP/symlink.json"
+
+diagnostics_source="$TMP/diagnostics-source.weave"
+cp "$SOURCE" "$diagnostics_source"
+diagnostics_contents="$(cat "$diagnostics_source")"
+set +e
+"$WEAVEC" build "$diagnostics_source" -o "$TMP/diagnostics-program" \
+  "${RUNTIME_ARGS[@]}" \
+  --diagnostics-json "$diagnostics_source" \
+  >/dev/null 2>&1
+status=$?
+set -e
+[[ "$status" -eq 2 ]]
+[[ "$(cat "$diagnostics_source")" == "$diagnostics_contents" ]]
+[[ ! -e "$TMP/diagnostics-program" ]]
+
+emit_source="$TMP/emit-source.weave"
+cp "$SOURCE" "$emit_source"
+emit_contents="$(cat "$emit_source")"
+set +e
+"$WEAVEC" build "$emit_source" -o "$TMP/emit-program" \
+  "${RUNTIME_ARGS[@]}" \
+  --emit-wir "$emit_source" \
+  --trace-json "$TMP/emit-trace.json" \
+  --diagnostics-json "$TMP/emit.json" \
+  >/dev/null 2>&1
+status=$?
+set -e
+[[ "$status" -eq 2 ]]
+[[ "$(cat "$emit_source")" == "$emit_contents" ]]
+[[ ! -e "$TMP/emit-program" ]]
+grep -q 'driver.output-aliases-source' "$TMP/emit.json"
+grep -q '"phase": "driver"' "$TMP/emit-trace.json"
+
 printf 'tooling-artifacts: passed\n'
