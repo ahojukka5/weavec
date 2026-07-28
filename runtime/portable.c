@@ -121,6 +121,8 @@ static char *weave_rt_mkdtemp(char *path_template) {
 #define WEAVEC_LLVM_PROVENANCE_ENV "WEAVEC_INTERNAL_LLVM_PROVENANCE"
 #endif
 
+#include "json_writer.c"
+#include "document_publish.c"
 
 static int weave_trace_write_document(
     const char *path,
