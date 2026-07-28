@@ -34,6 +34,8 @@ DOWNLOAD_DIR="$BUILD_DIR/downloads"
 
 # shellcheck source=scripts/weavec-version.sh
 source "$WEAVEC_DIR/scripts/weavec-version.sh"
+# shellcheck source=scripts/compiler-sources.sh
+source "$WEAVEC_DIR/scripts/compiler-sources.sh"
 WEAVEC_VERSION="$(weavec_version_string "$WEAVEC_DIR")"
 
 WEAVEC0_TAG="${WEAVEC0_TAG:-v0.4.0}"
@@ -332,32 +334,8 @@ ensure_weavec_bootstrap() {
 }
 
 # Source ordering is part of the deterministic bootstrap contract.
-SOURCES=(
-  src/core/extern.weave
-  src/core/io.weave
-  src/core/util.weave
-  src/core/trace_registry.weave
-  src/frontend/quantum_optimize.weave
-  src/frontend/quantum_nativize.weave
-  src/frontend/quantum_stats.weave
-  src/frontend/emit.weave
-  src/frontend/contract-lower.weave
-  src/frontend/struct.weave
-  src/frontend/lower.weave
-  src/frontend/driver.weave
-  src/frontend/explain-audit.weave
-  src/frontend/contract-effects.weave
-  src/frontend/audit-report.weave
-  src/llvm/ctx.weave
-  src/llvm/types.weave
-  src/llvm/locals.weave
-  src/llvm/strings.weave
-  src/llvm/expr.weave
-  src/llvm/stmt.weave
-  src/llvm/fn.weave
-  src/llvm/module.weave
-  src/main.weave
-)
+weavec_load_compiler_sources "$WEAVEC_DIR"
+SOURCES=("${WEAVEC_COMPILER_SOURCES[@]}")
 
 build_weavec() {
   mkdir -p "$BUILD_DIR"

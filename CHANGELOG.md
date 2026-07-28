@@ -32,6 +32,10 @@ surface-language contract stabilises.
 - An explicit LLVM optimization and native-code evidence pipeline with portable
   `O2` defaults, `O3`/native profiles, optimized LLVM, assembly, optimization
   records, final executable disassembly, and phase-scoped publication.
+- A canonical validated compiler source manifest consumed by bootstrap, self-host,
+  and bootstrap-stack qualification.
+- Stage-1/stage-2 fixed-point evidence with normalized hashes, LLVM structure
+  summaries, exported symbol sets, and retained mismatch diffs.
 
 ### Changed
 
@@ -45,6 +49,9 @@ surface-language contract stabilises.
 - Made requested diagnostics publication transactional and failure-propagating:
   successful builds return publication code `14` when the document cannot be
   published, while failed builds retain their original stable phase code.
+- Expanded deep self-host qualification from three representative fixtures to a
+  fixed-point comparison plus the complete correctness, diagnostics, trace, and
+  tooling-artifact suites executed by the stage-2 compiler.
 - Replaced the 1,529-line custom loop-phi and branch-merge subsystem with
   uniform mutable stack lowering after a 168-fixture A/B test found identical
   optimized LLVM structure, equal behavior, and no systematic native-code or

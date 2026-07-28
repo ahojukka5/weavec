@@ -12,6 +12,8 @@ VERSION_BC="$BUILD_DIR/weavec-version.bc"
 
 # shellcheck source=scripts/weavec-version.sh
 source "$ROOT/scripts/weavec-version.sh"
+# shellcheck source=scripts/compiler-sources.sh
+source "$ROOT/scripts/compiler-sources.sh"
 WEAVEC_VERSION="$(weavec_version_string "$ROOT")"
 
 log() { printf '[weavec-selfhost] %s\n' "$*"; }
@@ -24,6 +26,7 @@ require_tool() {
 [[ -x "$SEED" ]] || fail "seed compiler not found at $SEED; run ./build.sh first"
 require_tool llvm-link
 require_tool llvm-as
+require_tool llvm-nm
 require_tool clang
 
 chmod -R u+rw "$BUILD_DIR" 2>/dev/null || true
@@ -31,33 +34,12 @@ mkdir -p "$BUILD_DIR"
 weavec_write_version_llvm "$WEAVEC_VERSION" "$VERSION_LL"
 llvm-as "$VERSION_LL" -o "$VERSION_BC"
 
-# Keep in sync with SOURCES in build.sh (same order, $ROOT-prefixed paths).
-SOURCES=(
-  "$ROOT/src/core/extern.weave"
-  "$ROOT/src/core/io.weave"
-  "$ROOT/src/core/util.weave"
-  "$ROOT/src/core/trace_registry.weave"
-  "$ROOT/src/frontend/quantum_optimize.weave"
-  "$ROOT/src/frontend/quantum_nativize.weave"
-  "$ROOT/src/frontend/quantum_stats.weave"
-  "$ROOT/src/frontend/emit.weave"
-  "$ROOT/src/frontend/contract-lower.weave"
-  "$ROOT/src/frontend/struct.weave"
-  "$ROOT/src/frontend/lower.weave"
-  "$ROOT/src/frontend/driver.weave"
-  "$ROOT/src/frontend/explain-audit.weave"
-  "$ROOT/src/frontend/contract-effects.weave"
-  "$ROOT/src/frontend/audit-report.weave"
-  "$ROOT/src/llvm/ctx.weave"
-  "$ROOT/src/llvm/types.weave"
-  "$ROOT/src/llvm/locals.weave"
-  "$ROOT/src/llvm/strings.weave"
-  "$ROOT/src/llvm/expr.weave"
-  "$ROOT/src/llvm/stmt.weave"
-  "$ROOT/src/llvm/fn.weave"
-  "$ROOT/src/llvm/module.weave"
-  "$ROOT/src/main.weave"
-)
+# Load the single canonical ordered compiler source manifest.
+weavec_load_compiler_sources "$ROOT"
+SOURCES=()
+for source in "${WEAVEC_COMPILER_SOURCES[@]}"; do
+  SOURCES+=("$ROOT/$source")
+done
 
 RUNTIME_MODULES=(
   sexpr_tokens
@@ -152,50 +134,37 @@ build_stage() {
 build_stage "$SEED" "$BUILD_DIR/stage1"
 build_stage "$BUILD_DIR/stage1/weavec" "$BUILD_DIR/stage2"
 
-normalize_wir() {
-  tr '\n\t\r' ' ' < "$1" |
-    sed -E 's/[[:space:]]+/ /g; s/\( /(/g; s/ \)/)/g; s/^ //; s/ $//'
-}
+log "verify stage1/stage2 fixed point"
+if ! bash "$ROOT/scripts/verify-selfhost-fixed-point.sh" \
+    "$BUILD_DIR/stage1" \
+    "$BUILD_DIR/stage2" \
+    "$BUILD_DIR/fixed-point"; then
+  fail "self-host generations did not converge; inspect $BUILD_DIR/fixed-point"
+fi
 
-run_stage2_fixture() {
-  local name="$1"
-  local expected_exit="$2"
-  local stage2="$BUILD_DIR/stage2/weavec"
-  local out_dir="$BUILD_DIR/stage2-fixtures"
-  local src="$ROOT/test/correctness/surface/$name.weave"
-  local expected_wir="$ROOT/test/correctness/surface/$name.expected.wir"
-  local wir="$out_dir/$name.wir"
-  local ll="$out_dir/$name.ll"
-  local bc="$out_dir/$name.bc"
-  local bin="$out_dir/$name"
+STAGE2="$BUILD_DIR/stage2/weavec"
+STAGE2_TEST_DIR="$BUILD_DIR/stage2-tests"
+rm -rf "$STAGE2_TEST_DIR"
 
-  mkdir -p "$out_dir"
+log "stage2 full correctness suite"
+WEAVEC="$STAGE2" \
+WEAVEC_TEST_BUILD_DIR="$STAGE2_TEST_DIR/correctness" \
+  bash "$ROOT/test.sh"
 
-  log "stage2 frontend fixture $name"
-  "$stage2" --frontend "$wir" "$src"
+log "stage2 diagnostics protocol suite"
+WEAVEC="$STAGE2" \
+WEAVEC_RUNTIME="$ROOT/runtime/program.c" \
+  bash "$ROOT/test/diagnostics/test-build-diagnostics.sh"
 
-  if ! diff -u <(normalize_wir "$expected_wir") <(normalize_wir "$wir"); then
-    fail "stage2 frontend WIR mismatch for $name"
-  fi
+log "stage2 compilation-trace protocol suite"
+WEAVEC="$STAGE2" \
+WEAVEC_RUNTIME="$ROOT/runtime/program.c" \
+  bash "$ROOT/test/trace/test.sh"
 
-  log "stage2 backend fixture $name"
-  "$stage2" --backend "$wir" "$ll"
-  llvm-as "$ll" -o "$bc"
-  clang "$ll" -o "$bin"
-
-  set +e
-  "$bin"
-  local actual_exit="$?"
-  set -e
-
-  if [[ "$actual_exit" != "$expected_exit" ]]; then
-    fail "stage2 fixture $name expected exit $expected_exit, got $actual_exit"
-  fi
-}
-
-run_stage2_fixture 01_return_42 42
-run_stage2_fixture 59_bare_identifier_operands 42
-run_stage2_fixture 60_let_literal_sugar 42
+log "stage2 tooling-artifact protocol suite"
+WEAVEC="$STAGE2" \
+WEAVEC_RUNTIME="$ROOT/runtime/program.c" \
+  bash "$ROOT/test/tooling-artifacts/test.sh"
 
 log "compiler version: $WEAVEC_VERSION"
 log "complete: $BUILD_DIR/stage2/weavec"
