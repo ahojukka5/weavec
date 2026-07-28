@@ -66,40 +66,57 @@ RUNTIME_MODULES=(
   sexpr_parser
 )
 
-# Link bc+runtime; reject broken executables (clang output for the large
-# self-host module is not always safe to run). Retry until smoke --frontend works.
+# Link exactly once. Identical compiler bitcode must not rely on repeated link
+# layout attempts to produce a usable executable. Retain the failed binary and
+# smoke evidence when validation fails so the root cause can be investigated.
 link_stage_binary() {
   local bc="$1"
   local out_bin="$2"
   local stack_size="0x1000000"
-  local tmp_bin smoke_wir attempt
+  local tmp_bin="$out_bin.tmp"
+  local failed_bin="$out_bin.failed"
+  local smoke_wir="$out_bin.smoke.wir"
+  local smoke_stdout="$out_bin.smoke.stdout"
+  local smoke_stderr="$out_bin.smoke.stderr"
+  local version_output="$out_bin.version.txt"
+  local version_status frontend_status actual_version
+
+  rm -f \
+    "$out_bin" "$tmp_bin" "$failed_bin" "$smoke_wir" \
+    "$smoke_stdout" "$smoke_stderr" "$version_output"
 
   log "clang $out_bin"
-  for attempt in 1 2 3 4 5 6 7 8 9 10; do
-    tmp_bin="$(mktemp /tmp/weavec-stage.XXXXXX)"
-    smoke_wir="$(mktemp /tmp/weavec-smoke.XXXXXX.wir)"
-    rm -f "$out_bin"
-    if [[ "$(uname -s)" == "Darwin" ]]; then
-      clang "$bc" "$ROOT/runtime/portable.c" -o "$tmp_bin" \
-        -Wl,-stack_size,"$stack_size"
-    else
-      clang "$bc" "$ROOT/runtime/portable.c" -o "$tmp_bin" \
-        -Wl,-z,stack-size="$stack_size"
-    fi
-    if [[ "$("$tmp_bin" --version 2>/dev/null)" == \
-          "weavec $WEAVEC_VERSION" ]] && \
-       "$tmp_bin" --frontend "$smoke_wir" \
-         "$ROOT/src/core/extern.weave" \
-         "$ROOT/src/main.weave" \
-         "$ROOT/src/frontend/driver.weave" \
-         "$ROOT/src/frontend/lower.weave" >/dev/null 2>&1; then
-      mv "$tmp_bin" "$out_bin"
-      rm -f "$smoke_wir"
-      return 0
-    fi
-    rm -f "$tmp_bin" "$smoke_wir"
-  done
-  fail "link produced an unusable compiler binary after 10 attempts (rebuild seed: ./build.sh)"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    clang "$bc" "$ROOT/runtime/portable.c" -o "$tmp_bin" \
+      -Wl,-stack_size,"$stack_size"
+  else
+    clang "$bc" "$ROOT/runtime/portable.c" -o "$tmp_bin" \
+      -Wl,-z,stack-size="$stack_size"
+  fi
+
+  set +e
+  "$tmp_bin" --version >"$version_output" 2>"$smoke_stderr"
+  version_status="$?"
+  actual_version="$(cat "$version_output" 2>/dev/null)"
+  "$tmp_bin" --frontend "$smoke_wir" \
+    "$ROOT/src/core/extern.weave" \
+    "$ROOT/src/main.weave" \
+    "$ROOT/src/frontend/driver.weave" \
+    "$ROOT/src/frontend/lower.weave" \
+    >"$smoke_stdout" 2>>"$smoke_stderr"
+  frontend_status="$?"
+  set -e
+
+  if [[ "$version_status" -eq 0 && \
+        "$actual_version" == "weavec $WEAVEC_VERSION" && \
+        "$frontend_status" -eq 0 && -s "$smoke_wir" ]]; then
+    mv "$tmp_bin" "$out_bin"
+    rm -f "$smoke_wir" "$smoke_stdout" "$smoke_stderr" "$version_output"
+    return 0
+  fi
+
+  mv "$tmp_bin" "$failed_bin"
+  fail "linked compiler failed validation; retained $failed_bin, $version_output, $smoke_wir, $smoke_stdout, and $smoke_stderr"
 }
 
 build_stage() {
