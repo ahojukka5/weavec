@@ -62,6 +62,12 @@ surface-language contract stabilises.
   added a malformed `call_ptr` regression that exercises effect analysis during
   self-hosted frontend lowering.
 
+### Fixed
+
+- Removed probabilistic self-host linking retries. Each compiler generation now
+  links once, validates once, and retains the failed binary and smoke evidence
+  when the executable is unusable.
+
 ## [0.3.0] — 2026-07-25
 
 ### Added
