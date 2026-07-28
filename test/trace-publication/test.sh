@@ -37,7 +37,6 @@ static void exercise_remaining_writer_operations(void) {
     weave_json_writer_init(&writer, stream);
     if (!weave_json_array_begin(&writer) ||
         !weave_json_nullable_string(&writer, NULL) ||
-        !weave_json_boolean(&writer, 1) ||
         !weave_json_array_end(&writer) ||
         !weave_json_writer_finish(&writer)) {
         abort();

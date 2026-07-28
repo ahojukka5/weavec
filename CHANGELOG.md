@@ -35,6 +35,13 @@ surface-language contract stabilises.
 
 ### Changed
 
+- Replaced duplicated handwritten compilation-trace and build-manifest JSON
+  assembly with typed protocol serializers backed by one checked streaming JSON
+  writer and one transactional document publisher.
+- Made requested build-manifest publication checked and failure-propagating: an
+  incomplete document never replaces the previous manifest, and an otherwise
+  successful build returns nonzero when its requested manifest cannot be
+  published.
 - Replaced the 1,529-line custom loop-phi and branch-merge subsystem with
   uniform mutable stack lowering after a 168-fixture A/B test found identical
   optimized LLVM structure, equal behavior, and no systematic native-code or

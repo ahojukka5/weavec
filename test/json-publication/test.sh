@@ -37,8 +37,8 @@ static int serialize_sample(
             (const unsigned char *)"false",
             5) ||
         !weave_json_object_begin(writer) ||
-        !weave_json_key(writer, "ok") ||
-        !weave_json_boolean(writer, 1) ||
+        !weave_json_key(writer, "nested") ||
+        !weave_json_null(writer) ||
         !weave_json_object_end(writer) ||
         !weave_json_array_end(writer)) {
         return 1;
@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
     if (json == NULL ||
         strstr(json, "\\n\\t\\\"\\\\\\u0001") == NULL ||
         strstr(json, "\"items\": [") == NULL ||
-        strstr(json, "\"ok\": true") == NULL) {
+        strstr(json, "\"nested\": null") == NULL) {
         free(json);
         return 6;
     }
@@ -171,6 +171,6 @@ if compgen -G "$DOCUMENT.tmp.*" >/dev/null; then
 fi
 
 grep -Fq '"text": "a\n\t\"\\\u0001"' "$DOCUMENT"
-grep -Fq '"ok": true' "$DOCUMENT"
+grep -Fq '"nested": null' "$DOCUMENT"
 
 printf 'json-publication: checked writer and transactional publication passed\n'

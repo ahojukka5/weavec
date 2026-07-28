@@ -23,6 +23,9 @@ bash "$ROOT/test/json-publication/test.sh"
 log 'trace publication'
 bash "$ROOT/test/trace-publication/test.sh"
 
+log 'manifest publication'
+bash "$ROOT/test/manifest-publication/test.sh"
+
 log 'build'
 bash "$ROOT/build.sh"
 

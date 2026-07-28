@@ -205,10 +205,22 @@ if [[ "$build_status" -ne 42 ]]; then
   printf 'built program returned %s instead of 42\n' "$build_status" >&2
   exit 1
 fi
-grep -F '"status": "succeeded"' "$BUILD_MANIFEST" >/dev/null
-grep -F "\"target\": \"$TARGET\"" "$BUILD_MANIFEST" >/dev/null
-grep -F '"optimization": {"level": "O2", "cpu": null, "tune_cpu": null}' \
-  "$BUILD_MANIFEST" >/dev/null
+python3 - "$BUILD_MANIFEST" "$TARGET" <<'PY_MANIFEST'
+import json
+import pathlib
+import sys
+
+manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert manifest["format"] == "weavec-build-manifest-v1"
+assert manifest["status"] == "succeeded"
+assert manifest["phase"] == "complete"
+assert manifest["target"] == sys.argv[2]
+assert manifest["optimization"] == {
+    "level": "O2",
+    "cpu": None,
+    "tune_cpu": None,
+}
+PY_MANIFEST
 llvm-as "$BUILD_RAW_LL" -o "$RELEASE_BUILD/build-smoke.raw.bc"
 llvm-as "$BUILD_OPT_LL" -o "$RELEASE_BUILD/build-smoke.optimized.bc"
 grep -Eq '<_?main>:' "$BUILD_DISASSEMBLY"

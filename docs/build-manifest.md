@@ -37,8 +37,28 @@ A representative successful document is:
 }
 ```
 
-The document is written for both successful and failed builds when the driver can
-open the requested manifest path.
+The document is published for both successful and failed builds when the
+requested destination can be created and completed.
+
+### Serialization and publication
+
+The compiler models the manifest as a typed v1 document and serializes it through
+the shared checked JSON writer. Protocol code does not assemble JSON punctuation
+or escape strings directly.
+
+Publication is transactional for the manifest file itself:
+
+1. serialization writes to a sibling temporary file;
+2. every write, flush, `fsync`, and close is checked;
+3. the completed file is renamed to the requested destination;
+4. a failed serialization or filesystem operation removes the temporary file and
+   leaves any previous manifest untouched.
+
+The executable and manifest are separate destinations, so they are not one
+cross-file transaction. The executable is published first. If an otherwise
+successful build cannot publish its requested manifest, `weavec` returns nonzero
+and reports the publication error, while the already-published executable remains
+available and the previous manifest remains unchanged.
 
 ### Fields
 
@@ -72,7 +92,7 @@ Current phase values are:
 | `optimization-record` | Optimization-record aggregation failed. |
 | `disassemble` | Requested final executable disassembly failed. |
 | `link` | Target linker failed. |
-| `publish` | Atomic rename to the requested output failed. |
+| `publish` | Requested executable or auxiliary artifact publication failed. |
 | `complete` | The executable was published successfully. |
 
 The diagnostics facade maps these internal phases to the stable public exit codes
