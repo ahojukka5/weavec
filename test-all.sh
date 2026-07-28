@@ -15,7 +15,7 @@ log 'build boundary'
 "$ROOT/test/build-boundary/test.sh"
 
 log 'self-host link policy'
-"$ROOT/test/selfhost-link-policy/test.sh"
+bash "$ROOT/test/selfhost-link-policy/test.sh"
 
 log 'build'
 "$ROOT/build.sh"
