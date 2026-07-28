@@ -1,0 +1,140 @@
++    }
++    for (int i = 0; i < document->source_count; ++i) {
++        if (!weave_json_string(writer, document->sources[i])) {
++            return 1;
++        }
++    }
++    return weave_json_array_end(writer) &&
++        weave_json_object_end(writer)
++        ? 0
++        : 1;
++}
++
++static int weave_build_manifest_write(
++    const char *path,
++    const char *status,
++    const char *phase,
++    const char *target,
++    const char *compiler,
++    const char *runtime,
++    const char *optimizer,
++    const char *codegen,
++    const char *linker,
++    const char *objdump,
++    const char *optimization,
++    const char *cpu,
++    const char *tune_cpu,
++    const char *output,
++    char **sources,
++    int source_count) {
++    if (path == NULL) {
++        return 0;
++    }
++    weave_build_manifest_document document = {
++        .status = status,
++        .phase = phase,
++        .target = target,
++        .compiler = compiler,
++        .runtime = runtime,
++        .optimizer = optimizer,
++        .codegen = codegen,
++        .linker = linker,
++        .objdump = objdump,
++        .optimization = optimization,
++        .cpu = cpu,
++        .tune_cpu = tune_cpu,
++        .output = output,
++        .sources = sources,
++        .source_count = source_count,
++    };
++    return weave_publish_json_document(
++        path,
++        "build manifest",
++        weave_build_manifest_serialize,
++        &document);
++}
++
++#endif
+diff --git a/runtime/json_writer.c b/runtime/json_writer.c
+index 398b8a9..a5ed580 100644
+--- a/runtime/json_writer.c
++++ b/runtime/json_writer.c
+@@ -304,11 +304,6 @@ static int weave_json_nullable_string(
+         : weave_json_null(writer);
+ }
+ 
+-static int weave_json_boolean(weave_json_writer *writer, int value) {
+-    return weave_json_before_value(writer) &&
+-        weave_json_write_cstr(writer, value ? "true" : "false");
+-}
+-
+ static int weave_json_int64(weave_json_writer *writer, int64_t value) {
+     char buffer[32];
+     int length = snprintf(buffer, sizeof(buffer), "%lld", (long long)value);
+diff --git a/runtime/portable.c b/runtime/portable.c
+index b0e2679..3bbb5bd 100644
+--- a/runtime/portable.c
++++ b/runtime/portable.c
+@@ -123,6 +123,7 @@ static char *weave_rt_mkdtemp(char *path_template) {
+ 
+ #include "json_writer.c"
+ #include "document_publish.c"
++#include "build_manifest_json.c"
+ 
+ static int weave_trace_write_document(
+     const char *path,
+diff --git a/test-all.sh b/test-all.sh
+index fdc7e9d..a714f3b 100755
+--- a/test-all.sh
++++ b/test-all.sh
+@@ -23,6 +23,9 @@ bash "$ROOT/test/json-publication/test.sh"
+ log 'trace publication'
+ bash "$ROOT/test/trace-publication/test.sh"
+ 
++log 'manifest publication'
++bash "$ROOT/test/manifest-publication/test.sh"
++
+ log 'build'
+ bash "$ROOT/build.sh"
+ 
+diff --git a/test/json-publication/test.sh b/test/json-publication/test.sh
+index ba1deec..583a0bc 100644
+--- a/test/json-publication/test.sh
++++ b/test/json-publication/test.sh
+@@ -37,8 +37,8 @@ static int serialize_sample(
+             (const unsigned char *)"false",
+             5) ||
+         !weave_json_object_begin(writer) ||
+-        !weave_json_key(writer, "ok") ||
+-        !weave_json_boolean(writer, 1) ||
++        !weave_json_key(writer, "nested") ||
++        !weave_json_null(writer) ||
+         !weave_json_object_end(writer) ||
+         !weave_json_array_end(writer)) {
+         return 1;
+@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
+     if (json == NULL ||
+         strstr(json, "\\n\\t\\\"\\\\\\u0001") == NULL ||
+         strstr(json, "\"items\": [") == NULL ||
+-        strstr(json, "\"ok\": true") == NULL) {
++        strstr(json, "\"nested\": null") == NULL) {
+         free(json);
+         return 6;
+     }
+@@ -171,6 +171,6 @@ if compgen -G "$DOCUMENT.tmp.*" >/dev/null; then
+ fi
+ 
+ grep -Fq '"text": "a\n\t\"\\\u0001"' "$DOCUMENT"
+-grep -Fq '"ok": true' "$DOCUMENT"
++grep -Fq '"nested": null' "$DOCUMENT"
+ 
+ printf 'json-publication: checked writer and transactional publication passed\n'
+diff --git a/test/manifest-publication/test.sh b/test/manifest-publication/test.sh
+new file mode 100644
+index 0000000..f7d26fe
+--- /dev/null
++++ b/test/manifest-publication/test.sh
+@@ -0,0 +1,171 @@
++#!/usr/bin/env bash
++# SPDX-License-Identifier: Apache-2.0
++set -euo pipefail
