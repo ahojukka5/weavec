@@ -26,6 +26,9 @@ bash "$ROOT/test/trace-publication/test.sh"
 log 'manifest publication'
 bash "$ROOT/test/manifest-publication/test.sh"
 
+log 'diagnostics publication'
+bash "$ROOT/test/diagnostics-publication/test.sh"
+
 log 'build'
 bash "$ROOT/build.sh"
 
