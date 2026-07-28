@@ -1,0 +1,140 @@
+-    fclose(stream);
+-}
+-
+ static int same_path(const char *left, const char *right) {
+     return left != NULL && right != NULL && strcmp(left, right) == 0;
+ }
+@@ -643,7 +552,7 @@ static const char *optimization_name(const char *flag) {
+     return flag != NULL && flag[0] == '-' ? flag + 1 : flag;
+ }
+ 
+-static void write_build_manifest(
++static int write_build_manifest(
+     const char *path,
+     const char *status,
+     const char *phase,
+@@ -655,7 +564,7 @@ static void write_build_manifest(
+     const char *output,
+     char **sources,
+     int source_count) {
+-    write_manifest(
++    return weave_build_manifest_write(
+         path, status, phase, target, compiler, runtime,
+         llvm->optimizer, llvm->codegen, linker, llvm->objdump,
+         optimization_name(llvm->optimization), llvm->cpu, llvm->tune_cpu,
+@@ -995,15 +904,18 @@ int weave_rt_build_main(int argc, char **argv) {
+ 
+ #define FAIL_BUILD(phase_name, result) \
+     do { \
+-        write_build_manifest( \
++        int manifest_failed = write_build_manifest( \
+             manifest, "failed", phase_name, target, compiler, runtime, \
+             &llvm, linker, output, sources, source_count); \
+-        (void)weave_trace_write_document( \
++        int trace_failed = weave_trace_write_document( \
+             trace, "failed", phase_name, sources, source_count, \
+             paths.trace_events); \
+         unlink(paths.trace_events); \
+         cleanup_build_directory(&paths, keep_temporaries); \
+         free(sources); \
++        if (manifest_failed != 0 || trace_failed != 0) { \
++            return (result) != 0 ? (result) : 1; \
++        } \
+         return result; \
+     } while (0)
+ 
+@@ -1183,7 +1095,7 @@ int weave_rt_build_main(int argc, char **argv) {
+         FAIL_BUILD("publish", 1);
+     }
+ 
+-    write_build_manifest(
++    status = write_build_manifest(
+         manifest,
+         "succeeded",
+         "complete",
+@@ -1195,6 +1107,13 @@ int weave_rt_build_main(int argc, char **argv) {
+         output,
+         sources,
+         source_count);
++    if (status != 0) {
++        unlink(paths.trace_events);
++        cleanup_build_directory(&paths, keep_temporaries);
++        free(sources);
++#undef FAIL_BUILD
++        return status;
++    }
+     unlink(paths.trace_events);
+     cleanup_build_directory(&paths, keep_temporaries);
+     free(sources);
+diff --git a/runtime/build_manifest_json.c b/runtime/build_manifest_json.c
+new file mode 100644
+index 0000000..aab9499
+--- /dev/null
++++ b/runtime/build_manifest_json.c
+@@ -0,0 +1,123 @@
++// SPDX-License-Identifier: Apache-2.0
++//
++// Typed serializer for weavec-build-manifest-v1. Build phase orchestration
++// supplies the document values; this module owns only schema serialization and
++// transactional publication through the shared runtime infrastructure.
++
++#ifndef WEAVEC_BUILD_MANIFEST_JSON_C
++#define WEAVEC_BUILD_MANIFEST_JSON_C
++
++typedef struct weave_build_manifest_document {
++    const char *status;
++    const char *phase;
++    const char *target;
++    const char *compiler;
++    const char *runtime;
++    const char *optimizer;
++    const char *codegen;
++    const char *linker;
++    const char *objdump;
++    const char *optimization;
++    const char *cpu;
++    const char *tune_cpu;
++    const char *output;
++    char **sources;
++    int source_count;
++} weave_build_manifest_document;
++
++static int weave_build_manifest_serialize(
++    weave_json_writer *writer,
++    const void *opaque) {
++    const weave_build_manifest_document *document = opaque;
++    if (!weave_json_object_begin(writer) ||
++        !weave_json_key(writer, "format") ||
++        !weave_json_string(writer, "weavec-build-manifest-v1") ||
++        !weave_json_key(writer, "status") ||
++        !weave_json_string(writer, document->status) ||
++        !weave_json_key(writer, "phase") ||
++        !weave_json_string(writer, document->phase) ||
++        !weave_json_key(writer, "target") ||
++        !weave_json_string(writer, document->target) ||
++        !weave_json_key(writer, "compiler") ||
++        !weave_json_string(writer, document->compiler) ||
++        !weave_json_key(writer, "runtime") ||
++        !weave_json_string(writer, document->runtime) ||
++        !weave_json_key(writer, "optimizer") ||
++        !weave_json_string(writer, document->optimizer) ||
++        !weave_json_key(writer, "codegen") ||
++        !weave_json_string(writer, document->codegen) ||
++        !weave_json_key(writer, "linker") ||
++        !weave_json_string(writer, document->linker) ||
++        !weave_json_key(writer, "objdump") ||
++        !weave_json_string(writer, document->objdump) ||
++        !weave_json_key(writer, "optimization") ||
++        !weave_json_object_begin(writer) ||
++        !weave_json_key(writer, "level") ||
++        !weave_json_string(writer, document->optimization) ||
++        !weave_json_key(writer, "cpu") ||
++        !weave_json_nullable_string(writer, document->cpu) ||
++        !weave_json_key(writer, "tune_cpu") ||
++        !weave_json_nullable_string(writer, document->tune_cpu) ||
++        !weave_json_object_end(writer) ||
++        !weave_json_key(writer, "output") ||
++        !weave_json_string(writer, document->output) ||
++        !weave_json_key(writer, "sources") ||
++        !weave_json_array_begin(writer)) {
++        return 1;
