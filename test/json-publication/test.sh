@@ -6,15 +6,15 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-cat > "$WORK/test.c" <<EOF
+cat > "$WORK/test.c" <<'EOF'
 #define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "$ROOT/runtime/json_writer.c"
-#include "$ROOT/runtime/document_publish.c"
+#include "json_writer.c"
+#include "document_publish.c"
 
 typedef struct sample_document {
     int fail;
@@ -158,6 +158,7 @@ int main(int argc, char **argv) {
 EOF
 
 cc -std=c11 -Wall -Wextra -Werror \
+  -I"$ROOT/runtime" \
   "$WORK/test.c" -o "$WORK/test"
 
 DOCUMENT="$WORK/document.json"
