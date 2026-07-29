@@ -1,25 +1,9 @@
 ; SPDX-License-Identifier: Apache-2.0
-; emit.weave — verbatim s-expression emission for the frontend lowering pass
+; emit.weave — structured surface-to-WIR emission
 ;
-; emit_node(fd, source, tree, node) writes any AST node as WIR text:
-;   list   → ( child1 child2 ... )
-;   ident  → raw source bytes
-;   string → "raw source bytes"
-;   int    → raw source bytes (decimal digits as they appear in source)
-;
-; This is the core primitive used throughout the frontend to copy subtrees
-; verbatim into the WIR output without transformation.
-;
-; The frontend also accepts a small amount of typed surface sugar where the
-; surrounding form provides an unambiguous WIR type:
-;   (let x i32 42) -> (let x i32 (const_i32 42))
-;   (let x i64 42) -> (let x i64 (const_i64 42))
-;   (let x Qubit 0) -> (let x i64 (const_i64 0))
-;
-; Quantum surface statements (see docs/quantum-surface-syntax.md):
-;   (qgate H q0)     -> qrt_ry / qrt_rz via quantum_nativize (Rigetti-style v1)
-;   (qgate RY q0 t)  -> (call_void qrt_ry (local_get q0) t)
-;   (qmeasure q0 c0) -> (let c0 i32 (call_i32 qrt_measure (local_get q0)))
+; Most admitted WIR-shaped forms remain copied recursively. Canonical surface
+; calls and contextual literals are elaborated through compiler-owned semantic
+; facts before the canonical WIR v2 text is emitted.
 
 (program
   (name "emit")
@@ -56,29 +40,28 @@
     (params (fd i32) (source ptr) (tree ptr) (type_node i64) (expr_node i64))
     (returns void)
     (do
+      (let type i32 (call_i32 surface_type_code
+        (param_get tree) (param_get source) (param_get type_node)))
       (if
         (condition (eq_i32 (call_i32 node_kind (param_get tree) (param_get expr_node)) (call_i32 node_int)))
         (then (do
           (if
-            (condition (or_bool
-              (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
-                (const_string_ptr "i32") (const_i64 3)) (const_i32 0))
-              (or_bool
-                (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
-                  (const_string_ptr "i64") (const_i64 3)) (const_i32 0))
-                (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
-                  (const_string_ptr "Qubit") (const_i64 5)) (const_i32 0)))))
+            (condition (ne_i32 (local_get type) (call_i32 surface_type_unknown)))
             (then (do
               (call_void trace_wrap_typed_integer
                 (param_get source) (param_get tree)
-                (param_get expr_node) (param_get type_node))
-              (call_void emit_const_for_type
-                (param_get fd) (param_get source) (param_get tree)
-                (param_get type_node) (param_get expr_node))
-              (return_void)))
+                (param_get expr_node) (param_get type_node))))
             (else (do)))))
         (else (do)))
-      (call_void emit_node (param_get fd) (param_get source) (param_get tree) (param_get expr_node))
+      (if
+        (condition (ne_i32 (local_get type) (call_i32 surface_type_unknown)))
+        (then (do
+          (call_void surface_emit_expr_expected
+            (param_get fd) (param_get source) (param_get tree)
+            (param_get expr_node) (local_get type))))
+        (else (do
+          (call_void emit_node
+            (param_get fd) (param_get source) (param_get tree) (param_get expr_node)))))
       (return_void)))
 
   (fn emit_let_node
@@ -97,6 +80,7 @@
         (param_get fd) (param_get source) (param_get tree)
         (local_get type_node) (local_get expr_node))
       (call_void write_byte (param_get fd) (const_i32 41))
+      (call_void surface_note_let (param_get tree) (param_get source) (param_get node))
       (return_void)))
 
   ; Lower (qgate GATE qargs...) to extern qrt_* calls (no peephole).
@@ -188,9 +172,6 @@
   ; - the current child becomes the new pending if it is a self-inverse qgate
   ; - or is emitted directly and the new pending is -1.
   ; Returns the new pending node id (or -1).
-  ;
-  ; Lifted out of emit_do_body so the loop body has a single top-level
-  ; (set pending ...); LLVM promotes eligible mutable slots after lowering.
   (fn emit_do_step
     (params (fd i32) (source ptr) (tree ptr) (pending i64) (child i64))
     (returns i64)
@@ -230,8 +211,7 @@
       (return (const_i64 -1))))
 
   ; Emit statements in (do ...) with the self-inverse-qgate peephole driven
-  ; by emit_do_step. See quantum_optimize.weave for the predicate set
-  ; (H, X, Y, Z, CNOT, CZ, SWAP, CCNOT cancel pairwise on identical operands).
+  ; by emit_do_step. See quantum_optimize.weave for the predicate set.
   (fn emit_do_body
     (params (fd i32) (source ptr) (tree ptr) (do_node i64))
     (returns void)
@@ -277,6 +257,11 @@
       (call_void write_cstr (param_get fd) (const_string_ptr " i32 (call_i32 qrt_measure "))
       (call_void emit_local_get_ident (param_get fd) (param_get source) (param_get tree) (local_get qubit_node))
       (call_void write_cstr (param_get fd) (const_string_ptr "))"))
+      (call_i32 weave_surface_local_add
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get result_node))
+        (call_i64 node_text_len (param_get tree) (local_get result_node))
+        (call_i32 surface_type_i32))
       (return_void)))
 
   (fn emit_node
@@ -289,6 +274,43 @@
       (if
         (condition (eq_i32 (local_get kind) (call_i32 node_list)))
         (then (do
+          (if
+            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "params") (const_i64 6)) (const_i32 0)))
+            (then (do
+              (call_void surface_prepare_params (param_get tree) (param_get source) (param_get node))))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "returns") (const_i64 7)) (const_i32 0)))
+            (then (do
+              (call_void surface_prepare_returns (param_get tree) (param_get source) (param_get node))))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "call") (const_i64 4)) (const_i32 0)))
+            (then (do
+              (call_void surface_emit_call (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (return_void)))
+            (else (do)))
+          (if
+            (condition (and_bool
+              (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "return") (const_i64 6)) (const_i32 0))
+              (eq_i64 (call_i64 count_children (param_get tree) (param_get node)) (const_i64 2))))
+            (then (do
+              (call_void surface_emit_return (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (return_void)))
+            (else (do)))
+          (if
+            (condition (and_bool
+              (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "set") (const_i64 3)) (const_i32 0))
+              (eq_i64 (call_i64 count_children (param_get tree) (param_get node)) (const_i64 3))))
+            (then (do
+              (call_void surface_emit_set (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (return_void)))
+            (else (do)))
           (if
             (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
               (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
