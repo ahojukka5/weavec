@@ -1,0 +1,613 @@
+; SPDX-License-Identifier: Apache-2.0
+; elaborate.weave — typed surface facts and canonical call elaboration
+;
+; The self-hosted frontend owns all language meaning in this module. The host
+; runtime only stores copied symbol/local names so facts survive parser teardown
+; between files in one compilation.
+
+(program
+  (name "elaborate")
+  (version "0.1")
+
+  (fn surface_type_unknown (params) (returns i32) (do (return (const_i32 0))))
+  (fn surface_type_void    (params) (returns i32) (do (return (const_i32 1))))
+  (fn surface_type_i32     (params) (returns i32) (do (return (const_i32 2))))
+  (fn surface_type_i64     (params) (returns i32) (do (return (const_i32 3))))
+  (fn surface_type_f32     (params) (returns i32) (do (return (const_i32 4))))
+  (fn surface_type_f64     (params) (returns i32) (do (return (const_i32 5))))
+  (fn surface_type_bool    (params) (returns i32) (do (return (const_i32 6))))
+  (fn surface_type_ptr     (params) (returns i32) (do (return (const_i32 7))))
+
+  (fn surface_type_code
+    (params (tree ptr) (source ptr) (type_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (param_get type_node) (const_i64 -1)))
+        (then (do (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
+          (const_string_ptr "void") (const_i64 4)) (const_i32 0)))
+        (then (do (return (call_i32 surface_type_void))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
+          (const_string_ptr "i32") (const_i64 3)) (const_i32 0)))
+        (then (do (return (call_i32 surface_type_i32))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
+            (const_string_ptr "i64") (const_i64 3)) (const_i32 0))
+          (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
+            (const_string_ptr "Qubit") (const_i64 5)) (const_i32 0))))
+        (then (do (return (call_i32 surface_type_i64))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
+          (const_string_ptr "f32") (const_i64 3)) (const_i32 0)))
+        (then (do (return (call_i32 surface_type_f32))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
+          (const_string_ptr "f64") (const_i64 3)) (const_i32 0)))
+        (then (do (return (call_i32 surface_type_f64))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
+          (const_string_ptr "bool") (const_i64 4)) (const_i32 0)))
+        (then (do (return (call_i32 surface_type_bool))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
+          (const_string_ptr "ptr") (const_i64 3)) (const_i32 0)))
+        (then (do (return (call_i32 surface_type_ptr))))
+        (else (do)))
+      (return (call_i32 surface_type_unknown))))
+
+  (fn surface_emit_type_name
+    (params (fd i32) (type i32))
+    (returns void)
+    (do
+      (if (condition (eq_i32 (param_get type) (call_i32 surface_type_void)))
+        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "void")) (return_void)))
+        (else (do)))
+      (if (condition (eq_i32 (param_get type) (call_i32 surface_type_i32)))
+        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "i32")) (return_void)))
+        (else (do)))
+      (if (condition (eq_i32 (param_get type) (call_i32 surface_type_i64)))
+        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "i64")) (return_void)))
+        (else (do)))
+      (if (condition (eq_i32 (param_get type) (call_i32 surface_type_f32)))
+        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "f32")) (return_void)))
+        (else (do)))
+      (if (condition (eq_i32 (param_get type) (call_i32 surface_type_f64)))
+        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "f64")) (return_void)))
+        (else (do)))
+      (if (condition (eq_i32 (param_get type) (call_i32 surface_type_bool)))
+        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "bool")) (return_void)))
+        (else (do)))
+      (if (condition (eq_i32 (param_get type) (call_i32 surface_type_ptr)))
+        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "ptr")) (return_void)))
+        (else (do)))
+      (call_void write_cstr (param_get fd) (const_string_ptr "unknown"))
+      (return_void)))
+
+  (fn surface_error_prefix
+    (params (node_label ptr))
+    (returns void)
+    (do
+      (call_void weave_surface_set_error)
+      (call_void write_cstr (const_i32 2) (const_string_ptr "weavec: surface "))
+      (call_void write_cstr (const_i32 2) (param_get node_label))
+      (call_void write_cstr (const_i32 2) (const_string_ptr ": "))
+      (return_void)))
+
+  (fn surface_register_parameters
+    (params (tree ptr) (source ptr) (params_node i64))
+    (returns i32)
+    (do
+      (let head i64 (call_i64 node_first_child (param_get tree) (param_get params_node)))
+      (let param i64 (call_i64 node_next_sibling (param_get tree) (local_get head)))
+      (while
+        (condition (ne_i64 (local_get param) (const_i64 -1)))
+        (do
+          (let type_node i64 (call_i64 nth_child (param_get tree) (local_get param) (const_i64 1)))
+          (let type i32 (call_i32 surface_type_code (param_get tree) (param_get source) (local_get type_node)))
+          (if
+            (condition (eq_i32 (local_get type) (call_i32 surface_type_unknown)))
+            (then (do
+              (call_void surface_error_prefix (const_string_ptr "declaration"))
+              (call_void write_cstr (const_i32 2) (const_string_ptr "unknown parameter type"))
+              (call_void write_byte (const_i32 2) (const_i32 10))
+              (return (const_i32 1))))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 weave_surface_symbol_add_parameter (local_get type)) (const_i32 0)))
+            (then (do
+              (call_void surface_error_prefix (const_string_ptr "declaration"))
+              (call_void write_cstr (const_i32 2) (const_string_ptr "too many parameters or invalid symbol state"))
+              (call_void write_byte (const_i32 2) (const_i32 10))
+              (return (const_i32 1))))
+            (else (do)))
+          (set param (call_i64 node_next_sibling (param_get tree) (local_get param)))))
+      (return (const_i32 0))))
+
+  (fn surface_register_callable
+    (params (tree ptr) (source ptr) (decl_node i64))
+    (returns i32)
+    (do
+      (let name_node i64 (call_i64 nth_child (param_get tree) (param_get decl_node) (const_i64 1)))
+      (let params_node i64 (call_i64 nth_child (param_get tree) (param_get decl_node) (const_i64 2)))
+      (let returns_node i64 (call_i64 nth_child (param_get tree) (param_get decl_node) (const_i64 3)))
+      (let return_type_node i64 (call_i64 nth_child (param_get tree) (local_get returns_node) (const_i64 1)))
+      (let return_type i32 (call_i32 surface_type_code
+        (param_get tree) (param_get source) (local_get return_type_node)))
+      (if
+        (condition (eq_i32 (local_get return_type) (call_i32 surface_type_unknown)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "declaration"))
+          (call_void write_cstr (const_i32 2) (const_string_ptr "unknown return type for "))
+          (call_void emit_node_text (const_i32 2) (param_get source) (param_get tree) (local_get name_node))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i32 1))))
+        (else (do)))
+      (let symbol_status i32 (call_i32 weave_surface_symbol_begin
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get name_node))
+        (call_i64 node_text_len (param_get tree) (local_get name_node))
+        (local_get return_type)))
+      (if
+        (condition (lt_i32 (local_get symbol_status) (const_i32 0)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "declaration"))
+          (if
+            (condition (eq_i32 (local_get symbol_status) (const_i32 -2)))
+            (then (do (call_void write_cstr (const_i32 2) (const_string_ptr "duplicate symbol "))))
+            (else (do (call_void write_cstr (const_i32 2) (const_string_ptr "cannot register symbol ")))))
+          (call_void emit_node_text (const_i32 2) (param_get source) (param_get tree) (local_get name_node))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i32 1))))
+        (else (do)))
+      (return (call_i32 surface_register_parameters
+        (param_get tree) (param_get source) (local_get params_node)))))
+
+  (fn surface_register_const
+    (params (tree ptr) (source ptr) (decl_node i64))
+    (returns i32)
+    (do
+      (let name_node i64 (call_i64 nth_child (param_get tree) (param_get decl_node) (const_i64 1)))
+      (let type_node i64 (call_i64 nth_child (param_get tree) (param_get decl_node) (const_i64 2)))
+      (let type i32 (call_i32 surface_type_code (param_get tree) (param_get source) (local_get type_node)))
+      (if
+        (condition (eq_i32 (local_get type) (call_i32 surface_type_unknown)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let status i32 (call_i32 weave_surface_symbol_begin
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get name_node))
+        (call_i64 node_text_len (param_get tree) (local_get name_node))
+        (local_get type)))
+      (if
+        (condition (lt_i32 (local_get status) (const_i32 0)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "declaration"))
+          (call_void write_cstr (const_i32 2) (const_string_ptr "duplicate or invalid constant "))
+          (call_void emit_node_text (const_i32 2) (param_get source) (param_get tree) (local_get name_node))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn surface_register_program_decls
+    (params (tree ptr) (source ptr))
+    (returns i32)
+    (do
+      (let child i64 (call_i64 program_first_decl (param_get tree) (param_get source)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get child)) (call_i32 node_list)))
+            (then (do
+              (if
+                (condition (or_bool
+                  (or_bool
+                    (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
+                      (const_string_ptr "fn") (const_i64 2)) (const_i32 0))
+                    (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
+                      (const_string_ptr "extern") (const_i64 6)) (const_i32 0)))
+                  (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
+                    (const_string_ptr "entry") (const_i64 5)) (const_i32 0))))
+                (then (do
+                  (if
+                    (condition (ne_i32 (call_i32 surface_register_callable
+                      (param_get tree) (param_get source) (local_get child)) (const_i32 0)))
+                    (then (do (return (const_i32 1))))
+                    (else (do)))))
+                (else (do)))
+              (if
+                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
+                  (const_string_ptr "const") (const_i64 5)) (const_i32 0)))
+                (then (do
+                  (if
+                    (condition (ne_i32 (call_i32 surface_register_const
+                      (param_get tree) (param_get source) (local_get child)) (const_i32 0)))
+                    (then (do (return (const_i32 1))))
+                    (else (do)))))
+                (else (do)))))
+            (else (do)))
+          (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
+      (return (const_i32 0))))
+
+  (fn surface_prepare_params
+    (params (tree ptr) (source ptr) (params_node i64))
+    (returns void)
+    (do
+      (call_void weave_surface_locals_reset)
+      (let head i64 (call_i64 node_first_child (param_get tree) (param_get params_node)))
+      (let param i64 (call_i64 node_next_sibling (param_get tree) (local_get head)))
+      (while
+        (condition (ne_i64 (local_get param) (const_i64 -1)))
+        (do
+          (let name_node i64 (call_i64 nth_child (param_get tree) (local_get param) (const_i64 0)))
+          (let type_node i64 (call_i64 nth_child (param_get tree) (local_get param) (const_i64 1)))
+          (call_i32 weave_surface_local_add
+            (param_get source)
+            (call_i64 node_text_start (param_get tree) (local_get name_node))
+            (call_i64 node_text_len (param_get tree) (local_get name_node))
+            (call_i32 surface_type_code (param_get tree) (param_get source) (local_get type_node)))
+          (set param (call_i64 node_next_sibling (param_get tree) (local_get param)))))
+      (return_void)))
+
+  (fn surface_prepare_returns
+    (params (tree ptr) (source ptr) (returns_node i64))
+    (returns void)
+    (do
+      (let type_node i64 (call_i64 nth_child (param_get tree) (param_get returns_node) (const_i64 1)))
+      (call_void weave_surface_set_return_type
+        (call_i32 surface_type_code (param_get tree) (param_get source) (local_get type_node)))
+      (return_void)))
+
+  (fn surface_note_let
+    (params (tree ptr) (source ptr) (let_node i64))
+    (returns void)
+    (do
+      (let name_node i64 (call_i64 nth_child (param_get tree) (param_get let_node) (const_i64 1)))
+      (let type_node i64 (call_i64 nth_child (param_get tree) (param_get let_node) (const_i64 2)))
+      (call_i32 weave_surface_local_add
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get name_node))
+        (call_i64 node_text_len (param_get tree) (local_get name_node))
+        (call_i32 surface_type_code (param_get tree) (param_get source) (local_get type_node)))
+      (return_void)))
+
+  (fn surface_ident_type
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "true") (const_i64 4)) (const_i32 0))
+          (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "false") (const_i64 5)) (const_i32 0))))
+        (then (do (return (call_i32 surface_type_bool))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "null") (const_i64 4)) (const_i32 0)))
+        (then (do (return (call_i32 surface_type_ptr))))
+        (else (do)))
+      (return (call_i32 weave_surface_local_type
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (param_get node))
+        (call_i64 node_text_len (param_get tree) (param_get node))))))
+
+  (fn surface_explicit_head_type
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "call_i32") (const_i64 8)) (const_i32 0))
+            (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "const_i32") (const_i64 9)) (const_i32 0)))
+          (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "cast_i64_to_i32") (const_i64 15)) (const_i32 0))))
+        (then (do (return (call_i32 surface_type_i32))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "call_i64") (const_i64 8)) (const_i32 0))
+            (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "const_i64") (const_i64 9)) (const_i32 0)))
+          (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "cast_i32_to_i64") (const_i64 15)) (const_i32 0))))
+        (then (do (return (call_i32 surface_type_i64))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "call_f32") (const_i64 8)) (const_i32 0))
+          (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "const_f32") (const_i64 9)) (const_i32 0))))
+        (then (do (return (call_i32 surface_type_f32))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "call_f64") (const_i64 8)) (const_i32 0))
+          (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "const_f64") (const_i64 9)) (const_i32 0))))
+        (then (do (return (call_i32 surface_type_f64))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "call_bool") (const_i64 9)) (const_i32 0))
+          (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "const_bool") (const_i64 10)) (const_i32 0))))
+        (then (do (return (call_i32 surface_type_bool))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "call_ptr") (const_i64 8)) (const_i32 0))
+            (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "const_null") (const_i64 10)) (const_i32 0)))
+          (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "const_string_ptr") (const_i64 16)) (const_i32 0))))
+        (then (do (return (call_i32 surface_type_ptr))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "call_void") (const_i64 9)) (const_i32 0)))
+        (then (do (return (call_i32 surface_type_void))))
+        (else (do)))
+      (return (call_i32 surface_type_unknown))))
+
+  (fn surface_expr_type
+    (params (tree ptr) (source ptr) (node i64) (expected i32))
+    (returns i32)
+    (do
+      (let kind i32 (call_i32 node_kind (param_get tree) (param_get node)))
+      (if
+        (condition (eq_i32 (local_get kind) (call_i32 node_int)))
+        (then (do (return (param_get expected))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get kind) (call_i32 node_string)))
+        (then (do (return (call_i32 surface_type_ptr))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get kind) (call_i32 node_ident)))
+        (then (do (return (call_i32 surface_ident_type
+          (param_get tree) (param_get source) (param_get node)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (local_get kind) (call_i32 node_list)))
+        (then (do (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "call") (const_i64 4)) (const_i32 0)))
+        (then (do
+          (let name_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
+          (return (call_i32 weave_surface_symbol_return_type
+            (param_get source)
+            (call_i64 node_text_start (param_get tree) (local_get name_node))
+            (call_i64 node_text_len (param_get tree) (local_get name_node))))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "local_get") (const_i64 9)) (const_i32 0))
+          (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "param_get") (const_i64 9)) (const_i32 0))))
+        (then (do
+          (let name_node2 i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
+          (return (call_i32 surface_ident_type
+            (param_get tree) (param_get source) (local_get name_node2)))))
+        (else (do)))
+      (return (call_i32 surface_explicit_head_type
+        (param_get tree) (param_get source) (param_get node)))))
+
+  (fn surface_emit_const_for_code
+    (params (fd i32) (source ptr) (tree ptr) (type i32) (node i64))
+    (returns void)
+    (do
+      (call_void write_cstr (param_get fd) (const_string_ptr "(const_"))
+      (call_void surface_emit_type_name (param_get fd) (param_get type))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void emit_node_text (param_get fd) (param_get source) (param_get tree) (param_get node))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (return_void)))
+
+  (fn surface_emit_expr_expected
+    (params (fd i32) (source ptr) (tree ptr) (node i64) (expected i32))
+    (returns void)
+    (do
+      (let kind i32 (call_i32 node_kind (param_get tree) (param_get node)))
+      (if
+        (condition (and_bool
+          (eq_i32 (local_get kind) (call_i32 node_int))
+          (or_bool
+            (or_bool
+              (eq_i32 (param_get expected) (call_i32 surface_type_i32))
+              (eq_i32 (param_get expected) (call_i32 surface_type_i64)))
+            (or_bool
+              (eq_i32 (param_get expected) (call_i32 surface_type_f32))
+              (eq_i32 (param_get expected) (call_i32 surface_type_f64))))))
+        (then (do
+          (call_void surface_emit_const_for_code
+            (param_get fd) (param_get source) (param_get tree) (param_get expected) (param_get node))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (eq_i32 (local_get kind) (call_i32 node_string))
+          (eq_i32 (param_get expected) (call_i32 surface_type_ptr))))
+        (then (do
+          (call_void write_cstr (param_get fd) (const_string_ptr "(const_string_ptr "))
+          (call_void write_byte (param_get fd) (const_i32 34))
+          (call_void emit_node_text (param_get fd) (param_get source) (param_get tree) (param_get node))
+          (call_void write_byte (param_get fd) (const_i32 34))
+          (call_void write_byte (param_get fd) (const_i32 41))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (eq_i32 (local_get kind) (call_i32 node_ident))
+          (eq_i32 (param_get expected) (call_i32 surface_type_bool))))
+        (then (do
+          (if
+            (condition (or_bool
+              (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "true") (const_i64 4)) (const_i32 0))
+              (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "false") (const_i64 5)) (const_i32 0))))
+            (then (do
+              (call_void write_cstr (param_get fd) (const_string_ptr "(const_bool "))
+              (call_void emit_node_text (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (call_void write_byte (param_get fd) (const_i32 41))
+              (return_void)))
+            (else (do)))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (eq_i32 (local_get kind) (call_i32 node_ident))
+          (eq_i32 (param_get expected) (call_i32 surface_type_ptr))))
+        (then (do
+          (if
+            (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "null") (const_i64 4)) (const_i32 0)))
+            (then (do
+              (call_void write_cstr (param_get fd) (const_string_ptr "(const_null)"))
+              (return_void)))
+            (else (do)))))
+        (else (do)))
+      (call_void emit_node (param_get fd) (param_get source) (param_get tree) (param_get node))
+      (return_void)))
+
+  (fn surface_emit_call_prefix
+    (params (fd i32) (return_type i32))
+    (returns void)
+    (do
+      (call_void write_cstr (param_get fd) (const_string_ptr "(call_"))
+      (call_void surface_emit_type_name (param_get fd) (param_get return_type))
+      (return_void)))
+
+  (fn surface_emit_call
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (let name_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
+      (let name_start i64 (call_i64 node_text_start (param_get tree) (local_get name_node)))
+      (let name_len i64 (call_i64 node_text_len (param_get tree) (local_get name_node)))
+      (let return_type i32 (call_i32 weave_surface_symbol_return_type
+        (param_get source) (local_get name_start) (local_get name_len)))
+      (let expected_count i32 (call_i32 weave_surface_symbol_parameter_count
+        (param_get source) (local_get name_start) (local_get name_len)))
+      (let actual_count i64 (sub_i64 (call_i64 count_children (param_get tree) (param_get node)) (const_i64 2)))
+      (if
+        (condition (eq_i32 (local_get return_type) (call_i32 surface_type_unknown)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "call"))
+          (call_void write_cstr (const_i32 2) (const_string_ptr "unresolved function "))
+          (call_void emit_node_text (const_i32 2) (param_get source) (param_get tree) (local_get name_node))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (set return_type (call_i32 surface_type_i32))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ge_i32 (local_get expected_count) (const_i32 0))
+          (ne_i64 (local_get actual_count) (cast_i32_to_i64 (local_get expected_count)))))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "call"))
+          (call_void write_cstr (const_i32 2) (const_string_ptr "wrong arity for "))
+          (call_void emit_node_text (const_i32 2) (param_get source) (param_get tree) (local_get name_node))
+          (call_void write_cstr (const_i32 2) (const_string_ptr ": expected "))
+          (call_void write_i64_dec (const_i32 2) (cast_i32_to_i64 (local_get expected_count)))
+          (call_void write_cstr (const_i32 2) (const_string_ptr ", got "))
+          (call_void write_i64_dec (const_i32 2) (local_get actual_count))
+          (call_void write_byte (const_i32 2) (const_i32 10))))
+        (else (do)))
+      (call_void surface_emit_call_prefix (param_get fd) (local_get return_type))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void emit_node_text (param_get fd) (param_get source) (param_get tree) (local_get name_node))
+      (let arg i64 (call_i64 node_next_sibling (param_get tree) (local_get name_node)))
+      (let arg_index i32 (const_i32 0))
+      (while
+        (condition (ne_i64 (local_get arg) (const_i64 -1)))
+        (do
+          (let expected i32 (call_i32 weave_surface_symbol_parameter_type
+            (param_get source) (local_get name_start) (local_get name_len) (local_get arg_index)))
+          (let actual i32 (call_i32 surface_expr_type
+            (param_get tree) (param_get source) (local_get arg) (local_get expected)))
+          (if
+            (condition (and_bool
+              (ne_i32 (local_get expected) (call_i32 surface_type_unknown))
+              (and_bool
+                (ne_i32 (local_get actual) (call_i32 surface_type_unknown))
+                (ne_i32 (local_get expected) (local_get actual)))))
+            (then (do
+              (call_void surface_error_prefix (const_string_ptr "call"))
+              (call_void write_cstr (const_i32 2) (const_string_ptr "argument type mismatch for "))
+              (call_void emit_node_text (const_i32 2) (param_get source) (param_get tree) (local_get name_node))
+              (call_void write_cstr (const_i32 2) (const_string_ptr ": expected "))
+              (call_void surface_emit_type_name (const_i32 2) (local_get expected))
+              (call_void write_cstr (const_i32 2) (const_string_ptr ", got "))
+              (call_void surface_emit_type_name (const_i32 2) (local_get actual))
+              (call_void write_byte (const_i32 2) (const_i32 10))))
+            (else (do)))
+          (call_void write_byte (param_get fd) (const_i32 32))
+          (if
+            (condition (eq_i32 (local_get expected) (call_i32 surface_type_unknown)))
+            (then (do (call_void emit_node
+              (param_get fd) (param_get source) (param_get tree) (local_get arg))))
+            (else (do (call_void surface_emit_expr_expected
+              (param_get fd) (param_get source) (param_get tree) (local_get arg) (local_get expected)))))
+          (set arg_index (add_i32 (local_get arg_index) (const_i32 1)))
+          (set arg (call_i64 node_next_sibling (param_get tree) (local_get arg)))))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (return_void)))
+
+  (fn surface_emit_return
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (let value i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
+      (call_void write_cstr (param_get fd) (const_string_ptr "(return "))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree) (local_get value)
+        (call_i32 weave_surface_get_return_type))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (return_void)))
+
+  (fn surface_emit_set
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (let name_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
+      (let value_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 2)))
+      (let expected i32 (call_i32 surface_ident_type
+        (param_get tree) (param_get source) (local_get name_node)))
+      (call_void write_cstr (param_get fd) (const_string_ptr "(set "))
+      (call_void emit_node_text (param_get fd) (param_get source) (param_get tree) (local_get name_node))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (if
+        (condition (eq_i32 (local_get expected) (call_i32 surface_type_unknown)))
+        (then (do (call_void emit_node
+          (param_get fd) (param_get source) (param_get tree) (local_get value_node))))
+        (else (do (call_void surface_emit_expr_expected
+          (param_get fd) (param_get source) (param_get tree) (local_get value_node) (local_get expected)))))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (return_void)))
+)
