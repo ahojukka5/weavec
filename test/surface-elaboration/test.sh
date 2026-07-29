@@ -17,8 +17,8 @@ normalize_wir() {
     sed -E 's/[[:space:]]+/ /g; s/\( /(/g; s/ \)/)/g; s/^ //; s/ $//'
 }
 
-FIXTURE="$ROOT/test/correctness/surface/74_canonical_typed_call.weave"
-EXPECTED="$ROOT/test/correctness/surface/74_canonical_typed_call.expected.wir"
+FIXTURE="$ROOT/test/correctness/surface/75_canonical_typed_call.weave"
+EXPECTED="$ROOT/test/correctness/surface/75_canonical_typed_call.expected.wir"
 "$WEAVEC" --frontend "$TMP/canonical.wir" "$FIXTURE"
 [[ "$(normalize_wir "$TMP/canonical.wir")" == "$(normalize_wir "$EXPECTED")" ]]
 "$WEAVEC" build "$FIXTURE" -o "$TMP/canonical"
