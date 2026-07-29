@@ -1,0 +1,9 @@
+(core-module
+  (core-version 2)
+  (decls
+    (fn choose (params (flag bool) (left i32) (right i32)) (returns i32) (do (if (condition flag) (then (do (return left))) (else (do (return right))))))
+    (fn null_bonus (params (value ptr)) (returns i32) (do (if (condition (eq_ptr value (const_null))) (then (do (return (const_i32 2)))) (else (do (return (const_i32 0)))))))
+    (fn string_bonus (params (value ptr)) (returns i32) (do (if (condition (ne_ptr value (const_null))) (then (do (return (const_i32 0)))) (else (do (return (const_i32 99)))))))
+    (fn main (params) (returns i32) (do (let base i32 (const_i32 0)) (set base (const_i32 40)) (return (add_i32 (call_i32 choose (const_bool true) base (const_i32 0)) (add_i32 (call_i32 null_bonus (const_null)) (call_i32 string_bonus (const_string_ptr "weave")))))))
+  )
+)
