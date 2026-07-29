@@ -47,6 +47,9 @@ bash "$ROOT/test/version/test.sh"
 log 'correctness'
 bash "$ROOT/test.sh"
 
+log 'surface elaboration'
+bash "$ROOT/test/surface-elaboration/test.sh"
+
 log 'diagnostics'
 bash "$ROOT/test/diagnostics/test-build-diagnostics.sh"
 
