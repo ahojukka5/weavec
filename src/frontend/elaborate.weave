@@ -498,7 +498,20 @@
       (let kind i32 (call_i32 node_kind (param_get tree) (param_get node)))
       (if
         (condition (eq_i32 (local_get kind) (call_i32 node_int)))
-        (then (do (return (param_get expected))))
+        (then (do
+          (if
+            (condition (or_bool
+              (or_bool
+                (eq_i32 (param_get expected) (call_i32 surface_type_i32))
+                (eq_i32 (param_get expected) (call_i32 surface_type_i64)))
+              (or_bool
+                (eq_i32 (param_get expected) (call_i32 surface_type_f32))
+                (eq_i32 (param_get expected) (call_i32 surface_type_f64)))))
+            (then (do (return (param_get expected))))
+            (else (do)))
+          ; An integer outside a numeric expected context has its canonical
+          ; default type, i32, so bool/ptr contexts reject it deterministically.
+          (return (call_i32 surface_type_i32))))
         (else (do)))
       (if
         (condition (eq_i32 (local_get kind) (call_i32 node_string)))
@@ -545,6 +558,28 @@
         (else (do)))
       (return (call_i32 surface_explicit_head_type
         (param_get tree) (param_get source) (param_get node)))))
+
+  (fn surface_check_expr_expected
+    (params (tree ptr) (source ptr) (node i64) (expected i32) (context ptr))
+    (returns void)
+    (do
+      (let actual i32 (call_i32 surface_expr_type
+        (param_get tree) (param_get source) (param_get node) (param_get expected)))
+      (if
+        (condition (and_bool
+          (ne_i32 (param_get expected) (call_i32 surface_type_unknown))
+          (and_bool
+            (ne_i32 (local_get actual) (call_i32 surface_type_unknown))
+            (ne_i32 (param_get expected) (local_get actual)))))
+        (then (do
+          (call_void surface_error_prefix (param_get context))
+          (call_void write_cstr (const_i32 2) (const_string_ptr "expected "))
+          (call_void surface_emit_type_name (const_i32 2) (param_get expected))
+          (call_void write_cstr (const_i32 2) (const_string_ptr ", got "))
+          (call_void surface_emit_type_name (const_i32 2) (local_get actual))
+          (call_void write_byte (const_i32 2) (const_i32 10))))
+        (else (do)))
+      (return_void)))
 
   (fn surface_emit_const_for_code
     (params (fd i32) (source ptr) (tree ptr) (type i32) (node i64))
@@ -730,10 +765,14 @@
     (returns void)
     (do
       (let value i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
+      (let expected i32 (call_i32 weave_surface_get_return_type))
+      (call_void surface_check_expr_expected
+        (param_get tree) (param_get source) (local_get value) (local_get expected)
+        (const_string_ptr "return"))
       (call_void write_cstr (param_get fd) (const_string_ptr "(return "))
       (call_void surface_emit_expr_expected
         (param_get fd) (param_get source) (param_get tree) (local_get value)
-        (call_i32 weave_surface_get_return_type))
+        (local_get expected))
       (call_void write_byte (param_get fd) (const_i32 41))
       (return_void)))
 
@@ -745,6 +784,9 @@
       (let value_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 2)))
       (let expected i32 (call_i32 surface_ident_type
         (param_get tree) (param_get source) (local_get name_node)))
+      (call_void surface_check_expr_expected
+        (param_get tree) (param_get source) (local_get value_node) (local_get expected)
+        (const_string_ptr "assignment"))
       (call_void write_cstr (param_get fd) (const_string_ptr "(set "))
       (call_void emit_node_text (param_get fd) (param_get source) (param_get tree) (local_get name_node))
       (call_void write_byte (param_get fd) (const_i32 32))
