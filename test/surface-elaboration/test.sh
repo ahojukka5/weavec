@@ -125,4 +125,14 @@ cat > "$TMP/type.weave" <<'WEAVE'
 WEAVE
 expect_frontend_failure type 'argument type mismatch for consume: expected i64, got i32'
 
+cat > "$TMP/bool-integer.weave" <<'WEAVE'
+(program
+  (name "bool-integer")
+  (version "0.1")
+  (fn consume (params (value bool)) (returns i32) (do (return 42)))
+  (entry main (params) (returns i32)
+    (do (return (call consume 1)))))
+WEAVE
+expect_frontend_failure bool-integer 'argument type mismatch for consume: expected bool, got i32'
+
 printf 'surface-elaboration: all checks passed\n'
