@@ -56,6 +56,9 @@
       (if
         (condition (ne_i32 (local_get type) (call_i32 surface_type_unknown)))
         (then (do
+          (call_void surface_check_expr_expected
+            (param_get tree) (param_get source) (param_get expr_node) (local_get type)
+            (const_string_ptr "binding"))
           (call_void surface_emit_expr_expected
             (param_get fd) (param_get source) (param_get tree)
             (param_get expr_node) (local_get type))))
