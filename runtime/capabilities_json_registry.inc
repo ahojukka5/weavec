@@ -7,6 +7,7 @@ static const weave_capability_protocol weave_cap_protocols[] = {
 };
 static const weave_capability_command weave_cap_commands[] = {
     {"capabilities", "capabilities --json", "public-tooling", "stable", 0, 1},
+    {"fmt", "fmt", "public-tooling", "stable", 6, 0},
     {"build", "build", "public", "stable", 1, 3},
     {"frontend", "--frontend", "compiler-tooling", "stable", 4, 1},
     {"backend", "--backend", "compiler-tooling", "stable", 5, 1},
@@ -22,7 +23,7 @@ static const weave_capability_feature weave_cap_features[] = {
     {"executable-contracts", "stable", 0},
     {"capability-registry", "stable", 36},
     {"struct-lowering", "experimental", 52},
-    {"canonical-formatting", "planned", 50},
+    {"canonical-formatting", "stable", 50},
     {"diagnostic-repairs", "stable", 51},
     {"semantic-structs", "planned", 52},
     {"modules", "planned", 53},

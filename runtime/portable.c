@@ -124,6 +124,7 @@ static char *weave_rt_mkdtemp(char *path_template) {
 #include "surface_symbols.c"
 #include "json_writer.c"
 #include "capabilities_json.c"
+#include "formatter_driver.c"
 #include "document_publish.c"
 #include "build_manifest_json.c"
 #include "semantic_diagnostic_transport.c"

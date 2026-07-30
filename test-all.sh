@@ -47,6 +47,9 @@ bash "$ROOT/test/version/test.sh"
 log 'compiler capabilities'
 bash "$ROOT/test/capabilities/test.sh"
 
+log 'canonical formatter'
+bash "$ROOT/test/formatter/test.sh"
+
 log 'correctness'
 bash "$ROOT/test.sh"
 

@@ -18,6 +18,8 @@ names used when they were released.
 - [Compiler capability and grammar registry](capabilities.md) —
   `weavec-capabilities-v1`, installed targets, protocol versions, feature status,
   and the compiler-authoritative LLM-facing grammar contract.
+- [Canonical Weave formatting](formatting.md) — parser-backed deterministic
+  normal form, compatibility normalization, comment policy, and atomic updates.
 - [Compiler version identity](compiler-version.md) — release and development
   version strings, build-time embedding, and reproducibility semantics.
 - [Language reference](language-reference.md) — the implemented surface-Weave
