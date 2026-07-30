@@ -85,13 +85,8 @@ cmp -s "$generated_actions" "$EXPECTED" || {
   fail "expected action list differs from registry"
 }
 
-for source_list in \
-  "$ROOT/build.sh" \
-  "$ROOT/selfhost.sh" \
-  "$ROOT/scripts/test-weavec-bootstrap-stack.sh"; do
-  grep -Fq 'trace_registry.weave' "$source_list" || \
-    fail "registry missing from compiler source order: $source_list"
-done
+grep -Fq 'src/core/trace_registry.weave' "$ROOT/compiler/sources.list" || \
+  fail "registry missing from canonical compiler source manifest"
 
 grep -Fq 'scripts/check-trace-registry.sh' "$ROOT/test-all.sh" || \
   fail "registry audit is not part of test-all.sh"

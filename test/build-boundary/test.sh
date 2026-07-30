@@ -22,6 +22,10 @@ mkdir -p \
 cp "$ROOT/build.sh" "$CHECKOUT/build.sh"
 chmod +x "$CHECKOUT/build.sh"
 
+cp "$ROOT/scripts/compiler-sources.sh" "$CHECKOUT/scripts/compiler-sources.sh"
+ln -s "$ROOT/compiler" "$CHECKOUT/compiler"
+ln -s "$ROOT/src" "$CHECKOUT/src"
+
 cat > "$CHECKOUT/scripts/weavec-version.sh" <<'EOF_VERSION'
 weavec_version_string() {
   printf '%s\n' "${WEAVEC_VERSION_OVERRIDE:-v0.0.0+test}"
