@@ -40,6 +40,8 @@ surface-language contract stabilises.
   contextual literals in bindings, assignments, arguments, and returns.
 - Canonical `(op ...)` and `(cast TYPE EXPR)` elaboration, including
   result-aware canonical expressions in executable contracts.
+- `weavec-capabilities-v1`, a deterministic compiler-authoritative registry of
+  commands, protocols, installed targets, feature status, and surface grammar.
 
 ### Changed
 
