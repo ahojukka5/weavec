@@ -16,7 +16,9 @@ and [Source-linked compilation trace](compilation-trace.md).
 
 ## Schema
 
-The current schema is `weavec-diagnostics-v1`:
+The current additive schema is `weavec-diagnostics-v1`. Its JSON Schema is
+[`schemas/weavec-diagnostics-v1.schema.json`](schemas/weavec-diagnostics-v1.schema.json)
+with identifier `urn:weavec:schema:diagnostics:v1`.
 
 ```json
 {
@@ -27,20 +29,43 @@ The current schema is `weavec-diagnostics-v1`:
   "raw_exit_code": 1,
   "diagnostics": [
     {
-      "code": "frontend.parse.unclosed-list",
+      "code": "frontend.call.argument-type-mismatch",
       "severity": "error",
       "phase": "frontend",
-      "message": "unclosed list",
+      "message": "weavec: surface call: argument type mismatch for consume: expected i32, got i64",
       "source": "main.weave",
-      "span_origin": "compiler-preflight",
+      "span_origin": "compiler-semantic",
       "span": {
-        "start_byte": 0,
-        "end_byte": 1,
-        "start_line": 1,
-        "start_column": 1,
-        "end_line": 1,
-        "end_column": 2
-      }
+        "start_byte": 201,
+        "end_byte": 205,
+        "start_line": 12,
+        "start_column": 29,
+        "end_line": 12,
+        "end_column": 33
+      },
+      "analysis_complete": true,
+      "expected_type": "i32",
+      "actual_type": "i64",
+      "argument_index": 0,
+      "operand_role": "argument",
+      "symbol": "consume",
+      "candidates": [],
+      "related_locations": [],
+      "repairs": [
+        {
+          "kind": "replace",
+          "replacement": "(cast i32 wide)",
+          "replacement_span": {
+            "start_byte": 201,
+            "end_byte": 205,
+            "start_line": 12,
+            "start_column": 29,
+            "end_line": 12,
+            "end_column": 33
+          },
+          "confidence": "guaranteed-local"
+        }
+      ]
     }
   ]
 }
@@ -53,8 +78,9 @@ bytes.
 ## Serialization and publication
 
 The compiler models diagnostics as a typed v1 document and serializes it through
-the shared checked JSON writer. Diagnostic classification and source-span
-inference remain separate from JSON syntax and filesystem publication.
+the shared checked JSON writer. Diagnostic classification, source-span discovery,
+and semantic repair selection remain separate from JSON syntax and filesystem
+publication.
 
 A requested diagnostics document is published transactionally through a sibling
 temporary file. Serialization, flush, `fsync`, close, and final rename are all
@@ -111,15 +137,77 @@ context.
 | `source` | Canonical input path associated with the diagnostic, when known. |
 | `span_origin` | Provenance and trust level of the source span. |
 | `span` | Source range or `null` when no trustworthy range is available. |
+| `analysis_complete` | Whether the compiler had authoritative structured facts for this failure. |
+| `expected_type`, `actual_type` | Semantic type names when the failure is type-related. |
+| `argument_index` | Zero-based argument position for a call mismatch. |
+| `expected_count`, `actual_count` | Expected and observed child or argument counts. |
+| `operand_role` | Named role such as `left`, `right`, `argument`, or `value`. |
+| `symbol` | Relevant function, operator, type, or identifier text. |
+| `candidates` | Deterministically ordered candidate names; empty when none are authoritative. |
+| `related_locations` | Deterministically ordered definition or context locations. |
+| `repairs` | Zero or more explicitly trusted bounded source repairs. |
 
-The outer document may contain diagnostics without a source span for code
-generation, linking, publication, setup failures, or unclassified compiler
-errors.
+The semantic fields are optional because code generation, linking, publication,
+setup failures, direct WIR errors, and older compatibility paths may not retain
+an authoritative source-language environment. The three list fields are always
+present on a diagnostic so agents do not need to distinguish omitted data from an
+empty result.
+
+## Repair trust
+
+Each repair declares its trust independently:
+
+- `guaranteed-local` means the compiler proved that the replacement satisfies the
+  immediate semantic requirement and changes only the indicated source subtree;
+- `candidate` means the replacement is plausible but must be recompiled and may
+  require another edit;
+- `none` is represented by an empty `repairs` array rather than a speculative
+  replacement.
+
+The initial guaranteed repairs are explicit casts for admitted conversion pairs
+when a call argument or canonical operator operand has a known mismatched type.
+For example, an `i64` expression where `i32` is required may receive
+`(cast i32 EXPR)`. The compiler does not suggest a cast pair that the canonical
+surface language rejects.
+
+Applying a repair never implies that the complete program is valid. Agents must
+recompile after each repair. Multiple future repairs will be emitted in a stable
+order rather than silently selecting one candidate.
+
+## Semantic authority and private transport
+
+Canonical `call`, `op`, and `cast` emitters remain the authority that decides
+whether source is valid and produces human stderr. A self-hosted observer records
+the first failing AST node, exact source range, resolved types, argument or
+operand role, counts, and symbol while those facts are live.
+
+A private versioned sidecar transports that fixed record from the frontend phase
+to the diagnostics serializer. The host does not parse Weave, infer types, choose
+operators, or invent repairs. The sidecar path is scoped to one diagnostics build,
+is never part of the public command line or JSON document, and is removed after
+publication.
+
+## Current semantic coverage
+
+The current compiler produces complete machine-actionable entries for:
+
+- unresolved canonical call targets;
+- canonical call arity mismatches;
+- canonical call argument type mismatches;
+- canonical operator arity and operand type mismatches;
+- unsupported canonical operators for resolved operand types;
+- invalid canonical casts and unknown cast types.
+
+This coverage is additive to the existing parse and backend diagnostics. Future
+language features should publish their semantic failures through the same typed
+boundary instead of adding stderr parsers in external tooling.
 
 ## Span provenance
 
 `span_origin` is part of the protocol:
 
+- `compiler-semantic` — an exact surface AST range selected while the
+  self-hosted type and symbol environment was authoritative;
 - `compiler-preflight` — exact source span produced by the compiler's canonical
   S-expression preflight scanner;
 - `propagated-wir-location` — an exact surface file identity and byte span
@@ -150,7 +238,7 @@ The current version provides exact preflight spans for:
 It also provides exact propagated spans for backend unknown-expression,
 unknown-identifier, unresolved-call-target, wrong-arity, and expected-expression
 errors when the failing WIR token originated from a copied surface node. Direct or
-unannotated WIR retains conservative unique-token inference as a fallback.
+unannotated WIR retain conservative unique-token inference as a fallback.
 
 ## Human diagnostics
 
@@ -166,4 +254,7 @@ Consumers should:
 - accept additional diagnostic entries and future optional fields;
 - use `exit_code` for automation and retain `raw_exit_code` for investigation;
 - treat `span` as optional even for classified errors;
-- preserve `span_origin` whenever diagnostics are transformed or forwarded.
+- preserve `span_origin` whenever diagnostics are transformed or forwarded;
+- check `analysis_complete` before assuming semantic context is exhaustive;
+- apply only repairs whose declared trust satisfies their workflow;
+- recompile after every applied repair.

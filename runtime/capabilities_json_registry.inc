@@ -23,7 +23,7 @@ static const weave_capability_feature weave_cap_features[] = {
     {"capability-registry", "stable", 36},
     {"struct-lowering", "experimental", 52},
     {"canonical-formatting", "planned", 50},
-    {"diagnostic-repairs", "planned", 51},
+    {"diagnostic-repairs", "stable", 51},
     {"semantic-structs", "planned", 52},
     {"modules", "planned", 53},
     {"semantic-index", "planned", 37},

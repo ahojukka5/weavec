@@ -42,6 +42,8 @@ surface-language contract stabilises.
   result-aware canonical expressions in executable contracts.
 - `weavec-capabilities-v1`, a deterministic compiler-authoritative registry of
   commands, protocols, installed targets, feature status, and surface grammar.
+- Machine-actionable semantic diagnostics with exact type/count context,
+  explicit trust classifications, and bounded local cast repairs for agents.
 
 ### Changed
 

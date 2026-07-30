@@ -17,6 +17,7 @@ cat > "$WORK/test.c" <<'C'
 
 #include "json_writer.c"
 #include "document_publish.c"
+#include "semantic_diagnostic_transport.c"
 
 typedef struct weave_diag_record {
     const char *code;
@@ -114,6 +115,10 @@ int main(int argc, char **argv) {
     if (seed == NULL || fputs("old\n", seed) == EOF || fclose(seed) != 0) {
         return 2;
     }
+    weave_semantic_saved_env semantic_env = {0};
+    if (!weave_semantic_begin_env(path, &semantic_env)) {
+        return 3;
+    }
     weave_diag_record record = {
         .code = "frontend.test",
         .severity = "error",
@@ -126,19 +131,20 @@ int main(int argc, char **argv) {
         .has_span = 1,
     };
     if (weave_diag_write_result(path, NULL, "frontend", 10, 1, &record) == 0) {
-        return 3;
+        return 4;
     }
     char *old = read_all(path);
     if (old == NULL || strcmp(old, "old\n") != 0) {
         free(old);
-        return 4;
+        return 5;
     }
     free(old);
 
     if (weave_diag_write_result(
             path, "failed", "frontend", 10, 1, &record) != 0) {
-        return 5;
+        return 6;
     }
+    weave_semantic_end_env(&semantic_env);
     return 0;
 }
 C
@@ -177,6 +183,10 @@ assert document == {
             "end_line": 2,
             "end_column": 4,
         },
+        "analysis_complete": True,
+        "candidates": [],
+        "related_locations": [],
+        "repairs": [],
     }],
 }
 PY
