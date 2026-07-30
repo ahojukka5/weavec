@@ -38,6 +38,8 @@ surface-language contract stabilises.
   summaries, exported symbol sets, and retained mismatch diffs.
 - Compiler-owned typed surface elaboration for canonical `(call ...)` forms and
   contextual literals in bindings, assignments, arguments, and returns.
+- Canonical `(op ...)` and `(cast TYPE EXPR)` elaboration, including
+  result-aware canonical expressions in executable contracts.
 
 ### Changed
 

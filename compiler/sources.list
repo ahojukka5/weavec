@@ -19,6 +19,7 @@ src/frontend/surface_op_emit.weave
 src/frontend/surface_cast_emit.weave
 src/frontend/emit_helpers.weave
 src/frontend/emit.weave
+src/frontend/contract_canonical.weave
 src/frontend/contract-lower.weave
 src/frontend/struct.weave
 src/frontend/lower.weave

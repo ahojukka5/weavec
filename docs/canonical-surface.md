@@ -130,21 +130,34 @@ admitted explicit conversion is intended.
 
 ## Contracts
 
-Canonical calls are elaborated inside ordinary contracted function bodies and in
-contract expressions that do not substitute `result` through the call.
+Canonical calls, operators, casts, and contextual literals use the same
+elaboration rules in function bodies, `requires`, and `ensures`.
 
-A canonical call containing `result` inside an `ensures` expression is rejected
-with an explicit frontend error. Existing explicit typed call syntax remains
-available there until result-aware canonical call emission is implemented.
+Within an `ensures` expression, `result` has the declared return type and is
+substituted with the concrete expression at each return site. Canonical forms may
+contain `result` at any nesting depth:
+
+```weave
+(ensures
+  (op equal
+    (cast i64 (call identity result))
+    (cast i64 result)))
+```
+
+The compiler resolves and type-checks the canonical tree before emitting ordinary
+WIR v2 forms. A call argument or operator operand whose known type disagrees with
+the function return type is rejected; no conversion is inferred from the contract
+context. `result` remains invalid in `requires`.
 
 ## Implementation boundary
 
 The self-hosted frontend owns declarations, type codes, symbol resolution, type
-checks, diagnostics, and WIR selection. A narrow C host component only retains
-copied symbol and local-name records across separately parsed source files. It
-does not parse Weave, recognize type names, or choose language semantics.
+checks, diagnostics, result substitution, and WIR selection. A narrow C host
+component only retains copied symbol and local-name records across separately
+parsed source files. It does not parse Weave, recognize type names, or choose
+language semantics.
 
-Canonical operator and cast selection is implemented in a dedicated self-hosted
-frontend module. It consumes the existing declaration and local facts and emits
-only admitted WIR core-version-2 forms; it adds no private WIR dialect or new host
-runtime semantic state.
+Canonical operator, cast, and contract-expression selection is implemented in
+dedicated self-hosted frontend modules. They consume the existing declaration and
+local facts and emit only admitted WIR core-version-2 forms; they add no private
+WIR dialect or host-runtime semantic state.

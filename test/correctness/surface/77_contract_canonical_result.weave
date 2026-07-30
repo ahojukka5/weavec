@@ -1,0 +1,30 @@
+; purpose: verify canonical contract expressions with result substitution.
+; expected-exit: 42
+; tags: contracts, ensures, requires, call, op, cast, result
+
+(program
+  (name "contract-canonical-result")
+  (version "0.1")
+
+  (fn identity
+    (params (value i32))
+    (returns i32)
+    (do
+      (return value)))
+
+  (fn checked
+    (params (value i32))
+    (returns i32)
+    (requires (op greater-or-equal value 0))
+    (ensures
+      (op equal
+        (cast i64 (call identity result))
+        (cast i64 result)))
+    (do
+      (return value)))
+
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (return (call checked 42)))))

@@ -34,6 +34,7 @@ run_fixture() {
 
 run_fixture 75_canonical_typed_call 42
 run_fixture 76_canonical_ops_and_casts 42
+run_fixture 77_contract_canonical_result 42
 
 cat > "$TMP/library.weave" <<'WEAVE'
 (program
@@ -176,5 +177,26 @@ cat > "$TMP/operator-arity.weave" <<'WEAVE'
     (do (return (op add 1)))))
 WEAVE
 expect_frontend_failure operator-arity 'wrong arity for add: expected 2, got 1'
+
+cat > "$TMP/contract-result-type.weave" <<'WEAVE'
+(program
+  (name "contract-result-type")
+  (version "0.1")
+  (fn accepts_i32
+    (params (value i32))
+    (returns bool)
+    (do (return true)))
+  (fn checked
+    (params (value i64))
+    (returns i64)
+    (ensures (call accepts_i32 result))
+    (do (return value)))
+  (entry main
+    (params)
+    (returns i32)
+    (do (return (cast i32 (call checked 42))))))
+WEAVE
+expect_frontend_failure contract-result-type \
+  'argument type mismatch for accepts_i32: expected i32, got i64'
 
 printf 'surface-elaboration: all checks passed\n'
