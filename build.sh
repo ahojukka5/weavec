@@ -379,11 +379,13 @@ build_weavec() {
   local stack_size="0x1000000"
   if [[ "$(uname -s)" == Darwin ]]; then
     clang "$BUILD_DIR/weavec.bc" "$WEAVEC_DIR/runtime/portable.c" \
+      "$WEAVEC_DIR/runtime/formatter_driver.c" \
       -o "$BUILD_DIR/weavec" \
       -Wl,-stack_size,"$stack_size" \
       || fail "clang failed"
   else
     clang "$BUILD_DIR/weavec.bc" "$WEAVEC_DIR/runtime/portable.c" \
+      "$WEAVEC_DIR/runtime/formatter_driver.c" \
       -o "$BUILD_DIR/weavec" \
       -Wl,-z,stack-size="$stack_size" \
       || fail "clang failed"

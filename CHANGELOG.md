@@ -44,6 +44,8 @@ surface-language contract stabilises.
   commands, protocols, installed targets, feature status, and surface grammar.
 - Machine-actionable semantic diagnostics with exact type/count context,
   explicit trust classifications, and bounded local cast repairs for agents.
+- A parser-backed `weavec fmt` normal form with deterministic layout,
+  compatibility normalization, preserved comments, check mode, and atomic updates.
 
 ### Changed
 

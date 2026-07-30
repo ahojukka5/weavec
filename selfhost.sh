@@ -69,10 +69,10 @@ link_stage_binary() {
 
   log "clang $out_bin"
   if [[ "$(uname -s)" == "Darwin" ]]; then
-    clang "$bc" "$ROOT/runtime/portable.c" -o "$tmp_bin" \
+    clang "$bc" "$ROOT/runtime/portable.c" "$ROOT/runtime/formatter_driver.c" -o "$tmp_bin" \
       -Wl,-stack_size,"$stack_size"
   else
-    clang "$bc" "$ROOT/runtime/portable.c" -o "$tmp_bin" \
+    clang "$bc" "$ROOT/runtime/portable.c" "$ROOT/runtime/formatter_driver.c" -o "$tmp_bin" \
       -Wl,-z,stack-size="$stack_size"
   fi
 

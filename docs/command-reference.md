@@ -125,6 +125,25 @@ By default, WIR, LLVM IR, and object files are removed after the build.
 to stderr. This is a compiler-development aid, not a reproducible output
 location.
 
+## Canonical formatter
+
+```text
+weavec fmt <source.weave>
+weavec fmt --check <source.weave>
+weavec fmt --output <output.weave> <source.weave>
+```
+
+The formatter parses one complete surface source with the compiler parser,
+normalizes layout and supported compatibility forms, preserves declaration and
+child order, and emits the deterministic canonical normal form. The default mode
+updates the source atomically. `--output` writes a separate destination, and
+`--check` returns `0` for canonical input or `1` when the source would change.
+Invalid usage returns `2`; read, parse, formatting, comparison, and publication
+failures return `3` without replacing an existing source or output.
+
+See [Canonical Weave formatting](formatting.md) for the normalization, comment,
+idempotence, and compatibility policies.
+
 ## Compiler-development overrides
 
 The public build command accepts explicit overrides:

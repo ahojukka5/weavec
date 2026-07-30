@@ -128,6 +128,12 @@ static char *weave_rt_mkdtemp(char *path_template) {
 #include "build_manifest_json.c"
 #include "semantic_diagnostic_transport.c"
 
+// formatter_driver.c calls into the self-hosted parser (node_kind, node_ident,
+// ...), which is only linked alongside weavec.bc when building the compiler
+// itself. This file also serves as the private target-program runtime, so
+// formatter_driver.c is compiled as its own translation unit and linked only
+// into the weavec executable, never into a compiled program's runtime.
+
 static int weave_trace_write_document(
     const char *path,
     const char *status,

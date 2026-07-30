@@ -49,6 +49,7 @@ ARCHIVE="$ARCHIVE_DIR/$PACKAGE_NAME.tar.gz"
 COMPILER_BC="$ROOT/build/weavec.bc"
 COMPILER_OBJ="$RELEASE_BUILD/weavec.o"
 PORTABLE_OBJ="$RELEASE_BUILD/portable.o"
+FORMATTER_OBJ="$RELEASE_BUILD/formatter_driver.o"
 RUNTIME_OBJ="$RELEASE_BUILD/program-runtime.o"
 COMPILER="$PACKAGE_DIR/bin/weavec"
 RUNTIME_DIR="$PACKAGE_DIR/lib/weavec/$TARGET"
@@ -120,14 +121,16 @@ case "$LIBC" in
   glibc)
     clang -O2 "${COMMON_DEFINES[@]}" \
       -c "$ROOT/runtime/portable.c" -o "$PORTABLE_OBJ"
-    clang -static "$COMPILER_OBJ" "$PORTABLE_OBJ" \
+    clang -O2 -c "$ROOT/runtime/formatter_driver.c" -o "$FORMATTER_OBJ"
+    clang -static "$COMPILER_OBJ" "$PORTABLE_OBJ" "$FORMATTER_OBJ" \
       -Wl,-z,stack-size="$STACK_SIZE" \
       -o "$COMPILER"
     ;;
   musl)
     musl-gcc -O2 "${COMMON_DEFINES[@]}" \
       -c "$ROOT/runtime/portable.c" -o "$PORTABLE_OBJ"
-    musl-gcc -static "$COMPILER_OBJ" "$PORTABLE_OBJ" \
+    musl-gcc -O2 -c "$ROOT/runtime/formatter_driver.c" -o "$FORMATTER_OBJ"
+    musl-gcc -static "$COMPILER_OBJ" "$PORTABLE_OBJ" "$FORMATTER_OBJ" \
       -Wl,-z,stack-size="$STACK_SIZE" \
       -o "$COMPILER"
     ;;
