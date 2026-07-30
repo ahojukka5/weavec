@@ -4,8 +4,8 @@
 ; Transforms a parsed surface Weave program node into WIR text on fd.
 ;
 ; The strategy is direct text emission: we walk the input AST and emit
-; WIR s-expressions without building an intermediate tree. This avoids
-; the complex tree-building API used by the original weavec-bootstrap.
+; WIR s-expressions without building an intermediate tree. Typed surface facts
+; are collected before declaration emission and consumed by emit.weave.
 ;
 ; Transformation rules:
 ;   program wrapper    → core-module / core-version 2 / decls wrapper
@@ -17,7 +17,7 @@
 ;   name, version      → skipped (metadata only)
 ;
 ; Two-pass ordering:
-;   Pass 1: emit all (extern ...) nodes first (LLVM IR: declare before define)
+;   Pass 1: register declarations and emit all extern nodes first
 ;   Pass 2: emit all fn/entry/const/struct nodes
 
 (program
@@ -28,6 +28,7 @@
     (params (fd i32))
     (returns void)
     (do
+      (call_void weave_surface_symbols_reset)
       (call_void write_cstr (param_get fd) (const_string_ptr "(core-module"))
       (call_void write_byte (param_get fd) (const_i32 10))
       (call_void write_cstr (param_get fd) (const_string_ptr "  (core-version 2)"))
@@ -77,9 +78,7 @@
       (call_void write_byte (param_get fd) (const_i32 10))
       (return_void)))
 
-  ; Emit a (const NAME TYPE VALUE) as a zero-arg WIR function:
-  ;   (fn NAME (params) (returns TYPE) (do (return (const_TYPE VALUE))))
-  ; For ptr type the value is always (const_null) regardless of the source value.
+  ; Emit a (const NAME TYPE VALUE) as a zero-arg WIR function.
   (fn lower_const
     (params (fd i32) (source ptr) (tree ptr) (node i64))
     (returns void)
@@ -219,6 +218,10 @@
             (else (do)))
           (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
       (call_void effect_table_free (local_get effect_table))
+      (if
+        (condition (ne_i32 (call_i32 weave_surface_has_error) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
       (return (const_i32 0))))
 
   ; Lower the top-level (program ...) to WIR text.
@@ -227,12 +230,12 @@
     (params (fd i32) (source ptr) (tree ptr))
     (returns i32)
     (do
+      (call_void emit_wir_header (param_get fd))
       (if
         (condition (ne_i32 (call_i32 validate_quantum_program
           (param_get tree) (param_get source)) (const_i32 0)))
         (then (do (return (const_i32 1))))
         (else (do)))
-      (call_void emit_wir_header (param_get fd))
       (let extern_status i32 (call_i32 lower_program_externs
         (param_get fd) (param_get source) (param_get tree)))
       (if
@@ -439,6 +442,11 @@
       (params (tree ptr) (source ptr))
       (returns i32)
       (do
+        (if
+          (condition (ne_i32 (call_i32 surface_register_program_decls
+            (param_get tree) (param_get source)) (const_i32 0)))
+          (then (do (return (const_i32 1))))
+          (else (do)))
         (return (call_i32 validate_node
           (param_get tree) (param_get source) (const_i64 0) (call_i32 type_kind_unknown)))))
 

@@ -47,6 +47,30 @@
       (detail_start i64) (detail_len i64))
     (returns void))
 
+  ; Generic storage for compiler-owned surface semantic facts. The self-hosted
+  ; frontend defines all type codes and language rules; host C only copies names.
+  (extern weave_surface_symbols_reset (params) (returns void))
+  (extern weave_surface_symbol_begin
+    (params (source ptr) (start i64) (len i64) (return_type i32))
+    (returns i32))
+  (extern weave_surface_symbol_add_parameter (params (type i32)) (returns i32))
+  (extern weave_surface_symbol_return_type
+    (params (source ptr) (start i64) (len i64)) (returns i32))
+  (extern weave_surface_symbol_parameter_count
+    (params (source ptr) (start i64) (len i64)) (returns i32))
+  (extern weave_surface_symbol_parameter_type
+    (params (source ptr) (start i64) (len i64) (parameter_index i32))
+    (returns i32))
+  (extern weave_surface_locals_reset (params) (returns void))
+  (extern weave_surface_local_add
+    (params (source ptr) (start i64) (len i64) (type i32)) (returns i32))
+  (extern weave_surface_local_type
+    (params (source ptr) (start i64) (len i64)) (returns i32))
+  (extern weave_surface_set_return_type (params (type i32)) (returns void))
+  (extern weave_surface_get_return_type (params) (returns i32))
+  (extern weave_surface_set_error (params) (returns void))
+  (extern weave_surface_has_error (params) (returns i32))
+
   ; weavec-bootstrap C runtime — lex/parse
   (extern lex (params (source ptr) (length i64)) (returns ptr))
   (extern parse (params (tokens ptr)) (returns ptr))

@@ -153,8 +153,9 @@
                   (if
                     (condition (ne_i64 (param_get return_val) (const_i64 -1)))
                     (then (do
-                      (call_void emit_node
-                        (param_get fd) (param_get source) (param_get tree) (param_get return_val))))
+                      (call_void surface_emit_expr_expected
+                        (param_get fd) (param_get source) (param_get tree) (param_get return_val)
+                        (call_i32 weave_surface_get_return_type))))
                     (else (do
                       (call_void write_cstr (param_get fd) (const_string_ptr "(const_i32 0)")))))
                   (return_void)))
@@ -164,6 +165,27 @@
       (if
         (condition (eq_i32 (call_i32 node_kind (param_get tree) (param_get node)) (call_i32 node_list)))
         (then (do
+          (if
+            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "call") (const_i64 4)) (const_i32 0)))
+            (then (do
+              (if
+                (condition (and_bool
+                  (ne_i32 (param_get use_result) (const_i32 0))
+                  (ne_i32 (call_i32 expr_contains_result
+                    (param_get tree) (param_get source) (param_get node)) (const_i32 0))))
+                (then (do
+                  (call_void surface_error_prefix (const_string_ptr "contract"))
+                  (call_void write_cstr (const_i32 2)
+                    (const_string_ptr "canonical call containing result is not yet supported"))
+                  (call_void write_byte (const_i32 2) (const_i32 10))
+                  (call_void write_cstr (param_get fd) (const_string_ptr "(const_bool false)"))
+                  (return_void)))
+                (else (do)))
+              (call_void emit_node
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (return_void)))
+            (else (do)))
           (call_void write_byte (param_get fd) (const_i32 40))
           (let child i64 (call_i64 node_first_child (param_get tree) (param_get node)))
           (let first i32 (const_i32 1))
@@ -201,6 +223,26 @@
             (then (do
               (call_void emit_return_with_ensures
                 (param_get fd) (param_get source) (param_get tree) (param_get fn_node) (param_get node))
+              (return_void)))
+            (else (do)))
+          (if
+            (condition (or_bool
+              (or_bool
+                (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+                  (const_string_ptr "call") (const_i64 4)) (const_i32 0))
+                (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+                  (const_string_ptr "let") (const_i64 3)) (const_i32 0)))
+              (or_bool
+                (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+                  (const_string_ptr "set") (const_i64 3)) (const_i32 0))
+                (or_bool
+                  (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+                    (const_string_ptr "qgate") (const_i64 5)) (const_i32 0))
+                  (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+                    (const_string_ptr "qmeasure") (const_i64 8)) (const_i32 0))))))
+            (then (do
+              (call_void emit_node
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
               (return_void)))
             (else (do)))))
         (else (do)))
@@ -322,7 +364,9 @@
       (if
         (condition (ne_i64 (local_get val) (const_i64 -1)))
         (then (do
-          (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get val))))
+          (call_void surface_emit_expr_expected
+            (param_get fd) (param_get source) (param_get tree) (local_get val)
+            (call_i32 weave_surface_get_return_type))))
         (else (do
           (call_void write_cstr (param_get fd) (const_string_ptr "(const_i32 0)")))))
       (call_void write_byte (param_get fd) (const_i32 41))
