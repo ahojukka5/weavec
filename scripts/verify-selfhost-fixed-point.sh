@@ -48,6 +48,7 @@ normalize_llvm() {
   awk '
     /^; ModuleID = / { next }
     /^source_filename = / { next }
+    /^; source: / { next }
     {
       sub(/[[:space:]]+$/, "")
       if ($0 == "") {
