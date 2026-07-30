@@ -4,8 +4,8 @@ Weave keeps S-expressions as its primary source representation. Canonical surfac
 forms optimize for deterministic generation, validation, structural editing, and
 repair rather than minimum character count.
 
-This document describes the first typed-elaboration slice. WIR core version 2 is
-unchanged.
+This document describes the implemented typed-elaboration forms. WIR core version
+2 is unchanged.
 
 ## Canonical calls
 
@@ -30,15 +30,73 @@ Existing explicit forms such as `call_i32`, `call_i64`, `call_ptr`, and
 `call_void` remain accepted for compatibility and low-level compiler sources.
 They are not the preferred representation for newly generated application code.
 
+## Canonical operators
+
+Generated application source should use `(op NAME OPERANDS...)`. The compiler
+selects the admitted typed WIR operator from the operand types:
+
+```weave
+(op add left right)
+(op less-than index limit)
+(op equal pointer null)
+(op and ready valid)
+(op not failed)
+```
+
+The canonical names are:
+
+- arithmetic: `add`, `subtract`, `multiply`, `divide`, and `remainder`;
+- integer bit operations: `bit-and`, `bit-or`, `bit-xor`, `shift-left`, and
+  `shift-right`;
+- comparisons: `equal`, `not-equal`, `less-than`, `less-or-equal`,
+  `greater-than`, and `greater-or-equal`;
+- Boolean operations: `and`, `or`, and `not`.
+
+Arithmetic supports `i32`, `i64`, `f32`, and `f64`. Bit operations support
+`i32` and `i64`. Ordered comparisons support numeric operands, while pointer
+operands support only `equal` and `not-equal`. Boolean operations require
+`bool` operands.
+
+Two otherwise unconstrained integer literals use the canonical `i32` default.
+When one operand has a known type, an integer literal on the other side uses that
+same numeric type. Mixed known operand types are rejected; the compiler never
+inserts a numeric conversion.
+
+## Canonical casts
+
+An explicit conversion names only its target type:
+
+```weave
+(cast i64 count)
+(cast f64 value)
+(cast i32 wide-value)
+```
+
+The compiler determines the source type and emits the corresponding WIR v2 cast.
+Only conversions already admitted by WIR are accepted:
+
+- `i64` to `i32`;
+- `i32` to `i64`, `f32`, or `f64`;
+- `f32` to `i32` or `f64`;
+- `f64` to `i32` or `f32`.
+
+Unsupported pairs fail explicitly. There are no implicit casts, and a canonical
+cast is not a request to guess a conversion path through intermediate types.
+
+Legacy forms such as `add_i32`, `lt_i64`, `and_bool`, and
+`cast_i64_to_i32` remain accepted for compatibility and compiler
+implementation code.
+
 ## Contextual literals
 
 A literal may omit its WIR constructor when an authoritative expected type is
-available locally. The initial contexts are:
+available locally. The current contexts are:
 
 - typed `let` initializers;
 - assignment to a known local;
 - typed function arguments;
-- function return expressions.
+- function return expressions;
+- operands whose canonical operator determines one exact type.
 
 Examples:
 
@@ -49,24 +107,26 @@ Examples:
 (call choose true 40 2)
 (call consume-pointer null)
 (call consume-string "weave")
+(op add count 1)
 ```
 
 The compiler emits explicit WIR constructors such as `const_i64`, `const_bool`,
 `const_null`, and `const_string_ptr`.
 
 Context does not introduce numeric promotion. An explicit `i32` expression passed
-to an `i64` parameter remains a type error. Existing explicit casts remain
-required until the canonical `(cast TYPE EXPR)` slice is implemented.
+to an `i64` parameter remains a type error. Use `(cast i64 expression)` when an
+admitted explicit conversion is intended.
 
 ## Deterministic type rules
 
-- Function names resolve exactly and case-sensitively.
+- Names resolve exactly and case-sensitively.
 - Duplicate declarations are rejected.
-- Call arity must match the registered signature.
-- Known argument types must match exactly.
+- Call and operator arity must match the selected form.
+- Known argument and operand types must match exactly.
 - Integer widths are never guessed or promoted.
-- Unknown or ambiguous calls fail rather than selecting an arbitrary WIR form.
-- Legacy explicit expressions remain valid and can coexist with canonical calls.
+- Unknown, mixed, or unsupported expressions fail rather than selecting an
+  arbitrary WIR form.
+- Legacy explicit expressions remain valid and can coexist with canonical forms.
 
 ## Contracts
 
@@ -74,9 +134,8 @@ Canonical calls are elaborated inside ordinary contracted function bodies and in
 contract expressions that do not substitute `result` through the call.
 
 A canonical call containing `result` inside an `ensures` expression is rejected
-by this initial slice with an explicit frontend error. Existing explicit typed
-call syntax remains available there until result-aware canonical call emission is
-implemented.
+with an explicit frontend error. Existing explicit typed call syntax remains
+available there until result-aware canonical call emission is implemented.
 
 ## Implementation boundary
 
@@ -85,6 +144,7 @@ checks, diagnostics, and WIR selection. A narrow C host component only retains
 copied symbol and local-name records across separately parsed source files. It
 does not parse Weave, recognize type names, or choose language semantics.
 
-The next issue-#49 slices add canonical generic operations and canonical casts.
-The capability registry in issue #36 will eventually expose canonical versus
-legacy forms to Jacquard and other agents.
+Canonical operator and cast selection is implemented in a dedicated self-hosted
+frontend module. It consumes the existing declaration and local facts and emits
+only admitted WIR core-version-2 forms; it adds no private WIR dialect or new host
+runtime semantic state.

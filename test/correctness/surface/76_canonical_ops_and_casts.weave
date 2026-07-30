@@ -1,0 +1,27 @@
+; purpose: verify canonical operator and cast elaboration.
+; expected-exit: 42
+; tags: op, cast, arithmetic, comparison, boolean, bitwise, ptr
+
+(program
+  (name "canonical-ops-and-casts")
+  (version "0.1")
+
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let wide i64 (cast i64 40))
+      (let masked i64 (op bit-and wide (cast i64 63)))
+      (let bonus i32 (cast i32 (cast f64 2)))
+      (let valid bool
+        (op and
+          (op greater-or-equal masked (cast i64 40))
+          (op and
+            (op less-than 1 2)
+            (op equal null null))))
+      (if
+        (condition (op not (op or (op not valid) false)))
+        (then (do
+          (return (op add (cast i32 masked) bonus))))
+        (else (do
+          (return 0)))))))

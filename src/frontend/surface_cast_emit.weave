@@ -1,0 +1,87 @@
+; SPDX-License-Identifier: Apache-2.0
+; surface_cast_emit.weave — Canonical cast validation and WIR v2 emission.
+;
+; This self-hosted frontend module emits only admitted WIR core-version-2 forms.
+
+(program
+  (name "surface_cast_emit")
+  (version "0.1")
+
+  (fn surface_emit_canonical_cast
+    (params (sop_fd i32) (sop_source ptr) (sop_tree ptr) (sop_node i64))
+    (returns void)
+    (do
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get sop_tree) (param_get sop_node)) (const_i64 3)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "cast"))
+          (call_void write_cstr (const_i32 2) (const_string_ptr "expected target type and one expression"))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (call_void sop_emit_failure_expr (param_get sop_fd))
+          (return_void)))
+        (else (do)))
+      (let sop_target_node i64 (call_i64 nth_child
+        (param_get sop_tree) (param_get sop_node) (const_i64 1)))
+      (let sop_value_node i64 (call_i64 nth_child
+        (param_get sop_tree) (param_get sop_node) (const_i64 2)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get sop_tree) (local_get sop_target_node)) (const_i32 0)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "cast"))
+          (call_void write_cstr (const_i32 2) (const_string_ptr "target type must be an identifier"))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (call_void sop_emit_failure_expr (param_get sop_fd))
+          (return_void)))
+        (else (do)))
+      (let sop_target_type i32 (call_i32 surface_type_code
+        (param_get sop_tree) (param_get sop_source) (local_get sop_target_node)))
+      (let sop_source_type i32 (call_i32 sop_expr_type
+        (param_get sop_tree) (param_get sop_source) (local_get sop_value_node)
+        (call_i32 surface_type_unknown)))
+      (if
+        (condition (eq_i32 (local_get sop_target_type) (call_i32 surface_type_unknown)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "cast"))
+          (call_void write_cstr (const_i32 2) (const_string_ptr "unknown target type "))
+          (call_void emit_node_text
+            (const_i32 2) (param_get sop_source) (param_get sop_tree)
+            (local_get sop_target_node))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (call_void sop_emit_failure_expr (param_get sop_fd))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get sop_source_type) (call_i32 surface_type_unknown)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "cast"))
+          (call_void write_cstr (const_i32 2) (const_string_ptr "cannot determine source expression type"))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (call_void sop_emit_failure_expr (param_get sop_fd))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 sop_cast_pair_supported
+          (local_get sop_source_type) (local_get sop_target_type)) (const_i32 0)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "cast"))
+          (call_void write_cstr (const_i32 2) (const_string_ptr "unsupported cast from "))
+          (call_void surface_emit_type_name (const_i32 2) (local_get sop_source_type))
+          (call_void write_cstr (const_i32 2) (const_string_ptr " to "))
+          (call_void surface_emit_type_name (const_i32 2) (local_get sop_target_type))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (call_void sop_emit_failure_expr (param_get sop_fd))
+          (return_void)))
+        (else (do)))
+      (call_void write_cstr (param_get sop_fd) (const_string_ptr "(cast_"))
+      (call_void surface_emit_type_name (param_get sop_fd) (local_get sop_source_type))
+      (call_void write_cstr (param_get sop_fd) (const_string_ptr "_to_"))
+      (call_void surface_emit_type_name (param_get sop_fd) (local_get sop_target_type))
+      (call_void write_byte (param_get sop_fd) (const_i32 32))
+      (call_void surface_emit_expr_expected
+        (param_get sop_fd) (param_get sop_source) (param_get sop_tree)
+        (local_get sop_value_node) (local_get sop_source_type))
+      (call_void write_byte (param_get sop_fd) (const_i32 41))
+      (return_void)))
+)

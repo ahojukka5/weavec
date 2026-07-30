@@ -1,0 +1,165 @@
+; SPDX-License-Identifier: Apache-2.0
+; surface_op_names.weave — Canonical operator name and type-category predicates.
+;
+; This self-hosted frontend module emits only admitted WIR core-version-2 forms.
+
+(program
+  (name "surface_op_names")
+  (version "0.1")
+
+  (fn sop_type_is_numeric
+    (params (sop_type i32))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (or_bool
+            (eq_i32 (param_get sop_type) (call_i32 surface_type_i32))
+            (eq_i32 (param_get sop_type) (call_i32 surface_type_i64)))
+          (or_bool
+            (eq_i32 (param_get sop_type) (call_i32 surface_type_f32))
+            (eq_i32 (param_get sop_type) (call_i32 surface_type_f64)))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn sop_type_is_integer
+    (params (sop_type i32))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_i32 (param_get sop_type) (call_i32 surface_type_i32))
+          (eq_i32 (param_get sop_type) (call_i32 surface_type_i64))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn sop_name_is
+    (params (sop_tree ptr) (sop_source ptr) (sop_name_node i64)
+      (sop_text ptr) (sop_text_len i64))
+    (returns i32)
+    (do
+      (return (call_i32 ident_equals
+        (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+        (param_get sop_text) (param_get sop_text_len)))))
+
+  (fn sop_name_is_arithmetic
+    (params (sop_tree ptr) (sop_source ptr) (sop_name_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 sop_name_is
+              (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+              (const_string_ptr "add") (const_i64 3)) (const_i32 0))
+            (ne_i32 (call_i32 sop_name_is
+              (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+              (const_string_ptr "subtract") (const_i64 8)) (const_i32 0)))
+          (or_bool
+            (ne_i32 (call_i32 sop_name_is
+              (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+              (const_string_ptr "multiply") (const_i64 8)) (const_i32 0))
+            (ne_i32 (call_i32 sop_name_is
+              (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+              (const_string_ptr "divide") (const_i64 6)) (const_i32 0)))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 sop_name_is
+          (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+          (const_string_ptr "remainder") (const_i64 9)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn sop_name_is_bitwise
+    (params (sop_tree ptr) (sop_source ptr) (sop_name_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 sop_name_is
+              (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+              (const_string_ptr "bit-and") (const_i64 7)) (const_i32 0))
+            (ne_i32 (call_i32 sop_name_is
+              (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+              (const_string_ptr "bit-or") (const_i64 6)) (const_i32 0)))
+          (or_bool
+            (ne_i32 (call_i32 sop_name_is
+              (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+              (const_string_ptr "bit-xor") (const_i64 7)) (const_i32 0))
+            (ne_i32 (call_i32 sop_name_is
+              (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+              (const_string_ptr "shift-left") (const_i64 10)) (const_i32 0)))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 sop_name_is
+          (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+          (const_string_ptr "shift-right") (const_i64 11)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn sop_name_is_comparison
+    (params (sop_tree ptr) (sop_source ptr) (sop_name_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 sop_name_is
+              (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+              (const_string_ptr "equal") (const_i64 5)) (const_i32 0))
+            (ne_i32 (call_i32 sop_name_is
+              (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+              (const_string_ptr "not-equal") (const_i64 9)) (const_i32 0)))
+          (or_bool
+            (ne_i32 (call_i32 sop_name_is
+              (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+              (const_string_ptr "less-than") (const_i64 9)) (const_i32 0))
+            (ne_i32 (call_i32 sop_name_is
+              (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+              (const_string_ptr "less-or-equal") (const_i64 13)) (const_i32 0)))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 sop_name_is
+            (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+            (const_string_ptr "greater-than") (const_i64 12)) (const_i32 0))
+          (ne_i32 (call_i32 sop_name_is
+            (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+            (const_string_ptr "greater-or-equal") (const_i64 16)) (const_i32 0))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn sop_name_is_boolean_binary
+    (params (sop_tree ptr) (sop_source ptr) (sop_name_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 sop_name_is
+            (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+            (const_string_ptr "and") (const_i64 3)) (const_i32 0))
+          (ne_i32 (call_i32 sop_name_is
+            (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+            (const_string_ptr "or") (const_i64 2)) (const_i32 0))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn sop_name_is_boolean_unary
+    (params (sop_tree ptr) (sop_source ptr) (sop_name_node i64))
+    (returns i32)
+    (do
+      (return (call_i32 sop_name_is
+        (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+        (const_string_ptr "not") (const_i64 3)))))
+
+)

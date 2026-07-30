@@ -17,16 +17,23 @@ normalize_wir() {
     sed -E 's/[[:space:]]+/ /g; s/\( /(/g; s/ \)/)/g; s/^ //; s/ $//'
 }
 
-FIXTURE="$ROOT/test/correctness/surface/75_canonical_typed_call.weave"
-EXPECTED="$ROOT/test/correctness/surface/75_canonical_typed_call.expected.wir"
-"$WEAVEC" --frontend "$TMP/canonical.wir" "$FIXTURE"
-[[ "$(normalize_wir "$TMP/canonical.wir")" == "$(normalize_wir "$EXPECTED")" ]]
-"$WEAVEC" build "$FIXTURE" -o "$TMP/canonical"
-set +e
-"$TMP/canonical"
-status=$?
-set -e
-[[ "$status" -eq 42 ]]
+run_fixture() {
+  local stem="$1"
+  local expected_exit="$2"
+  local fixture="$ROOT/test/correctness/surface/$stem.weave"
+  local expected="$ROOT/test/correctness/surface/$stem.expected.wir"
+  "$WEAVEC" --frontend "$TMP/$stem.wir" "$fixture"
+  [[ "$(normalize_wir "$TMP/$stem.wir")" == "$(normalize_wir "$expected")" ]]
+  "$WEAVEC" build "$fixture" -o "$TMP/$stem"
+  set +e
+  "$TMP/$stem"
+  local status=$?
+  set -e
+  [[ "$status" -eq "$expected_exit" ]]
+}
+
+run_fixture 75_canonical_typed_call 42
+run_fixture 76_canonical_ops_and_casts 42
 
 cat > "$TMP/library.weave" <<'WEAVE'
 (program
@@ -134,5 +141,40 @@ cat > "$TMP/bool-integer.weave" <<'WEAVE'
     (do (return (call consume 1)))))
 WEAVE
 expect_frontend_failure bool-integer 'argument type mismatch for consume: expected bool, got i32'
+
+cat > "$TMP/mixed-op.weave" <<'WEAVE'
+(program
+  (name "mixed-op")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let wide i64 (cast i64 2))
+      (return (op add (const_i32 40) wide)))))
+WEAVE
+expect_frontend_failure mixed-op 'operand type mismatch for add'
+
+cat > "$TMP/unsupported-cast.weave" <<'WEAVE'
+(program
+  (name "unsupported-cast")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do (return (cast ptr 1)))))
+WEAVE
+expect_frontend_failure unsupported-cast 'unsupported cast from i32 to ptr'
+
+cat > "$TMP/operator-arity.weave" <<'WEAVE'
+(program
+  (name "operator-arity")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do (return (op add 1)))))
+WEAVE
+expect_frontend_failure operator-arity 'wrong arity for add: expected 2, got 1'
 
 printf 'surface-elaboration: all checks passed\n'

@@ -1,0 +1,219 @@
+; SPDX-License-Identifier: Apache-2.0
+; surface_op_types.weave — Canonical operator and cast type inference.
+;
+; This self-hosted frontend module emits only admitted WIR core-version-2 forms.
+
+(program
+  (name "surface_op_types")
+  (version "0.1")
+
+  (fn sop_expr_seed_type
+    (params (sop_tree ptr) (sop_source ptr) (sop_node i64))
+    (returns i32)
+    (do
+      ; Integer tokens remain contextual while an operator examines both sides.
+      ; When neither side supplies a type, the operator defaults them to i32.
+      (if
+        (condition (eq_i32 (call_i32 node_kind
+          (param_get sop_tree) (param_get sop_node)) (call_i32 node_int)))
+        (then (do (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (return (call_i32 sop_expr_type
+        (param_get sop_tree) (param_get sop_source) (param_get sop_node)
+        (call_i32 surface_type_unknown)))))
+
+  (fn sop_infer_binary_type
+    (params (sop_tree ptr) (sop_source ptr) (sop_left_node i64)
+      (sop_right_node i64))
+    (returns i32)
+    (do
+      (let sop_left_type i32 (call_i32 sop_expr_seed_type
+        (param_get sop_tree) (param_get sop_source) (param_get sop_left_node)))
+      (let sop_right_type i32 (call_i32 sop_expr_seed_type
+        (param_get sop_tree) (param_get sop_source) (param_get sop_right_node)))
+      (if
+        (condition (and_bool
+          (eq_i32 (local_get sop_left_type) (call_i32 surface_type_unknown))
+          (eq_i32 (local_get sop_right_type) (call_i32 surface_type_unknown))))
+        (then (do (return (call_i32 surface_type_i32))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get sop_left_type) (call_i32 surface_type_unknown)))
+        (then (do (return (local_get sop_right_type))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get sop_right_type) (call_i32 surface_type_unknown)))
+        (then (do (return (local_get sop_left_type))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get sop_left_type) (local_get sop_right_type)))
+        (then (do (return (local_get sop_left_type))))
+        (else (do)))
+      (return (call_i32 surface_type_unknown))))
+
+  (fn sop_comparison_supports_type
+    (params (sop_tree ptr) (sop_source ptr) (sop_name_node i64)
+      (sop_operand_type i32))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 sop_type_is_numeric
+          (param_get sop_operand_type)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get sop_operand_type) (call_i32 surface_type_ptr)))
+        (then (do
+          (if
+            (condition (or_bool
+              (ne_i32 (call_i32 sop_name_is
+                (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+                (const_string_ptr "equal") (const_i64 5)) (const_i32 0))
+              (ne_i32 (call_i32 sop_name_is
+                (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
+                (const_string_ptr "not-equal") (const_i64 9)) (const_i32 0))))
+            (then (do (return (const_i32 1))))
+            (else (do)))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn sop_cast_pair_supported
+    (params (sop_source_type i32) (sop_target_type i32))
+    (returns i32)
+    (do
+      (if
+        (condition (and_bool
+          (eq_i32 (param_get sop_source_type) (call_i32 surface_type_i64))
+          (eq_i32 (param_get sop_target_type) (call_i32 surface_type_i32))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (eq_i32 (param_get sop_source_type) (call_i32 surface_type_i32))
+          (or_bool
+            (eq_i32 (param_get sop_target_type) (call_i32 surface_type_i64))
+            (or_bool
+              (eq_i32 (param_get sop_target_type) (call_i32 surface_type_f32))
+              (eq_i32 (param_get sop_target_type) (call_i32 surface_type_f64))))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (eq_i32 (param_get sop_source_type) (call_i32 surface_type_f32))
+          (or_bool
+            (eq_i32 (param_get sop_target_type) (call_i32 surface_type_i32))
+            (eq_i32 (param_get sop_target_type) (call_i32 surface_type_f64)))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (eq_i32 (param_get sop_source_type) (call_i32 surface_type_f64))
+          (or_bool
+            (eq_i32 (param_get sop_target_type) (call_i32 surface_type_i32))
+            (eq_i32 (param_get sop_target_type) (call_i32 surface_type_f32)))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn sop_op_result_type
+    (params (sop_tree ptr) (sop_source ptr) (sop_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (lt_i64 (call_i64 count_children
+          (param_get sop_tree) (param_get sop_node)) (const_i64 2)))
+        (then (do (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (let sop_name_node i64 (call_i64 nth_child
+        (param_get sop_tree) (param_get sop_node) (const_i64 1)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get sop_tree) (local_get sop_name_node)) (const_i32 0)))
+        (then (do (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 sop_name_is_comparison
+            (param_get sop_tree) (param_get sop_source) (local_get sop_name_node)) (const_i32 0))
+          (or_bool
+            (ne_i32 (call_i32 sop_name_is_boolean_binary
+              (param_get sop_tree) (param_get sop_source) (local_get sop_name_node)) (const_i32 0))
+            (ne_i32 (call_i32 sop_name_is_boolean_unary
+              (param_get sop_tree) (param_get sop_source) (local_get sop_name_node)) (const_i32 0)))))
+        (then (do (return (call_i32 surface_type_bool))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 sop_name_is_arithmetic
+            (param_get sop_tree) (param_get sop_source) (local_get sop_name_node)) (const_i32 0))
+          (ne_i32 (call_i32 sop_name_is_bitwise
+            (param_get sop_tree) (param_get sop_source) (local_get sop_name_node)) (const_i32 0))))
+        (then (do
+          (if
+            (condition (ne_i64 (call_i64 count_children
+              (param_get sop_tree) (param_get sop_node)) (const_i64 4)))
+            (then (do (return (call_i32 surface_type_unknown))))
+            (else (do)))
+          (let sop_left_node i64 (call_i64 nth_child
+            (param_get sop_tree) (param_get sop_node) (const_i64 2)))
+          (let sop_right_node i64 (call_i64 nth_child
+            (param_get sop_tree) (param_get sop_node) (const_i64 3)))
+          (return (call_i32 sop_infer_binary_type
+            (param_get sop_tree) (param_get sop_source)
+            (local_get sop_left_node) (local_get sop_right_node)))))
+        (else (do)))
+      (return (call_i32 surface_type_unknown))))
+
+  (fn sop_cast_result_type
+    (params (sop_tree ptr) (sop_source ptr) (sop_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get sop_tree) (param_get sop_node)) (const_i64 3)))
+        (then (do (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (let sop_target_node i64 (call_i64 nth_child
+        (param_get sop_tree) (param_get sop_node) (const_i64 1)))
+      (let sop_value_node i64 (call_i64 nth_child
+        (param_get sop_tree) (param_get sop_node) (const_i64 2)))
+      (let sop_target_type i32 (call_i32 surface_type_code
+        (param_get sop_tree) (param_get sop_source) (local_get sop_target_node)))
+      (let sop_source_type i32 (call_i32 sop_expr_type
+        (param_get sop_tree) (param_get sop_source) (local_get sop_value_node)
+        (call_i32 surface_type_unknown)))
+      (if
+        (condition (ne_i32 (call_i32 sop_cast_pair_supported
+          (local_get sop_source_type) (local_get sop_target_type)) (const_i32 0)))
+        (then (do (return (local_get sop_target_type))))
+        (else (do)))
+      (return (call_i32 surface_type_unknown))))
+
+  (fn sop_expr_type
+    (params (sop_tree ptr) (sop_source ptr) (sop_node i64) (sop_expected i32))
+    (returns i32)
+    (do
+      (let sop_base_type i32 (call_i32 surface_expr_type
+        (param_get sop_tree) (param_get sop_source) (param_get sop_node)
+        (param_get sop_expected)))
+      (if
+        (condition (ne_i32 (local_get sop_base_type) (call_i32 surface_type_unknown)))
+        (then (do (return (local_get sop_base_type))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_node_is_list_head
+          (param_get sop_tree) (param_get sop_source) (param_get sop_node)
+          (const_string_ptr "op") (const_i64 2)) (const_i32 0)))
+        (then (do (return (call_i32 sop_op_result_type
+          (param_get sop_tree) (param_get sop_source) (param_get sop_node)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_node_is_list_head
+          (param_get sop_tree) (param_get sop_source) (param_get sop_node)
+          (const_string_ptr "cast") (const_i64 4)) (const_i32 0)))
+        (then (do (return (call_i32 sop_cast_result_type
+          (param_get sop_tree) (param_get sop_source) (param_get sop_node)))))
+        (else (do)))
+      (return (call_i32 surface_type_unknown))))
+
+)

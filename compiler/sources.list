@@ -12,6 +12,12 @@ src/frontend/quantum_optimize.weave
 src/frontend/quantum_nativize.weave
 src/frontend/quantum_stats.weave
 src/frontend/elaborate.weave
+src/frontend/surface_op_names.weave
+src/frontend/surface_op_types.weave
+src/frontend/surface_op_render.weave
+src/frontend/surface_op_emit.weave
+src/frontend/surface_cast_emit.weave
+src/frontend/emit_helpers.weave
 src/frontend/emit.weave
 src/frontend/contract-lower.weave
 src/frontend/struct.weave
