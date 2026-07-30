@@ -17,6 +17,7 @@ src/frontend/surface_op_types.weave
 src/frontend/surface_op_render.weave
 src/frontend/surface_op_emit.weave
 src/frontend/surface_cast_emit.weave
+src/frontend/semantic_diagnostics.weave
 src/frontend/emit_helpers.weave
 src/frontend/emit.weave
 src/frontend/contract_canonical.weave

@@ -56,6 +56,9 @@ bash "$ROOT/test/surface-elaboration/test.sh"
 log 'diagnostics'
 bash "$ROOT/test/diagnostics/test-build-diagnostics.sh"
 
+log 'diagnostic repairs'
+bash "$ROOT/test/diagnostic-repairs/test.sh"
+
 log 'performance'
 bash "$ROOT/test/performance/test.sh"
 

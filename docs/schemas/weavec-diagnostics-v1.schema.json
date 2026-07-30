@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:weavec:schema:diagnostics:v1",
+  "title": "weavec-diagnostics-v1",
+  "type": "object",
+  "required": [
+    "format",
+    "status",
+    "phase",
+    "exit_code",
+    "raw_exit_code",
+    "diagnostics"
+  ],
+  "properties": {
+    "format": {"const": "weavec-diagnostics-v1"},
+    "status": {"enum": ["succeeded", "failed"]},
+    "phase": {"type": "string", "minLength": 1},
+    "exit_code": {"type": "integer"},
+    "raw_exit_code": {"type": "integer"},
+    "diagnostics": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/diagnostic"}
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "span": {
+      "type": "object",
+      "required": [
+        "start_byte",
+        "end_byte",
+        "start_line",
+        "start_column",
+        "end_line",
+        "end_column"
+      ],
+      "properties": {
+        "start_byte": {"type": "integer", "minimum": 0},
+        "end_byte": {"type": "integer", "minimum": 0},
+        "start_line": {"type": "integer", "minimum": 1},
+        "start_column": {"type": "integer", "minimum": 1},
+        "end_line": {"type": "integer", "minimum": 1},
+        "end_column": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": true
+    },
+    "location": {
+      "type": "object",
+      "required": ["source", "span"],
+      "properties": {
+        "source": {"type": "string", "minLength": 1},
+        "span": {"$ref": "#/$defs/span"}
+      },
+      "additionalProperties": true
+    },
+    "repair": {
+      "type": "object",
+      "required": ["kind", "replacement", "replacement_span", "confidence"],
+      "properties": {
+        "kind": {"const": "replace"},
+        "replacement": {"type": "string", "minLength": 1},
+        "replacement_span": {"$ref": "#/$defs/span"},
+        "confidence": {
+          "enum": ["guaranteed-local", "candidate", "none"]
+        }
+      },
+      "additionalProperties": true
+    },
+    "diagnostic": {
+      "type": "object",
+      "required": [
+        "code",
+        "severity",
+        "phase",
+        "message",
+        "source",
+        "span_origin",
+        "span",
+        "analysis_complete",
+        "candidates",
+        "related_locations",
+        "repairs"
+      ],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "severity": {"type": "string", "minLength": 1},
+        "phase": {"type": "string", "minLength": 1},
+        "message": {"type": "string", "minLength": 1},
+        "source": {"type": ["string", "null"]},
+        "span_origin": {"type": "string", "minLength": 1},
+        "span": {"oneOf": [{"$ref": "#/$defs/span"}, {"type": "null"}]},
+        "analysis_complete": {"type": "boolean"},
+        "expected_type": {"type": "string", "minLength": 1},
+        "actual_type": {"type": "string", "minLength": 1},
+        "argument_index": {"type": "integer", "minimum": 0},
+        "expected_count": {"type": "integer", "minimum": 0},
+        "actual_count": {"type": "integer", "minimum": 0},
+        "operand_role": {"type": "string", "minLength": 1},
+        "symbol": {"type": "string", "minLength": 1},
+        "candidates": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "related_locations": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/location"}
+        },
+        "repairs": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/repair"}
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

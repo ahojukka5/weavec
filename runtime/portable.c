@@ -126,6 +126,7 @@ static char *weave_rt_mkdtemp(char *path_template) {
 #include "capabilities_json.c"
 #include "document_publish.c"
 #include "build_manifest_json.c"
+#include "semantic_diagnostic_transport.c"
 
 static int weave_trace_write_document(
     const char *path,
@@ -141,11 +142,13 @@ static int weave_trace_write_document(
 #define weave_rt_build_main weave_rt_build_main_legacy
 #include "build_driver.c"
 #undef weave_rt_build_main
-#define weave_rt_build_main weave_rt_build_main_diagnostics_legacy
+#define weave_rt_build_main weave_rt_build_main_diagnostics_core
 #include "diagnostics_driver.c"
 #undef weave_rt_build_main
+#include "semantic_diagnostic_wrapper.c"
 #define weave_rt_build_main weave_rt_build_main_source_locations_legacy
 #include "source_locations.c"
 #undef weave_rt_build_main
 #include "trace_runtime.c"
+#include "semantic_diagnostic_record.c"
 #include "path_safety.c"

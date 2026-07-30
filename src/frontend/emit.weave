@@ -34,14 +34,14 @@
             (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
               (const_string_ptr "call") (const_i64 4)) (const_i32 0)))
             (then (do
-              (call_void surface_emit_call (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (call_void sdiag_emit_call (param_get fd) (param_get source) (param_get tree) (param_get node))
               (return_void)))
             (else (do)))
           (if
             (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
               (const_string_ptr "op") (const_i64 2)) (const_i32 0)))
             (then (do
-              (call_void surface_emit_canonical_op
+              (call_void sdiag_emit_op
                 (param_get fd) (param_get source) (param_get tree) (param_get node))
               (return_void)))
             (else (do)))
@@ -49,7 +49,7 @@
             (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
               (const_string_ptr "cast") (const_i64 4)) (const_i32 0)))
             (then (do
-              (call_void surface_emit_canonical_cast
+              (call_void sdiag_emit_cast
                 (param_get fd) (param_get source) (param_get tree) (param_get node))
               (return_void)))
             (else (do)))

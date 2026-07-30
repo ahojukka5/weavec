@@ -47,6 +47,15 @@
       (source ptr) (start i64) (len i64)
       (detail_start i64) (detail_len i64))
     (returns void))
+  (extern weave_rt_diag_record
+    (params
+      (code ptr) (source ptr) (start i64) (len i64)
+      (expected_type ptr) (actual_type ptr)
+      (argument_index i32) (expected_count i32) (actual_count i32)
+      (operand_role ptr)
+      (symbol_source ptr) (symbol_start i64) (symbol_len i64)
+      (repair_kind i32))
+    (returns void))
 
   ; Generic storage for compiler-owned surface semantic facts. The self-hosted
   ; frontend defines all type codes and language rules; host C only copies names.

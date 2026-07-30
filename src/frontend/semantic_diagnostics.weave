@@ -1,0 +1,500 @@
+; SPDX-License-Identifier: Apache-2.0
+; semantic_diagnostics.weave — exact canonical-surface diagnostic context
+;
+; The ordinary emitters remain authoritative for validity and human stderr.
+; These wrappers observe the first canonical-surface failure and publish exact
+; AST/type facts through a private host transport when diagnostics JSON is active.
+
+(program
+  (name "semantic_diagnostics")
+  (version "0.1")
+
+  (fn sdiag_type_name_ptr
+    (params (sdiag_type i32))
+    (returns ptr)
+    (do
+      (if
+        (condition (eq_i32 (param_get sdiag_type) (call_i32 surface_type_void)))
+        (then (do (return (const_string_ptr "void"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get sdiag_type) (call_i32 surface_type_i32)))
+        (then (do (return (const_string_ptr "i32"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get sdiag_type) (call_i32 surface_type_i64)))
+        (then (do (return (const_string_ptr "i64"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get sdiag_type) (call_i32 surface_type_f32)))
+        (then (do (return (const_string_ptr "f32"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get sdiag_type) (call_i32 surface_type_f64)))
+        (then (do (return (const_string_ptr "f64"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get sdiag_type) (call_i32 surface_type_bool)))
+        (then (do (return (const_string_ptr "bool"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get sdiag_type) (call_i32 surface_type_ptr)))
+        (then (do (return (const_string_ptr "ptr"))))
+        (else (do)))
+      (return (const_null))))
+
+  (fn sdiag_repair_kind
+    (params (sdiag_actual i32) (sdiag_expected i32))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 sop_cast_pair_supported
+          (param_get sdiag_actual) (param_get sdiag_expected)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn sdiag_record
+    (params
+      (sdiag_tree ptr) (sdiag_source ptr) (sdiag_node i64) (sdiag_code ptr)
+      (sdiag_expected i32) (sdiag_actual i32) (sdiag_argument_index i32)
+      (sdiag_expected_count i32) (sdiag_actual_count i32) (sdiag_role ptr)
+      (sdiag_symbol_node i64) (sdiag_repair_kind_value i32))
+    (returns void)
+    (do
+      (let sdiag_start i64 (call_i64 node_text_start
+        (param_get sdiag_tree) (param_get sdiag_node)))
+      (let sdiag_length i64 (call_i64 node_text_len
+        (param_get sdiag_tree) (param_get sdiag_node)))
+      (let sdiag_symbol_start i64 (const_i64 -1))
+      (let sdiag_symbol_length i64 (const_i64 0))
+      (if
+        (condition (ne_i64 (param_get sdiag_symbol_node) (const_i64 -1)))
+        (then (do
+          (set sdiag_symbol_start (call_i64 node_text_start
+            (param_get sdiag_tree) (param_get sdiag_symbol_node)))
+          (set sdiag_symbol_length (call_i64 node_text_len
+            (param_get sdiag_tree) (param_get sdiag_symbol_node)))))
+        (else (do)))
+      (call_void weave_rt_diag_record
+        (param_get sdiag_code)
+        (param_get sdiag_source)
+        (local_get sdiag_start)
+        (local_get sdiag_length)
+        (call_ptr sdiag_type_name_ptr (param_get sdiag_expected))
+        (call_ptr sdiag_type_name_ptr (param_get sdiag_actual))
+        (param_get sdiag_argument_index)
+        (param_get sdiag_expected_count)
+        (param_get sdiag_actual_count)
+        (param_get sdiag_role)
+        (param_get sdiag_source)
+        (local_get sdiag_symbol_start)
+        (local_get sdiag_symbol_length)
+        (param_get sdiag_repair_kind_value))
+      (return_void)))
+
+  (fn sdiag_analyze_call
+    (params (sdiag_source ptr) (sdiag_tree ptr) (sdiag_node i64))
+    (returns void)
+    (do
+      (let sdiag_child_count i64 (call_i64 count_children
+        (param_get sdiag_tree) (param_get sdiag_node)))
+      (if
+        (condition (lt_i64 (local_get sdiag_child_count) (const_i64 2)))
+        (then (do
+          (call_void sdiag_record
+            (param_get sdiag_tree) (param_get sdiag_source) (param_get sdiag_node)
+            (const_string_ptr "frontend.call.missing-target")
+            (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+            (const_i32 -1) (const_i32 -1) (const_i32 -1) (const_null)
+            (const_i64 -1) (const_i32 0))
+          (return_void)))
+        (else (do)))
+      (let sdiag_name_node i64 (call_i64 nth_child
+        (param_get sdiag_tree) (param_get sdiag_node) (const_i64 1)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get sdiag_tree) (local_get sdiag_name_node)) (const_i32 0)))
+        (then (do
+          (call_void sdiag_record
+            (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_name_node)
+            (const_string_ptr "frontend.call.invalid-target")
+            (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+            (const_i32 -1) (const_i32 -1) (const_i32 -1) (const_null)
+            (const_i64 -1) (const_i32 0))
+          (return_void)))
+        (else (do)))
+      (let sdiag_name_start i64 (call_i64 node_text_start
+        (param_get sdiag_tree) (local_get sdiag_name_node)))
+      (let sdiag_name_length i64 (call_i64 node_text_len
+        (param_get sdiag_tree) (local_get sdiag_name_node)))
+      (let sdiag_return_type i32 (call_i32 weave_surface_symbol_return_type
+        (param_get sdiag_source) (local_get sdiag_name_start)
+        (local_get sdiag_name_length)))
+      (let sdiag_expected_count_value i32 (call_i32 weave_surface_symbol_parameter_count
+        (param_get sdiag_source) (local_get sdiag_name_start)
+        (local_get sdiag_name_length)))
+      (let sdiag_actual_count_value i64 (sub_i64
+        (local_get sdiag_child_count) (const_i64 2)))
+      (if
+        (condition (eq_i32 (local_get sdiag_return_type)
+          (call_i32 surface_type_unknown)))
+        (then (do
+          (call_void sdiag_record
+            (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_name_node)
+            (const_string_ptr "frontend.symbol.unresolved")
+            (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+            (const_i32 -1) (const_i32 -1) (const_i32 -1) (const_null)
+            (local_get sdiag_name_node) (const_i32 0))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ge_i32 (local_get sdiag_expected_count_value) (const_i32 0))
+          (ne_i64 (local_get sdiag_actual_count_value)
+            (cast_i32_to_i64 (local_get sdiag_expected_count_value)))))
+        (then (do
+          (call_void sdiag_record
+            (param_get sdiag_tree) (param_get sdiag_source) (param_get sdiag_node)
+            (const_string_ptr "frontend.call.wrong-arity")
+            (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+            (const_i32 -1) (local_get sdiag_expected_count_value)
+            (cast_i64_to_i32 (local_get sdiag_actual_count_value)) (const_null)
+            (local_get sdiag_name_node) (const_i32 0))
+          (return_void)))
+        (else (do)))
+      (let sdiag_argument i64 (call_i64 node_next_sibling
+        (param_get sdiag_tree) (local_get sdiag_name_node)))
+      (let sdiag_argument_index_value i32 (const_i32 0))
+      (while
+        (condition (ne_i64 (local_get sdiag_argument) (const_i64 -1)))
+        (do
+          (let sdiag_expected_type i32 (call_i32 weave_surface_symbol_parameter_type
+            (param_get sdiag_source) (local_get sdiag_name_start)
+            (local_get sdiag_name_length) (local_get sdiag_argument_index_value)))
+          (let sdiag_actual_type i32 (call_i32 surface_expr_type
+            (param_get sdiag_tree) (param_get sdiag_source)
+            (local_get sdiag_argument) (local_get sdiag_expected_type)))
+          (if
+            (condition (and_bool
+              (ne_i32 (local_get sdiag_expected_type) (call_i32 surface_type_unknown))
+              (and_bool
+                (ne_i32 (local_get sdiag_actual_type) (call_i32 surface_type_unknown))
+                (ne_i32 (local_get sdiag_expected_type) (local_get sdiag_actual_type)))))
+            (then (do
+              (call_void sdiag_record
+                (param_get sdiag_tree) (param_get sdiag_source)
+                (local_get sdiag_argument)
+                (const_string_ptr "frontend.call.argument-type-mismatch")
+                (local_get sdiag_expected_type) (local_get sdiag_actual_type)
+                (local_get sdiag_argument_index_value) (const_i32 -1) (const_i32 -1)
+                (const_string_ptr "argument") (local_get sdiag_name_node)
+                (call_i32 sdiag_repair_kind
+                  (local_get sdiag_actual_type) (local_get sdiag_expected_type)))
+              (return_void)))
+            (else (do)))
+          (set sdiag_argument_index_value
+            (add_i32 (local_get sdiag_argument_index_value) (const_i32 1)))
+          (set sdiag_argument (call_i64 node_next_sibling
+            (param_get sdiag_tree) (local_get sdiag_argument)))))
+      (return_void)))
+
+  (fn sdiag_analyze_op
+    (params (sdiag_source ptr) (sdiag_tree ptr) (sdiag_node i64))
+    (returns void)
+    (do
+      (let sdiag_child_count i64 (call_i64 count_children
+        (param_get sdiag_tree) (param_get sdiag_node)))
+      (if
+        (condition (lt_i64 (local_get sdiag_child_count) (const_i64 2)))
+        (then (do
+          (call_void sdiag_record
+            (param_get sdiag_tree) (param_get sdiag_source) (param_get sdiag_node)
+            (const_string_ptr "frontend.operator.missing-name")
+            (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+            (const_i32 -1) (const_i32 -1) (const_i32 -1) (const_null)
+            (const_i64 -1) (const_i32 0))
+          (return_void)))
+        (else (do)))
+      (let sdiag_name_node i64 (call_i64 nth_child
+        (param_get sdiag_tree) (param_get sdiag_node) (const_i64 1)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get sdiag_tree) (local_get sdiag_name_node)) (const_i32 0)))
+        (then (do
+          (call_void sdiag_record
+            (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_name_node)
+            (const_string_ptr "frontend.operator.invalid-name")
+            (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+            (const_i32 -1) (const_i32 -1) (const_i32 -1) (const_null)
+            (const_i64 -1) (const_i32 0))
+          (return_void)))
+        (else (do)))
+      (let sdiag_arithmetic i32 (call_i32 sop_name_is_arithmetic
+        (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_name_node)))
+      (let sdiag_bitwise i32 (call_i32 sop_name_is_bitwise
+        (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_name_node)))
+      (let sdiag_comparison i32 (call_i32 sop_name_is_comparison
+        (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_name_node)))
+      (let sdiag_bool_unary i32 (call_i32 sop_name_is_boolean_unary
+        (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_name_node)))
+      (let sdiag_bool_binary i32 (call_i32 sop_name_is_boolean_binary
+        (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_name_node)))
+      (if
+        (condition (and_bool
+          (eq_i32 (local_get sdiag_arithmetic) (const_i32 0))
+          (and_bool
+            (eq_i32 (local_get sdiag_bitwise) (const_i32 0))
+            (and_bool
+              (eq_i32 (local_get sdiag_comparison) (const_i32 0))
+              (and_bool
+                (eq_i32 (local_get sdiag_bool_unary) (const_i32 0))
+                (eq_i32 (local_get sdiag_bool_binary) (const_i32 0)))))))
+        (then (do
+          (call_void sdiag_record
+            (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_name_node)
+            (const_string_ptr "frontend.operator.unknown")
+            (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+            (const_i32 -1) (const_i32 -1) (const_i32 -1) (const_null)
+            (local_get sdiag_name_node) (const_i32 0))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (ne_i32 (local_get sdiag_bool_unary) (const_i32 0)))
+        (then (do
+          (if
+            (condition (ne_i64 (local_get sdiag_child_count) (const_i64 3)))
+            (then (do
+              (call_void sdiag_record
+                (param_get sdiag_tree) (param_get sdiag_source) (param_get sdiag_node)
+                (const_string_ptr "frontend.operator.wrong-arity")
+                (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+                (const_i32 -1) (const_i32 1)
+                (cast_i64_to_i32 (sub_i64 (local_get sdiag_child_count) (const_i64 2)))
+                (const_null) (local_get sdiag_name_node) (const_i32 0))
+              (return_void)))
+            (else (do)))
+          (let sdiag_operand i64 (call_i64 nth_child
+            (param_get sdiag_tree) (param_get sdiag_node) (const_i64 2)))
+          (let sdiag_operand_type i32 (call_i32 sop_expr_type
+            (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_operand)
+            (call_i32 surface_type_bool)))
+          (if
+            (condition (ne_i32 (local_get sdiag_operand_type)
+              (call_i32 surface_type_bool)))
+            (then (do
+              (call_void sdiag_record
+                (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_operand)
+                (const_string_ptr "frontend.operator.operand-type-mismatch")
+                (call_i32 surface_type_bool) (local_get sdiag_operand_type)
+                (const_i32 -1) (const_i32 -1) (const_i32 -1)
+                (const_string_ptr "operand") (local_get sdiag_name_node) (const_i32 0))
+              (return_void)))
+            (else (do)))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (ne_i64 (local_get sdiag_child_count) (const_i64 4)))
+        (then (do
+          (call_void sdiag_record
+            (param_get sdiag_tree) (param_get sdiag_source) (param_get sdiag_node)
+            (const_string_ptr "frontend.operator.wrong-arity")
+            (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+            (const_i32 -1) (const_i32 2)
+            (cast_i64_to_i32 (sub_i64 (local_get sdiag_child_count) (const_i64 2)))
+            (const_null) (local_get sdiag_name_node) (const_i32 0))
+          (return_void)))
+        (else (do)))
+      (let sdiag_left_node i64 (call_i64 nth_child
+        (param_get sdiag_tree) (param_get sdiag_node) (const_i64 2)))
+      (let sdiag_right_node i64 (call_i64 nth_child
+        (param_get sdiag_tree) (param_get sdiag_node) (const_i64 3)))
+      (if
+        (condition (ne_i32 (local_get sdiag_bool_binary) (const_i32 0)))
+        (then (do
+          (let sdiag_left_bool_type i32 (call_i32 sop_expr_type
+            (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_left_node)
+            (call_i32 surface_type_bool)))
+          (let sdiag_right_bool_type i32 (call_i32 sop_expr_type
+            (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_right_node)
+            (call_i32 surface_type_bool)))
+          (if
+            (condition (ne_i32 (local_get sdiag_left_bool_type)
+              (call_i32 surface_type_bool)))
+            (then (do
+              (call_void sdiag_record
+                (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_left_node)
+                (const_string_ptr "frontend.operator.operand-type-mismatch")
+                (call_i32 surface_type_bool) (local_get sdiag_left_bool_type)
+                (const_i32 -1) (const_i32 -1) (const_i32 -1)
+                (const_string_ptr "left") (local_get sdiag_name_node) (const_i32 0))
+              (return_void)))
+            (else (do)))
+          (if
+            (condition (ne_i32 (local_get sdiag_right_bool_type)
+              (call_i32 surface_type_bool)))
+            (then (do
+              (call_void sdiag_record
+                (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_right_node)
+                (const_string_ptr "frontend.operator.operand-type-mismatch")
+                (call_i32 surface_type_bool) (local_get sdiag_right_bool_type)
+                (const_i32 -1) (const_i32 -1) (const_i32 -1)
+                (const_string_ptr "right") (local_get sdiag_name_node) (const_i32 0))
+              (return_void)))
+            (else (do)))
+          (return_void)))
+        (else (do)))
+      (let sdiag_left_type i32 (call_i32 sop_expr_seed_type
+        (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_left_node)))
+      (let sdiag_right_type i32 (call_i32 sop_expr_seed_type
+        (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_right_node)))
+      (let sdiag_operand_type i32 (call_i32 sop_infer_binary_type
+        (param_get sdiag_tree) (param_get sdiag_source)
+        (local_get sdiag_left_node) (local_get sdiag_right_node)))
+      (if
+        (condition (eq_i32 (local_get sdiag_operand_type)
+          (call_i32 surface_type_unknown)))
+        (then (do
+          (if
+            (condition (and_bool
+              (ne_i32 (local_get sdiag_left_type) (call_i32 surface_type_unknown))
+              (and_bool
+                (ne_i32 (local_get sdiag_right_type) (call_i32 surface_type_unknown))
+                (ne_i32 (local_get sdiag_left_type) (local_get sdiag_right_type)))))
+            (then (do
+              (call_void sdiag_record
+                (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_right_node)
+                (const_string_ptr "frontend.operator.operand-type-mismatch")
+                (local_get sdiag_left_type) (local_get sdiag_right_type)
+                (const_i32 -1) (const_i32 -1) (const_i32 -1)
+                (const_string_ptr "right") (local_get sdiag_name_node)
+                (call_i32 sdiag_repair_kind
+                  (local_get sdiag_right_type) (local_get sdiag_left_type)))
+              (return_void)))
+            (else (do)))
+          (call_void sdiag_record
+            (param_get sdiag_tree) (param_get sdiag_source) (param_get sdiag_node)
+            (const_string_ptr "frontend.operator.operand-type-mismatch")
+            (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+            (const_i32 -1) (const_i32 -1) (const_i32 -1) (const_null)
+            (local_get sdiag_name_node) (const_i32 0))
+          (return_void)))
+        (else (do)))
+      (call_void sdiag_record
+        (param_get sdiag_tree) (param_get sdiag_source) (param_get sdiag_node)
+        (const_string_ptr "frontend.operator.unsupported-type")
+        (call_i32 surface_type_unknown) (local_get sdiag_operand_type)
+        (const_i32 -1) (const_i32 -1) (const_i32 -1)
+        (const_string_ptr "operands") (local_get sdiag_name_node) (const_i32 0))
+      (return_void)))
+
+  (fn sdiag_analyze_cast
+    (params (sdiag_source ptr) (sdiag_tree ptr) (sdiag_node i64))
+    (returns void)
+    (do
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get sdiag_tree) (param_get sdiag_node)) (const_i64 3)))
+        (then (do
+          (call_void sdiag_record
+            (param_get sdiag_tree) (param_get sdiag_source) (param_get sdiag_node)
+            (const_string_ptr "frontend.cast.wrong-arity")
+            (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+            (const_i32 -1) (const_i32 2)
+            (cast_i64_to_i32 (sub_i64 (call_i64 count_children
+              (param_get sdiag_tree) (param_get sdiag_node)) (const_i64 1)))
+            (const_null) (const_i64 -1) (const_i32 0))
+          (return_void)))
+        (else (do)))
+      (let sdiag_target_node i64 (call_i64 nth_child
+        (param_get sdiag_tree) (param_get sdiag_node) (const_i64 1)))
+      (let sdiag_value_node i64 (call_i64 nth_child
+        (param_get sdiag_tree) (param_get sdiag_node) (const_i64 2)))
+      (let sdiag_target_type i32 (call_i32 surface_type_code
+        (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_target_node)))
+      (let sdiag_source_type i32 (call_i32 sop_expr_type
+        (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_value_node)
+        (call_i32 surface_type_unknown)))
+      (if
+        (condition (eq_i32 (local_get sdiag_target_type)
+          (call_i32 surface_type_unknown)))
+        (then (do
+          (call_void sdiag_record
+            (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_target_node)
+            (const_string_ptr "frontend.cast.unknown-target-type")
+            (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+            (const_i32 -1) (const_i32 -1) (const_i32 -1)
+            (const_string_ptr "target-type") (local_get sdiag_target_node) (const_i32 0))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get sdiag_source_type)
+          (call_i32 surface_type_unknown)))
+        (then (do
+          (call_void sdiag_record
+            (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_value_node)
+            (const_string_ptr "frontend.cast.unknown-source-type")
+            (local_get sdiag_target_type) (call_i32 surface_type_unknown)
+            (const_i32 -1) (const_i32 -1) (const_i32 -1)
+            (const_string_ptr "value") (const_i64 -1) (const_i32 0))
+          (return_void)))
+        (else (do)))
+      (call_void sdiag_record
+        (param_get sdiag_tree) (param_get sdiag_source) (param_get sdiag_node)
+        (const_string_ptr "frontend.cast.invalid")
+        (local_get sdiag_target_type) (local_get sdiag_source_type)
+        (const_i32 -1) (const_i32 -1) (const_i32 -1)
+        (const_string_ptr "value") (local_get sdiag_target_node) (const_i32 0))
+      (return_void)))
+
+  (fn sdiag_emit_call
+    (params (sdiag_fd i32) (sdiag_source ptr) (sdiag_tree ptr) (sdiag_node i64))
+    (returns void)
+    (do
+      (let sdiag_had_error i32 (call_i32 weave_surface_has_error))
+      (call_void surface_emit_call
+        (param_get sdiag_fd) (param_get sdiag_source)
+        (param_get sdiag_tree) (param_get sdiag_node))
+      (if
+        (condition (and_bool
+          (eq_i32 (local_get sdiag_had_error) (const_i32 0))
+          (ne_i32 (call_i32 weave_surface_has_error) (const_i32 0))))
+        (then (do (call_void sdiag_analyze_call
+          (param_get sdiag_source) (param_get sdiag_tree) (param_get sdiag_node))))
+        (else (do)))
+      (return_void)))
+
+  (fn sdiag_emit_op
+    (params (sdiag_fd i32) (sdiag_source ptr) (sdiag_tree ptr) (sdiag_node i64))
+    (returns void)
+    (do
+      (let sdiag_had_error i32 (call_i32 weave_surface_has_error))
+      (call_void surface_emit_canonical_op
+        (param_get sdiag_fd) (param_get sdiag_source)
+        (param_get sdiag_tree) (param_get sdiag_node))
+      (if
+        (condition (and_bool
+          (eq_i32 (local_get sdiag_had_error) (const_i32 0))
+          (ne_i32 (call_i32 weave_surface_has_error) (const_i32 0))))
+        (then (do (call_void sdiag_analyze_op
+          (param_get sdiag_source) (param_get sdiag_tree) (param_get sdiag_node))))
+        (else (do)))
+      (return_void)))
+
+  (fn sdiag_emit_cast
+    (params (sdiag_fd i32) (sdiag_source ptr) (sdiag_tree ptr) (sdiag_node i64))
+    (returns void)
+    (do
+      (let sdiag_had_error i32 (call_i32 weave_surface_has_error))
+      (call_void surface_emit_canonical_cast
+        (param_get sdiag_fd) (param_get sdiag_source)
+        (param_get sdiag_tree) (param_get sdiag_node))
+      (if
+        (condition (and_bool
+          (eq_i32 (local_get sdiag_had_error) (const_i32 0))
+          (ne_i32 (call_i32 weave_surface_has_error) (const_i32 0))))
+        (then (do (call_void sdiag_analyze_cast
+          (param_get sdiag_source) (param_get sdiag_tree) (param_get sdiag_node))))
+        (else (do)))
+      (return_void)))
+)
