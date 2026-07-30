@@ -46,6 +46,8 @@ surface-language contract stabilises.
   explicit trust classifications, and bounded local cast repairs for agents.
 - A parser-backed `weavec fmt` normal form with deterministic layout,
   compatibility normalization, preserved comments, check mode, and atomic updates.
+- An explicit human and machine-readable diagnostic when `result` appears in a
+  `requires` clause.
 
 ### Changed
 

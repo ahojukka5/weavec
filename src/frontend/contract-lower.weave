@@ -275,6 +275,22 @@
       (call_void emit_node (param_get fd) (param_get source) (param_get tree) (param_get node))
       (return_void)))
 
+  (fn crir_report_result_in_requires
+    (params (crir_source ptr) (crir_tree ptr) (crir_clause_node i64))
+    (returns void)
+    (do
+      (call_void write_cstr (const_i32 2)
+        (const_string_ptr "weavec: surface contract: result is available only in ensures; it cannot appear in requires"))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (call_void weave_surface_set_error)
+      (call_void sdiag_record
+        (param_get crir_tree) (param_get crir_source) (param_get crir_clause_node)
+        (const_string_ptr "frontend.contract.result-in-requires")
+        (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+        (const_i32 -1) (const_i32 -1) (const_i32 -1)
+        (const_string_ptr "requires") (const_i64 -1) (const_i32 0))
+      (return_void)))
+
   (fn emit_requires_check
     (params (fd i32) (source ptr) (tree ptr) (clause_node i64))
     (returns i32)
@@ -283,7 +299,10 @@
       (if
         (condition (ne_i32 (call_i32 expr_contains_result
           (param_get tree) (param_get source) (local_get expr)) (const_i32 0)))
-        (then (do (return (const_i32 1))))
+        (then (do
+          (call_void crir_report_result_in_requires
+            (param_get source) (param_get tree) (param_get clause_node))
+          (return (const_i32 1))))
         (else (do)))
       (call_void write_cstr (param_get fd) (const_string_ptr "(if (condition (not_bool "))
       (call_void emit_contract_expr (param_get fd) (param_get source) (param_get tree) (local_get expr) (const_i32 0) (const_i64 -1))

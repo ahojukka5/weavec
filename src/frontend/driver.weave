@@ -218,6 +218,7 @@
             (condition (ne_i32 (local_get status) (const_i32 0)))
             (then (do
               (call_i32 close (local_get out_fd))
+              (call_i32 unlink (param_get output_path))
               (return (local_get status))))
             (else (do)))
           (set i (add_i64 (local_get i) (const_i64 1)))))
@@ -241,6 +242,7 @@
                 (condition (ne_i32 (local_get status_main) (const_i32 0)))
                 (then (do
                   (call_i32 close (local_get out_fd))
+                  (call_i32 unlink (param_get output_path))
                   (return (local_get status_main))))
                 (else (do)))))
             (else (do)))
@@ -265,6 +267,7 @@
                 (condition (ne_i32 (local_get status3) (const_i32 0)))
                 (then (do
                   (call_i32 close (local_get out_fd))
+                  (call_i32 unlink (param_get output_path))
                   (return (local_get status3))))
                 (else (do)))))
             (else (do)))
