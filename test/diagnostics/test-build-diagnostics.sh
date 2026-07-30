@@ -193,8 +193,8 @@ set +e
   2>"$TMP/identical-inputs.stderr"
 identical_inputs_exit="$?"
 set -e
-[[ "$identical_inputs_exit" -eq 11 ]] || {
-  printf 'test-build-diagnostics: expected identical-input backend exit 11, got %s\n' \
+[[ "$identical_inputs_exit" -eq 10 ]] || {
+  printf 'test-build-diagnostics: expected identical-input frontend exit 10, got %s\n' \
     "$identical_inputs_exit" >&2
   exit 1
 }
@@ -297,16 +297,14 @@ end = entry["span"]["end_byte"]
 assert source[start:end] == b"unknown_form"
 
 identical = json.loads((root / "identical-inputs.diagnostics.json").read_text())
-assert identical["phase"] == "backend"
-assert identical["exit_code"] == 11
+assert identical["phase"] == "frontend"
+assert identical["exit_code"] == 10
 entry = identical["diagnostics"][0]
-assert entry["code"] == "backend.unknown-expression-operator"
-assert entry["span_origin"] == "propagated-wir-location"
-assert pathlib.Path(entry["source"]) == root / "identical-a.weave"
-source = (root / "identical-a.weave").read_bytes()
-start = entry["span"]["start_byte"]
-end = entry["span"]["end_byte"]
-assert source[start:end] == b"unknown_form"
+assert entry["code"] == "frontend.failed"
+assert entry["span_origin"] == "none"
+assert entry["source"] is None
+assert entry["span"] is None
+assert "duplicate symbol shared" in entry["message"]
 PY
 
 printf 'test-build-diagnostics: passed\n'

@@ -17,6 +17,9 @@ bash "$ROOT/test/compiler-sources/test.sh"
 log 'self-host fixed-point verifier'
 bash "$ROOT/test/selfhost-fixed-point/test.sh"
 
+log 'surface semantic storage'
+bash "$ROOT/test/surface-symbols/test.sh"
+
 log 'build boundary'
 bash "$ROOT/test/build-boundary/test.sh"
 
@@ -43,6 +46,9 @@ bash "$ROOT/test/version/test.sh"
 
 log 'correctness'
 bash "$ROOT/test.sh"
+
+log 'surface elaboration'
+bash "$ROOT/test/surface-elaboration/test.sh"
 
 log 'diagnostics'
 bash "$ROOT/test/diagnostics/test-build-diagnostics.sh"
