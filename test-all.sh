@@ -44,6 +44,9 @@ bash "$ROOT/build.sh"
 log 'compiler version'
 bash "$ROOT/test/version/test.sh"
 
+log 'compiler capabilities'
+bash "$ROOT/test/capabilities/test.sh"
+
 log 'correctness'
 bash "$ROOT/test.sh"
 

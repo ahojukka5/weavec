@@ -15,6 +15,9 @@ names used when they were released.
   bootstrap boundary, runtime ownership, self-hosting, and verification model.
 - [Command reference](command-reference.md) — public build command,
   compiler-development overrides, and low-level compiler modes.
+- [Compiler capability and grammar registry](capabilities.md) —
+  `weavec-capabilities-v1`, installed targets, protocol versions, feature status,
+  and the compiler-authoritative LLM-facing grammar contract.
 - [Compiler version identity](compiler-version.md) — release and development
   version strings, build-time embedding, and reproducibility semantics.
 - [Language reference](language-reference.md) — the implemented surface-Weave

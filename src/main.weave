@@ -3,6 +3,7 @@
 ;
 ; Usage:
 ;   weavec --version
+;   weavec capabilities --json
 ;   weavec build <input.weave> [input2.weave ...] -o <program>
 ;   weavec --backend <input.wir> <output.ll>
 ;   weavec --frontend [--strict-contracts] <output.wir> <input.weave> [input2.weave ...]
@@ -299,6 +300,22 @@
             (then (do (return (const_i32 1))))
             (else (do)))
           (return (call_i32 weave_rt_print_version))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 cstr_equals
+          (local_get arg1) (const_string_ptr "capabilities") (const_i64 12)) (const_i32 0)))
+        (then (do
+          (if
+            (condition (ne_i32 (param_get argc) (const_i32 3)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (let arg2_cap ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
+          (if
+            (condition (eq_i32 (call_i32 cstr_equals
+              (local_get arg2_cap) (const_string_ptr "--json") (const_i64 6)) (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (return (call_i32 weave_rt_print_capabilities))))
         (else (do)))
       (if
         (condition (lt_i32 (param_get argc) (const_i32 3)))
