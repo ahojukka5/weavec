@@ -36,6 +36,8 @@ surface-language contract stabilises.
   and bootstrap-stack qualification.
 - Stage-1/stage-2 fixed-point evidence with normalized hashes, LLVM structure
   summaries, exported symbol sets, and retained mismatch diffs.
+- Compiler-owned typed surface elaboration for canonical `(call ...)` forms and
+  contextual literals in bindings, assignments, arguments, and returns.
 
 ### Changed
 

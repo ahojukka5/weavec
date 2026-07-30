@@ -19,6 +19,8 @@ names used when they were released.
   version strings, build-time embedding, and reproducibility semantics.
 - [Language reference](language-reference.md) — the implemented surface-Weave
   forms accepted by the current compiler.
+- [Canonical LLM-facing surface forms](canonical-surface.md) — typed canonical
+  calls, contextual literals, compatibility forms, and deterministic elaboration.
 - [WIR core version 2](wir.md) — the unified frontend/backend envelope,
   compatibility policy, validation, and repository enforcement.
 - [Build manifest](build-manifest.md) — `weavec-build-manifest-v1` and the
