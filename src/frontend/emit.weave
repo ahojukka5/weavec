@@ -1,8 +1,8 @@
 ; SPDX-License-Identifier: Apache-2.0
 ; emit.weave — recursive surface-to-WIR dispatch
 ;
-; Canonical calls, operators, casts, and contextual literals are dispatched
-; before the generic WIR-shaped recursive fallback.
+; Canonical calls, operators, casts, semantic structs, and contextual literals
+; are dispatched before the generic WIR-shaped recursive fallback.
 
 (program
   (name "emit")
@@ -19,26 +19,62 @@
         (condition (eq_i32 (local_get kind) (call_i32 node_list)))
         (then (do
           (if
-            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
               (const_string_ptr "params") (const_i64 6)) (const_i32 0)))
             (then (do
-              (call_void surface_prepare_params (param_get tree) (param_get source) (param_get node))))
-            (else (do)))
-          (if
-            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
-              (const_string_ptr "returns") (const_i64 7)) (const_i32 0)))
-            (then (do
-              (call_void surface_prepare_returns (param_get tree) (param_get source) (param_get node))))
-            (else (do)))
-          (if
-            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
-              (const_string_ptr "call") (const_i64 4)) (const_i32 0)))
-            (then (do
-              (call_void sdiag_emit_call (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (call_void sst_emit_params
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
               (return_void)))
             (else (do)))
           (if
-            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "returns") (const_i64 7)) (const_i32 0)))
+            (then (do
+              (call_void sst_emit_returns
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (return_void)))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "new") (const_i64 3)) (const_i32 0)))
+            (then (do
+              (call_void sst_emit_new
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (return_void)))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "field-get") (const_i64 9)) (const_i32 0)))
+            (then (do
+              (call_void sst_emit_field_get
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (return_void)))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "field-set") (const_i64 9)) (const_i32 0)))
+            (then (do
+              (call_void sst_emit_field_set
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (return_void)))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "call") (const_i64 4)) (const_i32 0)))
+            (then (do
+              (call_void sst_emit_call
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (return_void)))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
               (const_string_ptr "op") (const_i64 2)) (const_i32 0)))
             (then (do
               (call_void sdiag_emit_op
@@ -46,7 +82,8 @@
               (return_void)))
             (else (do)))
           (if
-            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
               (const_string_ptr "cast") (const_i64 4)) (const_i32 0)))
             (then (do
               (call_void sdiag_emit_cast
@@ -55,53 +92,68 @@
             (else (do)))
           (if
             (condition (and_bool
-              (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+              (ne_i32 (call_i32 head_equals
+                (param_get tree) (param_get source) (param_get node)
                 (const_string_ptr "return") (const_i64 6)) (const_i32 0))
-              (eq_i64 (call_i64 count_children (param_get tree) (param_get node)) (const_i64 2))))
+              (eq_i64 (call_i64 count_children
+                (param_get tree) (param_get node)) (const_i64 2))))
             (then (do
-              (call_void surface_emit_return (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (call_void sst_emit_return
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
               (return_void)))
             (else (do)))
           (if
             (condition (and_bool
-              (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+              (ne_i32 (call_i32 head_equals
+                (param_get tree) (param_get source) (param_get node)
                 (const_string_ptr "set") (const_i64 3)) (const_i32 0))
-              (eq_i64 (call_i64 count_children (param_get tree) (param_get node)) (const_i64 3))))
+              (eq_i64 (call_i64 count_children
+                (param_get tree) (param_get node)) (const_i64 3))))
             (then (do
-              (call_void surface_emit_set (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (call_void sst_emit_set
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
               (return_void)))
             (else (do)))
           (if
-            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
               (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
             (then (do
               (call_void write_byte (param_get fd) (const_i32 40))
               (call_void write_cstr (param_get fd) (const_string_ptr "do"))
-              (call_void emit_do_body (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (call_void emit_do_body
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
               (call_void write_byte (param_get fd) (const_i32 41))
               (return_void)))
             (else (do)))
           (if
             (condition (and_bool
-              (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+              (ne_i32 (call_i32 head_equals
+                (param_get tree) (param_get source) (param_get node)
                 (const_string_ptr "let") (const_i64 3)) (const_i32 0))
-              (eq_i64 (call_i64 count_children (param_get tree) (param_get node)) (const_i64 4))))
+              (eq_i64 (call_i64 count_children
+                (param_get tree) (param_get node)) (const_i64 4))))
             (then (do
-              (call_void emit_let_node (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (call_void sst_emit_let_node
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
               (return_void)))
             (else (do)))
           (if
-            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
               (const_string_ptr "qgate") (const_i64 5)) (const_i32 0)))
             (then (do
-              (call_void emit_qgate_node (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (call_void emit_qgate_node
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
               (return_void)))
             (else (do)))
           (if
-            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
               (const_string_ptr "qmeasure") (const_i64 8)) (const_i32 0)))
             (then (do
-              (call_void emit_qmeasure_node (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (call_void emit_qmeasure_node
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
               (return_void)))
             (else (do)))
           (call_void write_byte (param_get fd) (const_i32 40))
@@ -114,8 +166,10 @@
                 (condition (eq_i32 (local_get first) (const_i32 0)))
                 (then (do (call_void write_byte (param_get fd) (const_i32 32))))
                 (else (do (set first (const_i32 0)))))
-              (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get child))
-              (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
+              (call_void emit_node
+                (param_get fd) (param_get source) (param_get tree) (local_get child))
+              (set child (call_i64 node_next_sibling
+                (param_get tree) (local_get child)))))
           (call_void write_byte (param_get fd) (const_i32 41))
           (return_void)))
         (else (do)))
@@ -123,11 +177,12 @@
         (condition (eq_i32 (local_get kind) (call_i32 node_string)))
         (then (do
           (call_void write_byte (param_get fd) (const_i32 34))
-          (call_void write_node_text (param_get fd) (param_get source) (param_get tree) (param_get node))
+          (call_void write_node_text
+            (param_get fd) (param_get source) (param_get tree) (param_get node))
           (call_void write_byte (param_get fd) (const_i32 34))
           (return_void)))
         (else (do)))
-      ; ident and int: emit raw source bytes
-      (call_void write_node_text (param_get fd) (param_get source) (param_get tree) (param_get node))
+      (call_void write_node_text
+        (param_get fd) (param_get source) (param_get tree) (param_get node))
       (return_void)))
 )

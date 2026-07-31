@@ -99,6 +99,9 @@ bash "$ROOT/test/contract-result-requires/test.sh"
 log 'struct layout'
 bash "$ROOT/test/struct-layout/test.sh"
 
+log 'semantic structs'
+bash "$ROOT/test/semantic-structs/test.sh"
+
 log 'diagnostics'
 bash "$ROOT/test/diagnostics/test-build-diagnostics.sh"
 

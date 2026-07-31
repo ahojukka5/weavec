@@ -5,6 +5,7 @@
 # are reference implementations or target-specific modules are intentionally
 # not implied by this list.
 src/core/extern.weave
+src/core/struct_extern.weave
 src/core/io.weave
 src/core/util.weave
 src/core/trace_registry.weave
@@ -23,7 +24,17 @@ src/frontend/emit.weave
 src/frontend/contract_canonical.weave
 src/frontend/contract-lower.weave
 src/frontend/struct.weave
-src/frontend/lower.weave
+src/frontend/struct_semantic_types.weave
+src/frontend/struct_semantic_registry.weave
+src/frontend/struct_semantic_declarations.weave
+src/frontend/struct_semantic_context.weave
+src/frontend/struct_semantic_expressions.weave
+src/frontend/struct_semantic_calls.weave
+src/frontend/struct_semantic_constructor.weave
+src/frontend/struct_semantic_fields.weave
+src/frontend/lower_program_emit.weave
+src/frontend/lower_program_validate.weave
+!src/frontend/lower.weave
 src/frontend/driver.weave
 src/frontend/explain-audit.weave
 src/frontend/contract-effects.weave

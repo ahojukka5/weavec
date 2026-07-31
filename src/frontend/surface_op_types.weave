@@ -22,6 +22,16 @@
         (param_get sop_tree) (param_get sop_source) (param_get sop_node)
         (call_i32 surface_type_unknown)))))
 
+  (fn sop_type_is_pointer_like
+    (params (sop_type i32))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32 (param_get sop_type) (call_i32 surface_type_ptr)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (call_i32 weave_surface_struct_is_type (param_get sop_type)))))
+
   (fn sop_infer_binary_type
     (params (sop_tree ptr) (sop_source ptr) (sop_left_node i64)
       (sop_right_node i64))
@@ -47,7 +57,27 @@
         (else (do)))
       (if
         (condition (eq_i32 (local_get sop_left_type) (local_get sop_right_type)))
-        (then (do (return (local_get sop_left_type))))
+        (then (do
+          (if
+            (condition (ne_i32 (call_i32 sop_type_is_pointer_like
+              (local_get sop_left_type)) (const_i32 0)))
+            (then (do (return (call_i32 surface_type_ptr))))
+            (else (do)))
+          (return (local_get sop_left_type))))
+        (else (do)))
+      ; A nominal struct may be compared with an explicit ptr value such as
+      ; null. Distinct nominal struct types never collapse to ptr implicitly.
+      (if
+        (condition (or_bool
+          (and_bool
+            (eq_i32 (local_get sop_left_type) (call_i32 surface_type_ptr))
+            (ne_i32 (call_i32 weave_surface_struct_is_type
+              (local_get sop_right_type)) (const_i32 0)))
+          (and_bool
+            (eq_i32 (local_get sop_right_type) (call_i32 surface_type_ptr))
+            (ne_i32 (call_i32 weave_surface_struct_is_type
+              (local_get sop_left_type)) (const_i32 0)))))
+        (then (do (return (call_i32 surface_type_ptr))))
         (else (do)))
       (return (call_i32 surface_type_unknown))))
 
@@ -193,7 +223,7 @@
     (params (sop_tree ptr) (sop_source ptr) (sop_node i64) (sop_expected i32))
     (returns i32)
     (do
-      (let sop_base_type i32 (call_i32 surface_expr_type
+      (let sop_base_type i32 (call_i32 sst_expr_type
         (param_get sop_tree) (param_get sop_source) (param_get sop_node)
         (param_get sop_expected)))
       (if

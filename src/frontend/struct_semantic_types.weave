@@ -1,0 +1,116 @@
+; SPDX-License-Identifier: Apache-2.0
+; struct_semantic_types.weave — semantic struct lowering slice
+
+(program
+  (name "struct_semantic_types")
+  (version "0.1")
+
+  (fn sst_type_code
+      (params (sst_tree ptr) (sst_source ptr) (sst_type_node i64))
+      (returns i32)
+      (do
+        (let sst_builtin i32 (call_i32 surface_type_code
+          (param_get sst_tree) (param_get sst_source) (param_get sst_type_node)))
+        (if
+          (condition (ne_i32 (local_get sst_builtin) (call_i32 surface_type_unknown)))
+          (then (do (return (local_get sst_builtin))))
+          (else (do)))
+        (if
+          (condition (eq_i32 (call_i32 surface_node_is_ident
+            (param_get sst_tree) (param_get sst_type_node)) (const_i32 0)))
+          (then (do (return (call_i32 surface_type_unknown))))
+          (else (do)))
+        (return (call_i32 weave_surface_struct_type_or_declare
+          (param_get sst_source)
+          (call_i64 node_text_start (param_get sst_tree) (param_get sst_type_node))
+          (call_i64 node_text_len (param_get sst_tree) (param_get sst_type_node))))))
+
+  (fn sst_type_name_ptr
+      (params (sst_type i32))
+      (returns ptr)
+      (do
+        (if (condition (eq_i32 (param_get sst_type) (call_i32 surface_type_void)))
+          (then (do (return (const_string_ptr "void")))) (else (do)))
+        (if (condition (eq_i32 (param_get sst_type) (call_i32 surface_type_i32)))
+          (then (do (return (const_string_ptr "i32")))) (else (do)))
+        (if (condition (eq_i32 (param_get sst_type) (call_i32 surface_type_i64)))
+          (then (do (return (const_string_ptr "i64")))) (else (do)))
+        (if (condition (eq_i32 (param_get sst_type) (call_i32 surface_type_f32)))
+          (then (do (return (const_string_ptr "f32")))) (else (do)))
+        (if (condition (eq_i32 (param_get sst_type) (call_i32 surface_type_f64)))
+          (then (do (return (const_string_ptr "f64")))) (else (do)))
+        (if (condition (eq_i32 (param_get sst_type) (call_i32 surface_type_bool)))
+          (then (do (return (const_string_ptr "bool")))) (else (do)))
+        (if (condition (eq_i32 (param_get sst_type) (call_i32 surface_type_ptr)))
+          (then (do (return (const_string_ptr "ptr")))) (else (do)))
+        (if
+          (condition (ne_i32 (call_i32 weave_surface_struct_is_type
+            (param_get sst_type)) (const_i32 0)))
+          (then (do (return (call_ptr weave_surface_struct_name (param_get sst_type)))))
+          (else (do)))
+        (return (const_null))))
+
+  (fn sst_emit_type_name
+      (params (sst_fd i32) (sst_type i32))
+      (returns void)
+      (do
+        (let sst_name ptr (call_ptr sst_type_name_ptr (param_get sst_type)))
+        (if
+          (condition (ne_ptr (local_get sst_name) (const_null)))
+          (then (do (call_void write_cstr (param_get sst_fd) (local_get sst_name))))
+          (else (do (call_void write_cstr
+            (param_get sst_fd) (const_string_ptr "unknown")))))
+        (return_void)))
+
+  (fn sst_emit_wir_type
+      (params (sst_fd i32) (sst_type i32))
+      (returns void)
+      (do
+        (if
+          (condition (ne_i32 (call_i32 weave_surface_struct_is_type
+            (param_get sst_type)) (const_i32 0)))
+          (then (do
+            (call_void write_cstr (param_get sst_fd) (const_string_ptr "ptr"))
+            (return_void)))
+          (else (do)))
+        (call_void surface_emit_type_name (param_get sst_fd) (param_get sst_type))
+        (return_void)))
+
+  (fn sst_emit_declared_wir_type
+      (params
+        (sst_fd i32) (sst_source ptr) (sst_tree ptr)
+        (sst_type_node i64) (sst_type i32))
+      (returns void)
+      (do
+        (if
+          (condition (ne_i32 (call_i32 weave_surface_struct_is_type
+            (param_get sst_type)) (const_i32 0)))
+          (then (do
+            (call_void write_cstr (param_get sst_fd) (const_string_ptr "ptr"))
+            (return_void)))
+          (else (do)))
+        (call_void emit_wir_type
+          (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+          (param_get sst_type_node))
+        (return_void)))
+
+  (fn sst_types_compatible
+      (params (sst_expected i32) (sst_actual i32))
+      (returns i32)
+      (do
+        (if
+          (condition (eq_i32 (param_get sst_expected) (param_get sst_actual)))
+          (then (do (return (const_i32 1))))
+          (else (do)))
+        ; Nominal struct values may flow to explicit low-level ptr APIs such as
+        ; free. The reverse conversion is never implicit, and distinct nominal
+        ; struct types remain incompatible.
+        (if
+          (condition (and_bool
+            (eq_i32 (param_get sst_expected) (call_i32 surface_type_ptr))
+            (ne_i32 (call_i32 weave_surface_struct_is_type
+              (param_get sst_actual)) (const_i32 0))))
+          (then (do (return (const_i32 1))))
+          (else (do)))
+        (return (const_i32 0))))
+)

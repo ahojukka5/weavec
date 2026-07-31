@@ -1,0 +1,167 @@
+; SPDX-License-Identifier: Apache-2.0
+; struct_semantic_context.weave — semantic struct lowering slice
+
+(program
+  (name "struct_semantic_context")
+  (version "0.1")
+
+  (fn sst_prepare_params
+      (params (sst_tree ptr) (sst_source ptr) (sst_params_node i64))
+      (returns void)
+      (do
+        (call_void weave_surface_locals_reset)
+        (if
+          (condition (eq_i32 (call_i32 surface_parameters_shape_valid
+            (param_get sst_tree) (param_get sst_source) (param_get sst_params_node))
+            (const_i32 0)))
+          (then (do (return_void)))
+          (else (do)))
+        (let sst_head i64 (call_i64 node_first_child
+          (param_get sst_tree) (param_get sst_params_node)))
+        (let sst_param i64 (call_i64 node_next_sibling
+          (param_get sst_tree) (local_get sst_head)))
+        (while
+          (condition (ne_i64 (local_get sst_param) (const_i64 -1)))
+          (do
+            (let sst_name_node i64 (call_i64 nth_child
+              (param_get sst_tree) (local_get sst_param) (const_i64 0)))
+            (let sst_type_node i64 (call_i64 nth_child
+              (param_get sst_tree) (local_get sst_param) (const_i64 1)))
+            (let sst_type i32 (call_i32 sst_type_code
+              (param_get sst_tree) (param_get sst_source) (local_get sst_type_node)))
+            (call_i32 sst_require_defined_type
+              (param_get sst_tree) (param_get sst_source)
+              (local_get sst_type_node) (local_get sst_type))
+            (call_i32 weave_surface_local_add
+              (param_get sst_source)
+              (call_i64 node_text_start (param_get sst_tree) (local_get sst_name_node))
+              (call_i64 node_text_len (param_get sst_tree) (local_get sst_name_node))
+              (local_get sst_type))
+            (set sst_param (call_i64 node_next_sibling
+              (param_get sst_tree) (local_get sst_param)))))
+        (return_void)))
+
+  (fn sst_prepare_returns
+      (params (sst_tree ptr) (sst_source ptr) (sst_returns_node i64))
+      (returns void)
+      (do
+        (let sst_type_node i64 (call_i64 nth_child
+          (param_get sst_tree) (param_get sst_returns_node) (const_i64 1)))
+        (let sst_type i32 (call_i32 sst_type_code
+          (param_get sst_tree) (param_get sst_source) (local_get sst_type_node)))
+        (call_i32 sst_require_defined_type
+          (param_get sst_tree) (param_get sst_source)
+          (local_get sst_type_node) (local_get sst_type))
+        (call_void weave_surface_set_return_type (local_get sst_type))
+        (return_void)))
+
+  (fn sst_emit_params
+      (params (sst_fd i32) (sst_source ptr) (sst_tree ptr) (sst_node i64))
+      (returns void)
+      (do
+        (call_void sst_prepare_params
+          (param_get sst_tree) (param_get sst_source) (param_get sst_node))
+        ; The empty parameter-list marker `(params ())` has no real (name
+        ; type) pairs to walk. Fall back to a plain recursive copy of its
+        ; children (matching the generic emit_node list case) rather than
+        ; treating its placeholder child as a malformed first parameter.
+        ; write_node_text only reproduces one node's own token span, not a
+        ; nested list's full text, so the fallback recurses child-by-child
+        ; instead of copying sst_node's span directly.
+        (if
+          (condition (eq_i32 (call_i32 surface_parameters_shape_valid
+            (param_get sst_tree) (param_get sst_source) (param_get sst_node))
+            (const_i32 0)))
+          (then (do
+            (call_void write_byte (param_get sst_fd) (const_i32 40))
+            (let sst_fallback_child i64 (call_i64 node_first_child
+              (param_get sst_tree) (param_get sst_node)))
+            (let sst_fallback_first i32 (const_i32 1))
+            (while
+              (condition (ne_i64 (local_get sst_fallback_child) (const_i64 -1)))
+              (do
+                (if
+                  (condition (eq_i32 (local_get sst_fallback_first) (const_i32 0)))
+                  (then (do (call_void write_byte (param_get sst_fd) (const_i32 32))))
+                  (else (do (set sst_fallback_first (const_i32 0)))))
+                (call_void emit_node
+                  (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+                  (local_get sst_fallback_child))
+                (set sst_fallback_child (call_i64 node_next_sibling
+                  (param_get sst_tree) (local_get sst_fallback_child)))))
+            (call_void write_byte (param_get sst_fd) (const_i32 41))
+            (return_void)))
+          (else (do)))
+        (let sst_head i64 (call_i64 node_first_child
+          (param_get sst_tree) (param_get sst_node)))
+        (call_void write_byte (param_get sst_fd) (const_i32 40))
+        (call_void emit_source_span_for_node
+          (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+          (local_get sst_head))
+        (call_void write_node_text
+          (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+          (local_get sst_head))
+        (let sst_param i64 (call_i64 node_next_sibling
+          (param_get sst_tree) (local_get sst_head)))
+        (while
+          (condition (ne_i64 (local_get sst_param) (const_i64 -1)))
+          (do
+            (let sst_name_node i64 (call_i64 nth_child
+              (param_get sst_tree) (local_get sst_param) (const_i64 0)))
+            (let sst_type_node i64 (call_i64 nth_child
+              (param_get sst_tree) (local_get sst_param) (const_i64 1)))
+            (let sst_type i32 (call_i32 sst_type_code
+              (param_get sst_tree) (param_get sst_source) (local_get sst_type_node)))
+            (call_void write_byte (param_get sst_fd) (const_i32 32))
+            (call_void emit_source_span_for_node
+              (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+              (local_get sst_param))
+            (call_void write_byte (param_get sst_fd) (const_i32 40))
+            (call_void emit_source_span_for_node
+              (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+              (local_get sst_name_node))
+            (call_void write_node_text
+              (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+              (local_get sst_name_node))
+            (call_void write_byte (param_get sst_fd) (const_i32 32))
+            (call_void emit_source_span_for_node
+              (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+              (local_get sst_type_node))
+            (call_void sst_emit_declared_wir_type
+              (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+              (local_get sst_type_node) (local_get sst_type))
+            (call_void write_byte (param_get sst_fd) (const_i32 41))
+            (set sst_param (call_i64 node_next_sibling
+              (param_get sst_tree) (local_get sst_param)))))
+        (call_void write_byte (param_get sst_fd) (const_i32 41))
+        (return_void)))
+
+  (fn sst_emit_returns
+      (params (sst_fd i32) (sst_source ptr) (sst_tree ptr) (sst_node i64))
+      (returns void)
+      (do
+        (call_void sst_prepare_returns
+          (param_get sst_tree) (param_get sst_source) (param_get sst_node))
+        (let sst_head i64 (call_i64 node_first_child
+          (param_get sst_tree) (param_get sst_node)))
+        (let sst_type_node i64 (call_i64 nth_child
+          (param_get sst_tree) (param_get sst_node) (const_i64 1)))
+        (let sst_type i32 (call_i32 sst_type_code
+          (param_get sst_tree) (param_get sst_source) (local_get sst_type_node)))
+        (call_void write_byte (param_get sst_fd) (const_i32 40))
+        (call_void emit_source_span_for_node
+          (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+          (local_get sst_head))
+        (call_void write_node_text
+          (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+          (local_get sst_head))
+        (call_void write_byte (param_get sst_fd) (const_i32 32))
+        (call_void emit_source_span_for_node
+          (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+          (local_get sst_type_node))
+        (call_void sst_emit_declared_wir_type
+          (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+          (local_get sst_type_node) (local_get sst_type))
+        (call_void write_byte (param_get sst_fd) (const_i32 41))
+        (return_void)))
+)

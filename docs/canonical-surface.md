@@ -54,8 +54,9 @@ The canonical names are:
 
 Arithmetic supports `i32`, `i64`, `f32`, and `f64`. Bit operations support
 `i32` and `i64`. Ordered comparisons support numeric operands, while pointer
-operands support only `equal` and `not-equal`. Boolean operations require
-`bool` operands.
+operands support only `equal` and `not-equal`. Nominal struct values use pointer
+equality only with the same nominal type or an explicit `ptr` value such as
+`null`. Boolean operations require `bool` operands.
 
 Two otherwise unconstrained integer literals use the canonical `i32` default.
 When one operand has a known type, an integer literal on the other side uses that
@@ -87,6 +88,35 @@ Legacy forms such as `add_i32`, `lt_i64`, `and_bool`, and
 `cast_i64_to_i32` remain accepted for compatibility and compiler
 implementation code.
 
+## Semantic structs
+
+Struct declarations introduce nominal surface types. Source construction and
+field access use self-describing canonical forms:
+
+```weave
+(new Record
+  (total 2)
+  (flag true)
+  (count 40))
+
+(field-get record count)
+(field-set record count new-count)
+```
+
+The compiler resolves the declaration across all input files, rejects unknown,
+duplicate, missing, or mistyped constructor fields, and emits constructor
+arguments in declaration order. Field operations resolve from the receiver's
+nominal type; agents never synthesize generated accessor names.
+
+A nominal struct lowers physically to WIR `ptr`, but distinct struct names remain
+distinct surface types. A struct value may flow to an explicitly declared `ptr`
+parameter, such as `free`, while the reverse conversion and cross-struct
+substitution remain invalid. The generated `TYPE_new`, `TYPE_get_FIELD`, and
+`TYPE_set_FIELD` names remain compatibility-only forms.
+
+The feature is experimental until the canonical formatter also normalizes named
+constructor fields into declaration order. See [Semantic structs](semantic-structs.md).
+
 ## Contextual literals
 
 A literal may omit its WIR constructor when an authoritative expected type is
@@ -96,7 +126,8 @@ available locally. The current contexts are:
 - assignment to a known local;
 - typed function arguments;
 - function return expressions;
-- operands whose canonical operator determines one exact type.
+- operands whose canonical operator determines one exact type;
+- named struct constructor fields.
 
 Examples:
 
@@ -108,6 +139,7 @@ Examples:
 (call consume-pointer null)
 (call consume-string "weave")
 (op add count 1)
+(new Record (count 42) (flag true))
 ```
 
 The compiler emits explicit WIR constructors such as `const_i64`, `const_bool`,
@@ -123,6 +155,8 @@ admitted explicit conversion is intended.
 - Duplicate declarations are rejected.
 - Call and operator arity must match the selected form.
 - Known argument and operand types must match exactly.
+- Nominal struct names are never treated as interchangeable because their layouts
+  happen to match.
 - Integer widths are never guessed or promoted.
 - Unknown, mixed, or unsupported expressions fail rather than selecting an
   arbitrary WIR form.
@@ -131,7 +165,9 @@ admitted explicit conversion is intended.
 ## Contracts
 
 Canonical calls, operators, casts, and contextual literals use the same
-elaboration rules in function bodies, `requires`, and `ensures`.
+elaboration rules in function bodies, `requires`, and `ensures`. Semantic struct
+field operations are currently body forms; contract-specific result substitution
+for field access remains outside this experimental slice.
 
 Within an `ensures` expression, `result` has the declared return type and is
 substituted with the concrete expression at each return site. Canonical forms may
@@ -153,11 +189,11 @@ context. `result` remains invalid in `requires`.
 
 The self-hosted frontend owns declarations, type codes, symbol resolution, type
 checks, diagnostics, result substitution, and WIR selection. A narrow C host
-component only retains copied symbol and local-name records across separately
-parsed source files. It does not parse Weave, recognize type names, or choose
-language semantics.
+component only retains copied symbol, local, struct, and field-name records across
+separately parsed source files. It does not parse Weave, recognize syntax, or
+choose language semantics.
 
-Canonical operator, cast, and contract-expression selection is implemented in
-dedicated self-hosted frontend modules. They consume the existing declaration and
-local facts and emit only admitted WIR core-version-2 forms; they add no private
-WIR dialect or host-runtime semantic state.
+Canonical operator, cast, contract-expression, and struct selection is
+implemented in dedicated self-hosted frontend modules. They consume compiler-owned
+semantic facts and emit only admitted WIR core-version-2 forms; they add no private
+WIR dialect or target-runtime semantic state.

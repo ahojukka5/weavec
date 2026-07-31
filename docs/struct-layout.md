@@ -1,11 +1,14 @@
 # Struct layout and compatibility ABI
 
-Surface `(struct ...)` declarations lower to WIR core version 2 functions while
-the higher-level semantic struct syntax is being completed. This document defines
-the storage contract of that compatibility ABI. The compiler never infers an
-unknown field representation or silently treats an unsupported type as `i32`.
+Surface `(struct ...)` declarations lower to WIR core version 2 functions. The
+canonical LLM-facing API is documented in [Semantic structs](semantic-structs.md);
+this document defines the generated storage and call ABI retained for low-level
+compatibility.
 
-## Current declaration form
+The compiler never infers an unknown field representation or silently treats an
+unsupported type as `i32`.
+
+## Declaration and generated functions
 
 ```weave
 (struct Mixed
@@ -18,7 +21,7 @@ unknown field representation or silently treats an unsupported type as `i32`.
   (field code i32))
 ```
 
-A declaration currently produces compatibility functions named:
+The declaration produces compatibility functions named:
 
 ```text
 Mixed_new
@@ -27,10 +30,9 @@ Mixed_set_flag
 ...
 ```
 
-These generated names remain callable by existing low-level source, but they are
-an implementation boundary rather than the final LLM-facing API. Issue #52 also
-introduces canonical `new`, `field-get`, and `field-set` forms so agents do not
-need to synthesize these names.
+These names remain callable by existing low-level source. Canonical source uses
+`new`, `field-get`, and `field-set`, and the compiler resolves these names and
+argument positions internally.
 
 ## Field representation
 
@@ -48,9 +50,9 @@ need to synthesize these names.
 the same physical representation as `i64`. Quantum validation remains separate
 from this memory-layout rule.
 
-`void`, undeclared type names, aggregate names, and future handle types are not
-admitted as fields until their complete representation is defined. They produce
-a frontend error instead of receiving fallback storage.
+`void`, aggregate fields, undeclared field types, and future handle types are not
+admitted until their complete representation is defined. They produce a frontend
+error instead of receiving fallback storage.
 
 ## Natural layout
 
@@ -76,12 +78,13 @@ are not initialized and cannot be addressed through generated accessors.
 This is a deterministic compiler layout, not a promise of C ABI compatibility.
 Interoperability with external structs requires a separate explicit ABI contract.
 
-## Validation
+## Declaration validation
 
 The frontend validates the complete declaration before emitting any constructor
 or accessor. It rejects:
 
 - a missing or non-identifier struct name;
+- a struct name reserved by a built-in type;
 - an empty struct;
 - children other than `(field NAME TYPE)`;
 - non-identifier field names or types;
@@ -89,29 +92,31 @@ or accessor. It rejects:
 - every unsupported field type.
 
 A failed declaration does not publish partial WIR or a native executable.
-Diagnostics-enabled builds use exact compiler-semantic spans. Initial stable
-classifications include:
+Declaration diagnostics include:
 
 ```text
 frontend.struct.malformed
 frontend.struct.unsupported-field-type
 frontend.struct.duplicate-field
+frontend.struct.reserved-type
 ```
 
-## Compatibility and next step
+Semantic construction and access diagnostics are listed in
+[Semantic structs](semantic-structs.md).
+
+## Compatibility policy
 
 The compatibility constructor remains positional because changing its signature
-would break existing WIR-shaped source. Canonical semantic construction is named
-and validated:
+would break existing WIR-shaped source. The semantic constructor is named and
+reorders fields into declaration order:
 
 ```weave
 (new Mixed
+  (code 7)
   (flag true)
-  (count 9)
   ...)
 ```
 
-That semantic layer will reorder named constructor entries into declaration order,
-resolve receiver types for field access, and produce field-specific type
-diagnostics while retaining the layout and generated WIR-v2 implementation
-defined here.
+Both paths use the same validated layout and generated WIR-v2 implementation.
+The compatibility ABI may be removed only through an explicit future surface
+compatibility policy; WIR core version 2 is unchanged by semantic structs.

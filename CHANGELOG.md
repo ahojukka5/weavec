@@ -48,6 +48,9 @@ surface-language contract stabilises.
   compatibility normalization, preserved comments, check mode, and atomic updates.
 - An explicit human and machine-readable diagnostic when `result` appears in a
   `requires` clause.
+- Nominal semantic struct types with named `(new ...)`, `(field-get ...)`,
+  and `(field-set ...)` forms, deterministic cross-file resolution, and exact
+  constructor, receiver, field, and type diagnostics.
 
 ### Changed
 
