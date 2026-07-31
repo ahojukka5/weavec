@@ -24,11 +24,18 @@ source "$WEAVEC_DIR/scripts/weavec-version.sh"
 source "$WEAVEC_DIR/scripts/compiler-sources.sh"
 WEAVEC_VERSION="$(weavec_version_string "$WEAVEC_DIR")"
 
-WEAVEC1_VERSION="${WEAVEC1_VERSION:-v0.3.2}"
+# The new release numbers add native macOS packages only. Unchanged Linux
+# packages remain at their previously published versions. The unsuffixed
+# variables are explicit all-host overrides.
+WEAVEC1_VERSION="${WEAVEC1_VERSION:-}"
+WEAVEC1_LINUX_VERSION="${WEAVEC1_LINUX_VERSION:-v0.3.1}"
+WEAVEC1_MACOS_VERSION="${WEAVEC1_MACOS_VERSION:-v0.3.2}"
 WEAVEC1_LIBC="${WEAVEC1_LIBC:-glibc}"
 WEAVEC1_RELEASE_BASE="${WEAVEC1_RELEASE_BASE:-https://github.com/ahojukka5/weavec1/releases/download}"
 
-WEAVEC_BOOTSTRAP_VERSION="${WEAVEC_BOOTSTRAP_VERSION:-v0.3.1}"
+WEAVEC_BOOTSTRAP_VERSION="${WEAVEC_BOOTSTRAP_VERSION:-}"
+WEAVEC_BOOTSTRAP_LINUX_VERSION="${WEAVEC_BOOTSTRAP_LINUX_VERSION:-v0.3.0}"
+WEAVEC_BOOTSTRAP_MACOS_VERSION="${WEAVEC_BOOTSTRAP_MACOS_VERSION:-v0.3.1}"
 WEAVEC_BOOTSTRAP_RELEASE_BASE="${WEAVEC_BOOTSTRAP_RELEASE_BASE:-https://github.com/ahojukka5/weavec-bootstrap/releases/download}"
 
 WEAVEC1_SDK_DIR=""
@@ -58,12 +65,21 @@ resolve_sdk_suffix() {
         *) fail "WEAVEC1_LIBC must be glibc or musl" ;;
       esac
       SDK_SUFFIX="linux-x86_64-$WEAVEC1_LIBC"
+      [[ -n "$WEAVEC1_VERSION" ]] || WEAVEC1_VERSION="$WEAVEC1_LINUX_VERSION"
+      [[ -n "$WEAVEC_BOOTSTRAP_VERSION" ]] || \
+        WEAVEC_BOOTSTRAP_VERSION="$WEAVEC_BOOTSTRAP_LINUX_VERSION"
       ;;
     Darwin:arm64)
       SDK_SUFFIX="macos-arm64"
+      [[ -n "$WEAVEC1_VERSION" ]] || WEAVEC1_VERSION="$WEAVEC1_MACOS_VERSION"
+      [[ -n "$WEAVEC_BOOTSTRAP_VERSION" ]] || \
+        WEAVEC_BOOTSTRAP_VERSION="$WEAVEC_BOOTSTRAP_MACOS_VERSION"
       ;;
     Darwin:x86_64)
       SDK_SUFFIX="macos-x86_64"
+      [[ -n "$WEAVEC1_VERSION" ]] || WEAVEC1_VERSION="$WEAVEC1_MACOS_VERSION"
+      [[ -n "$WEAVEC_BOOTSTRAP_VERSION" ]] || \
+        WEAVEC_BOOTSTRAP_VERSION="$WEAVEC_BOOTSTRAP_MACOS_VERSION"
       ;;
     *)
       fail "no published lower-stage SDK contract for $system/$machine"
@@ -234,7 +250,7 @@ main() {
   ensure_bootstrap_sdk
   build_weavec
   log "compiler version: $WEAVEC_VERSION"
-  log "dependency mode: published SDKs ($SDK_SUFFIX)"
+  log "dependencies: weavec1=$WEAVEC1_VERSION bootstrap=$WEAVEC_BOOTSTRAP_VERSION ($SDK_SUFFIX)"
   log "build complete: $BUILD_DIR/weavec"
 }
 

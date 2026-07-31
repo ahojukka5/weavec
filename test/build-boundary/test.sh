@@ -71,6 +71,19 @@ printf '; explicit llvm\n' > "\$3"
 EOF_EXPLICIT
 chmod +x "$TMP/explicit-backend"
 
+cat > "$TOOLS/uname" <<'EOF_UNAME'
+#!/usr/bin/env bash
+case "${WEAVEC_TEST_HOST:-linux}:${1:-}" in
+  macos:-s) printf 'Darwin\n' ;;
+  macos:-m) printf 'arm64\n' ;;
+  linux:-s) printf 'Linux\n' ;;
+  linux:-m) printf 'x86_64\n' ;;
+  macos:*) printf 'Darwin\n' ;;
+  linux:*) printf 'Linux\n' ;;
+esac
+EOF_UNAME
+chmod +x "$TOOLS/uname"
+
 cat > "$TOOLS/llvm-as" <<'EOF_LLVM_AS'
 #!/usr/bin/env bash
 input="$1"
@@ -112,9 +125,12 @@ EOF_CLANG
 chmod +x "$TOOLS/clang"
 
 run_build() {
+  local host="$1"
+  shift
   (
     cd "$CHECKOUT"
     PATH="$TOOLS:$PATH" \
+    WEAVEC_TEST_HOST="$host" \
     WEAVEC1_SDK="$WEAVEC1_SDK" \
     WEAVEC_BOOTSTRAP_SDK="$BOOTSTRAP_SDK" \
     WEAVEC_VERSION_OVERRIDE=v0.0.0+test \
@@ -123,19 +139,24 @@ run_build() {
 }
 
 : > "$LOG"
-run_build ./build.sh >/dev/null 2>&1
+run_build macos ./build.sh >"$TMP/macos.stdout" 2>"$TMP/macos.stderr"
 grep -q '^weavec1 ' "$LOG"
+grep -Fq 'dependencies: weavec1=v0.3.2 bootstrap=v0.3.1 (macos-arm64)' \
+  "$TMP/macos.stderr"
 if grep -q '^stale-stage2 ' "$LOG"; then
   echo 'build-boundary: stale stage-two backend was selected implicitly' >&2
   exit 1
 fi
 
 : > "$LOG"
-run_build env WEAVEC_BACKEND="$TMP/explicit-backend" ./build.sh >/dev/null 2>&1
+run_build linux env WEAVEC_BACKEND="$TMP/explicit-backend" ./build.sh \
+  >"$TMP/linux.stdout" 2>"$TMP/linux.stderr"
 grep -q '^explicit-backend --backend ' "$LOG"
+grep -Fq 'dependencies: weavec1=v0.3.1 bootstrap=v0.3.0 (linux-x86_64-glibc)' \
+  "$TMP/linux.stderr"
 if grep -q '^weavec1 ' "$LOG"; then
   echo 'build-boundary: seed backend ran despite explicit override' >&2
   exit 1
 fi
 
-printf 'build-boundary: passed\n'
+printf 'build-boundary: host-specific SDK policy passed\n'

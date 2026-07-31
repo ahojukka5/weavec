@@ -25,14 +25,18 @@ symlinks. New documentation and automation should use the canonical paths.
 - `weavec-bootstrap`, which lowers the compiler's surface sources to WIR and
   provides `libweave-sexpr.bc`.
 
-The build selects a package suffix from the current host:
+The build selects both a package suffix and a released version from the host:
 
-| Host | Package suffix |
-|---|---|
-| Linux x86-64 with glibc | `linux-x86_64-glibc` |
-| Linux x86-64 with musl | `linux-x86_64-musl` |
-| macOS Apple silicon | `macos-arm64` |
-| macOS Intel | `macos-x86_64` |
+| Host | Package suffix | `weavec1` | `weavec-bootstrap` |
+|---|---|---:|---:|
+| Linux x86-64 with glibc | `linux-x86_64-glibc` | `v0.3.1` | `v0.3.0` |
+| Linux x86-64 with musl | `linux-x86_64-musl` | `v0.3.1` | `v0.3.0` |
+| macOS Apple silicon | `macos-arm64` | `v0.3.2` | `v0.3.1` |
+| macOS Intel | `macos-x86_64` | `v0.3.2` | `v0.3.1` |
+
+The newer lower-stage versions add native macOS packages only. Linux remains on
+the previously published, byte-stable SDK releases rather than requiring an
+unnecessary repackaging release.
 
 Downloaded archives and `SHA256SUMS` are verified and cached under
 `build/vendor/` and `build/downloads/`.
@@ -42,7 +46,7 @@ does not fall back to source checkouts or reconstruct the bootstrap chain.
 Creating and publishing a missing lower-stage package belongs to the relevant
 lower-stage repository and release process.
 
-## Explicit SDK paths
+## Explicit SDK paths and overrides
 
 A local or pre-extracted SDK can be supplied without changing the source tree:
 
@@ -63,6 +67,11 @@ weavec-bootstrap SDK/
 ├── bin/weavec-bootstrap-cat
 └── lib/libweave-sexpr.bc
 ```
+
+`WEAVEC1_VERSION` and `WEAVEC_BOOTSTRAP_VERSION` explicitly override the
+host-selected release numbers. The component-specific
+`*_LINUX_VERSION` and `*_MACOS_VERSION` variables may override one host family
+without changing the other.
 
 `WEAVEC_BACKEND=/path/to/weavec` may explicitly replace the Stage 1 backend for
 compiler-development experiments. It is never selected from stale self-host

@@ -54,6 +54,8 @@ surface-language contract stabilises.
 - Moved canonical development entrypoints under `scripts/`, made final-compiler
   builds consume released lower-stage SDKs on every supported host, and added
   `scripts/test-all.sh --no-build` for qualification without rebuilding.
+- Selected the unchanged `weavec1 v0.3.1` and `weavec-bootstrap v0.3.0` SDKs on
+  Linux, and the native macOS package releases `v0.3.2` and `v0.3.1` on macOS.
 - Replaced duplicated handwritten compilation-trace, build-manifest, and
   diagnostics JSON assembly with typed protocol serializers backed by one
   checked streaming JSON writer and one transactional document publisher.
