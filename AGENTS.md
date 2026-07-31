@@ -49,8 +49,16 @@ appropriate only when the complete payload is known to fit and can be verified.
    transport limitation unless that split is independently good architecture.
 6. Inspect the complete base-to-head diff and commit list.
 7. Rewrite or squash feature-branch history so each commit tells one logical
-   story and follows `CONTRIBUTING.md`.
+   story and follows `CONTRIBUTING.md`. For the common case of collapsing an
+   over-split branch into one commit, `git reset --soft origin/master`
+   followed by a single `git commit` is simpler than an interactive rebase.
 8. Open a non-draft pull request only after the branch is ready for human review.
+
+When force-pushing a rewritten branch, fetch its actual branch name first
+(`git fetch origin <branch-name>`) rather than relying on a ref you only
+checked out as `refs/pull/<n>/head` — `--force-with-lease`'s stale-tip check
+has nothing current to compare against otherwise, and rejects the push with
+"stale info" even when nothing changed remotely.
 
 ## Validation and reporting
 
@@ -62,3 +70,54 @@ local evidence and any checks the reviewer must run.
 Always provide the direct pull-request link. State honestly which validation was
 run, which could not be run, and whether the branch contains exactly the intended
 commits and files.
+
+## Reviewing and merging a pull request
+
+Reviewing a PR opened by another agent or contributor is a separate
+responsibility from opening your own, with failure modes learned from this
+repository's own history.
+
+- A PR's own local validation — especially a hand-built harness with stubbed
+  tools (fake `clang`, `uname`, `otool`, etc.) — proves the change is
+  consistent with its author's assumptions, not that those assumptions are
+  correct. Reproduce the claim against the real toolchain or real CI before
+  trusting it; a stub written to match a premise cannot refute that premise.
+- Verify any factual claim about an external dependency directly (e.g.
+  `gh release view <tag> --json assets`) rather than accepting it from the
+  PR description or its test fixtures. A version-pin change justified by
+  "the new release doesn't have X" needs that checked, not assumed.
+- When a PR removes or replaces a code path (a fallback, a deprecated flag,
+  an old dependency mode), search the whole repository for other places
+  that still assert or depend on the old behavior — docs, error messages,
+  and especially CI workflows. A CI step that greps for a log line the new
+  code no longer prints, or an env var the new code no longer reads, is
+  broken infrastructure, not stale prose, and only surfaces when someone
+  runs it.
+- Passing checks make a PR mergeable, not correct. If hands-on review shows
+  the PR's stated problem does not actually exist, do not merge a
+  working-but-unnecessary change out of politeness — close it and attach
+  the concrete evidence that disproves the premise.
+- Before merging, rewrite the branch's commit history per
+  [`CONTRIBUTING.md`](CONTRIBUTING.md) in both directions: split commits
+  that mix unrelated work, and squash commits that were only split by
+  authorship mechanics (iterative fixup commits correcting the same
+  not-yet-merged branch's own earlier mistake, for example) rather than
+  leaving a debugging trail in the merged history.
+- A green test suite for a new script or entry point does not prove the
+  assembled pipeline works — each helper function can pass its own unit
+  tests while the wiring between them is wrong. If a PR adds a new entry
+  point (a script, a CLI flag, a build/test/selfhost step) and the suite
+  never actually invokes it end-to-end, run it yourself before trusting
+  the suite.
+- A local failure that doesn't reproduce in the PR's actual CI may be an
+  environment gap (an older LLVM/clang on your machine, a missing
+  toolchain component) rather than a defect in the change. If CI is green
+  on the real target matrix, don't block the merge on it — but don't stay
+  silent either; note the gap explicitly so a real version dependency
+  isn't hidden.
+- Regenerated fixtures (LLVM goldens, `--regen-goldens` output) are the one
+  category of tracked file expected to conflict across concurrent PRs. If
+  rebasing produces a conflict only in golden files, don't hand-splice the
+  diff — regenerate them fresh against the merged base and verify the
+  regeneration step itself produced the result, rather than reconstructing
+  what you assume the tool would have written.
