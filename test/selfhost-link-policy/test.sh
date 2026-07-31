@@ -76,6 +76,13 @@ printf '%s\n' 'linked fake bitcode' > "$output"
 EOF
 chmod +x "$FAKEBIN/llvm-link"
 
+cat > "$FAKEBIN/llvm-nm" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exit 0
+EOF
+chmod +x "$FAKEBIN/llvm-nm"
+
 cat > "$FAKEBIN/clang" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
