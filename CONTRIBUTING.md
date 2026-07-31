@@ -122,6 +122,14 @@ files that belong together meaningfully, and tell exactly one story. Separate
 unrelated refactoring, behavior changes, tests, generated output, and
 documentation when they can stand independently.
 
+This also runs in reverse: commits that were only split by authorship
+mechanics, not by logical independence, belong back together. A chain of
+`fix` commits that each corrects a mistake introduced earlier in the same,
+not-yet-reviewed branch — rather than a regression in already-merged code —
+was never independently revertable; squash it into the commit whose mistake
+it corrects so the merged history shows the feature working correctly on the
+first attempt, not the debugging trail.
+
 Use Conventional Commits:
 
 ```text
