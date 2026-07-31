@@ -10,10 +10,11 @@ The reproducible bootstrap path is:
 weavec0 → weavec1 → weavec-bootstrap → weavec
 ```
 
-Read [`docs/index.md`](docs/index.md),
+Read [`AGENTS.md`](AGENTS.md), [`docs/index.md`](docs/index.md),
 [`docs/architecture.md`](docs/architecture.md), and
 [`docs/source-style.md`](docs/source-style.md) before changing compiler
-boundaries or production `.weave` modules.
+boundaries, production `.weave` modules, or repository state through an
+automated agent.
 
 ## WIR rule
 
@@ -78,6 +79,41 @@ explicit specification bump across the complete compiler chain.
   diagnostics changes require a new format identifier.
 - **Keep documentation navigable.** Files under `docs/` use lowercase kebab-case
   names, and current local links must resolve.
+
+## Branch and publication safety
+
+The default branch is protected working history. It must never be used as a
+staging area by a human, script, automated agent, or connector-backed tool.
+
+- Create a focused branch from the exact current default-branch head before the
+  first repository mutation.
+- Never create, update, delete, or temporarily replace a file directly on
+  `master`, `main`, or whatever branch GitHub reports as the repository default.
+- Never omit the target branch from a connector write. An omitted branch usually
+  selects the default branch and must be treated as unsafe.
+- Do not create a branch by writing a marker, placeholder, empty, or temporary
+  file. Use `git switch -c`, the branch API, or the ref API directly.
+- If branch creation or lookup fails, stop. Do not retry the write without a
+  branch and do not fall back to the default branch.
+- A reversible or no-net-content write is still a direct default-branch write and
+  is forbidden.
+- Never force-update the default branch. Rewrite a feature branch only when its
+  review history needs cleaning and repository rules permit it.
+- Prefer local `git` for substantial or multi-file work. Use connector file APIs
+  only when complete payloads fit their limits and can be verified after upload.
+- Treat a truncated or incomplete uploaded blob as a failed publication. Do not
+  split production source merely to work around a transport limit unless that
+  split is independently the correct architecture.
+
+If an accidental default-branch write occurs, stop all writes immediately,
+record and report the exact commit and affected paths, and do not stack further
+direct commits to hide or repair it. Restore content through a normal reviewed
+revert, or ask the repository owner to repair protected history when a ref-level
+correction is required.
+
+Before opening a pull request, compare the feature branch against its intended
+base and verify both the complete file list and commit list. The branch must
+contain only the intended logical work.
 
 ## Commit discipline
 
@@ -160,7 +196,8 @@ portable across supported hosts and covered by the complete platform matrix.
 
 ## Development workflow
 
-1. Create a focused branch.
+1. Resolve the current default branch and create a focused feature branch from
+   its exact head before making any repository mutation.
 2. Read the relevant architecture, source-style, command, language, diagnostics,
    manifest, runtime, or backend contract document.
 3. Make the smallest coherent change.
@@ -188,7 +225,8 @@ portable across supported hosts and covered by the complete platform matrix.
 
 8. Update the README, changelog, and every affected reference or design
    document.
-9. Inspect the complete diff and open a focused pull request.
+9. Inspect the complete base-to-head diff and commit list, clean feature-branch
+   history, and open a focused pull request.
 
 CI runs the normal ladder with Linux glibc SDKs, Linux musl SDKs, and the macOS
 source fallback. The deep-selfhost CI job builds the seed first, then verifies
