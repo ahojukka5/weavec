@@ -66,8 +66,9 @@ A release build requires:
 - `musl-gcc` for the musl compiler and runtime package;
 - `ar`, `readelf`, `file`, `tar`, and Python 3.
 
-Stage 0 is not part of the normal Linux package build. It is used only if an
-explicit or unsupported-host source fallback must build Stage 1.
+Stage 0 is never part of the `weavec` build. There is no source-chain fallback:
+an unavailable lower-stage package for the host platform is a release
+dependency failure.
 
 ## Validation before packaging
 
@@ -83,7 +84,7 @@ CI must pass:
 
 - Linux x86-64 with glibc SDKs;
 - Linux x86-64 with musl SDKs;
-- macOS with pinned source fallbacks;
+- native macOS arm64 and x86-64 SDKs;
 - the deep two-generation self-host ladder.
 
 A release must not rely only on unit or low-level compiler tests. The public

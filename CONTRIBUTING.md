@@ -228,8 +228,8 @@ portable across supported hosts and covered by the complete platform matrix.
 9. Inspect the complete base-to-head diff and commit list, clean feature-branch
    history, and open a focused pull request.
 
-CI runs the normal ladder with Linux glibc SDKs, Linux musl SDKs, and the macOS
-source fallback. The deep-selfhost CI job builds the seed first, then verifies
+CI runs the normal ladder with Linux glibc SDKs, Linux musl SDKs, and native
+macOS SDKs. The deep-selfhost CI job builds the seed first, then verifies
 stage-one and stage-two self-hosted compilers.
 
 ## Documentation-only changes
@@ -258,26 +258,27 @@ rebuild is required merely to prove Markdown prose compiles.
 
 The canonical controls are:
 
-- `WEAVEC1_VERSION` and `WEAVEC1_LIBC` — published Stage 1 SDK;
-- `WEAVEC1_SDK` — extracted local Stage 1 SDK;
-- `WEAVEC_BOOTSTRAP_VERSION` and `WEAVEC_BOOTSTRAP_LIBC` — published bootstrap
-  SDK;
-- `WEAVEC_BOOTSTRAP_SDK` — extracted local bootstrap SDK;
-- `WEAVEC1`, `WEAVEC1_TAG`, `WEAVEC_BOOTSTRAP`, and
-  `WEAVEC_BOOTSTRAP_REF` — explicit source fallbacks;
-- `WEAVEC0` and `WEAVEC0_TAG` — Stage 0 source fallback controls;
+- `WEAVEC1_VERSION` and `WEAVEC1_LIBC` (Linux only) — published Stage 1 SDK;
+- `WEAVEC1_SDK` — extracted local Stage 1 SDK, bypassing the download;
+- `WEAVEC_BOOTSTRAP_VERSION` and `WEAVEC_BOOTSTRAP_LIBC` (Linux only) —
+  published bootstrap SDK;
+- `WEAVEC_BOOTSTRAP_SDK` — extracted local bootstrap SDK, bypassing the
+  download;
 - `WEAVEC_BACKEND` — existing self-hosted backend executable.
+
+There is no source-chain fallback: an unavailable package for the host's
+platform (`linux-x86_64-glibc`, `linux-x86_64-musl`, `macos-arm64`, or
+`macos-x86_64`) is a release dependency failure, not permission to clone and
+rebuild `weavec0`, `weavec1`, or `weavec-bootstrap`.
 
 When changing an SDK pin:
 
-- verify the release provides both required libc archives and `SHA256SUMS`;
+- verify the release provides all four platform archives and `SHA256SUMS`;
 - inspect `SDK-MANIFEST` for required commands and library paths;
 - run the complete glibc, musl, and macOS matrix;
 - run deep self-hosting when compiler output or frontend modules changed;
 - document why the pin changed;
 - update architecture and release documents when the dependency contract changes.
-
-Stage 0 controls matter only when the Stage 1 source fallback is required.
 
 ## Public interface changes
 

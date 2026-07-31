@@ -179,9 +179,9 @@ published dependency boundary is:
 weavec-bootstrap SDK/lib/libweave-sexpr.bc
 ```
 
-The normal Linux build downloads the matching checksum-verified
-`weavec-bootstrap` SDK and links this parser library as one unit. Unsupported
-hosts and explicit development configurations use a pinned source fallback.
+Every supported host downloads the matching checksum-verified
+`weavec-bootstrap` SDK and links this parser library as one unit. There is no
+source-chain fallback.
 
 ## Host support and target runtime
 
@@ -235,8 +235,8 @@ runtime.
 
 `./build.sh` performs six ordered operations:
 
-1. resolve the published `weavec1` SDK or pinned source fallback;
-2. resolve the published `weavec-bootstrap` SDK or pinned source fallback;
+1. resolve the published `weavec1` SDK for the host platform;
+2. resolve the published `weavec-bootstrap` SDK for the host platform;
 3. use `weavec-bootstrap` to lower ordered compiler sources into WIR core version
    2 at `build/weavec.wir`;
 4. compile that WIR into `build/weavec.ll` with `weavec1`, or use an explicitly
@@ -244,9 +244,9 @@ runtime.
 5. link compiler bitcode with `libweave-sexpr.bc` into `build/weavec.bc`;
 6. link the development `build/weavec` executable with compiler host support.
 
-Normal Linux x86-64 builds use glibc or musl SDK archives. macOS currently uses
-the pinned source fallback. Stage 0 is resolved only when the Stage 1 source
-fallback must be built.
+Linux x86-64 uses glibc or musl SDK archives; macOS arm64 and x86-64 use native
+SDK archives. There is no source-chain fallback and Stage 0 is never built by
+this repository.
 
 ## Self-host generations
 
