@@ -1,308 +1,696 @@
 ; SPDX-License-Identifier: Apache-2.0
-; struct.weave — (struct ...) expansion for the frontend lowering pass
+; struct.weave — validated, naturally aligned struct lowering for WIR v2
 ;
-; Expands a (struct NAME (field FNAME FTYPE) ...) declaration into:
+; Struct declarations retain their generated compatibility ABI:
+;   NAME_new, NAME_get_FIELD, and NAME_set_FIELD.
+; Canonical semantic new/field-get/field-set forms will be implemented separately.
 ;
-;   NAME_new(field0 type0, field1 type1, ...) → ptr
-;     malloc(size), store each field, return self
+; Field representation:
+;   bool       size 1, alignment 1, load_u8/store_i8
+;   i32/f32    size 4, alignment 4
+;   i64/f64    size 8, alignment 8
+;   ptr/Qubit  size 8, alignment 8 (Qubit lowers to WIR i64)
 ;
-;   NAME_get_FNAME(self ptr) → FTYPE    [getter]
-;     load at computed offset
-;
-;   NAME_set_FNAME(self ptr, v FTYPE) → void  [setter]
-;     store at computed offset
-;
-; Field layout: fields are packed in declaration order.
-; Sizes: i32 → 4, bool → 4, i64 → 8, ptr → 8.
-; Each field is naturally aligned (fields are already aligned by these sizes).
+; Every field starts at its natural alignment. The allocation size is rounded to
+; the maximum field alignment. Unsupported and malformed fields are rejected
+; before any generated declaration is emitted.
 
 (program
   (name "struct")
   (version "0.1")
 
-  ; Return the byte size of a WIR type ident.
-  (fn field_size
-    (params (tree ptr) (source ptr) (type_node i64))
+  (fn stl_type_supported
+    (params (stl_type i32))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (or_bool
+            (eq_i32 (param_get stl_type) (call_i32 surface_type_i32))
+            (eq_i32 (param_get stl_type) (call_i32 surface_type_i64)))
+          (or_bool
+            (or_bool
+              (eq_i32 (param_get stl_type) (call_i32 surface_type_f32))
+              (eq_i32 (param_get stl_type) (call_i32 surface_type_f64)))
+            (or_bool
+              (eq_i32 (param_get stl_type) (call_i32 surface_type_bool))
+              (eq_i32 (param_get stl_type) (call_i32 surface_type_ptr))))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn stl_type_size
+    (params (stl_type i32))
     (returns i64)
     (do
       (if
-        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
-          (const_string_ptr "i64") (const_i64 3)) (const_i32 0)))
-        (then (do (return (const_i64 8))))
+        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_bool)))
+        (then (do (return (const_i64 1))))
         (else (do)))
       (if
-        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
-          (const_string_ptr "ptr") (const_i64 3)) (const_i32 0)))
-        (then (do (return (const_i64 8))))
+        (condition (or_bool
+          (eq_i32 (param_get stl_type) (call_i32 surface_type_i32))
+          (eq_i32 (param_get stl_type) (call_i32 surface_type_f32))))
+        (then (do (return (const_i64 4))))
         (else (do)))
-      ; i32 and bool → 4 bytes
-      (return (const_i64 4))))
+      (return (const_i64 8))))
 
-  ; Return the load operator name for a type: load_i64, load_i32, load_ptr.
-  ; bool maps to load_i32 (stored as i32).
-  (fn load_op_for_type
-    (params (tree ptr) (source ptr) (type_node i64) (fd i32))
-    (returns void)
-    (do
-      (if
-        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
-          (const_string_ptr "i64") (const_i64 3)) (const_i32 0)))
-        (then (do
-          (call_void write_cstr (param_get fd) (const_string_ptr "load_i64"))
-          (return_void)))
-        (else (do)))
-      (if
-        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
-          (const_string_ptr "ptr") (const_i64 3)) (const_i32 0)))
-        (then (do
-          (call_void write_cstr (param_get fd) (const_string_ptr "load_ptr"))
-          (return_void)))
-        (else (do)))
-      ; i32 and bool
-      (call_void write_cstr (param_get fd) (const_string_ptr "load_i32"))
-      (return_void)))
-
-  ; Return the store operator for a type: store_i64, store_i32, store_ptr.
-  (fn store_op_for_type
-    (params (tree ptr) (source ptr) (type_node i64) (fd i32))
-    (returns void)
-    (do
-      (if
-        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
-          (const_string_ptr "i64") (const_i64 3)) (const_i32 0)))
-        (then (do
-          (call_void write_cstr (param_get fd) (const_string_ptr "store_i64"))
-          (return_void)))
-        (else (do)))
-      (if
-        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
-          (const_string_ptr "ptr") (const_i64 3)) (const_i32 0)))
-        (then (do
-          (call_void write_cstr (param_get fd) (const_string_ptr "store_ptr"))
-          (return_void)))
-        (else (do)))
-      ; i32 and bool
-      (call_void write_cstr (param_get fd) (const_string_ptr "store_i32"))
-      (return_void)))
-
-  ; Return the call operator for a type: call_i64, call_i32, call_ptr, call_bool.
-  ; Used for cast_i32_to_i64 return in getters.
-  (fn emit_return_type
-    (params (tree ptr) (source ptr) (type_node i64) (fd i32))
-    (returns void)
-    (do
-      (if
-        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get type_node)
-          (const_string_ptr "bool") (const_i64 4)) (const_i32 0)))
-        (then (do
-          (call_void write_cstr (param_get fd) (const_string_ptr "bool"))
-          (return_void)))
-        (else (do)))
-      (call_void write_node_text (param_get fd) (param_get source) (param_get tree) (param_get type_node))
-      (return_void)))
-
-  ; Compute total struct size by summing field sizes.
-  (fn struct_total_size
-    (params (tree ptr) (source ptr) (node i64))
+  (fn stl_type_alignment
+    (params (stl_type i32))
     (returns i64)
     (do
-      (let total i64 (const_i64 0))
-      (let name_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
-      (let field i64 (call_i64 node_next_sibling (param_get tree) (local_get name_node)))
-      (while
-        (condition (ne_i64 (local_get field) (const_i64 -1)))
-        (do
-          (if
-            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get field)) (call_i32 node_list)))
-            (then (do
-              (if
-                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get field)
-                  (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
-                (then (do
-                  (let ftype i64 (call_i64 nth_child (param_get tree) (local_get field) (const_i64 2)))
-                  (set total (add_i64 (local_get total) (call_i64 field_size
-                    (param_get tree) (param_get source) (local_get ftype))))))
-                (else (do)))))
-            (else (do)))
-          (set field (call_i64 node_next_sibling (param_get tree) (local_get field)))))
-      (return (local_get total))))
+      (return (call_i64 stl_type_size (param_get stl_type)))))
 
-  ; Emit the NAME_new constructor function.
-  (fn emit_struct_new
-    (params (fd i32) (source ptr) (tree ptr) (node i64))
+  (fn stl_align_up
+    (params (stl_value i64) (stl_alignment i64))
+    (returns i64)
+    (do
+      (if
+        (condition (le_i64 (param_get stl_alignment) (const_i64 1)))
+        (then (do (return (param_get stl_value))))
+        (else (do)))
+      (return
+        (and_i64
+          (add_i64 (param_get stl_value)
+            (sub_i64 (param_get stl_alignment) (const_i64 1)))
+          (sub_i64 (const_i64 0) (param_get stl_alignment))))))
+
+  (fn stl_nodes_equal
+    (params (stl_source ptr) (stl_tree ptr) (stl_left i64) (stl_right i64))
+    (returns i32)
+    (do
+      (return (call_i32 slices_equal
+        (param_get stl_source)
+        (call_i64 node_text_start (param_get stl_tree) (param_get stl_left))
+        (call_i64 node_text_len (param_get stl_tree) (param_get stl_left))
+        (call_i64 node_text_start (param_get stl_tree) (param_get stl_right))
+        (call_i64 node_text_len (param_get stl_tree) (param_get stl_right))))))
+
+  (fn stl_record_error
+    (params
+      (stl_tree ptr) (stl_source ptr) (stl_node i64) (stl_code ptr)
+      (stl_role ptr) (stl_symbol i64))
     (returns void)
     (do
-      (let name_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
-      (let total_size i64 (call_i64 struct_total_size (param_get tree) (param_get source) (param_get node)))
-      ; (fn NAME_new (params (FNAME0 FTYPE0) ...) (returns ptr)
-      (call_void emit_source_span_for_node
-        (param_get fd) (param_get source) (param_get tree) (param_get node))
-      (call_void write_cstr (param_get fd) (const_string_ptr "    (fn "))
-      (call_void write_node_text (param_get fd) (param_get source) (param_get tree) (local_get name_node))
-      (call_void write_cstr (param_get fd) (const_string_ptr "_new (params"))
-      (let field i64 (call_i64 node_next_sibling (param_get tree) (local_get name_node)))
-      (while
-        (condition (ne_i64 (local_get field) (const_i64 -1)))
-        (do
-          (if
-            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get field)) (call_i32 node_list)))
-            (then (do
-              (if
-                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get field)
-                  (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
-                (then (do
-                  (let fname i64 (call_i64 nth_child (param_get tree) (local_get field) (const_i64 1)))
-                  (let ftype i64 (call_i64 nth_child (param_get tree) (local_get field) (const_i64 2)))
-                  (call_void write_cstr (param_get fd) (const_string_ptr " ("))
-                  (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get fname))
-                  (call_void write_byte (param_get fd) (const_i32 32))
-                  (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get ftype))
-                  (call_void write_byte (param_get fd) (const_i32 41))))
-                (else (do)))))
-            (else (do)))
-          (set field (call_i64 node_next_sibling (param_get tree) (local_get field)))))
-      (call_void write_cstr (param_get fd) (const_string_ptr ") (returns ptr)"))
-      (call_void write_byte (param_get fd) (const_i32 10))
-      ; (do
-      (call_void write_cstr (param_get fd) (const_string_ptr "      (do"))
-      (call_void write_byte (param_get fd) (const_i32 10))
-      ; (let self ptr (call_ptr malloc (const_i64 SIZE)))
-      (call_void write_cstr (param_get fd) (const_string_ptr "        (let self ptr (call_ptr malloc (const_i64 "))
-      (call_void write_i64_dec (param_get fd) (local_get total_size))
-      (call_void write_cstr (param_get fd) (const_string_ptr ")))"))
-      (call_void write_byte (param_get fd) (const_i32 10))
-      ; null check
-      (call_void write_cstr (param_get fd) (const_string_ptr "        (if (condition (eq_ptr (local_get self) (const_null)))"))
-      (call_void write_byte (param_get fd) (const_i32 10))
-      (call_void write_cstr (param_get fd) (const_string_ptr "          (then (do (return (const_null))))"))
-      (call_void write_byte (param_get fd) (const_i32 10))
-      (call_void write_cstr (param_get fd) (const_string_ptr "          (else (do)))"))
-      (call_void write_byte (param_get fd) (const_i32 10))
-      ; store each field (use distinct names s_fname/s_ftype/s_fsize to avoid
-      ; alloca name conflicts with the params loop above in the same function)
-      (let offset i64 (const_i64 0))
-      (let sfield i64 (call_i64 node_next_sibling (param_get tree) (local_get name_node)))
-      (while
-        (condition (ne_i64 (local_get sfield) (const_i64 -1)))
-        (do
-          (if
-            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get sfield)) (call_i32 node_list)))
-            (then (do
-              (if
-                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get sfield)
-                  (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
-                (then (do
-                  (let s_fname i64 (call_i64 nth_child (param_get tree) (local_get sfield) (const_i64 1)))
-                  (let s_ftype i64 (call_i64 nth_child (param_get tree) (local_get sfield) (const_i64 2)))
-                  (let s_fsize i64 (call_i64 field_size (param_get tree) (param_get source) (local_get s_ftype)))
-                  (call_void write_cstr (param_get fd) (const_string_ptr "        ("))
-                  (call_void store_op_for_type (param_get tree) (param_get source) (local_get s_ftype) (param_get fd))
-                  (if
-                    (condition (eq_i64 (local_get offset) (const_i64 0)))
-                    (then (do
-                      (call_void write_cstr (param_get fd) (const_string_ptr " (local_get self)"))))
-                    (else (do
-                      (call_void write_cstr (param_get fd) (const_string_ptr " (ptr_add (local_get self) (const_i64 "))
-                      (call_void write_i64_dec (param_get fd) (local_get offset))
-                      (call_void write_cstr (param_get fd) (const_string_ptr "))")))))
-                  (call_void write_cstr (param_get fd) (const_string_ptr " (param_get "))
-                  (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get s_fname))
-                  (call_void write_cstr (param_get fd) (const_string_ptr "))"))
-                  (call_void write_byte (param_get fd) (const_i32 10))
-                  (set offset (add_i64 (local_get offset) (local_get s_fsize)))))
-                (else (do)))))
-            (else (do)))
-          (set sfield (call_i64 node_next_sibling (param_get tree) (local_get sfield)))))
-      ; return self
-      (call_void write_cstr (param_get fd) (const_string_ptr "        (return (local_get self))))"))
-      (call_void write_byte (param_get fd) (const_i32 10))
+      (call_void sdiag_record
+        (param_get stl_tree) (param_get stl_source) (param_get stl_node)
+        (param_get stl_code)
+        (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+        (const_i32 -1) (const_i32 -1) (const_i32 -1)
+        (param_get stl_role) (param_get stl_symbol) (const_i32 0))
       (return_void)))
 
-  ; Emit getter and setter functions for one field.
-  ; struct_name, field, offset are all parameters (use param_get throughout).
-  (fn emit_field_accessors
-    (params (fd i32) (source ptr) (tree ptr) (struct_name i64) (field i64) (offset i64))
+  (fn stl_error_malformed
+    (params (stl_tree ptr) (stl_source ptr) (stl_node i64) (stl_detail ptr))
     (returns void)
     (do
-      (let fname i64 (call_i64 nth_child (param_get tree) (param_get field) (const_i64 1)))
-      (let ftype i64 (call_i64 nth_child (param_get tree) (param_get field) (const_i64 2)))
-      ; getter: (fn NAME_get_FNAME (params (self ptr)) (returns FTYPE) (do (return (load_OP ...))))
-      (call_void emit_source_span_for_node
-        (param_get fd) (param_get source) (param_get tree) (param_get field))
-      (call_void write_cstr (param_get fd) (const_string_ptr "    (fn "))
-      (call_void write_node_text (param_get fd) (param_get source) (param_get tree) (param_get struct_name))
-      (call_void write_cstr (param_get fd) (const_string_ptr "_get_"))
-      (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get fname))
-      (call_void write_cstr (param_get fd) (const_string_ptr " (params (self ptr)) (returns "))
-      (call_void emit_return_type (param_get tree) (param_get source) (local_get ftype) (param_get fd))
-      (call_void write_cstr (param_get fd) (const_string_ptr ")"))
-      (call_void write_byte (param_get fd) (const_i32 10))
-      (call_void write_cstr (param_get fd) (const_string_ptr "      (do (return ("))
-      (call_void load_op_for_type (param_get tree) (param_get source) (local_get ftype) (param_get fd))
-      (if
-        (condition (eq_i64 (param_get offset) (const_i64 0)))
-        (then (do
-          (call_void write_cstr (param_get fd) (const_string_ptr " (param_get self)))))"))
-          (call_void write_byte (param_get fd) (const_i32 10))))
-        (else (do
-          (call_void write_cstr (param_get fd) (const_string_ptr " (ptr_add (param_get self) (const_i64 "))
-          (call_void write_i64_dec (param_get fd) (param_get offset))
-          (call_void write_cstr (param_get fd) (const_string_ptr "))))))"))
-          (call_void write_byte (param_get fd) (const_i32 10)))))
-      ; setter: (fn NAME_set_FNAME (params (self ptr) (v FTYPE)) (returns void)
-      (call_void emit_source_span_for_node
-        (param_get fd) (param_get source) (param_get tree) (param_get field))
-      (call_void write_cstr (param_get fd) (const_string_ptr "    (fn "))
-      (call_void write_node_text (param_get fd) (param_get source) (param_get tree) (param_get struct_name))
-      (call_void write_cstr (param_get fd) (const_string_ptr "_set_"))
-      (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get fname))
-      (call_void write_cstr (param_get fd) (const_string_ptr " (params (self ptr) (v "))
-      (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get ftype))
-      (call_void write_cstr (param_get fd) (const_string_ptr ")) (returns void)"))
-      (call_void write_byte (param_get fd) (const_i32 10))
-      (call_void write_cstr (param_get fd) (const_string_ptr "      (do ("))
-      (call_void store_op_for_type (param_get tree) (param_get source) (local_get ftype) (param_get fd))
-      (if
-        (condition (eq_i64 (param_get offset) (const_i64 0)))
-        (then (do
-          (call_void write_cstr (param_get fd) (const_string_ptr " (param_get self) (param_get v)) (return_void)))"))
-          (call_void write_byte (param_get fd) (const_i32 10))))
-        (else (do
-          (call_void write_cstr (param_get fd) (const_string_ptr " (ptr_add (param_get self) (const_i64 "))
-          (call_void write_i64_dec (param_get fd) (param_get offset))
-          (call_void write_cstr (param_get fd) (const_string_ptr ")) (param_get v)) (return_void)))"))
-          (call_void write_byte (param_get fd) (const_i32 10)))))
+      (call_void surface_error_prefix (const_string_ptr "struct"))
+      (call_void write_cstr (const_i32 2) (param_get stl_detail))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (call_void stl_record_error
+        (param_get stl_tree) (param_get stl_source) (param_get stl_node)
+        (const_string_ptr "frontend.struct.malformed")
+        (const_string_ptr "declaration") (const_i64 -1))
       (return_void)))
 
-  ; Expand a (struct NAME (field FNAME FTYPE) ...) into WIR function declarations.
+  (fn stl_error_unsupported_type
+    (params
+      (stl_tree ptr) (stl_source ptr) (stl_type_node i64)
+      (stl_field_name i64))
+    (returns void)
+    (do
+      (call_void surface_error_prefix (const_string_ptr "struct"))
+      (call_void write_cstr (const_i32 2) (const_string_ptr "unsupported field type "))
+      (call_void emit_node_text
+        (const_i32 2) (param_get stl_source) (param_get stl_tree)
+        (param_get stl_type_node))
+      (call_void write_cstr (const_i32 2) (const_string_ptr " for field "))
+      (call_void emit_node_text
+        (const_i32 2) (param_get stl_source) (param_get stl_tree)
+        (param_get stl_field_name))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (call_void stl_record_error
+        (param_get stl_tree) (param_get stl_source) (param_get stl_type_node)
+        (const_string_ptr "frontend.struct.unsupported-field-type")
+        (const_string_ptr "field-type") (param_get stl_field_name))
+      (return_void)))
+
+  (fn stl_error_duplicate_field
+    (params (stl_tree ptr) (stl_source ptr) (stl_field_name i64))
+    (returns void)
+    (do
+      (call_void surface_error_prefix (const_string_ptr "struct"))
+      (call_void write_cstr (const_i32 2) (const_string_ptr "duplicate field "))
+      (call_void emit_node_text
+        (const_i32 2) (param_get stl_source) (param_get stl_tree)
+        (param_get stl_field_name))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (call_void stl_record_error
+        (param_get stl_tree) (param_get stl_source) (param_get stl_field_name)
+        (const_string_ptr "frontend.struct.duplicate-field")
+        (const_string_ptr "field") (param_get stl_field_name))
+      (return_void)))
+
+  (fn stl_validate
+    (params (stl_tree ptr) (stl_source ptr) (stl_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (lt_i64
+          (call_i64 count_children (param_get stl_tree) (param_get stl_node))
+          (const_i64 3)))
+        (then (do
+          (call_void stl_error_malformed
+            (param_get stl_tree) (param_get stl_source) (param_get stl_node)
+            (const_string_ptr "struct requires a name and at least one field"))
+          (return (const_i32 1))))
+        (else (do)))
+      (let stl_name i64 (call_i64 nth_child
+        (param_get stl_tree) (param_get stl_node) (const_i64 1)))
+      (if
+        (condition (eq_i32
+          (call_i32 surface_node_is_ident (param_get stl_tree) (local_get stl_name))
+          (const_i32 0)))
+        (then (do
+          (call_void stl_error_malformed
+            (param_get stl_tree) (param_get stl_source) (param_get stl_node)
+            (const_string_ptr "struct name must be an identifier"))
+          (return (const_i32 1))))
+        (else (do)))
+      (let stl_field i64 (call_i64 node_next_sibling
+        (param_get stl_tree) (local_get stl_name)))
+      (while
+        (condition (ne_i64 (local_get stl_field) (const_i64 -1)))
+        (do
+          (if
+            (condition (or_bool
+              (ne_i32
+                (call_i32 node_kind (param_get stl_tree) (local_get stl_field))
+                (call_i32 node_list))
+              (or_bool
+                (eq_i32
+                  (call_i32 head_equals
+                    (param_get stl_tree) (param_get stl_source)
+                    (local_get stl_field)
+                    (const_string_ptr "field") (const_i64 5))
+                  (const_i32 0))
+                (ne_i64
+                  (call_i64 count_children
+                    (param_get stl_tree) (local_get stl_field))
+                  (const_i64 3)))))
+            (then (do
+              (call_void stl_error_malformed
+                (param_get stl_tree) (param_get stl_source)
+                (local_get stl_field)
+                (const_string_ptr "fields must use (field NAME TYPE)"))
+              (return (const_i32 1))))
+            (else (do)))
+          (let stl_field_name i64 (call_i64 nth_child
+            (param_get stl_tree) (local_get stl_field) (const_i64 1)))
+          (let stl_type_node i64 (call_i64 nth_child
+            (param_get stl_tree) (local_get stl_field) (const_i64 2)))
+          (if
+            (condition (or_bool
+              (eq_i32
+                (call_i32 surface_node_is_ident
+                  (param_get stl_tree) (local_get stl_field_name))
+                (const_i32 0))
+              (eq_i32
+                (call_i32 surface_node_is_ident
+                  (param_get stl_tree) (local_get stl_type_node))
+                (const_i32 0))))
+            (then (do
+              (call_void stl_error_malformed
+                (param_get stl_tree) (param_get stl_source)
+                (local_get stl_field)
+                (const_string_ptr "field name and type must be identifiers"))
+              (return (const_i32 1))))
+            (else (do)))
+          (let stl_type_code i32 (call_i32 surface_type_code
+            (param_get stl_tree) (param_get stl_source)
+            (local_get stl_type_node)))
+          (if
+            (condition (eq_i32
+              (call_i32 stl_type_supported (local_get stl_type_code))
+              (const_i32 0)))
+            (then (do
+              (call_void stl_error_unsupported_type
+                (param_get stl_tree) (param_get stl_source)
+                (local_get stl_type_node) (local_get stl_field_name))
+              (return (const_i32 1))))
+            (else (do)))
+          (let stl_prior i64 (call_i64 node_next_sibling
+            (param_get stl_tree) (local_get stl_name)))
+          (while
+            (condition (ne_i64 (local_get stl_prior) (local_get stl_field)))
+            (do
+              (let stl_prior_name i64 (call_i64 nth_child
+                (param_get stl_tree) (local_get stl_prior) (const_i64 1)))
+              (if
+                (condition (ne_i32
+                  (call_i32 stl_nodes_equal
+                    (param_get stl_source) (param_get stl_tree)
+                    (local_get stl_prior_name) (local_get stl_field_name))
+                  (const_i32 0)))
+                (then (do
+                  (call_void stl_error_duplicate_field
+                    (param_get stl_tree) (param_get stl_source)
+                    (local_get stl_field_name))
+                  (return (const_i32 1))))
+                (else (do)))
+              (set stl_prior (call_i64 node_next_sibling
+                (param_get stl_tree) (local_get stl_prior)))))
+          (set stl_field (call_i64 node_next_sibling
+            (param_get stl_tree) (local_get stl_field)))))
+      (return (const_i32 0))))
+
+  (fn stl_field_type
+    (params (stl_tree ptr) (stl_source ptr) (stl_field i64))
+    (returns i32)
+    (do
+      (return (call_i32 surface_type_code
+        (param_get stl_tree) (param_get stl_source)
+        (call_i64 nth_child
+          (param_get stl_tree) (param_get stl_field) (const_i64 2))))))
+
+  (fn stl_struct_total_size
+    (params (stl_tree ptr) (stl_source ptr) (stl_node i64))
+    (returns i64)
+    (do
+      (let stl_total i64 (const_i64 0))
+      (let stl_max_alignment i64 (const_i64 1))
+      (let stl_name_node i64 (call_i64 nth_child
+        (param_get stl_tree) (param_get stl_node) (const_i64 1)))
+      (let stl_layout_field i64 (call_i64 node_next_sibling
+        (param_get stl_tree) (local_get stl_name_node)))
+      (while
+        (condition (ne_i64 (local_get stl_layout_field) (const_i64 -1)))
+        (do
+          (let stl_layout_type i32 (call_i32 stl_field_type
+            (param_get stl_tree) (param_get stl_source)
+            (local_get stl_layout_field)))
+          (let stl_layout_alignment i64 (call_i64 stl_type_alignment
+            (local_get stl_layout_type)))
+          (set stl_total (call_i64 stl_align_up
+            (local_get stl_total) (local_get stl_layout_alignment)))
+          (set stl_total (add_i64
+            (local_get stl_total)
+            (call_i64 stl_type_size (local_get stl_layout_type))))
+          (if
+            (condition (gt_i64
+              (local_get stl_layout_alignment) (local_get stl_max_alignment)))
+            (then (do
+              (set stl_max_alignment (local_get stl_layout_alignment))))
+            (else (do)))
+          (set stl_layout_field (call_i64 node_next_sibling
+            (param_get stl_tree) (local_get stl_layout_field)))))
+      (return (call_i64 stl_align_up
+        (local_get stl_total) (local_get stl_max_alignment)))))
+
+  (fn stl_field_offset
+    (params
+      (stl_tree ptr) (stl_source ptr) (stl_node i64)
+      (stl_target_field i64))
+    (returns i64)
+    (do
+      (let stl_offset i64 (const_i64 0))
+      (let stl_offset_name i64 (call_i64 nth_child
+        (param_get stl_tree) (param_get stl_node) (const_i64 1)))
+      (let stl_offset_field i64 (call_i64 node_next_sibling
+        (param_get stl_tree) (local_get stl_offset_name)))
+      (while
+        (condition (ne_i64 (local_get stl_offset_field) (const_i64 -1)))
+        (do
+          (let stl_offset_type i32 (call_i32 stl_field_type
+            (param_get stl_tree) (param_get stl_source)
+            (local_get stl_offset_field)))
+          (set stl_offset (call_i64 stl_align_up
+            (local_get stl_offset)
+            (call_i64 stl_type_alignment (local_get stl_offset_type))))
+          (if
+            (condition (eq_i64
+              (local_get stl_offset_field) (param_get stl_target_field)))
+            (then (do (return (local_get stl_offset))))
+            (else (do)))
+          (set stl_offset (add_i64
+            (local_get stl_offset)
+            (call_i64 stl_type_size (local_get stl_offset_type))))
+          (set stl_offset_field (call_i64 node_next_sibling
+            (param_get stl_tree) (local_get stl_offset_field)))))
+      (return (const_i64 -1))))
+
+  (fn stl_emit_address
+    (params (stl_fd i32) (stl_offset i64) (stl_is_local i32))
+    (returns void)
+    (do
+      (if
+        (condition (eq_i64 (param_get stl_offset) (const_i64 0)))
+        (then (do
+          (if
+            (condition (ne_i32 (param_get stl_is_local) (const_i32 0)))
+            (then (do
+              (call_void write_cstr
+                (param_get stl_fd) (const_string_ptr "(local_get self)"))))
+            (else (do
+              (call_void write_cstr
+                (param_get stl_fd) (const_string_ptr "(param_get self)")))))
+          (return_void)))
+        (else (do)))
+      (call_void write_cstr (param_get stl_fd) (const_string_ptr "(ptr_add "))
+      (if
+        (condition (ne_i32 (param_get stl_is_local) (const_i32 0)))
+        (then (do
+          (call_void write_cstr
+            (param_get stl_fd) (const_string_ptr "(local_get self)"))))
+        (else (do
+          (call_void write_cstr
+            (param_get stl_fd) (const_string_ptr "(param_get self)")))))
+      (call_void write_cstr (param_get stl_fd) (const_string_ptr " (const_i64 "))
+      (call_void write_i64_dec (param_get stl_fd) (param_get stl_offset))
+      (call_void write_cstr (param_get stl_fd) (const_string_ptr "))"))
+      (return_void)))
+
+  (fn stl_emit_load_op
+    (params (stl_fd i32) (stl_type i32))
+    (returns void)
+    (do
+      (if
+        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_i32)))
+        (then (do
+          (call_void write_cstr (param_get stl_fd) (const_string_ptr "load_i32"))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_i64)))
+        (then (do
+          (call_void write_cstr (param_get stl_fd) (const_string_ptr "load_i64"))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_f32)))
+        (then (do
+          (call_void write_cstr (param_get stl_fd) (const_string_ptr "load_f32"))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_f64)))
+        (then (do
+          (call_void write_cstr (param_get stl_fd) (const_string_ptr "load_f64"))
+          (return_void)))
+        (else (do)))
+      (call_void write_cstr (param_get stl_fd) (const_string_ptr "load_ptr"))
+      (return_void)))
+
+  (fn stl_emit_store_op
+    (params (stl_fd i32) (stl_type i32))
+    (returns void)
+    (do
+      (if
+        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_i32)))
+        (then (do
+          (call_void write_cstr (param_get stl_fd) (const_string_ptr "store_i32"))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_i64)))
+        (then (do
+          (call_void write_cstr (param_get stl_fd) (const_string_ptr "store_i64"))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_f32)))
+        (then (do
+          (call_void write_cstr (param_get stl_fd) (const_string_ptr "store_f32"))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_f64)))
+        (then (do
+          (call_void write_cstr (param_get stl_fd) (const_string_ptr "store_f64"))
+          (return_void)))
+        (else (do)))
+      (call_void write_cstr (param_get stl_fd) (const_string_ptr "store_ptr"))
+      (return_void)))
+
+  (fn stl_emit_bool_store
+    (params
+      (stl_fd i32) (stl_offset i64) (stl_is_local i32)
+      (stl_value_name i64) (stl_source ptr) (stl_tree ptr)
+      (stl_value_is_local i32))
+    (returns void)
+    (do
+      (call_void write_cstr (param_get stl_fd) (const_string_ptr "(if (condition "))
+      (if
+        (condition (eq_i64 (param_get stl_value_name) (const_i64 -1)))
+        (then (do
+          (call_void write_cstr (param_get stl_fd) (const_string_ptr "(param_get v)"))))
+        (else (do
+          (if
+            (condition (ne_i32 (param_get stl_value_is_local) (const_i32 0)))
+            (then (do
+              (call_void write_cstr (param_get stl_fd) (const_string_ptr "(local_get "))))
+            (else (do
+              (call_void write_cstr (param_get stl_fd) (const_string_ptr "(param_get ")))))
+          (call_void emit_node_text
+            (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+            (param_get stl_value_name))
+          (call_void write_byte (param_get stl_fd) (const_i32 41)))))
+      (call_void write_cstr
+        (param_get stl_fd) (const_string_ptr ") (then (do (store_i8 "))
+      (call_void stl_emit_address
+        (param_get stl_fd) (param_get stl_offset) (param_get stl_is_local))
+      (call_void write_cstr
+        (param_get stl_fd)
+        (const_string_ptr " (const_i32 1)))) (else (do (store_i8 "))
+      (call_void stl_emit_address
+        (param_get stl_fd) (param_get stl_offset) (param_get stl_is_local))
+      (call_void write_cstr
+        (param_get stl_fd) (const_string_ptr " (const_i32 0)))))"))
+      (return_void)))
+
+  (fn stl_emit_constructor
+    (params (stl_fd i32) (stl_source ptr) (stl_tree ptr) (stl_node i64))
+    (returns void)
+    (do
+      (let stl_constructor_name i64 (call_i64 nth_child
+        (param_get stl_tree) (param_get stl_node) (const_i64 1)))
+      (let stl_total_size i64 (call_i64 stl_struct_total_size
+        (param_get stl_tree) (param_get stl_source) (param_get stl_node)))
+      (call_void emit_source_span_for_node
+        (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+        (param_get stl_node))
+      (call_void write_cstr (param_get stl_fd) (const_string_ptr "    (fn "))
+      (call_void emit_node_text
+        (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+        (local_get stl_constructor_name))
+      (call_void write_cstr
+        (param_get stl_fd) (const_string_ptr "_new (params"))
+      (let stl_constructor_field i64 (call_i64 node_next_sibling
+        (param_get stl_tree) (local_get stl_constructor_name)))
+      (while
+        (condition (ne_i64 (local_get stl_constructor_field) (const_i64 -1)))
+        (do
+          (let stl_constructor_field_name i64 (call_i64 nth_child
+            (param_get stl_tree) (local_get stl_constructor_field) (const_i64 1)))
+          (let stl_constructor_type_node i64 (call_i64 nth_child
+            (param_get stl_tree) (local_get stl_constructor_field) (const_i64 2)))
+          (call_void write_cstr (param_get stl_fd) (const_string_ptr " ("))
+          (call_void emit_node_text
+            (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+            (local_get stl_constructor_field_name))
+          (call_void write_byte (param_get stl_fd) (const_i32 32))
+          (call_void emit_wir_type
+            (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+            (local_get stl_constructor_type_node))
+          (call_void write_byte (param_get stl_fd) (const_i32 41))
+          (set stl_constructor_field (call_i64 node_next_sibling
+            (param_get stl_tree) (local_get stl_constructor_field)))))
+      (call_void write_cstr
+        (param_get stl_fd) (const_string_ptr ") (returns ptr)"))
+      (call_void write_byte (param_get stl_fd) (const_i32 10))
+      (call_void write_cstr (param_get stl_fd) (const_string_ptr "      (do"))
+      (call_void write_byte (param_get stl_fd) (const_i32 10))
+      (call_void write_cstr
+        (param_get stl_fd)
+        (const_string_ptr "        (let self ptr (call_ptr malloc (const_i64 "))
+      (call_void write_i64_dec (param_get stl_fd) (local_get stl_total_size))
+      (call_void write_cstr (param_get stl_fd) (const_string_ptr ")))"))
+      (call_void write_byte (param_get stl_fd) (const_i32 10))
+      (call_void write_cstr
+        (param_get stl_fd)
+        (const_string_ptr
+          "        (if (condition (eq_ptr (local_get self) (const_null)))"))
+      (call_void write_byte (param_get stl_fd) (const_i32 10))
+      (call_void write_cstr
+        (param_get stl_fd)
+        (const_string_ptr "          (then (do (return (const_null))))"))
+      (call_void write_byte (param_get stl_fd) (const_i32 10))
+      (call_void write_cstr
+        (param_get stl_fd) (const_string_ptr "          (else (do)))"))
+      (call_void write_byte (param_get stl_fd) (const_i32 10))
+      (set stl_constructor_field (call_i64 node_next_sibling
+        (param_get stl_tree) (local_get stl_constructor_name)))
+      (while
+        (condition (ne_i64 (local_get stl_constructor_field) (const_i64 -1)))
+        (do
+          (let stl_store_name i64 (call_i64 nth_child
+            (param_get stl_tree) (local_get stl_constructor_field) (const_i64 1)))
+          (let stl_store_type i32 (call_i32 stl_field_type
+            (param_get stl_tree) (param_get stl_source)
+            (local_get stl_constructor_field)))
+          (let stl_store_offset i64 (call_i64 stl_field_offset
+            (param_get stl_tree) (param_get stl_source) (param_get stl_node)
+            (local_get stl_constructor_field)))
+          (call_void write_cstr (param_get stl_fd) (const_string_ptr "        "))
+          (if
+            (condition (eq_i32
+              (local_get stl_store_type) (call_i32 surface_type_bool)))
+            (then (do
+              (call_void stl_emit_bool_store
+                (param_get stl_fd) (local_get stl_store_offset)
+                (const_i32 1) (local_get stl_store_name)
+                (param_get stl_source) (param_get stl_tree) (const_i32 0))))
+            (else (do
+              (call_void write_byte (param_get stl_fd) (const_i32 40))
+              (call_void stl_emit_store_op
+                (param_get stl_fd) (local_get stl_store_type))
+              (call_void write_byte (param_get stl_fd) (const_i32 32))
+              (call_void stl_emit_address
+                (param_get stl_fd) (local_get stl_store_offset) (const_i32 1))
+              (call_void write_cstr
+                (param_get stl_fd) (const_string_ptr " (param_get "))
+              (call_void emit_node_text
+                (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+                (local_get stl_store_name))
+              (call_void write_cstr (param_get stl_fd) (const_string_ptr "))"))))
+          (call_void write_byte (param_get stl_fd) (const_i32 10))
+          (set stl_constructor_field (call_i64 node_next_sibling
+            (param_get stl_tree) (local_get stl_constructor_field)))))
+      (call_void write_cstr
+        (param_get stl_fd)
+        (const_string_ptr "        (return (local_get self))))"))
+      (call_void write_byte (param_get stl_fd) (const_i32 10))
+      (return_void))))
+
+  (fn stl_emit_accessors
+    (params
+      (stl_fd i32) (stl_source ptr) (stl_tree ptr)
+      (stl_struct_name i64) (stl_field i64) (stl_offset i64))
+    (returns void)
+    (do
+      (let stl_accessor_name i64 (call_i64 nth_child
+        (param_get stl_tree) (param_get stl_field) (const_i64 1)))
+      (let stl_accessor_type_node i64 (call_i64 nth_child
+        (param_get stl_tree) (param_get stl_field) (const_i64 2)))
+      (let stl_accessor_type i32 (call_i32 stl_field_type
+        (param_get stl_tree) (param_get stl_source) (param_get stl_field)))
+      (call_void emit_source_span_for_node
+        (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+        (param_get stl_field))
+      (call_void write_cstr (param_get stl_fd) (const_string_ptr "    (fn "))
+      (call_void emit_node_text
+        (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+        (param_get stl_struct_name))
+      (call_void write_cstr (param_get stl_fd) (const_string_ptr "_get_"))
+      (call_void emit_node_text
+        (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+        (local_get stl_accessor_name))
+      (call_void write_cstr
+        (param_get stl_fd) (const_string_ptr " (params (self ptr)) (returns "))
+      (call_void emit_wir_type
+        (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+        (local_get stl_accessor_type_node))
+      (call_void write_cstr (param_get stl_fd) (const_string_ptr ")"))
+      (call_void write_byte (param_get stl_fd) (const_i32 10))
+      (call_void write_cstr
+        (param_get stl_fd) (const_string_ptr "      (do (return "))
+      (if
+        (condition (eq_i32
+          (local_get stl_accessor_type) (call_i32 surface_type_bool)))
+        (then (do
+          (call_void write_cstr (param_get stl_fd) (const_string_ptr "(ne_i32 (load_u8 "))
+          (call_void stl_emit_address
+            (param_get stl_fd) (param_get stl_offset) (const_i32 0))
+          (call_void write_cstr
+            (param_get stl_fd) (const_string_ptr ") (const_i32 0))"))))
+        (else (do
+          (call_void write_byte (param_get stl_fd) (const_i32 40))
+          (call_void stl_emit_load_op
+            (param_get stl_fd) (local_get stl_accessor_type))
+          (call_void write_byte (param_get stl_fd) (const_i32 32))
+          (call_void stl_emit_address
+            (param_get stl_fd) (param_get stl_offset) (const_i32 0))
+          (call_void write_byte (param_get stl_fd) (const_i32 41)))))
+      (call_void write_cstr (param_get stl_fd) (const_string_ptr ")))"))
+      (call_void write_byte (param_get stl_fd) (const_i32 10))
+      (call_void emit_source_span_for_node
+        (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+        (param_get stl_field))
+      (call_void write_cstr (param_get stl_fd) (const_string_ptr "    (fn "))
+      (call_void emit_node_text
+        (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+        (param_get stl_struct_name))
+      (call_void write_cstr (param_get stl_fd) (const_string_ptr "_set_"))
+      (call_void emit_node_text
+        (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+        (local_get stl_accessor_name))
+      (call_void write_cstr
+        (param_get stl_fd) (const_string_ptr " (params (self ptr) (v "))
+      (call_void emit_wir_type
+        (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+        (local_get stl_accessor_type_node))
+      (call_void write_cstr
+        (param_get stl_fd) (const_string_ptr ")) (returns void)"))
+      (call_void write_byte (param_get stl_fd) (const_i32 10))
+      (call_void write_cstr (param_get stl_fd) (const_string_ptr "      (do "))
+      (if
+        (condition (eq_i32
+          (local_get stl_accessor_type) (call_i32 surface_type_bool)))
+        (then (do
+          (call_void stl_emit_bool_store
+            (param_get stl_fd) (param_get stl_offset) (const_i32 0)
+            (const_i64 -1)
+            (param_get stl_source) (param_get stl_tree) (const_i32 0))))
+        (else (do
+          (call_void write_byte (param_get stl_fd) (const_i32 40))
+          (call_void stl_emit_store_op
+            (param_get stl_fd) (local_get stl_accessor_type))
+          (call_void write_byte (param_get stl_fd) (const_i32 32))
+          (call_void stl_emit_address
+            (param_get stl_fd) (param_get stl_offset) (const_i32 0))
+          (call_void write_cstr (param_get stl_fd) (const_string_ptr " (param_get v))")))))
+      (call_void write_cstr
+        (param_get stl_fd) (const_string_ptr " (return_void)))"))
+      (call_void write_byte (param_get stl_fd) (const_i32 10))
+      (return_void)))
+
   (fn lower_struct
-    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (params (stl_fd i32) (stl_source ptr) (stl_tree ptr) (stl_node i64))
     (returns void)
     (do
-      (let name_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
-      ; Emit constructor
-      (call_void emit_struct_new (param_get fd) (param_get source) (param_get tree) (param_get node))
-      ; Emit getters and setters, tracking field offset
-      (let offset i64 (const_i64 0))
-      (let field i64 (call_i64 node_next_sibling (param_get tree) (local_get name_node)))
+      (if
+        (condition (ne_i32 (call_i32 stl_validate
+          (param_get stl_tree) (param_get stl_source) (param_get stl_node))
+          (const_i32 0)))
+        (then (do (return_void)))
+        (else (do)))
+      (let stl_lower_name i64 (call_i64 nth_child
+        (param_get stl_tree) (param_get stl_node) (const_i64 1)))
+      (call_void stl_emit_constructor
+        (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+        (param_get stl_node))
+      (let stl_lower_field i64 (call_i64 node_next_sibling
+        (param_get stl_tree) (local_get stl_lower_name)))
       (while
-        (condition (ne_i64 (local_get field) (const_i64 -1)))
+        (condition (ne_i64 (local_get stl_lower_field) (const_i64 -1)))
         (do
-          (if
-            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get field)) (call_i32 node_list)))
-            (then (do
-              (if
-                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get field)
-                  (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
-                (then (do
-                  (let ftype i64 (call_i64 nth_child (param_get tree) (local_get field) (const_i64 2)))
-                  (let fsize i64 (call_i64 field_size (param_get tree) (param_get source) (local_get ftype)))
-                  (call_void emit_field_accessors
-                    (param_get fd) (param_get source) (param_get tree)
-                    (local_get name_node) (local_get field) (local_get offset))
-                  (set offset (add_i64 (local_get offset) (local_get fsize)))))
-                (else (do)))))
-            (else (do)))
-          (set field (call_i64 node_next_sibling (param_get tree) (local_get field)))))
+          (call_void stl_emit_accessors
+            (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+            (local_get stl_lower_name) (local_get stl_lower_field)
+            (call_i64 stl_field_offset
+              (param_get stl_tree) (param_get stl_source)
+              (param_get stl_node) (local_get stl_lower_field)))
+          (set stl_lower_field (call_i64 node_next_sibling
+            (param_get stl_tree) (local_get stl_lower_field)))))
       (return_void)))
 )
