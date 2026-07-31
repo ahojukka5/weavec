@@ -51,6 +51,7 @@ names used when they were released.
 ## Language and feature guides
 
 - [Executable contracts and explain mode](contracts-and-explain.md)
+- [Struct layout and compatibility ABI](struct-layout.md)
 - [Quantum surface support](quantum.md)
 
 ## Backend and performance notes

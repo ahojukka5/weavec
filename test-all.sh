@@ -59,6 +59,9 @@ bash "$ROOT/test/surface-elaboration/test.sh"
 log 'contract result diagnostics'
 bash "$ROOT/test/contract-result-requires/test.sh"
 
+log 'struct layout'
+bash "$ROOT/test/struct-layout/test.sh"
+
 log 'diagnostics'
 bash "$ROOT/test/diagnostics/test-build-diagnostics.sh"
 

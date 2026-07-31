@@ -91,6 +91,13 @@ surface-language contract stabilises.
   added a malformed `call_ptr` regression that exercises effect analysis during
   self-hosted frontend lowering.
 
+### Fixed
+
+- Replaced fallback-packed struct fields with validated natural alignment and
+  explicit bool, integer, floating-point, pointer, and Qubit memory operations.
+- Rejected malformed, duplicate, and unsupported struct fields before publishing
+  generated compatibility constructors or accessors.
+
 ## [0.3.0] — 2026-07-25
 
 ### Added
