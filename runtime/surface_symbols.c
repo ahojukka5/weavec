@@ -13,6 +13,9 @@
 #define WEAVEC_SURFACE_MAX_SYMBOLS 4096
 #define WEAVEC_SURFACE_MAX_PARAMS 64
 #define WEAVEC_SURFACE_MAX_LOCALS 4096
+#define WEAVEC_SURFACE_MAX_STRUCTS 512
+#define WEAVEC_SURFACE_MAX_STRUCT_FIELDS 128
+#define WEAVEC_SURFACE_STRUCT_TYPE_BASE 1024
 
 typedef struct {
     char *name;
@@ -28,11 +31,27 @@ typedef struct {
     int32_t type;
 } weave_surface_local;
 
+typedef struct {
+    char *name;
+    int64_t name_length;
+    int32_t type;
+} weave_surface_struct_field;
+
+typedef struct {
+    char *name;
+    int64_t name_length;
+    int32_t defined;
+    int32_t field_count;
+    weave_surface_struct_field fields[WEAVEC_SURFACE_MAX_STRUCT_FIELDS];
+} weave_surface_struct;
+
 static weave_surface_symbol weave_surface_symbols[WEAVEC_SURFACE_MAX_SYMBOLS];
 static int32_t weave_surface_symbol_count;
 static int32_t weave_surface_symbol_being_built = -1;
 static weave_surface_local weave_surface_locals[WEAVEC_SURFACE_MAX_LOCALS];
 static int32_t weave_surface_local_count;
+static weave_surface_struct weave_surface_structs[WEAVEC_SURFACE_MAX_STRUCTS];
+static int32_t weave_surface_struct_count;
 static int32_t weave_surface_return_type;
 static int32_t weave_surface_error;
 
@@ -66,6 +85,50 @@ static int weave_surface_slice_equal(
     return memcmp(stored, source + start, (size_t)length) == 0;
 }
 
+static int32_t weave_surface_struct_index_from_type(int32_t type) {
+    int32_t index = type - WEAVEC_SURFACE_STRUCT_TYPE_BASE;
+    if (index < 0 || index >= weave_surface_struct_count) {
+        return -1;
+    }
+    return index;
+}
+
+static int32_t weave_surface_struct_find(
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    for (int32_t index = 0; index < weave_surface_struct_count; ++index) {
+        if (weave_surface_slice_equal(
+                weave_surface_structs[index].name,
+                weave_surface_structs[index].name_length,
+                source,
+                start,
+                length)) {
+            return index;
+        }
+    }
+    return -1;
+}
+
+static int32_t weave_surface_struct_allocate(
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    if (weave_surface_struct_count >= WEAVEC_SURFACE_MAX_STRUCTS) {
+        return -1;
+    }
+    char *name = weave_surface_copy_slice(source, start, length);
+    if (name == NULL) {
+        return -1;
+    }
+    int32_t index = weave_surface_struct_count++;
+    weave_surface_structs[index].name = name;
+    weave_surface_structs[index].name_length = length;
+    weave_surface_structs[index].defined = 0;
+    weave_surface_structs[index].field_count = 0;
+    return index;
+}
+
 void weave_surface_symbols_reset(void) {
     for (int32_t index = 0; index < weave_surface_symbol_count; ++index) {
         free(weave_surface_symbols[index].name);
@@ -75,9 +138,20 @@ void weave_surface_symbols_reset(void) {
         free(weave_surface_locals[index].name);
         weave_surface_locals[index].name = NULL;
     }
+    for (int32_t index = 0; index < weave_surface_struct_count; ++index) {
+        free(weave_surface_structs[index].name);
+        weave_surface_structs[index].name = NULL;
+        for (int32_t field = 0;
+             field < weave_surface_structs[index].field_count;
+             ++field) {
+            free(weave_surface_structs[index].fields[field].name);
+            weave_surface_structs[index].fields[field].name = NULL;
+        }
+    }
     weave_surface_symbol_count = 0;
     weave_surface_symbol_being_built = -1;
     weave_surface_local_count = 0;
+    weave_surface_struct_count = 0;
     weave_surface_return_type = 0;
     weave_surface_error = 0;
 }
@@ -227,6 +301,135 @@ int32_t weave_surface_local_type(
         }
     }
     return 0;
+}
+
+int32_t weave_surface_struct_type_or_declare(
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    int32_t index = weave_surface_struct_find(source, start, length);
+    if (index < 0) {
+        index = weave_surface_struct_allocate(source, start, length);
+    }
+    return index < 0 ? 0 : WEAVEC_SURFACE_STRUCT_TYPE_BASE + index;
+}
+
+int32_t weave_surface_struct_define(
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    int32_t index = weave_surface_struct_find(source, start, length);
+    if (index < 0) {
+        index = weave_surface_struct_allocate(source, start, length);
+        if (index < 0) {
+            return -1;
+        }
+    } else if (weave_surface_structs[index].defined) {
+        return -2;
+    }
+    weave_surface_structs[index].defined = 1;
+    weave_surface_structs[index].field_count = 0;
+    return WEAVEC_SURFACE_STRUCT_TYPE_BASE + index;
+}
+
+int32_t weave_surface_struct_add_field(
+    int32_t struct_type,
+    const char *source,
+    int64_t start,
+    int64_t length,
+    int32_t field_type) {
+    int32_t index = weave_surface_struct_index_from_type(struct_type);
+    if (index < 0 || !weave_surface_structs[index].defined || field_type <= 0) {
+        return -1;
+    }
+    weave_surface_struct *structure = &weave_surface_structs[index];
+    if (structure->field_count >= WEAVEC_SURFACE_MAX_STRUCT_FIELDS) {
+        return -1;
+    }
+    for (int32_t field = 0; field < structure->field_count; ++field) {
+        if (weave_surface_slice_equal(
+                structure->fields[field].name,
+                structure->fields[field].name_length,
+                source,
+                start,
+                length)) {
+            return -2;
+        }
+    }
+    char *name = weave_surface_copy_slice(source, start, length);
+    if (name == NULL) {
+        return -1;
+    }
+    int32_t field = structure->field_count++;
+    structure->fields[field].name = name;
+    structure->fields[field].name_length = length;
+    structure->fields[field].type = field_type;
+    return field;
+}
+
+int32_t weave_surface_struct_is_type(int32_t type) {
+    return weave_surface_struct_index_from_type(type) >= 0;
+}
+
+int32_t weave_surface_struct_is_defined(int32_t type) {
+    int32_t index = weave_surface_struct_index_from_type(type);
+    return index >= 0 && weave_surface_structs[index].defined;
+}
+
+const char *weave_surface_struct_name(int32_t type) {
+    int32_t index = weave_surface_struct_index_from_type(type);
+    return index < 0 ? NULL : weave_surface_structs[index].name;
+}
+
+int32_t weave_surface_struct_field_count(int32_t type) {
+    int32_t index = weave_surface_struct_index_from_type(type);
+    if (index < 0 || !weave_surface_structs[index].defined) {
+        return -1;
+    }
+    return weave_surface_structs[index].field_count;
+}
+
+int32_t weave_surface_struct_field_type(int32_t type, int32_t field_index) {
+    int32_t index = weave_surface_struct_index_from_type(type);
+    if (index < 0 || !weave_surface_structs[index].defined || field_index < 0 ||
+        field_index >= weave_surface_structs[index].field_count) {
+        return 0;
+    }
+    return weave_surface_structs[index].fields[field_index].type;
+}
+
+const char *weave_surface_struct_field_name(
+    int32_t type,
+    int32_t field_index) {
+    int32_t index = weave_surface_struct_index_from_type(type);
+    if (index < 0 || !weave_surface_structs[index].defined || field_index < 0 ||
+        field_index >= weave_surface_structs[index].field_count) {
+        return NULL;
+    }
+    return weave_surface_structs[index].fields[field_index].name;
+}
+
+int32_t weave_surface_struct_find_field(
+    int32_t type,
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    int32_t index = weave_surface_struct_index_from_type(type);
+    if (index < 0 || !weave_surface_structs[index].defined) {
+        return -1;
+    }
+    weave_surface_struct *structure = &weave_surface_structs[index];
+    for (int32_t field = 0; field < structure->field_count; ++field) {
+        if (weave_surface_slice_equal(
+                structure->fields[field].name,
+                structure->fields[field].name_length,
+                source,
+                start,
+                length)) {
+            return field;
+        }
+    }
+    return -1;
 }
 
 void weave_surface_set_return_type(int32_t type) {

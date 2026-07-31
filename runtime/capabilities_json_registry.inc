@@ -25,7 +25,7 @@ static const weave_capability_feature weave_cap_features[] = {
     {"struct-lowering", "experimental", 52},
     {"canonical-formatting", "stable", 50},
     {"diagnostic-repairs", "stable", 51},
-    {"semantic-structs", "planned", 52},
+    {"semantic-structs", "experimental", 52},
     {"modules", "planned", 53},
     {"semantic-index", "planned", 37},
     {"quantum-surface", "experimental", 0},
@@ -83,6 +83,13 @@ static const weave_capability_role weave_cap_roles[] = {
     {"qubits", "one-or-more", "expression", 1},
     {"qubit", "one", "expression", 0},
     {"result-name", "one", "identifier", 1},
+    {"struct-type", "one", "type", 0},
+    {"fields", "one-or-more", "name-expression-pair", 1},
+    {"receiver", "one", "struct-expression", 0},
+    {"field", "one", "identifier", 1},
+    {"receiver", "one", "struct-expression", 0},
+    {"field", "one", "identifier", 1},
+    {"value", "one", "expression", 2},
 };
 static const weave_capability_form weave_cap_forms[] = {
     {"program", "canonical", "none", NULL, NULL, 2, -1, 0, 3},
@@ -114,6 +121,9 @@ static const weave_capability_form weave_cap_forms[] = {
     {"pure", "canonical", "none", "executable-contracts", NULL, 0, 0, 48, 0},
     {"no_alloc", "canonical", "none", "executable-contracts", NULL, 0, 0, 48, 0},
     {"deterministic", "canonical", "none", "executable-contracts", NULL, 0, 0, 48, 0},
+    {"new", "canonical", "semantic", "semantic-structs", NULL, 2, -1, 52, 2},
+    {"field-get", "canonical", "semantic", "semantic-structs", NULL, 2, 2, 54, 2},
+    {"field-set", "canonical", "semantic", "semantic-structs", NULL, 3, 3, 56, 3},
     {"qgate", "experimental", "semantic", "quantum-surface", NULL, 2, -1, 48, 2},
     {"qmeasure", "experimental", "semantic", "quantum-surface", NULL, 2, 2, 50, 2},
 };
@@ -123,6 +133,7 @@ static const weave_capability_family weave_cap_families[] = {
     {"typed-operators", "compatibility", "<operation>_<type>", "op", "explicit", "weave-wir-core-v2", 14, 4},
     {"explicit-casts", "compatibility", "cast_<source>_to_<target>", "cast", "explicit", "weave-wir-core-v2", 18, 8},
     {"explicit-binding-access", "compatibility", "{param_get,local_get}", "bare identifier", "semantic", "weave-wir-core-v2", 26, 2},
+    {"generated-struct-abi", "compatibility", "{TYPE_new,TYPE_get_FIELD,TYPE_set_FIELD}", "{new,field-get,field-set}", "semantic", "weave-wir-core-v2", 28, 0},
     {"wir-shaped-low-level", "compatibility", "WIR-v2 expression or statement head", NULL, "explicit", "weave-wir-core-v2", 28, 0},
 };
 static const weave_capability_operator_group weave_cap_operator_groups[] = {

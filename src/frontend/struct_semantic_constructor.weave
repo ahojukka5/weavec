@@ -1,0 +1,292 @@
+; SPDX-License-Identifier: Apache-2.0
+; struct_semantic_constructor.weave — semantic struct lowering slice
+
+(program
+  (name "struct_semantic_constructor")
+  (version "0.1")
+
+  (fn sst_find_constructor_clause
+      (params
+        (sst_tree ptr) (sst_source ptr) (sst_node i64) (sst_field_index i32))
+      (returns i64)
+      (do
+        (let sst_clause i64 (call_i64 nth_child
+          (param_get sst_tree) (param_get sst_node) (const_i64 2)))
+        (while
+          (condition (ne_i64 (local_get sst_clause) (const_i64 -1)))
+          (do
+            (let sst_clause_name i64 (call_i64 nth_child
+              (param_get sst_tree) (local_get sst_clause) (const_i64 0)))
+            (let sst_type_node i64 (call_i64 nth_child
+              (param_get sst_tree) (param_get sst_node) (const_i64 1)))
+            (let sst_struct_type i32 (call_i32 sst_type_code
+              (param_get sst_tree) (param_get sst_source) (local_get sst_type_node)))
+            (if
+              (condition (eq_i32 (call_i32 weave_surface_struct_find_field
+                (local_get sst_struct_type) (param_get sst_source)
+                (call_i64 node_text_start (param_get sst_tree) (local_get sst_clause_name))
+                (call_i64 node_text_len (param_get sst_tree) (local_get sst_clause_name)))
+                (param_get sst_field_index)))
+              (then (do (return (local_get sst_clause))))
+              (else (do)))
+            (set sst_clause (call_i64 node_next_sibling
+              (param_get sst_tree) (local_get sst_clause)))))
+        (return (const_i64 -1))))
+
+  (fn sst_emit_new
+      (params (sst_fd i32) (sst_source ptr) (sst_tree ptr) (sst_node i64))
+      (returns void)
+      (do
+        (if
+          (condition (lt_i64 (call_i64 count_children
+            (param_get sst_tree) (param_get sst_node)) (const_i64 2)))
+          (then (do
+            (call_void sst_human_prefix (const_string_ptr "struct constructor"))
+            (call_void write_cstr
+              (const_i32 2) (const_string_ptr "missing struct type"))
+            (call_void write_byte (const_i32 2) (const_i32 10))
+            (call_void sst_record
+              (param_get sst_tree) (param_get sst_source) (param_get sst_node)
+              (const_string_ptr "frontend.struct.constructor.malformed")
+              (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+              (const_i32 -1) (const_i32 -1) (const_i32 -1)
+              (const_string_ptr "constructor") (const_i64 -1))
+            (call_void write_cstr (param_get sst_fd) (const_string_ptr "(const_null)"))
+            (return_void)))
+          (else (do)))
+        (let sst_type_node i64 (call_i64 nth_child
+          (param_get sst_tree) (param_get sst_node) (const_i64 1)))
+        (if
+          (condition (eq_i32 (call_i32 surface_node_is_ident
+            (param_get sst_tree) (local_get sst_type_node)) (const_i32 0)))
+          (then (do
+            (call_void sst_human_prefix (const_string_ptr "struct constructor"))
+            (call_void write_cstr
+              (const_i32 2) (const_string_ptr "struct type must be an identifier"))
+            (call_void write_byte (const_i32 2) (const_i32 10))
+            (call_void sst_record
+              (param_get sst_tree) (param_get sst_source) (local_get sst_type_node)
+              (const_string_ptr "frontend.struct.constructor.malformed")
+              (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+              (const_i32 -1) (const_i32 -1) (const_i32 -1)
+              (const_string_ptr "struct-type") (const_i64 -1))
+            (call_void write_cstr
+              (param_get sst_fd) (const_string_ptr "(const_null)"))
+            (return_void)))
+          (else (do)))
+        (let sst_struct_type i32 (call_i32 sst_type_code
+          (param_get sst_tree) (param_get sst_source) (local_get sst_type_node)))
+        (if
+          (condition (eq_i32 (call_i32 weave_surface_struct_is_defined
+            (local_get sst_struct_type)) (const_i32 0)))
+          (then (do
+            (call_void sst_error_undefined_type
+              (param_get sst_tree) (param_get sst_source) (local_get sst_type_node))
+            (call_void write_cstr (param_get sst_fd) (const_string_ptr "(const_null)"))
+            (return_void)))
+          (else (do)))
+        (let sst_field_count i32 (call_i32 weave_surface_struct_field_count
+          (local_get sst_struct_type)))
+        (let sst_clause i64 (call_i64 nth_child
+          (param_get sst_tree) (param_get sst_node) (const_i64 2)))
+        (let sst_seen_count i32 (const_i32 0))
+        (while
+          (condition (ne_i64 (local_get sst_clause) (const_i64 -1)))
+          (do
+            (if
+              (condition (or_bool
+                (ne_i32 (call_i32 node_kind
+                  (param_get sst_tree) (local_get sst_clause)) (call_i32 node_list))
+                (ne_i64 (call_i64 count_children
+                  (param_get sst_tree) (local_get sst_clause)) (const_i64 2))))
+              (then (do
+                (call_void sst_human_prefix (const_string_ptr "struct constructor"))
+                (call_void write_cstr
+                  (const_i32 2) (const_string_ptr "fields must use (NAME VALUE)"))
+                (call_void write_byte (const_i32 2) (const_i32 10))
+                (call_void sst_record
+                  (param_get sst_tree) (param_get sst_source) (local_get sst_clause)
+                  (const_string_ptr "frontend.struct.constructor.malformed")
+                  (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+                  (const_i32 -1) (local_get sst_field_count) (local_get sst_seen_count)
+                  (const_string_ptr "constructor-field") (local_get sst_type_node))
+                (call_void write_cstr
+                  (param_get sst_fd) (const_string_ptr "(const_null)"))
+                (return_void)))
+              (else (do)))
+            (let sst_clause_name i64 (call_i64 nth_child
+              (param_get sst_tree) (local_get sst_clause) (const_i64 0)))
+            (if
+              (condition (eq_i32 (call_i32 surface_node_is_ident
+                (param_get sst_tree) (local_get sst_clause_name)) (const_i32 0)))
+              (then (do
+                (call_void sst_human_prefix (const_string_ptr "struct constructor"))
+                (call_void write_cstr
+                  (const_i32 2) (const_string_ptr "field name must be an identifier"))
+                (call_void write_byte (const_i32 2) (const_i32 10))
+                (call_void sst_record
+                  (param_get sst_tree) (param_get sst_source)
+                  (local_get sst_clause_name)
+                  (const_string_ptr "frontend.struct.constructor.malformed")
+                  (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+                  (const_i32 -1) (local_get sst_field_count)
+                  (local_get sst_seen_count)
+                  (const_string_ptr "constructor-field") (local_get sst_type_node))
+                (call_void write_cstr
+                  (param_get sst_fd) (const_string_ptr "(const_null)"))
+                (return_void)))
+              (else (do)))
+            (let sst_clause_field_index i32 (call_i32 weave_surface_struct_find_field
+              (local_get sst_struct_type) (param_get sst_source)
+              (call_i64 node_text_start (param_get sst_tree) (local_get sst_clause_name))
+              (call_i64 node_text_len (param_get sst_tree) (local_get sst_clause_name))))
+            (if
+              (condition (lt_i32 (local_get sst_clause_field_index) (const_i32 0)))
+              (then (do
+                (call_void sst_human_prefix (const_string_ptr "struct constructor"))
+                (call_void write_cstr (const_i32 2) (const_string_ptr "unknown field "))
+                (call_void emit_node_text
+                  (const_i32 2) (param_get sst_source) (param_get sst_tree)
+                  (local_get sst_clause_name))
+                (call_void write_cstr (const_i32 2) (const_string_ptr " for "))
+                (call_void sst_emit_type_name (const_i32 2) (local_get sst_struct_type))
+                (call_void write_byte (const_i32 2) (const_i32 10))
+                (call_void sst_record
+                  (param_get sst_tree) (param_get sst_source) (local_get sst_clause_name)
+                  (const_string_ptr "frontend.struct.constructor.unknown-field")
+                  (local_get sst_struct_type) (call_i32 surface_type_unknown)
+                  (const_i32 -1) (local_get sst_field_count) (local_get sst_seen_count)
+                  (const_string_ptr "constructor-field") (local_get sst_type_node))
+                (call_void write_cstr
+                  (param_get sst_fd) (const_string_ptr "(const_null)"))
+                (return_void)))
+              (else (do)))
+            (let sst_prior i64 (call_i64 nth_child
+              (param_get sst_tree) (param_get sst_node) (const_i64 2)))
+            (while
+              (condition (ne_i64 (local_get sst_prior) (local_get sst_clause)))
+              (do
+                (let sst_prior_name i64 (call_i64 nth_child
+                  (param_get sst_tree) (local_get sst_prior) (const_i64 0)))
+                (if
+                  (condition (ne_i32 (call_i32 ident_nodes_equal
+                    (param_get sst_tree) (param_get sst_source)
+                    (local_get sst_prior_name) (local_get sst_clause_name))
+                    (const_i32 0)))
+                  (then (do
+                    (call_void sst_human_prefix
+                      (const_string_ptr "struct constructor"))
+                    (call_void write_cstr
+                      (const_i32 2) (const_string_ptr "duplicate field "))
+                    (call_void emit_node_text
+                      (const_i32 2) (param_get sst_source) (param_get sst_tree)
+                      (local_get sst_clause_name))
+                    (call_void write_byte (const_i32 2) (const_i32 10))
+                    (call_void sst_record
+                      (param_get sst_tree) (param_get sst_source)
+                      (local_get sst_clause_name)
+                      (const_string_ptr "frontend.struct.constructor.duplicate-field")
+                      (local_get sst_struct_type) (call_i32 surface_type_unknown)
+                      (const_i32 -1) (local_get sst_field_count)
+                      (local_get sst_seen_count)
+                      (const_string_ptr "constructor-field") (local_get sst_type_node))
+                    (call_void write_cstr
+                      (param_get sst_fd) (const_string_ptr "(const_null)"))
+                    (return_void)))
+                  (else (do)))
+                (set sst_prior (call_i64 node_next_sibling
+                  (param_get sst_tree) (local_get sst_prior)))))
+            (set sst_seen_count (add_i32 (local_get sst_seen_count) (const_i32 1)))
+            (set sst_clause (call_i64 node_next_sibling
+              (param_get sst_tree) (local_get sst_clause)))))
+        (let sst_check_index i32 (const_i32 0))
+        (while
+          (condition (lt_i32 (local_get sst_check_index) (local_get sst_field_count)))
+          (do
+            (let sst_check_match i64 (call_i64 sst_find_constructor_clause
+              (param_get sst_tree) (param_get sst_source) (param_get sst_node)
+              (local_get sst_check_index)))
+            (if
+              (condition (eq_i64 (local_get sst_check_match) (const_i64 -1)))
+              (then (do
+                (call_void sst_human_prefix (const_string_ptr "struct constructor"))
+                (call_void write_cstr (const_i32 2) (const_string_ptr "missing field "))
+                (call_void write_cstr (const_i32 2)
+                  (call_ptr weave_surface_struct_field_name
+                    (local_get sst_struct_type) (local_get sst_check_index)))
+                (call_void write_cstr (const_i32 2) (const_string_ptr " for "))
+                (call_void sst_emit_type_name (const_i32 2) (local_get sst_struct_type))
+                (call_void write_byte (const_i32 2) (const_i32 10))
+                (call_void sst_record
+                  (param_get sst_tree) (param_get sst_source) (param_get sst_node)
+                  (const_string_ptr "frontend.struct.constructor.missing-field")
+                  (local_get sst_struct_type) (call_i32 surface_type_unknown)
+                  (local_get sst_check_index) (local_get sst_field_count)
+                  (local_get sst_seen_count)
+                  (const_string_ptr "constructor") (local_get sst_type_node))
+                (call_void write_cstr
+                  (param_get sst_fd) (const_string_ptr "(const_null)"))
+                (return_void)))
+              (else (do)))
+            (let sst_check_value i64 (call_i64 nth_child
+              (param_get sst_tree) (local_get sst_check_match) (const_i64 1)))
+            (let sst_check_expected_type i32 (call_i32 weave_surface_struct_field_type
+              (local_get sst_struct_type) (local_get sst_check_index)))
+            (let sst_check_actual_type i32 (call_i32 sop_expr_type
+              (param_get sst_tree) (param_get sst_source) (local_get sst_check_value)
+              (local_get sst_check_expected_type)))
+            (if
+              (condition (and_bool
+                (ne_i32 (local_get sst_check_actual_type) (call_i32 surface_type_unknown))
+                (eq_i32 (call_i32 sst_types_compatible
+                    (local_get sst_check_expected_type) (local_get sst_check_actual_type))
+                  (const_i32 0))))
+              (then (do
+                (call_void sst_human_prefix (const_string_ptr "struct constructor"))
+                (call_void write_cstr (const_i32 2) (const_string_ptr "field "))
+                (call_void write_cstr (const_i32 2)
+                  (call_ptr weave_surface_struct_field_name
+                    (local_get sst_struct_type) (local_get sst_check_index)))
+                (call_void write_cstr (const_i32 2) (const_string_ptr " expects "))
+                (call_void sst_emit_type_name
+                  (const_i32 2) (local_get sst_check_expected_type))
+                (call_void write_cstr (const_i32 2) (const_string_ptr ", got "))
+                (call_void sst_emit_type_name
+                  (const_i32 2) (local_get sst_check_actual_type))
+                (call_void write_byte (const_i32 2) (const_i32 10))
+                (call_void sst_record
+                  (param_get sst_tree) (param_get sst_source) (local_get sst_check_value)
+                  (const_string_ptr "frontend.struct.field-type-mismatch")
+                  (local_get sst_check_expected_type) (local_get sst_check_actual_type)
+                  (local_get sst_check_index) (local_get sst_field_count)
+                  (local_get sst_seen_count)
+                  (const_string_ptr "field-value") (local_get sst_type_node))
+                (call_void write_cstr
+                  (param_get sst_fd) (const_string_ptr "(const_null)"))
+                (return_void)))
+              (else (do)))
+            (set sst_check_index
+              (add_i32 (local_get sst_check_index) (const_i32 1)))))
+        (call_void write_cstr (param_get sst_fd) (const_string_ptr "(call_ptr "))
+        (call_void sst_emit_type_name (param_get sst_fd) (local_get sst_struct_type))
+        (call_void write_cstr (param_get sst_fd) (const_string_ptr "_new"))
+        (let sst_emit_index i32 (const_i32 0))
+        (while
+          (condition (lt_i32 (local_get sst_emit_index) (local_get sst_field_count)))
+          (do
+            (let sst_emit_match i64 (call_i64 sst_find_constructor_clause
+              (param_get sst_tree) (param_get sst_source) (param_get sst_node)
+              (local_get sst_emit_index)))
+            (let sst_emit_value i64 (call_i64 nth_child
+              (param_get sst_tree) (local_get sst_emit_match) (const_i64 1)))
+            (let sst_emit_expected_type i32 (call_i32 weave_surface_struct_field_type
+              (local_get sst_struct_type) (local_get sst_emit_index)))
+            (call_void write_byte (param_get sst_fd) (const_i32 32))
+            (call_void surface_emit_expr_expected
+              (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+              (local_get sst_emit_value) (local_get sst_emit_expected_type))
+            (set sst_emit_index
+              (add_i32 (local_get sst_emit_index) (const_i32 1)))))
+        (call_void write_byte (param_get sst_fd) (const_i32 41))
+        (return_void)))
+)

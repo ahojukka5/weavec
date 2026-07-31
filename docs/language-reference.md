@@ -27,9 +27,9 @@ Their declarations are lowered into one WIR core-version-2 module. Source
 argument order is preserved, while the frontend applies deterministic
 main/declaration ordering rules to the combined output.
 
-## Primitive types
+## Types
 
-The current language uses explicit low-level type names:
+The current primitive and built-in surface types are:
 
 | Type | Meaning |
 |---|---|
@@ -42,8 +42,12 @@ The current language uses explicit low-level type names:
 | `void` | No return value. |
 | `Qubit` | Quantum-handle surface type used by current quantum lowering. |
 
-The language currently exposes explicit-width operations rather than implicit
-numeric promotion. Cast operations must be written when moving between widths or
+A `(struct NAME ...)` declaration additionally introduces `NAME` as a nominal
+surface type. Nominal struct types lower physically to WIR `ptr`, but two
+different struct names are not interchangeable.
+
+The language exposes explicit-width operations rather than implicit numeric
+promotion. Cast operations must be written when moving between admitted numeric
 representations.
 
 ## External declarations
@@ -59,15 +63,21 @@ Declare an externally linked function with:
 Parameters are ordered `(name type)` pairs. A no-argument declaration uses
 `(params)`.
 
-External calls use the return-typed call form matching the declaration, for
-example:
+Canonical source uses the return-type-independent call form:
+
+```weave
+(call malloc 64)
+(call free buffer)
+```
+
+Explicit WIR-shaped forms remain accepted for low-level source:
 
 ```weave
 (call_ptr malloc (const_i64 64))
 (call_void free buffer)
 ```
 
-Unknown call targets are rejected by the backend before LLVM output is created.
+Unknown call targets are rejected before LLVM output is created.
 
 ## Functions and entry points
 
@@ -79,7 +89,7 @@ body:
   (params (left i32) (right i32))
   (returns i32)
   (do
-    (return (add_i32 left right))))
+    (return (op add left right))))
 ```
 
 The program entry uses the same shape:
@@ -89,7 +99,7 @@ The program entry uses the same shape:
   (params)
   (returns i32)
   (do
-    (return (const_i32 42))))
+    (return 42)))
 ```
 
 Bare parameter and local identifiers are accepted as operands where their type
@@ -105,13 +115,13 @@ A module-level constant is:
 ```
 
 The current lowering represents a named constant as a zero-argument typed
-function. Use the matching call form:
+function. Canonical source may call it with `(call ANSWER)`; the explicit
+compatibility spelling is `(call_i64 ANSWER)`.
 
-```weave
-(call_i64 ANSWER)
-```
+Nominal struct constants are not admitted. Construct a value inside a function
+with `(new TYPE ...)` instead.
 
-## Struct declarations
+## Struct declarations and semantic operations
 
 A struct declaration is:
 
@@ -122,10 +132,46 @@ A struct declaration is:
   (field cap i64))
 ```
 
-The current frontend lowers fields to generated getter and setter functions. For
-the example above, generated names include:
+The name `Buffer` becomes a nominal type and may appear in parameters, returns,
+and local declarations. Forward references within one input set are resolved
+deterministically; an unresolved type name is rejected before successful output
+publication.
+
+Canonical construction uses named fields:
+
+```weave
+(let buffer Buffer
+  (new Buffer
+    (cap capacity)
+    (data pointer)
+    (len 0)))
+```
+
+The compiler rejects malformed, unknown, duplicate, missing, or mistyped fields
+and emits constructor arguments in declaration order. Source field order does not
+change the generated object layout or call ABI.
+
+Canonical field operations are:
+
+```weave
+(field-get buffer len)
+(field-set buffer len new-length)
+```
+
+The receiver's nominal type resolves the field and generated accessor. Plain
+`ptr`, non-struct values, unknown fields, and incompatible assigned values are
+rejected.
+
+A nominal struct value may be passed to an explicitly declared `ptr` parameter,
+for example `(call free buffer)`. The reverse conversion from arbitrary `ptr` to
+a struct and substitution between distinct struct types are not implicit.
+Nominal values support equality or inequality with the same nominal type or an
+explicit pointer value such as `null`; arithmetic and ordering are not admitted.
+
+For low-level compatibility, each declaration still generates:
 
 ```text
+Buffer_new
 Buffer_get_data
 Buffer_set_data
 Buffer_get_len
@@ -134,18 +180,19 @@ Buffer_get_cap
 Buffer_set_cap
 ```
 
-Struct storage is pointer-based and fields use the generated functions; the
-current language does not expose a separate object or ownership model.
+New source should use `new`, `field-get`, and `field-set`. See
+[Semantic structs](semantic-structs.md) and
+[Struct layout and compatibility ABI](struct-layout.md).
 
 ## Local bindings and assignment
 
 A typed local binding is:
 
 ```weave
-(let answer i32 (const_i32 42))
+(let answer i32 42)
 ```
 
-Integer literal sugar is accepted for typed `i32` and `i64` bindings:
+Integer literal sugar is accepted in authoritative numeric contexts:
 
 ```weave
 (let x i32 40)
@@ -155,7 +202,7 @@ Integer literal sugar is accepted for typed `i32` and `i64` bindings:
 Update an existing local with:
 
 ```weave
-(set answer (add_i32 answer (const_i32 1)))
+(set answer (op add answer 1))
 ```
 
 The raw backend represents mutable locals with stack slots. The selected LLVM
@@ -176,7 +223,7 @@ An `if` statement is:
 
 ```weave
 (if
-  (condition (lt_i32 value limit))
+  (condition (op less-than value limit))
   (then (do
     statements...))
   (else (do
@@ -187,7 +234,7 @@ A `while` loop is:
 
 ```weave
 (while
-  (condition (lt_i32 index limit))
+  (condition (op less-than index limit))
   (do
     statements...))
 ```
@@ -216,32 +263,38 @@ Floating constants currently use integer literal tokens and lower through an
 integer-to-floating conversion. Decimal literal syntax is not yet part of the
 stable surface contract.
 
-Operations are named by operation and type. Representative forms are:
+Canonical operators use `(op NAME OPERANDS...)`:
 
 ```weave
-(add_i32 left right)
-(sub_i32 left right)
-(mul_i32 left right)
-(div_i32 left right)
-(mod_i32 left right)
-(add_i64 left right)
-(add_f32 left right)
-(add_f64 left right)
-(eq_i32 left right)
-(lt_i32 left right)
-(ge_i64 left right)
-(and_bool left right)
-(or_bool left right)
-(not_bool value)
-(cast_i64_to_i32 value)
+(op add left right)
+(op less-than left right)
+(op equal pointer null)
+(op and ready valid)
+(op not failed)
 ```
 
-The compiler rejects unknown operators and wrong arity rather than forwarding
-invalid forms to LLVM.
+Canonical casts name the target type:
 
-## Typed calls
+```weave
+(cast i64 value)
+(cast i32 wide-value)
+```
 
-Function calls identify the expected return representation:
+Explicit WIR-shaped operators such as `add_i32`, `eq_ptr`, `and_bool`, and
+`cast_i64_to_i32` remain accepted for compatibility and compiler implementation
+code. The compiler rejects unknown operators, wrong arity, mixed known operand
+types, and unsupported casts.
+
+## Calls
+
+Canonical calls are:
+
+```weave
+(call function arguments...)
+```
+
+The compiler resolves the declaration, return representation, arity, and known
+argument types. Explicit compatibility forms remain available:
 
 ```weave
 (call_i32 function arguments...)
@@ -253,8 +306,7 @@ Function calls identify the expected return representation:
 (call_void function arguments...)
 ```
 
-The call form must agree with the declared return type. A void call is a
-statement; typed calls are expressions.
+A void call is a statement; typed calls are expressions.
 
 ## Pointer and memory operations
 
@@ -284,9 +336,9 @@ Functions may declare runtime preconditions and postconditions:
 (fn clamp
   (params (x i32) (lo i32) (hi i32))
   (returns i32)
-  (requires (le_i32 lo hi))
-  (ensures (ge_i32 result lo))
-  (ensures (le_i32 result hi))
+  (requires (op less-or-equal lo hi))
+  (ensures (op greater-or-equal result lo))
+  (ensures (op less-or-equal result hi))
   (do
     ...))
 ```
@@ -328,7 +380,7 @@ For example:
 (let q0 Qubit (const_i64 0))
 (qgate H q0)
 (qmeasure q0 c0)
-(return (local_get c0))
+(return c0)
 ```
 
 The frontend lowers measurement to an `i32` runtime call and introduces the
@@ -339,15 +391,17 @@ peephole optimizations occur before WIR emission. See
 
 ## Diagnostics and unsupported syntax
 
-The compiler reports malformed forms, wrong arity, unknown operators,
-unresolved identifiers, and contract violations through human-readable stderr.
-`weavec build --diagnostics-json` additionally provides stable phase codes and
-structured diagnostics.
+The compiler reports malformed forms, wrong arity, unknown operators, unresolved
+identifiers and types, nominal mismatches, and contract violations through
+human-readable stderr. `weavec build --diagnostics-json` additionally provides
+stable phase codes and structured diagnostics.
 
 The following are not current surface contracts:
 
 - C-like or indentation-based alternate syntax;
 - implicit numeric conversions;
+- implicit conversion from arbitrary `ptr` to a nominal struct;
+- aggregate-valued struct fields;
 - a separate quantum source format;
 - arbitrary decimal floating literals;
 - private final-compiler WIR forms added without a coordinated version transition;
