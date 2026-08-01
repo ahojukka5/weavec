@@ -53,7 +53,8 @@
     (returns void)
     (do
       (call_void write_cstr (param_get fd) (const_string_ptr "    "))
-      (call_void emit_node (param_get fd) (param_get source) (param_get tree) (param_get node))
+      (call_void surface_emit_decl_node
+        (param_get fd) (param_get source) (param_get tree) (param_get node))
       (call_void write_byte (param_get fd) (const_i32 10))
       (return_void)))
 
@@ -68,12 +69,24 @@
       ; skip the "entry" head, emit the rest of the children verbatim
       (let head i64 (call_i64 node_first_child (param_get tree) (param_get node)))
       (let child i64 (call_i64 node_next_sibling (param_get tree) (local_get head)))
+      (let first i32 (const_i32 1))
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
         (do
           (call_void write_byte (param_get fd) (const_i32 32))
-          (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get child))
-          (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
+          (if
+            (condition (ne_i32 (local_get first) (const_i32 0)))
+            (then (do
+              (call_void surface_emit_symbol_name
+                (param_get fd) (param_get source) (param_get tree)
+                (local_get child))
+              (set first (const_i32 0))))
+            (else (do
+              (call_void emit_node
+                (param_get fd) (param_get source) (param_get tree)
+                (local_get child)))))
+          (set child (call_i64 node_next_sibling
+            (param_get tree) (local_get child)))))
       (call_void write_byte (param_get fd) (const_i32 41))
       (call_void write_byte (param_get fd) (const_i32 10))
       (return_void)))
@@ -92,7 +105,8 @@
       (call_void emit_source_span_for_node
         (param_get fd) (param_get source) (param_get tree) (param_get node))
       (call_void write_cstr (param_get fd) (const_string_ptr "    (fn "))
-      (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get name_node))
+      (call_void surface_emit_symbol_name
+        (param_get fd) (param_get source) (param_get tree) (local_get name_node))
       (call_void write_cstr (param_get fd) (const_string_ptr " (params) (returns "))
       (call_void emit_node (param_get fd) (param_get source) (param_get tree) (local_get type_node))
       (call_void write_cstr (param_get fd) (const_string_ptr ") (do (return "))

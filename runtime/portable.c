@@ -121,7 +121,12 @@ static char *weave_rt_mkdtemp(char *path_template) {
 #define WEAVEC_LLVM_PROVENANCE_ENV "WEAVEC_INTERNAL_LLVM_PROVENANCE"
 #endif
 
+#define weave_surface_symbols_reset weave_surface_symbols_reset_storage
+#define weave_surface_symbol_begin weave_surface_symbol_begin_storage
 #include "surface_symbols.c"
+#undef weave_surface_symbol_begin
+#undef weave_surface_symbols_reset
+#include "module_wir_names.c"
 #include "json_writer.c"
 #include "capabilities_json.c"
 #include "document_publish.c"
