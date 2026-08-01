@@ -275,4 +275,79 @@ if text.index("(count") >= text.index("(total"):
     raise SystemExit("incomplete constructor was silently reordered")
 PY
 
+cat > "$TMP/single-field-struct.weave" <<'EOF_SINGLE_FIELD_STRUCT'
+(program
+  (name "single-field-struct-format")
+  (version "0.1")
+  (struct Wrap
+    (field value i32))
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let w Wrap (new Wrap (value (const_i32 42))))
+      (return (field-get w value)))))
+EOF_SINGLE_FIELD_STRUCT
+"$WEAVEC" fmt --output "$TMP/single-field-struct-formatted.weave" \
+  "$TMP/single-field-struct.weave"
+"$WEAVEC" fmt --check "$TMP/single-field-struct-formatted.weave"
+cp "$TMP/single-field-struct-formatted.weave" \
+  "$TMP/single-field-struct-twice.weave"
+"$WEAVEC" fmt "$TMP/single-field-struct-twice.weave"
+cmp "$TMP/single-field-struct-formatted.weave" \
+  "$TMP/single-field-struct-twice.weave"
+"$WEAVEC" build "$TMP/single-field-struct-formatted.weave" \
+  -o "$TMP/single-field-struct-formatted"
+set +e
+"$TMP/single-field-struct-formatted"
+single_field_exit="$?"
+set -e
+[[ "$single_field_exit" -eq 42 ]] || {
+  printf 'formatter: expected single-field struct exit 42, got %s\n' \
+    "$single_field_exit" >&2
+  exit 1
+}
+
+cat > "$TMP/duplicate-field-struct.weave" <<'EOF_DUPLICATE_FIELD_STRUCT'
+(program(name "duplicate-field-struct-format")(version "0.1")
+(struct Record(field total i64)(field flag bool)(field count i32))
+(entry main(params)(returns i32)(do
+(let record Record(new Record
+(count(const_i32 40))(total(const_i64 2))
+(count(const_i32 99))(flag(const_bool true))))
+(return 42))))
+EOF_DUPLICATE_FIELD_STRUCT
+"$WEAVEC" fmt --output "$TMP/duplicate-field-struct-formatted.weave" \
+  "$TMP/duplicate-field-struct.weave"
+python3 - "$TMP/duplicate-field-struct-formatted.weave" <<'PY'
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+positions = [text.index("(count"), text.index("(total"),
+             text.index("(count", text.index("(total")), text.index("(flag")]
+if positions != sorted(positions):
+    raise SystemExit("duplicate-field constructor was silently reordered")
+PY
+
+cat > "$TMP/ambiguous-struct-name.weave" <<'EOF_AMBIGUOUS_STRUCT_NAME'
+(program(name "ambiguous-struct-name-format")(version "0.1")
+(struct Dup(field a i32)(field b i32))
+(struct Dup(field a i32)(field b i32))
+(entry main(params)(returns i32)(do
+(let d Dup(new Dup(b(const_i32 2))(a(const_i32 1))))
+(return 42))))
+EOF_AMBIGUOUS_STRUCT_NAME
+"$WEAVEC" fmt --output "$TMP/ambiguous-struct-name-formatted.weave" \
+  "$TMP/ambiguous-struct-name.weave"
+python3 - "$TMP/ambiguous-struct-name-formatted.weave" <<'PY'
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+if text.index("(b (const_i32 2))") >= text.index("(a (const_i32 1))"):
+    raise SystemExit(
+        "constructor for an ambiguously-named struct was silently reordered")
+PY
+
 printf 'formatter: canonicalization, structs, comments, and atomicity passed\n'
