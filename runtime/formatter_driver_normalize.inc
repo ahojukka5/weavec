@@ -8,6 +8,17 @@ static int weave_fmt_plan_list(
         return 0;
     }
     plan->kind = WEAVE_FMT_PLAN_NORMAL;
+    if (weave_fmt_node_text_equals(context, head, "new")) {
+        const weave_fmt_struct *structure = weave_fmt_lookup_struct_node(
+            context, weave_fmt_nth_child(context, list, 1));
+        if (weave_fmt_constructor_is_canonicalizable(
+                context, list, structure)) {
+            plan->kind = WEAVE_FMT_PLAN_CONSTRUCTOR;
+            plan->virtual_head = "new";
+            plan->structure = structure;
+        }
+        return 1;
+    }
     if (weave_fmt_node_text_equals(context, head, "call")) {
         plan->kind = WEAVE_FMT_PLAN_CALL;
         plan->virtual_head = "call";

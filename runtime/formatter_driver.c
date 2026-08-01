@@ -82,6 +82,20 @@ typedef struct weave_fmt_binding {
     weave_fmt_binding_kind kind;
 } weave_fmt_binding;
 
+typedef struct weave_fmt_struct_field {
+    size_t name_start;
+    size_t name_length;
+    weave_fmt_type type;
+} weave_fmt_struct_field;
+
+typedef struct weave_fmt_struct {
+    size_t name_start;
+    size_t name_length;
+    weave_fmt_struct_field *fields;
+    size_t field_count;
+    int ambiguous;
+} weave_fmt_struct;
+
 typedef struct weave_fmt_writer {
     FILE *stream;
     int failed;
@@ -93,6 +107,7 @@ typedef enum weave_fmt_plan_kind {
     WEAVE_FMT_PLAN_CALL,
     WEAVE_FMT_PLAN_OPERATOR,
     WEAVE_FMT_PLAN_CAST,
+    WEAVE_FMT_PLAN_CONSTRUCTOR,
 } weave_fmt_plan_kind;
 
 typedef struct weave_fmt_plan {
@@ -101,6 +116,7 @@ typedef struct weave_fmt_plan {
     const char *virtual_second;
     weave_fmt_type encoded_type;
     const weave_fmt_signature *signature;
+    const weave_fmt_struct *structure;
     int comparison_or_boolean;
 } weave_fmt_plan;
 
@@ -115,6 +131,9 @@ typedef struct weave_fmt_context {
     weave_fmt_binding *bindings;
     size_t binding_count;
     size_t binding_capacity;
+    weave_fmt_struct *structs;
+    size_t struct_count;
+    size_t struct_capacity;
     weave_fmt_type current_return_type;
     int semantic_overflow;
     int has_struct_declarations;
@@ -124,6 +143,7 @@ typedef struct weave_fmt_context {
 #include "formatter_driver_io.inc"
 #include "formatter_driver_gaps.inc"
 #include "formatter_driver_symbols.inc"
+#include "formatter_driver_structs.inc"
 #include "formatter_driver_types.inc"
 #include "formatter_driver_plans.inc"
 #include "formatter_driver_normalize.inc"

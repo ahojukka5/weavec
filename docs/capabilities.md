@@ -72,8 +72,9 @@ numbers link planned work to the compiler roadmap but are metadata only; tools
 must use `status` as the machine-readable state.
 
 The `semantic-structs` feature is experimental. Its canonical `new`, `field-get`,
-and `field-set` forms are implemented and nominally typed, while canonical
-formatter reordering remains tracked by issue #52. Generated accessor names are
+and `field-set` forms are implemented and nominally typed. The canonical
+formatter orders complete constructors by the declared field sequence and keeps
+field-leading comments attached during that move. Generated accessor names are
 reported separately as the `generated-struct-abi` compatibility family.
 
 ### Surface grammar

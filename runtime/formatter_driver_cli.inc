@@ -4,6 +4,7 @@
     size_t root_end = weave_fmt_node_end(context, root);
     if (root_start > context->source_length || root_end == 0) return 0;
     weave_fmt_collect_signatures(context, root);
+    weave_fmt_collect_structs(context, root);
     if (!weave_fmt_emit_gap_comments(context, 0, root_start, 0) ||
         !weave_fmt_format_node(
             context, root, 0, WEAVE_FMT_UNKNOWN, 0) ||
@@ -50,10 +51,15 @@ static void weave_fmt_context_clear(weave_fmt_context *context) {
     for (size_t index = 0; index < context->signature_count; ++index) {
         free(context->signatures[index].parameters);
     }
+    for (size_t index = 0; index < context->struct_count; ++index) {
+        free(context->structs[index].fields);
+    }
     free(context->signatures);
     free(context->bindings);
+    free(context->structs);
     context->signatures = NULL;
     context->bindings = NULL;
+    context->structs = NULL;
 }
 
 static int weave_fmt_format_file_to_fd(
