@@ -83,12 +83,10 @@
       (symbol_start i64) (symbol_len i64))
     (returns i32))
   (extern weave_surface_module_current_has_cycle (params) (returns i32))
-  (extern weave_surface_module_current_name (params) (returns ptr))
   (extern weave_surface_symbol_begin
     (params (source ptr) (start i64) (len i64) (return_type i32))
     (returns i32))
   (extern weave_surface_symbol_add_parameter (params (type i32)) (returns i32))
-  (extern weave_surface_symbol_resolution_status (params) (returns i32))
   (extern weave_surface_symbol_return_type
     (params (source ptr) (start i64) (len i64)) (returns i32))
   (extern weave_surface_symbol_parameter_count
