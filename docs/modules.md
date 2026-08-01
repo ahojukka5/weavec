@@ -100,7 +100,8 @@ The experimental slice provides:
 - explicit callable and constant exports;
 - explicit imported bindings;
 - private-by-default callable lookup;
-- duplicate, conflict, missing, private, mixed-root, and cycle validation;
+- duplicate imports, conflicting imports, missing and private symbols,
+  mixed-root inputs, and cycles are rejected;
 - legacy `program` compatibility;
 - deterministic WIR v2 lowering for programs whose emitted declaration names are
   globally unique.
@@ -109,6 +110,7 @@ The following work remains under issue #53:
 
 - deterministic compiler-owned WIR name mangling;
 - admitting the same private source name in multiple modules;
+- explicit diagnostics for a local declaration colliding with an imported name;
 - module-scoped struct type identities;
 - structured module diagnostics in `weavec-diagnostics-v1`;
 - semantic-index definitions, imports, exports, references, and interface hashes.
