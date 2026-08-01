@@ -77,6 +77,12 @@ formatter orders complete constructors by the declared field sequence and keeps
 field-leading comments attached during that move. Generated accessor names are
 reported separately as the `generated-struct-abi` compatibility family.
 
+The `modules` feature is experimental. The registry publishes exact `module`,
+`import`, and `export` forms. The compiler validates explicit callable interfaces,
+private-by-default visibility, conflicts, and import cycles while preserving
+legacy `program` roots. Deterministic WIR name mangling and semantic-index output
+remain follow-up work under issue #53.
+
 ### Surface grammar
 
 `surface` is the LLM-facing grammar registry. It reports:
@@ -99,7 +105,8 @@ by generators when a canonical replacement exists.
 The registry references
 [`language-reference.md`](language-reference.md) for the complete implemented
 surface and [`canonical-surface.md`](canonical-surface.md) for canonical
-LLM-facing elaboration rules.
+LLM-facing elaboration rules. Experimental module syntax is specified in
+[`modules.md`](modules.md).
 
 ## Schema evolution
 

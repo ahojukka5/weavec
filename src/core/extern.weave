@@ -61,6 +61,28 @@
   ; Generic storage for compiler-owned surface semantic facts. The self-hosted
   ; frontend defines all type codes and language rules; host C only copies names.
   (extern weave_surface_symbols_reset (params) (returns void))
+  (extern weave_surface_module_use_legacy (params) (returns i32))
+  (extern weave_surface_module_begin
+    (params (source ptr) (start i64) (len i64)) (returns i32))
+  (extern weave_surface_module_select
+    (params (source ptr) (start i64) (len i64)) (returns i32))
+  (extern weave_surface_module_add_export
+    (params (source ptr) (start i64) (len i64)) (returns i32))
+  (extern weave_surface_module_add_import
+    (params
+      (source ptr)
+      (module_start i64) (module_len i64)
+      (symbol_start i64) (symbol_len i64))
+    (returns i32))
+  (extern weave_surface_module_export_status
+    (params (source ptr) (start i64) (len i64)) (returns i32))
+  (extern weave_surface_module_import_status
+    (params
+      (source ptr)
+      (module_start i64) (module_len i64)
+      (symbol_start i64) (symbol_len i64))
+    (returns i32))
+  (extern weave_surface_module_current_has_cycle (params) (returns i32))
   (extern weave_surface_symbol_begin
     (params (source ptr) (start i64) (len i64) (return_type i32))
     (returns i32))
