@@ -1,0 +1,494 @@
+; SPDX-License-Identifier: Apache-2.0
+; modules.weave — explicit module/import/export interface validation
+;
+; The self-hosted frontend owns the module grammar and diagnostics. Host C only
+; retains copied module, import, export, and symbol names between parser passes.
+
+(program
+  (name "modules")
+  (version "0.1")
+
+  (fn surface_module_error
+    (params (source ptr) (tree ptr) (node i64) (message ptr))
+    (returns void)
+    (do
+      (call_void surface_error_prefix (const_string_ptr "module"))
+      (call_void write_cstr (const_i32 2) (param_get message))
+      (if
+        (condition (ne_i64 (param_get node) (const_i64 -1)))
+        (then (do
+          (call_void write_cstr (const_i32 2) (const_string_ptr " "))
+          (call_void emit_node_text
+            (const_i32 2) (param_get source) (param_get tree) (param_get node))))
+        (else (do)))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (return_void)))
+
+  (fn surface_module_root_head
+    (params (tree ptr))
+    (returns i64)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 node_kind (param_get tree) (const_i64 0))
+          (call_i32 node_list)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 node_first_child (param_get tree) (const_i64 0)))))
+
+  (fn surface_module_is_legacy
+    (params (tree ptr) (source ptr))
+    (returns i32)
+    (do
+      (let head i64 (call_i64 surface_module_root_head (param_get tree)))
+      (if
+        (condition (eq_i64 (local_get head) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 ident_equals
+        (param_get tree) (param_get source) (local_get head)
+        (const_string_ptr "program") (const_i64 7)))))
+
+  (fn surface_module_is_explicit
+    (params (tree ptr) (source ptr))
+    (returns i32)
+    (do
+      (let head i64 (call_i64 surface_module_root_head (param_get tree)))
+      (if
+        (condition (eq_i64 (local_get head) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 ident_equals
+        (param_get tree) (param_get source) (local_get head)
+        (const_string_ptr "module") (const_i64 6)))))
+
+  (fn surface_module_name_node
+    (params (tree ptr))
+    (returns i64)
+    (do
+      (return (call_i64 nth_child
+        (param_get tree) (const_i64 0) (const_i64 1)))))
+
+  (fn surface_module_register_export
+    (params (tree ptr) (source ptr) (clause i64))
+    (returns i32)
+    (do
+      (let head i64 (call_i64 node_first_child (param_get tree) (param_get clause)))
+      (let symbol i64 (call_i64 node_next_sibling (param_get tree) (local_get head)))
+      (if
+        (condition (eq_i64 (local_get symbol) (const_i64 -1)))
+        (then (do
+          (call_void surface_module_error
+            (param_get source) (param_get tree) (param_get clause)
+            (const_string_ptr "export requires at least one symbol"))
+          (return (const_i32 1))))
+        (else (do)))
+      (while
+        (condition (ne_i64 (local_get symbol) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 node_kind
+              (param_get tree) (local_get symbol)) (call_i32 node_ident)))
+            (then (do
+              (call_void surface_module_error
+                (param_get source) (param_get tree) (local_get symbol)
+                (const_string_ptr "export symbol must be an identifier"))
+              (return (const_i32 1))))
+            (else (do)))
+          (let status i32 (call_i32 weave_surface_module_add_export
+            (param_get source)
+            (call_i64 node_text_start (param_get tree) (local_get symbol))
+            (call_i64 node_text_len (param_get tree) (local_get symbol))))
+          (if
+            (condition (lt_i32 (local_get status) (const_i32 0)))
+            (then (do
+              (if
+                (condition (eq_i32 (local_get status) (const_i32 -2)))
+                (then (do
+                  (call_void surface_module_error
+                    (param_get source) (param_get tree) (local_get symbol)
+                    (const_string_ptr "duplicate export"))))
+                (else (do
+                  (call_void surface_module_error
+                    (param_get source) (param_get tree) (local_get symbol)
+                    (const_string_ptr "cannot register export")))))
+              (return (const_i32 1))))
+            (else (do)))
+          (set symbol (call_i64 node_next_sibling
+            (param_get tree) (local_get symbol)))))
+      (return (const_i32 0))))
+
+  (fn surface_module_register_import
+    (params (tree ptr) (source ptr) (clause i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get tree) (param_get clause)) (const_i64 3)))
+        (then (do
+          (call_void surface_module_error
+            (param_get source) (param_get tree) (param_get clause)
+            (const_string_ptr "import shape is (import MODULE (SYMBOL...))"))
+          (return (const_i32 1))))
+        (else (do)))
+      (let module_node i64 (call_i64 nth_child
+        (param_get tree) (param_get clause) (const_i64 1)))
+      (let symbols_node i64 (call_i64 nth_child
+        (param_get tree) (param_get clause) (const_i64 2)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 node_kind (param_get tree) (local_get module_node))
+            (call_i32 node_ident))
+          (ne_i32 (call_i32 node_kind (param_get tree) (local_get symbols_node))
+            (call_i32 node_list))))
+        (then (do
+          (call_void surface_module_error
+            (param_get source) (param_get tree) (param_get clause)
+            (const_string_ptr "import requires a module and symbol list"))
+          (return (const_i32 1))))
+        (else (do)))
+      (let symbol i64 (call_i64 node_first_child
+        (param_get tree) (local_get symbols_node)))
+      (if
+        (condition (eq_i64 (local_get symbol) (const_i64 -1)))
+        (then (do
+          (call_void surface_module_error
+            (param_get source) (param_get tree) (local_get symbols_node)
+            (const_string_ptr "import symbol list cannot be empty"))
+          (return (const_i32 1))))
+        (else (do)))
+      (while
+        (condition (ne_i64 (local_get symbol) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 node_kind
+              (param_get tree) (local_get symbol)) (call_i32 node_ident)))
+            (then (do
+              (call_void surface_module_error
+                (param_get source) (param_get tree) (local_get symbol)
+                (const_string_ptr "import symbol must be an identifier"))
+              (return (const_i32 1))))
+            (else (do)))
+          (let status i32 (call_i32 weave_surface_module_add_import
+            (param_get source)
+            (call_i64 node_text_start (param_get tree) (local_get module_node))
+            (call_i64 node_text_len (param_get tree) (local_get module_node))
+            (call_i64 node_text_start (param_get tree) (local_get symbol))
+            (call_i64 node_text_len (param_get tree) (local_get symbol))))
+          (if
+            (condition (lt_i32 (local_get status) (const_i32 0)))
+            (then (do
+              (if
+                (condition (eq_i32 (local_get status) (const_i32 -2)))
+                (then (do
+                  (call_void surface_module_error
+                    (param_get source) (param_get tree) (local_get symbol)
+                    (const_string_ptr "duplicate import"))))
+                (else (do
+                  (if
+                    (condition (eq_i32 (local_get status) (const_i32 -3)))
+                    (then (do
+                      (call_void surface_module_error
+                        (param_get source) (param_get tree) (local_get symbol)
+                        (const_string_ptr "conflicting imported binding"))))
+                    (else (do
+                      (call_void surface_module_error
+                        (param_get source) (param_get tree) (local_get symbol)
+                        (const_string_ptr "cannot register import")))))))
+              (return (const_i32 1))))
+            (else (do)))
+          (set symbol (call_i64 node_next_sibling
+            (param_get tree) (local_get symbol)))))
+      (return (const_i32 0)))))
+
+  (fn surface_prepare_module
+    (params (tree ptr) (source ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 surface_module_is_legacy
+          (param_get tree) (param_get source)) (const_i32 0)))
+        (then (do
+          (if
+            (condition (ne_i32 (call_i32 weave_surface_module_use_legacy)
+              (const_i32 0)))
+            (then (do
+              (call_void surface_module_error
+                (param_get source) (param_get tree) (const_i64 0)
+                (const_string_ptr "cannot mix legacy program and explicit module roots"))
+              (return (const_i32 1))))
+            (else (do)))
+          (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 surface_module_is_explicit
+          (param_get tree) (param_get source)) (const_i32 0)))
+        (then (do
+          (call_void surface_module_error
+            (param_get source) (param_get tree) (const_i64 0)
+            (const_string_ptr "root must be program or module"))
+          (return (const_i32 1))))
+        (else (do)))
+      (let name_node i64 (call_i64 surface_module_name_node (param_get tree)))
+      (if
+        (condition (or_bool
+          (eq_i64 (local_get name_node) (const_i64 -1))
+          (ne_i32 (call_i32 node_kind (param_get tree) (local_get name_node))
+            (call_i32 node_ident))))
+        (then (do
+          (call_void surface_module_error
+            (param_get source) (param_get tree) (local_get name_node)
+            (const_string_ptr "module name must be an identifier"))
+          (return (const_i32 1))))
+        (else (do)))
+      (let begin_status i32 (call_i32 weave_surface_module_begin
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get name_node))
+        (call_i64 node_text_len (param_get tree) (local_get name_node))))
+      (if
+        (condition (lt_i32 (local_get begin_status) (const_i32 0)))
+        (then (do
+          (if
+            (condition (eq_i32 (local_get begin_status) (const_i32 -2)))
+            (then (do
+              (call_void surface_module_error
+                (param_get source) (param_get tree) (local_get name_node)
+                (const_string_ptr "duplicate module"))))
+            (else (do
+              (if
+                (condition (eq_i32 (local_get begin_status) (const_i32 -3)))
+                (then (do
+                  (call_void surface_module_error
+                    (param_get source) (param_get tree) (local_get name_node)
+                    (const_string_ptr "cannot mix explicit modules with legacy programs"))))
+                (else (do
+                  (call_void surface_module_error
+                    (param_get source) (param_get tree) (local_get name_node)
+                    (const_string_ptr "cannot register module")))))))
+          (return (const_i32 1))))
+        (else (do)))
+      (let child i64 (call_i64 node_next_sibling
+        (param_get tree) (local_get name_node)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 node_kind
+              (param_get tree) (local_get child)) (call_i32 node_list)))
+            (then (do
+              (if
+                (condition (ne_i32 (call_i32 head_equals
+                  (param_get tree) (param_get source) (local_get child)
+                  (const_string_ptr "export") (const_i64 6)) (const_i32 0)))
+                (then (do
+                  (if
+                    (condition (ne_i32 (call_i32 surface_module_register_export
+                      (param_get tree) (param_get source) (local_get child))
+                      (const_i32 0)))
+                    (then (do (return (const_i32 1))))
+                    (else (do)))))
+                (else (do)))
+              (if
+                (condition (ne_i32 (call_i32 head_equals
+                  (param_get tree) (param_get source) (local_get child)
+                  (const_string_ptr "import") (const_i64 6)) (const_i32 0)))
+                (then (do
+                  (if
+                    (condition (ne_i32 (call_i32 surface_module_register_import
+                      (param_get tree) (param_get source) (local_get child))
+                      (const_i32 0)))
+                    (then (do (return (const_i32 1))))
+                    (else (do)))))
+                (else (do)))))
+            (else (do)))
+          (set child (call_i64 node_next_sibling
+            (param_get tree) (local_get child)))))
+      (return (const_i32 0)))))
+
+  (fn surface_select_module
+    (params (tree ptr) (source ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 surface_module_is_legacy
+          (param_get tree) (param_get source)) (const_i32 0)))
+        (then (do (return (call_i32 weave_surface_module_use_legacy))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 surface_module_is_explicit
+          (param_get tree) (param_get source)) (const_i32 0)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (let name_node i64 (call_i64 surface_module_name_node (param_get tree)))
+      (return (call_i32 weave_surface_module_select
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get name_node))
+        (call_i64 node_text_len (param_get tree) (local_get name_node))))))
+
+  (fn surface_validate_module_export
+    (params (tree ptr) (source ptr) (clause i64))
+    (returns i32)
+    (do
+      (let head i64 (call_i64 node_first_child (param_get tree) (param_get clause)))
+      (let symbol i64 (call_i64 node_next_sibling (param_get tree) (local_get head)))
+      (while
+        (condition (ne_i64 (local_get symbol) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 weave_surface_module_export_status
+              (param_get source)
+              (call_i64 node_text_start (param_get tree) (local_get symbol))
+              (call_i64 node_text_len (param_get tree) (local_get symbol)))
+              (const_i32 0)))
+            (then (do
+              (call_void surface_module_error
+                (param_get source) (param_get tree) (local_get symbol)
+                (const_string_ptr "exported symbol is not declared in this module"))
+              (return (const_i32 1))))
+            (else (do)))
+          (set symbol (call_i64 node_next_sibling
+            (param_get tree) (local_get symbol)))))
+      (return (const_i32 0))))
+
+  (fn surface_validate_module_import
+    (params (tree ptr) (source ptr) (clause i64))
+    (returns i32)
+    (do
+      (let module_node i64 (call_i64 nth_child
+        (param_get tree) (param_get clause) (const_i64 1)))
+      (let symbols_node i64 (call_i64 nth_child
+        (param_get tree) (param_get clause) (const_i64 2)))
+      (let symbol i64 (call_i64 node_first_child
+        (param_get tree) (local_get symbols_node)))
+      (while
+        (condition (ne_i64 (local_get symbol) (const_i64 -1)))
+        (do
+          (let status i32 (call_i32 weave_surface_module_import_status
+            (param_get source)
+            (call_i64 node_text_start (param_get tree) (local_get module_node))
+            (call_i64 node_text_len (param_get tree) (local_get module_node))
+            (call_i64 node_text_start (param_get tree) (local_get symbol))
+            (call_i64 node_text_len (param_get tree) (local_get symbol))))
+          (if
+            (condition (ne_i32 (local_get status) (const_i32 0)))
+            (then (do
+              (if
+                (condition (eq_i32 (local_get status) (const_i32 -1)))
+                (then (do
+                  (call_void surface_module_error
+                    (param_get source) (param_get tree) (local_get module_node)
+                    (const_string_ptr "imported module does not exist"))))
+                (else (do
+                  (if
+                    (condition (eq_i32 (local_get status) (const_i32 -2)))
+                    (then (do
+                      (call_void surface_module_error
+                        (param_get source) (param_get tree) (local_get symbol)
+                        (const_string_ptr "imported symbol does not exist"))))
+                    (else (do
+                      (call_void surface_module_error
+                        (param_get source) (param_get tree) (local_get symbol)
+                        (const_string_ptr "imported symbol is private")))))))
+              (return (const_i32 1))))
+            (else (do)))
+          (set symbol (call_i64 node_next_sibling
+            (param_get tree) (local_get symbol)))))
+      (return (const_i32 0))))
+
+  (fn surface_validate_module_interfaces
+    (params (tree ptr) (source ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 surface_module_is_explicit
+          (param_get tree) (param_get source)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (lt_i32 (call_i32 surface_select_module
+          (param_get tree) (param_get source)) (const_i32 0)))
+        (then (do
+          (call_void surface_module_error
+            (param_get source) (param_get tree) (const_i64 0)
+            (const_string_ptr "module was not registered during declaration pass"))
+          (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 weave_surface_module_current_has_cycle)
+          (const_i32 0)))
+        (then (do
+          (call_void surface_module_error
+            (param_get source) (param_get tree)
+            (call_i64 surface_module_name_node (param_get tree))
+            (const_string_ptr "import cycle includes module"))
+          (return (const_i32 1))))
+        (else (do)))
+      (let name_node i64 (call_i64 surface_module_name_node (param_get tree)))
+      (let child i64 (call_i64 node_next_sibling
+        (param_get tree) (local_get name_node)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 node_kind
+              (param_get tree) (local_get child)) (call_i32 node_list)))
+            (then (do
+              (if
+                (condition (ne_i32 (call_i32 head_equals
+                  (param_get tree) (param_get source) (local_get child)
+                  (const_string_ptr "export") (const_i64 6)) (const_i32 0)))
+                (then (do
+                  (if
+                    (condition (ne_i32 (call_i32 surface_validate_module_export
+                      (param_get tree) (param_get source) (local_get child))
+                      (const_i32 0)))
+                    (then (do (return (const_i32 1))))
+                    (else (do)))))
+                (else (do)))
+              (if
+                (condition (ne_i32 (call_i32 head_equals
+                  (param_get tree) (param_get source) (local_get child)
+                  (const_string_ptr "import") (const_i64 6)) (const_i32 0)))
+                (then (do
+                  (if
+                    (condition (ne_i32 (call_i32 surface_validate_module_import
+                      (param_get tree) (param_get source) (local_get child))
+                      (const_i32 0)))
+                    (then (do (return (const_i32 1))))
+                    (else (do)))))
+                (else (do)))))
+            (else (do)))
+          (set child (call_i64 node_next_sibling
+            (param_get tree) (local_get child)))))
+      (return (const_i32 0))))
+
+  (fn surface_report_unresolved_call
+    (params (source ptr) (tree ptr) (name_node i64))
+    (returns void)
+    (do
+      (let status i32 (call_i32 weave_surface_symbol_resolution_status))
+      (call_void surface_error_prefix (const_string_ptr "call"))
+      (if
+        (condition (eq_i32 (local_get status) (const_i32 2)))
+        (then (do
+          (call_void write_cstr (const_i32 2)
+            (const_string_ptr "exported function is not imported "))))
+        (else (do
+          (if
+            (condition (eq_i32 (local_get status) (const_i32 3)))
+            (then (do
+              (call_void write_cstr (const_i32 2)
+                (const_string_ptr "function is private to another module "))))
+            (else (do
+              (if
+                (condition (eq_i32 (local_get status) (const_i32 4)))
+                (then (do
+                  (call_void write_cstr (const_i32 2)
+                    (const_string_ptr "ambiguous imported function "))))
+                (else (do
+                  (call_void write_cstr (const_i32 2)
+                    (const_string_ptr "unresolved function ")))))))))
+      (call_void emit_node_text
+        (const_i32 2) (param_get source) (param_get tree) (param_get name_node))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (return_void)))
+))
