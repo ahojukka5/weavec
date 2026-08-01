@@ -1,0 +1,376 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:weavec:schema:semantic-index:v1",
+  "title": "weavec-semantic-index-v1",
+  "type": "object",
+  "required": [
+    "format",
+    "schema_id",
+    "schema_version",
+    "compiler",
+    "language",
+    "analysis",
+    "sources",
+    "modules",
+    "symbols",
+    "references",
+    "imports",
+    "exports",
+    "call_edges",
+    "diagnostics"
+  ],
+  "properties": {
+    "format": {"const": "weavec-semantic-index-v1"},
+    "schema_id": {"const": "urn:weavec:schema:semantic-index:v1"},
+    "schema_version": {"const": 1},
+    "compiler": {"$ref": "#/$defs/compiler"},
+    "language": {"$ref": "#/$defs/language"},
+    "analysis": {"$ref": "#/$defs/analysis"},
+    "sources": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/source"}
+    },
+    "modules": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/module"}
+    },
+    "symbols": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/symbol"}
+    },
+    "references": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/reference"}
+    },
+    "imports": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/import"}
+    },
+    "exports": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/export"}
+    },
+    "call_edges": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/call_edge"}
+    },
+    "diagnostics": {"$ref": "#/$defs/diagnostics"}
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "compiler": {
+      "type": "object",
+      "required": ["name", "version", "public_variant"],
+      "properties": {
+        "name": {"const": "weavec"},
+        "version": {"type": "string", "minLength": 1},
+        "public_variant": {"const": "final"}
+      },
+      "additionalProperties": true
+    },
+    "language": {
+      "type": "object",
+      "required": ["name", "surface_version", "grammar_id"],
+      "properties": {
+        "name": {"const": "Weave"},
+        "surface_version": {"const": "weave-surface-v1"},
+        "grammar_id": {"const": "weave-surface-grammar-v1"}
+      },
+      "additionalProperties": true
+    },
+    "analysis": {
+      "type": "object",
+      "required": [
+        "status",
+        "complete",
+        "source_set_sha256",
+        "options_sha256",
+        "identity_policy",
+        "ordering_policy",
+        "diagnostics_complete"
+      ],
+      "properties": {
+        "status": {"enum": ["complete", "incomplete", "failed"]},
+        "complete": {"type": "boolean"},
+        "source_set_sha256": {"$ref": "#/$defs/sha256"},
+        "options_sha256": {"$ref": "#/$defs/sha256"},
+        "identity_policy": {
+          "const": "supplied-source-order+utf8-byte-span"
+        },
+        "ordering_policy": {
+          "const": "weavec-semantic-index-order-v1"
+        },
+        "diagnostics_complete": {"type": "boolean"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"status": {"const": "complete"}},
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {"complete": {"const": true}}
+          },
+          "else": {
+            "properties": {"complete": {"const": false}}
+          }
+        }
+      ],
+      "additionalProperties": true
+    },
+    "source_id": {
+      "type": "string",
+      "pattern": "^source:[0-9]+$"
+    },
+    "module_id": {
+      "type": "string",
+      "pattern": "^module:[0-9]+$"
+    },
+    "symbol_id": {
+      "type": "string",
+      "pattern": "^symbol:[0-9]+$"
+    },
+    "reference_id": {
+      "type": "string",
+      "pattern": "^reference:[0-9]+$"
+    },
+    "span": {
+      "type": "object",
+      "required": ["source_id", "start", "end"],
+      "properties": {
+        "source_id": {"$ref": "#/$defs/source_id"},
+        "start": {"type": "integer", "minimum": 0},
+        "end": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "required": ["id", "index", "path", "sha256", "byte_length"],
+      "properties": {
+        "id": {"$ref": "#/$defs/source_id"},
+        "index": {"type": "integer", "minimum": 0},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "byte_length": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": true
+    },
+    "interface": {
+      "type": "object",
+      "required": ["hash_algorithm", "sha256", "exports"],
+      "properties": {
+        "hash_algorithm": {"const": "sha256-weave-interface-v1"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "exports": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/symbol_id"}
+        }
+      },
+      "additionalProperties": true
+    },
+    "module": {
+      "type": "object",
+      "required": ["id", "name", "source_id", "definition", "interface"],
+      "properties": {
+        "id": {"$ref": "#/$defs/module_id"},
+        "name": {"type": "string", "minLength": 1},
+        "source_id": {"$ref": "#/$defs/source_id"},
+        "definition": {"$ref": "#/$defs/span"},
+        "interface": {"$ref": "#/$defs/interface"}
+      },
+      "additionalProperties": true
+    },
+    "signature": {
+      "type": "object",
+      "required": ["canonical"],
+      "properties": {
+        "canonical": {"type": "string", "minLength": 1},
+        "summary": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "symbol": {
+      "type": "object",
+      "required": [
+        "id",
+        "module_id",
+        "kind",
+        "name",
+        "visibility",
+        "definition",
+        "signature"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/symbol_id"},
+        "module_id": {"$ref": "#/$defs/module_id"},
+        "kind": {
+          "enum": ["fn", "entry", "extern", "const", "struct", "field"]
+        },
+        "name": {"type": "string", "minLength": 1},
+        "visibility": {"enum": ["public", "private"]},
+        "definition": {"$ref": "#/$defs/span"},
+        "signature": {"$ref": "#/$defs/signature"}
+      },
+      "additionalProperties": true
+    },
+    "reference": {
+      "type": "object",
+      "required": ["id", "symbol_id", "role", "span", "status"],
+      "properties": {
+        "id": {"$ref": "#/$defs/reference_id"},
+        "symbol_id": {
+          "oneOf": [
+            {"$ref": "#/$defs/symbol_id"},
+            {"type": "null"}
+          ]
+        },
+        "role": {
+          "enum": ["call", "read", "write", "type", "import", "export"]
+        },
+        "span": {"$ref": "#/$defs/span"},
+        "status": {
+          "enum": [
+            "resolved",
+            "unresolved",
+            "ambiguous",
+            "private",
+            "not-imported"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "import": {
+      "type": "object",
+      "required": [
+        "id",
+        "module_id",
+        "source_module",
+        "imported_module_id",
+        "imported_name",
+        "local_name",
+        "symbol_id",
+        "span",
+        "status"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^import:[0-9]+$"},
+        "module_id": {"$ref": "#/$defs/module_id"},
+        "source_module": {"type": "string", "minLength": 1},
+        "imported_module_id": {
+          "oneOf": [
+            {"$ref": "#/$defs/module_id"},
+            {"type": "null"}
+          ]
+        },
+        "imported_name": {"type": "string", "minLength": 1},
+        "local_name": {"type": "string", "minLength": 1},
+        "symbol_id": {
+          "oneOf": [
+            {"$ref": "#/$defs/symbol_id"},
+            {"type": "null"}
+          ]
+        },
+        "span": {"$ref": "#/$defs/span"},
+        "status": {
+          "enum": [
+            "resolved",
+            "missing-module",
+            "missing-symbol",
+            "private",
+            "conflict"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "export": {
+      "type": "object",
+      "required": ["id", "module_id", "name", "symbol_id", "span", "status"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^export:[0-9]+$"},
+        "module_id": {"$ref": "#/$defs/module_id"},
+        "name": {"type": "string", "minLength": 1},
+        "symbol_id": {
+          "oneOf": [
+            {"$ref": "#/$defs/symbol_id"},
+            {"type": "null"}
+          ]
+        },
+        "span": {"$ref": "#/$defs/span"},
+        "status": {"enum": ["resolved", "missing"]}
+      },
+      "additionalProperties": true
+    },
+    "call_edge": {
+      "type": "object",
+      "required": [
+        "id",
+        "caller_symbol_id",
+        "callee_symbol_id",
+        "call_reference_id",
+        "status"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^call-edge:[0-9]+$"},
+        "caller_symbol_id": {
+          "oneOf": [
+            {"$ref": "#/$defs/symbol_id"},
+            {"type": "null"}
+          ]
+        },
+        "callee_symbol_id": {
+          "oneOf": [
+            {"$ref": "#/$defs/symbol_id"},
+            {"type": "null"}
+          ]
+        },
+        "call_reference_id": {"$ref": "#/$defs/reference_id"},
+        "status": {
+          "enum": [
+            "resolved",
+            "unresolved",
+            "ambiguous",
+            "private",
+            "not-imported"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "diagnostic": {
+      "type": "object",
+      "required": ["code", "severity", "message", "span"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "severity": {"enum": ["error", "warning", "note"]},
+        "message": {"type": "string", "minLength": 1},
+        "span": {
+          "oneOf": [
+            {"$ref": "#/$defs/span"},
+            {"type": "null"}
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "diagnostics": {
+      "type": "object",
+      "required": ["format", "complete", "items"],
+      "properties": {
+        "format": {"const": "weavec-diagnostics-v1"},
+        "complete": {"type": "boolean"},
+        "items": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/diagnostic"}
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

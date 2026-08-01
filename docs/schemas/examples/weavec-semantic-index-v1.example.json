@@ -1,0 +1,186 @@
+{
+  "format": "weavec-semantic-index-v1",
+  "schema_id": "urn:weavec:schema:semantic-index:v1",
+  "schema_version": 1,
+  "compiler": {
+    "name": "weavec",
+    "version": "v0.0.0+example",
+    "public_variant": "final"
+  },
+  "language": {
+    "name": "Weave",
+    "surface_version": "weave-surface-v1",
+    "grammar_id": "weave-surface-grammar-v1"
+  },
+  "analysis": {
+    "status": "complete",
+    "complete": true,
+    "source_set_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "options_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "identity_policy": "supplied-source-order+utf8-byte-span",
+    "ordering_policy": "weavec-semantic-index-order-v1",
+    "diagnostics_complete": true
+  },
+  "sources": [
+    {
+      "id": "source:0",
+      "index": 0,
+      "path": "arithmetic.weave",
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "byte_length": 240
+    },
+    {
+      "id": "source:1",
+      "index": 1,
+      "path": "application.weave",
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "byte_length": 220
+    }
+  ],
+  "modules": [
+    {
+      "id": "module:0",
+      "name": "arithmetic",
+      "source_id": "source:0",
+      "definition": {
+        "source_id": "source:0",
+        "start": 0,
+        "end": 239
+      },
+      "interface": {
+        "hash_algorithm": "sha256-weave-interface-v1",
+        "sha256": "3eb8967a06b784b9468aadc9944c97dd665f0baaac27ec72c266d7b8c0da8ca2",
+        "exports": ["symbol:0"]
+      }
+    },
+    {
+      "id": "module:1",
+      "name": "application",
+      "source_id": "source:1",
+      "definition": {
+        "source_id": "source:1",
+        "start": 0,
+        "end": 219
+      },
+      "interface": {
+        "hash_algorithm": "sha256-weave-interface-v1",
+        "sha256": "36e704daf89e85ca063913ecec60af4c203b6fcc679b767d1bcf0390b5eab8f9",
+        "exports": []
+      }
+    }
+  ],
+  "symbols": [
+    {
+      "id": "symbol:0",
+      "module_id": "module:0",
+      "kind": "fn",
+      "name": "add-two",
+      "visibility": "public",
+      "definition": {
+        "source_id": "source:0",
+        "start": 48,
+        "end": 226
+      },
+      "signature": {
+        "canonical": "(fn (params (left i32) (right i32)) (returns i32))",
+        "summary": "(left i32, right i32) -> i32"
+      }
+    },
+    {
+      "id": "symbol:1",
+      "module_id": "module:1",
+      "kind": "entry",
+      "name": "main",
+      "visibility": "public",
+      "definition": {
+        "source_id": "source:1",
+        "start": 72,
+        "end": 214
+      },
+      "signature": {
+        "canonical": "(entry (params) (returns i32))",
+        "summary": "() -> i32"
+      }
+    }
+  ],
+  "references": [
+    {
+      "id": "reference:0",
+      "symbol_id": "symbol:0",
+      "role": "export",
+      "span": {
+        "source_id": "source:0",
+        "start": 31,
+        "end": 38
+      },
+      "status": "resolved"
+    },
+    {
+      "id": "reference:1",
+      "symbol_id": "symbol:0",
+      "role": "import",
+      "span": {
+        "source_id": "source:1",
+        "start": 43,
+        "end": 50
+      },
+      "status": "resolved"
+    },
+    {
+      "id": "reference:2",
+      "symbol_id": "symbol:0",
+      "role": "call",
+      "span": {
+        "source_id": "source:1",
+        "start": 171,
+        "end": 178
+      },
+      "status": "resolved"
+    }
+  ],
+  "imports": [
+    {
+      "id": "import:0",
+      "module_id": "module:1",
+      "source_module": "arithmetic",
+      "imported_module_id": "module:0",
+      "imported_name": "add-two",
+      "local_name": "add-two",
+      "symbol_id": "symbol:0",
+      "span": {
+        "source_id": "source:1",
+        "start": 22,
+        "end": 52
+      },
+      "status": "resolved"
+    }
+  ],
+  "exports": [
+    {
+      "id": "export:0",
+      "module_id": "module:0",
+      "name": "add-two",
+      "symbol_id": "symbol:0",
+      "span": {
+        "source_id": "source:0",
+        "start": 23,
+        "end": 39
+      },
+      "status": "resolved"
+    }
+  ],
+  "call_edges": [
+    {
+      "id": "call-edge:0",
+      "caller_symbol_id": "symbol:1",
+      "callee_symbol_id": "symbol:0",
+      "call_reference_id": "reference:2",
+      "status": "resolved"
+    }
+  ],
+  "diagnostics": {
+    "format": "weavec-diagnostics-v1",
+    "complete": true,
+    "items": []
+  }
+}
