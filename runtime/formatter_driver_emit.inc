@@ -64,6 +64,17 @@ static int weave_fmt_format_list(
         weave_fmt_fail(context);
         return 0;
     }
+    if (plan.kind == WEAVE_FMT_PLAN_CONSTRUCTOR) {
+        int formatted = weave_fmt_format_constructor(
+            context, list, head, &plan, indentation, head_gap);
+        if (function_scope) {
+            weave_fmt_restore_function_scope(
+                context, saved_binding_count, saved_return_type);
+        }
+        if (!formatted) weave_fmt_fail(context);
+        return formatted;
+    }
+
     int measured = weave_fmt_measure_list(
         context, list, expected, 88 > indentation ? 88 - indentation : 1);
     int inline_mode = head_gap.comments == 0 &&

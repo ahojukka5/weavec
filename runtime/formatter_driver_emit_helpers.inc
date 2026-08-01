@@ -117,3 +117,171 @@ static int weave_fmt_format_operator_child(
         force_inline);
 }
 
+static int weave_fmt_format_constructor_field(
+    weave_fmt_context *context,
+    int64_t clause,
+    const weave_fmt_struct_field *field,
+    size_t indentation) {
+    size_t clause_start = weave_fmt_node_start(context, clause);
+    size_t clause_end = weave_fmt_node_end(context, clause);
+    int64_t name = weave_fmt_nth_child(context, clause, 0);
+    int64_t value = weave_fmt_nth_child(context, clause, 1);
+    if (clause_start > context->source_length || clause_end == 0 ||
+        name == -1 || value == -1) {
+        return 0;
+    }
+
+    size_t name_start = weave_fmt_node_start(context, name);
+    weave_fmt_gap head_gap = weave_fmt_scan_gap(
+        context, clause_start + 1, name_start);
+    if (!head_gap.valid ||
+        !weave_fmt_write_indent(context, indentation) ||
+        !weave_fmt_write_char(context, '(')) {
+        return 0;
+    }
+    if (head_gap.comments != 0) {
+        if (!weave_fmt_emit_gap_comments(
+                context,
+                clause_start + 1,
+                name_start,
+                indentation + 2) ||
+            !weave_fmt_write_indent(context, indentation + 2)) {
+            return 0;
+        }
+    }
+    if (!weave_fmt_write_atom(context, name)) return 0;
+
+    size_t name_end = weave_fmt_node_end(context, name);
+    size_t value_start = weave_fmt_node_start(context, value);
+    weave_fmt_gap value_gap = weave_fmt_scan_gap(
+        context, name_end, value_start);
+    if (!value_gap.valid) return 0;
+    if (value_gap.comments != 0) {
+        if (!weave_fmt_emit_gap_comments(
+                context, name_end, value_start, indentation + 2) ||
+            !weave_fmt_write_indent(context, indentation + 2)) {
+            return 0;
+        }
+    } else if (!weave_fmt_write_char(context, ' ')) {
+        return 0;
+    }
+    if (!weave_fmt_format_node(
+            context,
+            value,
+            indentation + 2,
+            field->type,
+            value_gap.comments == 0)) {
+        return 0;
+    }
+
+    size_t value_end = weave_fmt_node_end(context, value);
+    weave_fmt_gap trailing = weave_fmt_scan_gap(
+        context, value_end, clause_end - 1);
+    if (!trailing.valid) return 0;
+    if (trailing.comments != 0 &&
+        (!weave_fmt_emit_gap_comments(
+            context, value_end, clause_end - 1, indentation + 2) ||
+         !weave_fmt_write_indent(context, indentation))) {
+        return 0;
+    }
+    return weave_fmt_write_char(context, ')');
+}
+
+static int weave_fmt_format_constructor(
+    weave_fmt_context *context,
+    int64_t list,
+    int64_t head,
+    const weave_fmt_plan *plan,
+    size_t indentation,
+    weave_fmt_gap head_gap) {
+    size_t list_start = weave_fmt_node_start(context, list);
+    size_t list_end = weave_fmt_node_end(context, list);
+    int64_t type = weave_fmt_nth_child(context, list, 1);
+    if (list_start > context->source_length || list_end == 0 ||
+        type == -1 || plan->structure == NULL) {
+        return 0;
+    }
+
+    if (!weave_fmt_write_char(context, '(')) return 0;
+    size_t head_start = weave_fmt_node_start(context, head);
+    if (head_gap.comments != 0) {
+        if (!weave_fmt_emit_gap_comments(
+                context,
+                list_start + 1,
+                head_start,
+                indentation + 2) ||
+            !weave_fmt_write_indent(context, indentation + 2)) {
+            return 0;
+        }
+    }
+    if (!weave_fmt_write_cstr(context, "new")) return 0;
+
+    size_t head_end = weave_fmt_node_end(context, head);
+    size_t type_start = weave_fmt_node_start(context, type);
+    weave_fmt_gap type_gap = weave_fmt_scan_gap(
+        context, head_end, type_start);
+    if (!type_gap.valid) return 0;
+    if (type_gap.comments != 0) {
+        if (!weave_fmt_emit_gap_comments(
+                context, head_end, type_start, indentation + 2) ||
+            !weave_fmt_write_indent(context, indentation + 2)) {
+            return 0;
+        }
+    } else if (!weave_fmt_write_char(context, ' ')) {
+        return 0;
+    }
+    if (!weave_fmt_write_atom(context, type)) return 0;
+
+    for (size_t index = 0;
+         index < plan->structure->field_count;
+         ++index) {
+        const weave_fmt_struct_field *field =
+            &plan->structure->fields[index];
+        int64_t clause = weave_fmt_constructor_clause_for_field(
+            context, list, field);
+        if (clause == -1) return 0;
+        size_t gap_start = weave_fmt_source_gap_start_for_child(
+            context, list, clause);
+        size_t clause_start = weave_fmt_node_start(context, clause);
+        weave_fmt_gap gap = weave_fmt_scan_gap(
+            context, gap_start, clause_start);
+        if (!gap.valid) return 0;
+        if (gap.comments != 0) {
+            if (!weave_fmt_emit_gap_comments(
+                    context,
+                    gap_start,
+                    clause_start,
+                    indentation + 2)) {
+                return 0;
+            }
+        } else if (!weave_fmt_write_newline(context)) {
+            return 0;
+        }
+        if (!weave_fmt_format_constructor_field(
+                context, clause, field, indentation + 2)) {
+            return 0;
+        }
+    }
+
+    size_t trailing_start = weave_fmt_source_trailing_gap_start(
+        context, list);
+    weave_fmt_gap trailing = weave_fmt_scan_gap(
+        context, trailing_start, list_end - 1);
+    if (!trailing.valid) return 0;
+    if (trailing.comments != 0) {
+        if (!weave_fmt_emit_gap_comments(
+                context,
+                trailing_start,
+                list_end - 1,
+                indentation + 2) ||
+            !weave_fmt_write_indent(context, indentation)) {
+            return 0;
+        }
+    } else if (plan->structure->field_count != 0 &&
+               (!weave_fmt_write_newline(context) ||
+                !weave_fmt_write_indent(context, indentation))) {
+        return 0;
+    }
+    return weave_fmt_write_char(context, ')');
+}
+

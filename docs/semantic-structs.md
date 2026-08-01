@@ -4,9 +4,10 @@ Weave structs are nominal surface types with a deterministic, compiler-owned
 layout. Source code uses semantic construction and field operations; generated
 constructor and accessor names remain a WIR-v2 compatibility detail.
 
-The feature is experimental while canonical formatting of constructor fields is
-completed. The compiler semantics, type checking, diagnostics, and native
-behavior described here are implemented and regression tested.
+The feature remains experimental while its broader surface contract stabilizes.
+The compiler semantics, type checking, diagnostics, native behavior, and
+constructor-field formatting described here are implemented and regression
+tested.
 
 ## Declaration
 
@@ -51,6 +52,11 @@ Constructor fields are named rather than positional. The compiler:
 3. checks every value against its declared field type;
 4. emits arguments in declaration order, independent of source order;
 5. lowers to the generated `Record_new` compatibility function.
+
+`weavec fmt` also writes complete, unambiguous constructors in declaration order.
+A comment immediately preceding a field clause is attached to that field and
+moves with it. Malformed, unknown, duplicate, and incomplete constructors retain
+source order so formatting never hides or repairs the semantic error.
 
 For the declaration above, the example lowers structurally to:
 

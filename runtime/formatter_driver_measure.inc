@@ -126,7 +126,10 @@ static int weave_fmt_measure_list(
     }
 
     weave_fmt_plan plan;
-    if (!weave_fmt_plan_list(context, list, &plan)) return -1;
+    if (!weave_fmt_plan_list(context, list, &plan) ||
+        plan.kind == WEAVE_FMT_PLAN_CONSTRUCTOR) {
+        return -1;
+    }
     size_t width = 1;
     if (plan.kind == WEAVE_FMT_PLAN_NORMAL) {
         int head_width = weave_fmt_measure_node(

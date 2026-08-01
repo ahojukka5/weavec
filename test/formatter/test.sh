@@ -177,4 +177,102 @@ cp "$TMP/struct-formatted.weave" "$TMP/struct-twice.weave"
 "$WEAVEC" fmt "$TMP/struct-twice.weave"
 cmp "$TMP/struct-formatted.weave" "$TMP/struct-twice.weave"
 
-printf 'formatter: canonicalization, idempotence, comments, and atomicity passed\n'
+cat > "$TMP/semantic-struct.weave" <<'EOF_SEMANTIC_STRUCT'
+(program(name "semantic-struct-format")(version "0.1")
+(struct Record(field total i64)(field flag bool)(field count i32))
+(entry main(params)(returns i32)(do
+(let record Record(new Record
+; count field comment
+(count(const_i32 40))
+; total field comment
+(total(const_i64 2))
+; flag field comment
+(flag(const_bool true))))
+(return(op add(cast i32(field-get record total))(field-get record count))))))
+EOF_SEMANTIC_STRUCT
+
+"$WEAVEC" build "$TMP/semantic-struct.weave" \
+  -o "$TMP/semantic-struct-original"
+set +e
+"$TMP/semantic-struct-original"
+semantic_original_exit="$?"
+set -e
+[[ "$semantic_original_exit" -eq 42 ]] || {
+  printf 'formatter: expected semantic struct exit 42, got %s\n' \
+    "$semantic_original_exit" >&2
+  exit 1
+}
+
+set +e
+"$WEAVEC" fmt --check "$TMP/semantic-struct.weave"
+semantic_check_exit="$?"
+set -e
+[[ "$semantic_check_exit" -eq 1 ]] || {
+  printf 'formatter: expected unordered struct check exit 1, got %s\n' \
+    "$semantic_check_exit" >&2
+  exit 1
+}
+
+"$WEAVEC" fmt --output "$TMP/semantic-struct-formatted.weave" \
+  "$TMP/semantic-struct.weave"
+python3 - "$TMP/semantic-struct-formatted.weave" <<'PY'
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+expected = [
+    ("; total field comment", "(total 2)"),
+    ("; flag field comment", "(flag true)"),
+    ("; count field comment", "(count 40)"),
+]
+positions = []
+for comment, field in expected:
+    comment_at = text.index(comment)
+    field_at = text.index(field)
+    if comment_at >= field_at:
+        raise SystemExit(f"comment did not move with {field}")
+    positions.append(field_at)
+if positions != sorted(positions):
+    raise SystemExit("constructor fields are not in declaration order")
+for legacy in ("const_i32", "const_i64", "const_bool"):
+    if legacy in text:
+        raise SystemExit(f"contextual constructor literal remained: {legacy}")
+PY
+"$WEAVEC" fmt --check "$TMP/semantic-struct-formatted.weave"
+cp "$TMP/semantic-struct-formatted.weave" \
+  "$TMP/semantic-struct-twice.weave"
+"$WEAVEC" fmt "$TMP/semantic-struct-twice.weave"
+cmp "$TMP/semantic-struct-formatted.weave" \
+  "$TMP/semantic-struct-twice.weave"
+
+"$WEAVEC" build "$TMP/semantic-struct-formatted.weave" \
+  -o "$TMP/semantic-struct-formatted"
+set +e
+"$TMP/semantic-struct-formatted"
+semantic_formatted_exit="$?"
+set -e
+[[ "$semantic_formatted_exit" -eq 42 ]] || {
+  printf 'formatter: expected formatted semantic struct exit 42, got %s\n' \
+    "$semantic_formatted_exit" >&2
+  exit 1
+}
+
+cat > "$TMP/incomplete-struct.weave" <<'EOF_INCOMPLETE_STRUCT'
+(program(name "incomplete-struct-format")(version "0.1")
+(struct Record(field total i64)(field flag bool)(field count i32))
+(entry main(params)(returns i32)(do
+(let record Record(new Record(count(const_i32 40))(total(const_i64 2))))
+(return 42))))
+EOF_INCOMPLETE_STRUCT
+"$WEAVEC" fmt --output "$TMP/incomplete-struct-formatted.weave" \
+  "$TMP/incomplete-struct.weave"
+python3 - "$TMP/incomplete-struct-formatted.weave" <<'PY'
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+if text.index("(count") >= text.index("(total"):
+    raise SystemExit("incomplete constructor was silently reordered")
+PY
+
+printf 'formatter: canonicalization, structs, comments, and atomicity passed\n'

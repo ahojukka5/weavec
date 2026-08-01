@@ -57,6 +57,8 @@ surface-language contract stabilises.
 - Moved canonical development entrypoints under `scripts/`, made final-compiler
   builds consume released lower-stage SDKs on every supported host, and added
   `scripts/test-all.sh --no-build` for qualification without rebuilding.
+- Made `weavec fmt` order complete semantic struct constructor fields by their
+  declaration while preserving field-leading comments and invalid source order.
 - Replaced duplicated handwritten compilation-trace, build-manifest, and
   diagnostics JSON assembly with typed protocol serializers backed by one
   checked streaming JSON writer and one transactional document publisher.

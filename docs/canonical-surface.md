@@ -114,8 +114,11 @@ parameter, such as `free`, while the reverse conversion and cross-struct
 substitution remain invalid. The generated `TYPE_new`, `TYPE_get_FIELD`, and
 `TYPE_set_FIELD` names remain compatibility-only forms.
 
-The feature is experimental until the canonical formatter also normalizes named
-constructor fields into declaration order. See [Semantic structs](semantic-structs.md).
+`weavec fmt` normalizes complete, unambiguous constructors into declaration order.
+A comment immediately preceding a field clause moves with that field. Malformed,
+unknown, duplicate, or incomplete constructors retain source order so formatting
+does not conceal the compiler diagnostic. See
+[Semantic structs](semantic-structs.md).
 
 ## Contextual literals
 
