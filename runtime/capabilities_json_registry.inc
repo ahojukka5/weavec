@@ -26,7 +26,7 @@ static const weave_capability_feature weave_cap_features[] = {
     {"canonical-formatting", "stable", 50},
     {"diagnostic-repairs", "stable", 51},
     {"semantic-structs", "experimental", 52},
-    {"modules", "planned", 53},
+    {"modules", "experimental", 53},
     {"semantic-index", "planned", 37},
     {"quantum-surface", "experimental", 0},
 };
@@ -90,9 +90,17 @@ static const weave_capability_role weave_cap_roles[] = {
     {"receiver", "one", "struct-expression", 0},
     {"field", "one", "identifier", 1},
     {"value", "one", "expression", 2},
+    {"name", "one", "identifier", 0},
+    {"items", "zero-or-more", "module-item", 1},
+    {"module", "one", "identifier", 0},
+    {"symbols", "one-or-more", "identifier-list", 1},
+    {"symbols", "one-or-more", "identifier", 0},
 };
 static const weave_capability_form weave_cap_forms[] = {
     {"program", "canonical", "none", NULL, NULL, 2, -1, 0, 3},
+    {"module", "experimental", "explicit", "modules", NULL, 1, -1, 59, 2},
+    {"import", "experimental", "explicit", "modules", NULL, 2, 2, 61, 2},
+    {"export", "experimental", "explicit", "modules", NULL, 1, -1, 63, 1},
     {"name", "canonical", "none", NULL, NULL, 1, 1, 3, 1},
     {"version", "canonical", "none", NULL, NULL, 1, 1, 4, 1},
     {"const", "canonical", "explicit", NULL, NULL, 3, 3, 5, 3},
