@@ -19,6 +19,7 @@ command -v cc >/dev/null 2>&1 || {
 cat > "$TMP/registry.c" <<'C'
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 #include "runtime/surface_symbols.c"
 
 static int32_t begin_module(const char *source, int64_t start, int64_t length) {
@@ -115,7 +116,7 @@ WEAVE
 
 normalize_wir() {
   sed -E \
-    '/^; weavec-source-(file|span)-v1 /d' "$1"
+    '/^[[:space:]]*; weavec-source-(file|span)-v1 /d' "$1"
 }
 diff -u \
   <(normalize_wir "$TMP/ordered.wir") \
@@ -287,7 +288,7 @@ cat > "$TMP/mixed-program.weave" <<'WEAVE'
   (fn legacy (params) (returns i32) (do (return 1))))
 WEAVE
 expect_failure mixed-roots \
-  'cannot mix explicit modules with legacy programs' \
+  'cannot mix legacy program and explicit module roots' \
   "$TMP/arithmetic.weave" "$TMP/mixed-program.weave"
 
 printf 'modules: interfaces, visibility, cycles, and compatibility passed\n'
