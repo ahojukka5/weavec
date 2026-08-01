@@ -4,8 +4,9 @@ Weave has an experimental explicit-module surface for bounding the names visible
 to an LLM or structural tool. The compiler, not the filesystem or an external
 indexer, validates module identity, imports, exports, and callable visibility.
 
-This is the first implementation slice of issue #53. It establishes the source
-interface and visibility model without changing WIR core version 2.
+This is the second implementation slice of issue #53. It establishes the source
+interface, visibility model, and deterministic private-symbol naming without
+changing WIR core version 2.
 
 ## Canonical roots
 
@@ -92,32 +93,53 @@ Import cycles are rejected in this initial design. The compiler reports a cycle
 before emitting declarations, and failed frontend compilation does not publish a
 partial WIR file.
 
+## Private WIR names
+
+Two modules may declare the same private callable or constant name. When a source
+name collides across modules, the compiler emits a deterministic WIR identifier
+from the module and source-name bytes. The encoding is independent of filenames,
+absolute paths, source argument order, and host state.
+
+For example, private `helper` declarations in `alpha` and `beta` lower to distinct
+identifiers beginning with:
+
+```text
+__weave_m_616c706861__s_68656c706572
+__weave_m_62657461__s_68656c706572
+```
+
+The hexadecimal form is deliberately mechanical and reversible for tools. It is
+not a user-facing source name or a stability promise for external linkage.
+Exported names, legacy-program names, `main`, and external-linkage declarations
+retain their source spelling. Those raw linkage names must remain globally
+unique.
+
+Canonical `(call NAME ...)` forms use the same resolved WIR identifier as the
+target declaration. Unique private names remain unchanged, so this slice does
+not churn existing WIR when no collision exists.
+
 ## Current implementation boundary
 
-The experimental slice provides:
+The experimental slices provide:
 
 - explicit module identities;
 - explicit callable and constant exports;
 - explicit imported bindings;
 - private-by-default callable lookup;
+- deterministic WIR names for colliding private callables and constants used by
+  canonical calls;
 - duplicate imports, conflicting imports, missing and private symbols,
-  mixed-root inputs, and cycles are rejected;
-- legacy `program` compatibility;
-- deterministic WIR v2 lowering for programs whose emitted declaration names are
-  globally unique.
+  mixed-root inputs, raw-linkage collisions, and cycles are rejected;
+- legacy `program` compatibility.
 
 The following work remains under issue #53:
 
-- deterministic compiler-owned WIR name mangling;
-- admitting the same private source name in multiple modules;
+- module-aware rewriting for explicit WIR-shaped `call_*` compatibility forms;
+- contract-lowered duplicate private callable names;
 - explicit diagnostics for a local declaration colliding with an imported name;
 - module-scoped struct type identities;
 - structured module diagnostics in `weavec-diagnostics-v1`;
 - semantic-index definitions, imports, exports, references, and interface hashes.
-
-Until name mangling lands, declaration names that become observable in WIR must
-remain globally unique across the compilation. The compiler rejects duplicates
-rather than silently choosing one module.
 
 ## Tooling contract
 
@@ -126,4 +148,5 @@ publishes the `module`, `import`, and `export` form heads with exact arities and
 roles. Tools should check that status before generating modular source.
 
 The compiler remains the semantic authority. Jacquard and other tools should not
-infer visibility from filenames, directory layout, or source argument order.
+infer visibility from filenames, directory layout, source argument order, or the
+encoded WIR spelling.

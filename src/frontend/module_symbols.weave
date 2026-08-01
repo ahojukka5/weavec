@@ -1,0 +1,109 @@
+; SPDX-License-Identifier: Apache-2.0
+; module_symbols.weave — deterministic module-scoped WIR names
+;
+; The compiler registry resolves source names. This module only asks that
+; registry for the already-selected WIR spelling at declaration and call sites.
+
+(program
+  (name "module_symbols")
+  (version "0.1")
+
+  (extern weave_surface_symbol_mark_external
+    (params (source ptr) (start i64) (len i64))
+    (returns i32))
+  (extern weave_surface_symbol_wir_name
+    (params (source ptr) (start i64) (len i64))
+    (returns ptr))
+
+  (fn surface_emit_symbol_name
+    (params (fd i32) (source ptr) (tree ptr) (name_node i64))
+    (returns void)
+    (do
+      ; emit_node always records a node's source span before its text; this
+      ; replaces direct emit_node calls at name-emission sites, so match that
+      ; behavior here to keep --llvm-provenance output byte-identical.
+      (call_void emit_source_span_for_node
+        (param_get fd) (param_get source) (param_get tree) (param_get name_node))
+      (let start i64 (call_i64 node_text_start
+        (param_get tree) (param_get name_node)))
+      (let length i64 (call_i64 node_text_len
+        (param_get tree) (param_get name_node)))
+      (let wir_name ptr (call_ptr weave_surface_symbol_wir_name
+        (param_get source) (local_get start) (local_get length)))
+      (if
+        (condition (ne_ptr (local_get wir_name) (const_null)))
+        (then (do
+          (call_void write_cstr (param_get fd) (local_get wir_name))))
+        (else (do
+          (call_void emit_node_text
+            (param_get fd) (param_get source) (param_get tree)
+            (param_get name_node)))))
+      (return_void)))
+
+  (fn surface_mark_external_symbol
+    (params (source ptr) (tree ptr) (name_node i64))
+    (returns void)
+    (do
+      (let status i32 (call_i32 weave_surface_symbol_mark_external
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (param_get name_node))
+        (call_i64 node_text_len (param_get tree) (param_get name_node))))
+      (if
+        (condition (ne_i32 (local_get status) (const_i32 0)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "module"))
+          (call_void write_cstr
+            (const_i32 2) (const_string_ptr "external linkage name conflicts: "))
+          (call_void emit_node_text
+            (const_i32 2) (param_get source) (param_get tree)
+            (param_get name_node))
+          (call_void write_byte (const_i32 2) (const_i32 10))))
+        (else (do)))
+      (return_void)))
+
+  (fn surface_emit_decl_node
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "extern") (const_i64 6)) (const_i32 0)))
+        (then (do
+          (call_void surface_mark_external_symbol
+            (param_get source) (param_get tree)
+            (call_i64 nth_child
+              (param_get tree) (param_get node) (const_i64 1)))
+          (call_void emit_node
+            (param_get fd) (param_get source) (param_get tree) (param_get node))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "fn") (const_i64 2)) (const_i32 0)))
+        (then (do
+          (call_void emit_node
+            (param_get fd) (param_get source) (param_get tree) (param_get node))
+          (return_void)))
+        (else (do)))
+      (call_void emit_source_span_for_node
+        (param_get fd) (param_get source) (param_get tree) (param_get node))
+      (call_void write_cstr (param_get fd) (const_string_ptr "(fn "))
+      (let name_node i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 1)))
+      (call_void surface_emit_symbol_name
+        (param_get fd) (param_get source) (param_get tree) (local_get name_node))
+      (let child i64 (call_i64 node_next_sibling
+        (param_get tree) (local_get name_node)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (call_void write_byte (param_get fd) (const_i32 32))
+          (call_void emit_node
+            (param_get fd) (param_get source) (param_get tree) (local_get child))
+          (set child (call_i64 node_next_sibling
+            (param_get tree) (local_get child)))))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (return_void)))
+)
