@@ -2,8 +2,9 @@
 //
 // Storage for compiler-owned surface semantic facts. This file deliberately
 // knows nothing about Weave syntax: the self-hosted frontend assigns type codes,
-// decides which declarations and bindings exist, and performs all semantic
-// validation. Host C only copies names so facts survive per-file parser teardown.
+// decides which declarations, modules, imports, exports, and bindings exist, and
+// performs all semantic validation. Host C only copies names so facts survive
+// per-file parser teardown.
 
 #include <stdint.h>
 #include <stddef.h>
@@ -16,6 +17,19 @@
 #define WEAVEC_SURFACE_MAX_STRUCTS 512
 #define WEAVEC_SURFACE_MAX_STRUCT_FIELDS 128
 #define WEAVEC_SURFACE_STRUCT_TYPE_BASE 1024
+#define WEAVEC_SURFACE_MAX_MODULES 512
+#define WEAVEC_SURFACE_MAX_EXPORTS 4096
+#define WEAVEC_SURFACE_MAX_IMPORTS 4096
+
+#define WEAVEC_SURFACE_MODULE_MODE_UNSET 0
+#define WEAVEC_SURFACE_MODULE_MODE_LEGACY 1
+#define WEAVEC_SURFACE_MODULE_MODE_EXPLICIT 2
+
+#define WEAVEC_SURFACE_RESOLUTION_OK 0
+#define WEAVEC_SURFACE_RESOLUTION_MISSING 1
+#define WEAVEC_SURFACE_RESOLUTION_NOT_IMPORTED 2
+#define WEAVEC_SURFACE_RESOLUTION_PRIVATE 3
+#define WEAVEC_SURFACE_RESOLUTION_AMBIGUOUS 4
 
 typedef struct {
     char *name;
@@ -23,6 +37,7 @@ typedef struct {
     int32_t return_type;
     int32_t parameter_count;
     int32_t parameter_types[WEAVEC_SURFACE_MAX_PARAMS];
+    int32_t module_index;
 } weave_surface_symbol;
 
 typedef struct {
@@ -45,6 +60,25 @@ typedef struct {
     weave_surface_struct_field fields[WEAVEC_SURFACE_MAX_STRUCT_FIELDS];
 } weave_surface_struct;
 
+typedef struct {
+    char *name;
+    int64_t name_length;
+} weave_surface_module;
+
+typedef struct {
+    int32_t module_index;
+    char *name;
+    int64_t name_length;
+} weave_surface_export;
+
+typedef struct {
+    int32_t owner_module_index;
+    char *module_name;
+    int64_t module_name_length;
+    char *symbol_name;
+    int64_t symbol_name_length;
+} weave_surface_import;
+
 static weave_surface_symbol weave_surface_symbols[WEAVEC_SURFACE_MAX_SYMBOLS];
 static int32_t weave_surface_symbol_count;
 static int32_t weave_surface_symbol_being_built = -1;
@@ -52,6 +86,15 @@ static weave_surface_local weave_surface_locals[WEAVEC_SURFACE_MAX_LOCALS];
 static int32_t weave_surface_local_count;
 static weave_surface_struct weave_surface_structs[WEAVEC_SURFACE_MAX_STRUCTS];
 static int32_t weave_surface_struct_count;
+static weave_surface_module weave_surface_modules[WEAVEC_SURFACE_MAX_MODULES];
+static int32_t weave_surface_module_count;
+static weave_surface_export weave_surface_exports[WEAVEC_SURFACE_MAX_EXPORTS];
+static int32_t weave_surface_export_count;
+static weave_surface_import weave_surface_imports[WEAVEC_SURFACE_MAX_IMPORTS];
+static int32_t weave_surface_import_count;
+static int32_t weave_surface_module_mode;
+static int32_t weave_surface_current_module = -1;
+static int32_t weave_surface_resolution_status;
 static int32_t weave_surface_return_type;
 static int32_t weave_surface_error;
 
@@ -83,6 +126,15 @@ static int weave_surface_slice_equal(
         return 0;
     }
     return memcmp(stored, source + start, (size_t)length) == 0;
+}
+
+static int weave_surface_stored_equal(
+    const char *left,
+    int64_t left_length,
+    const char *right,
+    int64_t right_length) {
+    return left != NULL && right != NULL && left_length == right_length &&
+        memcmp(left, right, (size_t)left_length) == 0;
 }
 
 static int32_t weave_surface_struct_index_from_type(int32_t type) {
@@ -129,6 +181,110 @@ static int32_t weave_surface_struct_allocate(
     return index;
 }
 
+static int32_t weave_surface_module_find_slice(
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    for (int32_t index = 0; index < weave_surface_module_count; ++index) {
+        if (weave_surface_slice_equal(
+                weave_surface_modules[index].name,
+                weave_surface_modules[index].name_length,
+                source,
+                start,
+                length)) {
+            return index;
+        }
+    }
+    return -1;
+}
+
+static int32_t weave_surface_module_find_stored(
+    const char *name,
+    int64_t length) {
+    for (int32_t index = 0; index < weave_surface_module_count; ++index) {
+        if (weave_surface_stored_equal(
+                weave_surface_modules[index].name,
+                weave_surface_modules[index].name_length,
+                name,
+                length)) {
+            return index;
+        }
+    }
+    return -1;
+}
+
+static int weave_surface_export_matches(
+    int32_t module_index,
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    for (int32_t index = 0; index < weave_surface_export_count; ++index) {
+        if (weave_surface_exports[index].module_index == module_index &&
+            weave_surface_slice_equal(
+                weave_surface_exports[index].name,
+                weave_surface_exports[index].name_length,
+                source,
+                start,
+                length)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int weave_surface_export_matches_stored(
+    int32_t module_index,
+    const char *name,
+    int64_t length) {
+    for (int32_t index = 0; index < weave_surface_export_count; ++index) {
+        if (weave_surface_exports[index].module_index == module_index &&
+            weave_surface_stored_equal(
+                weave_surface_exports[index].name,
+                weave_surface_exports[index].name_length,
+                name,
+                length)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int32_t weave_surface_symbol_find_in_module_slice(
+    int32_t module_index,
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    for (int32_t index = 0; index < weave_surface_symbol_count; ++index) {
+        if (weave_surface_symbols[index].module_index == module_index &&
+            weave_surface_slice_equal(
+                weave_surface_symbols[index].name,
+                weave_surface_symbols[index].name_length,
+                source,
+                start,
+                length)) {
+            return index;
+        }
+    }
+    return -1;
+}
+
+static int32_t weave_surface_symbol_find_in_module_stored(
+    int32_t module_index,
+    const char *name,
+    int64_t length) {
+    for (int32_t index = 0; index < weave_surface_symbol_count; ++index) {
+        if (weave_surface_symbols[index].module_index == module_index &&
+            weave_surface_stored_equal(
+                weave_surface_symbols[index].name,
+                weave_surface_symbols[index].name_length,
+                name,
+                length)) {
+            return index;
+        }
+    }
+    return -1;
+}
+
 void weave_surface_symbols_reset(void) {
     for (int32_t index = 0; index < weave_surface_symbol_count; ++index) {
         free(weave_surface_symbols[index].name);
@@ -148,12 +304,237 @@ void weave_surface_symbols_reset(void) {
             weave_surface_structs[index].fields[field].name = NULL;
         }
     }
+    for (int32_t index = 0; index < weave_surface_module_count; ++index) {
+        free(weave_surface_modules[index].name);
+        weave_surface_modules[index].name = NULL;
+    }
+    for (int32_t index = 0; index < weave_surface_export_count; ++index) {
+        free(weave_surface_exports[index].name);
+        weave_surface_exports[index].name = NULL;
+    }
+    for (int32_t index = 0; index < weave_surface_import_count; ++index) {
+        free(weave_surface_imports[index].module_name);
+        free(weave_surface_imports[index].symbol_name);
+        weave_surface_imports[index].module_name = NULL;
+        weave_surface_imports[index].symbol_name = NULL;
+    }
     weave_surface_symbol_count = 0;
     weave_surface_symbol_being_built = -1;
     weave_surface_local_count = 0;
     weave_surface_struct_count = 0;
+    weave_surface_module_count = 0;
+    weave_surface_export_count = 0;
+    weave_surface_import_count = 0;
+    weave_surface_module_mode = WEAVEC_SURFACE_MODULE_MODE_UNSET;
+    weave_surface_current_module = -1;
+    weave_surface_resolution_status = WEAVEC_SURFACE_RESOLUTION_OK;
     weave_surface_return_type = 0;
     weave_surface_error = 0;
+}
+
+int32_t weave_surface_module_use_legacy(void) {
+    if (weave_surface_module_mode == WEAVEC_SURFACE_MODULE_MODE_EXPLICIT) {
+        return -2;
+    }
+    weave_surface_module_mode = WEAVEC_SURFACE_MODULE_MODE_LEGACY;
+    weave_surface_current_module = -1;
+    return 0;
+}
+
+int32_t weave_surface_module_begin(
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    if (weave_surface_module_mode == WEAVEC_SURFACE_MODULE_MODE_LEGACY) {
+        return -3;
+    }
+    if (weave_surface_module_find_slice(source, start, length) >= 0) {
+        return -2;
+    }
+    if (weave_surface_module_count >= WEAVEC_SURFACE_MAX_MODULES) {
+        return -1;
+    }
+    char *name = weave_surface_copy_slice(source, start, length);
+    if (name == NULL) {
+        return -1;
+    }
+    int32_t index = weave_surface_module_count++;
+    weave_surface_modules[index].name = name;
+    weave_surface_modules[index].name_length = length;
+    weave_surface_module_mode = WEAVEC_SURFACE_MODULE_MODE_EXPLICIT;
+    weave_surface_current_module = index;
+    return index;
+}
+
+int32_t weave_surface_module_select(
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    if (weave_surface_module_mode != WEAVEC_SURFACE_MODULE_MODE_EXPLICIT) {
+        return -1;
+    }
+    int32_t index = weave_surface_module_find_slice(source, start, length);
+    if (index < 0) {
+        return -1;
+    }
+    weave_surface_current_module = index;
+    return index;
+}
+
+int32_t weave_surface_module_add_export(
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    if (weave_surface_current_module < 0 ||
+        weave_surface_export_count >= WEAVEC_SURFACE_MAX_EXPORTS) {
+        return -1;
+    }
+    if (weave_surface_export_matches(
+            weave_surface_current_module, source, start, length)) {
+        return -2;
+    }
+    char *name = weave_surface_copy_slice(source, start, length);
+    if (name == NULL) {
+        return -1;
+    }
+    int32_t index = weave_surface_export_count++;
+    weave_surface_exports[index].module_index = weave_surface_current_module;
+    weave_surface_exports[index].name = name;
+    weave_surface_exports[index].name_length = length;
+    return 0;
+}
+
+int32_t weave_surface_module_add_import(
+    const char *source,
+    int64_t module_start,
+    int64_t module_length,
+    int64_t symbol_start,
+    int64_t symbol_length) {
+    if (weave_surface_current_module < 0 ||
+        weave_surface_import_count >= WEAVEC_SURFACE_MAX_IMPORTS) {
+        return -1;
+    }
+    for (int32_t index = 0; index < weave_surface_import_count; ++index) {
+        weave_surface_import *existing = &weave_surface_imports[index];
+        if (existing->owner_module_index != weave_surface_current_module ||
+            !weave_surface_slice_equal(
+                existing->symbol_name,
+                existing->symbol_name_length,
+                source,
+                symbol_start,
+                symbol_length)) {
+            continue;
+        }
+        if (weave_surface_slice_equal(
+                existing->module_name,
+                existing->module_name_length,
+                source,
+                module_start,
+                module_length)) {
+            return -2;
+        }
+        return -3;
+    }
+    char *module_name = weave_surface_copy_slice(
+        source, module_start, module_length);
+    char *symbol_name = weave_surface_copy_slice(
+        source, symbol_start, symbol_length);
+    if (module_name == NULL || symbol_name == NULL) {
+        free(module_name);
+        free(symbol_name);
+        return -1;
+    }
+    int32_t index = weave_surface_import_count++;
+    weave_surface_imports[index].owner_module_index =
+        weave_surface_current_module;
+    weave_surface_imports[index].module_name = module_name;
+    weave_surface_imports[index].module_name_length = module_length;
+    weave_surface_imports[index].symbol_name = symbol_name;
+    weave_surface_imports[index].symbol_name_length = symbol_length;
+    return 0;
+}
+
+int32_t weave_surface_module_export_status(
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    if (weave_surface_current_module < 0) {
+        return -1;
+    }
+    return weave_surface_symbol_find_in_module_slice(
+        weave_surface_current_module, source, start, length) >= 0 ? 0 : -1;
+}
+
+int32_t weave_surface_module_import_status(
+    const char *source,
+    int64_t module_start,
+    int64_t module_length,
+    int64_t symbol_start,
+    int64_t symbol_length) {
+    int32_t target = weave_surface_module_find_slice(
+        source, module_start, module_length);
+    if (target < 0) {
+        return -1;
+    }
+    if (weave_surface_symbol_find_in_module_slice(
+            target, source, symbol_start, symbol_length) < 0) {
+        return -2;
+    }
+    if (!weave_surface_export_matches(
+            target, source, symbol_start, symbol_length)) {
+        return -3;
+    }
+    return 0;
+}
+
+static int weave_surface_module_reaches(
+    int32_t from,
+    int32_t target,
+    unsigned char *visiting) {
+    if (from < 0 || from >= weave_surface_module_count) {
+        return 0;
+    }
+    if (visiting[from]) {
+        return 0;
+    }
+    visiting[from] = 1;
+    for (int32_t index = 0; index < weave_surface_import_count; ++index) {
+        weave_surface_import *item = &weave_surface_imports[index];
+        if (item->owner_module_index != from) {
+            continue;
+        }
+        int32_t next = weave_surface_module_find_stored(
+            item->module_name, item->module_name_length);
+        if (next < 0) {
+            continue;
+        }
+        if (next == target ||
+            weave_surface_module_reaches(next, target, visiting)) {
+            visiting[from] = 0;
+            return 1;
+        }
+    }
+    visiting[from] = 0;
+    return 0;
+}
+
+int32_t weave_surface_module_current_has_cycle(void) {
+    if (weave_surface_current_module < 0) {
+        return 0;
+    }
+    unsigned char visiting[WEAVEC_SURFACE_MAX_MODULES] = {0};
+    return weave_surface_module_reaches(
+        weave_surface_current_module,
+        weave_surface_current_module,
+        visiting);
+}
+
+const char *weave_surface_module_current_name(void) {
+    if (weave_surface_current_module < 0 ||
+        weave_surface_current_module >= weave_surface_module_count) {
+        return NULL;
+    }
+    return weave_surface_modules[weave_surface_current_module].name;
 }
 
 int32_t weave_surface_symbol_begin(
@@ -165,6 +546,12 @@ int32_t weave_surface_symbol_begin(
         weave_surface_symbol_count >= WEAVEC_SURFACE_MAX_SYMBOLS) {
         return -1;
     }
+    if (weave_surface_module_mode == WEAVEC_SURFACE_MODULE_MODE_UNSET) {
+        weave_surface_module_mode = WEAVEC_SURFACE_MODULE_MODE_LEGACY;
+        weave_surface_current_module = -1;
+    }
+    /* Until deterministic WIR name mangling lands, emitted names must remain
+       globally unique even though lookup is module-scoped. */
     for (int32_t index = 0; index < weave_surface_symbol_count; ++index) {
         if (weave_surface_slice_equal(
                 weave_surface_symbols[index].name,
@@ -184,6 +571,7 @@ int32_t weave_surface_symbol_begin(
     weave_surface_symbols[index].name_length = length;
     weave_surface_symbols[index].return_type = return_type;
     weave_surface_symbols[index].parameter_count = 0;
+    weave_surface_symbols[index].module_index = weave_surface_current_module;
     weave_surface_symbol_being_built = index;
     return index;
 }
@@ -201,28 +589,100 @@ int32_t weave_surface_symbol_add_parameter(int32_t type) {
     return 0;
 }
 
-static int32_t weave_surface_symbol_find(
+static int32_t weave_surface_symbol_resolve(
     const char *source,
     int64_t start,
     int64_t length) {
-    for (int32_t index = 0; index < weave_surface_symbol_count; ++index) {
-        if (weave_surface_slice_equal(
-                weave_surface_symbols[index].name,
-                weave_surface_symbols[index].name_length,
+    weave_surface_resolution_status = WEAVEC_SURFACE_RESOLUTION_OK;
+    if (weave_surface_module_mode != WEAVEC_SURFACE_MODULE_MODE_EXPLICIT) {
+        int32_t index = weave_surface_symbol_find_in_module_slice(
+            -1, source, start, length);
+        if (index < 0) {
+            weave_surface_resolution_status = WEAVEC_SURFACE_RESOLUTION_MISSING;
+        }
+        return index;
+    }
+
+    int32_t local = weave_surface_symbol_find_in_module_slice(
+        weave_surface_current_module, source, start, length);
+    if (local >= 0) {
+        return local;
+    }
+
+    int32_t resolved = -1;
+    for (int32_t index = 0; index < weave_surface_import_count; ++index) {
+        weave_surface_import *item = &weave_surface_imports[index];
+        if (item->owner_module_index != weave_surface_current_module ||
+            !weave_surface_slice_equal(
+                item->symbol_name,
+                item->symbol_name_length,
                 source,
                 start,
                 length)) {
-            return index;
+            continue;
+        }
+        int32_t target = weave_surface_module_find_stored(
+            item->module_name, item->module_name_length);
+        if (target < 0 || !weave_surface_export_matches_stored(
+                target, item->symbol_name, item->symbol_name_length)) {
+            continue;
+        }
+        int32_t candidate = weave_surface_symbol_find_in_module_stored(
+            target, item->symbol_name, item->symbol_name_length);
+        if (candidate < 0) {
+            continue;
+        }
+        if (resolved >= 0 && resolved != candidate) {
+            weave_surface_resolution_status =
+                WEAVEC_SURFACE_RESOLUTION_AMBIGUOUS;
+            return -1;
+        }
+        resolved = candidate;
+    }
+    if (resolved >= 0) {
+        return resolved;
+    }
+
+    int exported_elsewhere = 0;
+    int private_elsewhere = 0;
+    for (int32_t index = 0; index < weave_surface_symbol_count; ++index) {
+        weave_surface_symbol *symbol = &weave_surface_symbols[index];
+        if (symbol->module_index == weave_surface_current_module ||
+            !weave_surface_slice_equal(
+                symbol->name,
+                symbol->name_length,
+                source,
+                start,
+                length)) {
+            continue;
+        }
+        if (weave_surface_export_matches_stored(
+                symbol->module_index, symbol->name, symbol->name_length)) {
+            exported_elsewhere = 1;
+        } else {
+            private_elsewhere = 1;
         }
     }
+    if (exported_elsewhere) {
+        weave_surface_resolution_status =
+            WEAVEC_SURFACE_RESOLUTION_NOT_IMPORTED;
+    } else if (private_elsewhere) {
+        weave_surface_resolution_status = WEAVEC_SURFACE_RESOLUTION_PRIVATE;
+    } else {
+        weave_surface_resolution_status = WEAVEC_SURFACE_RESOLUTION_MISSING;
+    }
     return -1;
+}
+
+int32_t weave_surface_symbol_resolution_status(void) {
+    return weave_surface_resolution_status;
 }
 
 int32_t weave_surface_symbol_return_type(
     const char *source,
     int64_t start,
     int64_t length) {
-    int32_t index = weave_surface_symbol_find(source, start, length);
+    int32_t index = weave_surface_symbol_resolve(source, start, length);
     return index < 0 ? 0 : weave_surface_symbols[index].return_type;
 }
 
@@ -230,7 +690,7 @@ int32_t weave_surface_symbol_parameter_count(
     const char *source,
     int64_t start,
     int64_t length) {
-    int32_t index = weave_surface_symbol_find(source, start, length);
+    int32_t index = weave_surface_symbol_resolve(source, start, length);
     return index < 0 ? -1 : weave_surface_symbols[index].parameter_count;
 }
 
@@ -239,7 +699,7 @@ int32_t weave_surface_symbol_parameter_type(
     int64_t start,
     int64_t length,
     int32_t parameter_index) {
-    int32_t index = weave_surface_symbol_find(source, start, length);
+    int32_t index = weave_surface_symbol_resolve(source, start, length);
     if (index < 0 || parameter_index < 0 ||
         parameter_index >= weave_surface_symbols[index].parameter_count) {
         return 0;
