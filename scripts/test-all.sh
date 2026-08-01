@@ -46,6 +46,9 @@ bash "$ROOT/test/selfhost-fixed-point/test.sh"
 log 'surface semantic storage'
 bash "$ROOT/test/surface-symbols/test.sh"
 
+log 'semantic-index contract'
+bash "$ROOT/test/semantic-index-contract/test.sh"
+
 log 'build boundary'
 bash "$ROOT/test/build-boundary/test.sh"
 
