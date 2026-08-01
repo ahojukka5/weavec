@@ -197,6 +197,11 @@
       (returns i32)
       (do
         (if
+          (condition (ne_i32 (call_i32 surface_prepare_module
+            (param_get tree) (param_get source)) (const_i32 0)))
+          (then (do (return (const_i32 1))))
+          (else (do)))
+        (if
           (condition (ne_i32 (call_i32 sst_register_program_decls
             (param_get tree) (param_get source)) (const_i32 0)))
           (then (do (return (const_i32 1))))
