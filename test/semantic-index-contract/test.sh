@@ -39,6 +39,10 @@ hex64 = lambda value: (
 assert hex64(doc["analysis"]["source_set_sha256"])
 assert hex64(doc["analysis"]["options_sha256"])
 
+# Ordinal suffix of an "id-kind:N" identifier, or -1 for a null reference so
+# unresolved entries sort first rather than raising.
+ordinal = lambda value: -1 if value is None else int(value.split(":", 1)[1])
+
 sources = doc["sources"]
 assert [item["index"] for item in sources] == list(range(len(sources)))
 assert [item["id"] for item in sources] == [
@@ -119,20 +123,47 @@ for reference in references:
     if reference["symbol_id"] is not None:
         assert reference["symbol_id"] in symbol_by_id
 
-for index, item in enumerate(doc["imports"]):
+imports = doc["imports"]
+assert imports == sorted(
+    imports,
+    key=lambda item: (
+        ordinal(item["module_id"]),
+        item["span"]["start"],
+        item["span"]["end"],
+    ),
+)
+for index, item in enumerate(imports):
     assert item["id"] == f"import:{index}"
     assert item["module_id"] in module_by_id
     assert item["imported_module_id"] in module_by_id
     assert item["symbol_id"] in symbol_by_id
     check_span(item["span"])
 
-for index, item in enumerate(doc["exports"]):
+exports = doc["exports"]
+assert exports == sorted(
+    exports,
+    key=lambda item: (
+        ordinal(item["module_id"]),
+        item["span"]["start"],
+        item["span"]["end"],
+    ),
+)
+for index, item in enumerate(exports):
     assert item["id"] == f"export:{index}"
     assert item["module_id"] in module_by_id
     assert item["symbol_id"] in symbol_by_id
     check_span(item["span"])
 
-for index, edge in enumerate(doc["call_edges"]):
+call_edges = doc["call_edges"]
+assert call_edges == sorted(
+    call_edges,
+    key=lambda edge: (
+        ordinal(edge["caller_symbol_id"]),
+        ordinal(edge["call_reference_id"]),
+        ordinal(edge["callee_symbol_id"]),
+    ),
+)
+for index, edge in enumerate(call_edges):
     assert edge["id"] == f"call-edge:{index}"
     assert edge["caller_symbol_id"] in symbol_by_id
     assert edge["callee_symbol_id"] in symbol_by_id
