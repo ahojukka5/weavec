@@ -51,6 +51,9 @@ surface-language contract stabilises.
 - Nominal semantic struct types with named `(new ...)`, `(field-get ...)`,
   and `(field-set ...)` forms, deterministic cross-file resolution, and exact
   constructor, receiver, field, and type diagnostics.
+- Experimental explicit `(module ...)`, `(import ...)`, and `(export ...)`
+  interfaces with private-by-default callable lookup, cycle rejection, legacy
+  program compatibility, and compiler-authoritative capability metadata.
 
 ### Changed
 
