@@ -8,7 +8,7 @@
   (version "0.1")
 
   (fn stats_ctx_new
-    (params ())
+    (params)
     (returns ptr)
     (do
       (let ctx ptr (call_ptr malloc (const_i64 24)))
