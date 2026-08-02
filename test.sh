@@ -11,7 +11,7 @@ LL_DIR="$BUILD_DIR/ll"
 BC_DIR="$BUILD_DIR/bc"
 BIN_DIR="$BUILD_DIR/bin"
 WIR_FROM_SURFACE_DIR="$BUILD_DIR/wir"
-RUNTIME_C="$ROOT/runtime/portable.c"
+RUNTIME_C="$ROOT/runtime/program.c"
 
 pass_count=0
 fail_count=0
