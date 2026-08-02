@@ -57,11 +57,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install LLVM and SDK tools (Linux)
+      # clang/llvm/curl/git/python3 are already preinstalled on this
+      # runner's image; there is no sudo here (unprivileged Apptainer, no
+      # root), so an `apt-get install` step would fail outright.
+      - name: Verify LLVM and SDK tools (Linux, preinstalled on this runner)
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang curl git llvm python3
           clang --version
           llvm-as --version
           llvm-link --version
@@ -115,10 +116,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install self-host toolchain
+      # Same as the `test` job: no sudo/apt-get here, everything is already
+      # preinstalled on this runner's image.
+      - name: Verify self-host toolchain (preinstalled on this runner)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang curl git llvm python3
           clang --version
           llvm-as --version
           llvm-link --version
