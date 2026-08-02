@@ -40,6 +40,88 @@
             (param_get name_node)))))
       (return_void)))
 
+  (fn surface_is_wir_call_node
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "call_i32") (const_i64 8)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "call_i64") (const_i64 8)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "call_f32") (const_i64 8)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "call_f64") (const_i64 8)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "call_bool") (const_i64 9)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "call_ptr") (const_i64 8)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "call_void") (const_i64 9)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn surface_emit_wir_call
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (call_void write_byte (param_get fd) (const_i32 40))
+      (let head i64 (call_i64 node_first_child
+        (param_get tree) (param_get node)))
+      (call_void emit_node
+        (param_get fd) (param_get source) (param_get tree) (local_get head))
+      (let child i64 (call_i64 node_next_sibling
+        (param_get tree) (local_get head)))
+      (if
+        (condition (eq_i64 (local_get child) (const_i64 -1)))
+        (then (do
+          (call_void write_byte (param_get fd) (const_i32 41))
+          (return_void)))
+        (else (do)))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void surface_emit_symbol_name
+        (param_get fd) (param_get source) (param_get tree) (local_get child))
+      (set child (call_i64 node_next_sibling
+        (param_get tree) (local_get child)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (call_void write_byte (param_get fd) (const_i32 32))
+          (call_void emit_node
+            (param_get fd) (param_get source) (param_get tree)
+            (local_get child))
+          (set child (call_i64 node_next_sibling
+            (param_get tree) (local_get child)))))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (return_void)))
+
   (fn surface_mark_external_symbol
     (params (source ptr) (tree ptr) (name_node i64))
     (returns void)
