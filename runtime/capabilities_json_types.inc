@@ -47,6 +47,7 @@ static const char *const weave_cap_command_protocols[] = {
     "weavec-compilation-trace-v1",
     "weave-wir-core-v2",
     "weave-wir-core-v2",
+    "weavec-semantic-index-v1",
 };
 static const char *const weave_cap_family_members[] = {
     "call_i32",
