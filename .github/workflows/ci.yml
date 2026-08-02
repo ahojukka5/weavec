@@ -11,8 +11,26 @@ permissions:
   contents: read
 
 jobs:
+  # This repository is public. The linux-*-sdks legs of `test` below (and
+  # all of `deep-selfhost`) run on the self-hosted LUMI runner and must
+  # never execute a fork's pull_request -- they need this job and fail
+  # outright (not a silent skip) if the PR's head repository isn't this
+  # same repository. macos-sdk runs on GitHub's own hosted runner
+  # (ephemeral, isolated per run) so it's exempted below, not gated here.
+  guard-self-hosted:
+    name: Verify trusted source for self-hosted jobs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject pull requests from forks
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "::error::Self-hosted LUMI runner jobs do not run for pull requests from forks (head repository: ${{ github.event.pull_request.head.repo.full_name }})."
+          exit 1
+
   test:
     name: build & test (${{ matrix.name }})
+    needs: guard-self-hosted
+    if: always() && (matrix.name == 'macos-sdk' || needs.guard-self-hosted.result == 'success')
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -20,10 +38,10 @@ jobs:
       matrix:
         include:
           - name: linux-glibc-sdks
-            os: [self-hosted, linux, x64, lumi, lumi-cpu, lumi-small]
+            os: self-hosted
             libc: glibc
           - name: linux-musl-sdks
-            os: [self-hosted, linux, x64, lumi, lumi-cpu, lumi-small]
+            os: self-hosted
             libc: musl
           - name: macos-sdk
             os: macos-latest
@@ -84,8 +102,8 @@ jobs:
 
   deep-selfhost:
     name: deep self-host ladder
-    needs: test
-    runs-on: [self-hosted, linux, x64, lumi, lumi-cpu, lumi-small]
+    needs: [test, guard-self-hosted]
+    runs-on: self-hosted
     timeout-minutes: 45
     env:
       WEAVEC1_VERSION: v0.3.2
