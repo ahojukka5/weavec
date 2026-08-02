@@ -14,6 +14,7 @@ src/frontend/quantum_nativize.weave
 src/frontend/quantum_stats.weave
 src/frontend/elaborate.weave
 src/frontend/modules.weave
+src/frontend/module_collisions.weave
 src/frontend/module_symbols.weave
 src/frontend/surface_op_names.weave
 src/frontend/surface_op_types.weave
