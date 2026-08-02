@@ -153,6 +153,7 @@ typedef struct weave_si_model {
     size_t call_edge_capacity;
     char source_set_sha256[65];
     char options_sha256[65];
+    int body_references_complete;
     const char *status;
     const char *diagnostic_code;
     const char *diagnostic_message;
@@ -166,8 +167,26 @@ typedef struct weave_si_model {
 #include "semantic_index_hash.inc"
 #include "semantic_index_ast.inc"
 #include "semantic_index_collect.inc"
+#define weave_si_collect_calls weave_si_collect_calls_base
 #include "semantic_index_calls.inc"
+#undef weave_si_collect_calls
+#include "semantic_index_body_lookup.inc"
+#include "semantic_index_body_collect.inc"
+#define weave_si_publish weave_si_publish_base
 #include "semantic_index_emit.inc"
+#undef weave_si_publish
+
+static int weave_si_publish(
+    const char *path,
+    const weave_si_model *model) {
+    weave_si_model document = *model;
+    if (strcmp(document.status, "incomplete") == 0 &&
+        document.body_references_complete) {
+        document.status = "complete";
+    }
+    return weave_si_publish_base(path, &document);
+}
+
 #include "semantic_index_driver.inc"
 
 #endif
