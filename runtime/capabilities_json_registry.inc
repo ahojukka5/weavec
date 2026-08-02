@@ -4,19 +4,21 @@ static const weave_capability_protocol weave_cap_protocols[] = {
     {"weavec-diagnostics-v1", "diagnostics", 1},
     {"weavec-compilation-trace-v1", "compilation-trace", 1},
     {"weave-wir-core-v2", "intermediate-representation", 2},
+    {"weavec-semantic-index-v1", "semantic-index", 1},
 };
 static const weave_capability_command weave_cap_commands[] = {
     {"capabilities", "capabilities --json", "public-tooling", "stable", 0, 1},
-    {"fmt", "fmt", "public-tooling", "stable", 6, 0},
+    {"fmt", "fmt", "public-tooling", "stable", 7, 0},
     {"build", "build", "public", "stable", 1, 3},
     {"frontend", "--frontend", "compiler-tooling", "stable", 4, 1},
     {"backend", "--backend", "compiler-tooling", "stable", 5, 1},
-    {"version", "--version", "public", "stable", 6, 0},
-    {"quantum-stats", "--dump-quantum-stats", "compiler-tooling", "experimental", 6, 0},
-    {"explain", "--explain", "analysis", "stable", 6, 0},
-    {"explain-json", "--explain-json", "analysis", "stable", 6, 0},
-    {"audit", "--audit", "analysis", "stable", 6, 0},
-    {"audit-json", "--audit-json", "analysis", "stable", 6, 0},
+    {"version", "--version", "public", "stable", 7, 0},
+    {"quantum-stats", "--dump-quantum-stats", "compiler-tooling", "experimental", 7, 0},
+    {"explain", "--explain", "analysis", "stable", 7, 0},
+    {"explain-json", "--explain-json", "analysis", "stable", 7, 0},
+    {"audit", "--audit", "analysis", "stable", 7, 0},
+    {"audit-json", "--audit-json", "analysis", "stable", 7, 0},
+    {"analyze", "analyze --semantic-index-json", "analysis", "experimental", 6, 1},
 };
 static const weave_capability_feature weave_cap_features[] = {
     {"typed-surface-elaboration", "stable", 49},
@@ -27,7 +29,7 @@ static const weave_capability_feature weave_cap_features[] = {
     {"diagnostic-repairs", "stable", 51},
     {"semantic-structs", "experimental", 52},
     {"modules", "experimental", 53},
-    {"semantic-index", "planned", 37},
+    {"semantic-index", "experimental", 37},
     {"quantum-surface", "experimental", 0},
 };
 static const weave_capability_role weave_cap_roles[] = {
