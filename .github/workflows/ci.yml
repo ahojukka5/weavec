@@ -20,10 +20,10 @@ jobs:
       matrix:
         include:
           - name: linux-glibc-sdks
-            os: ubuntu-latest
+            os: [self-hosted, linux, x64, lumi, lumi-cpu, lumi-small]
             libc: glibc
           - name: linux-musl-sdks
-            os: ubuntu-latest
+            os: [self-hosted, linux, x64, lumi, lumi-cpu, lumi-small]
             libc: musl
           - name: macos-sdk
             os: macos-latest
@@ -85,7 +85,7 @@ jobs:
   deep-selfhost:
     name: deep self-host ladder
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, lumi, lumi-cpu, lumi-small]
     timeout-minutes: 45
     env:
       WEAVEC1_VERSION: v0.3.2
