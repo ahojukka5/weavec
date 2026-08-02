@@ -1,6 +1,6 @@
 # Semantic index protocol
 
-Status: initial compiler emitter implemented for issue #37
+Status: source-sensitive complete compiler emitter for issue #37
 
 `weavec-semantic-index-v1` is the compiler-authoritative description of Weave
 sources, modules, declarations, interfaces, and semantic relationships. It is
@@ -22,47 +22,78 @@ temporary sibling and atomically renames it into place, so a consumer never
 observes a partially written document. Frontend diagnostics remain on standard
 error; standard output is not used for the protocol.
 
-## Initial implementation
+## Emitted semantic graph
 
-The first emitter publishes authoritative facts for:
+A successful analysis publishes authoritative facts for:
 
 - supplied source documents and their SHA-256 hashes;
 - explicit modules and deterministic synthetic legacy modules;
 - function, entry, external, constant, struct, and field declarations;
 - definition spans and canonical signatures;
 - explicit imports and exports;
-- import, export, and call references;
-- compiler-resolved caller/callee edges for canonical and typed calls;
+- call references and compiler-resolved caller/callee edges;
+- body-level reads and writes for canonical and admitted compatibility forms;
+- explicit type references in declarations, bindings, casts, and constructors;
+- semantic struct constructor, field-read, and field-write references;
 - stable module interface descriptions and SHA-256 hashes;
-- explicit successful-incomplete and failed-analysis states.
+- complete successful and explicit failed-analysis states.
 
 The compiler validates the source set through the existing self-hosted frontend
-passes. The semantic-index driver does not implement a second parser, resolver,
-or type system.
+passes. The semantic-index driver walks the same parser trees after validation;
+it does not implement a second parser, type checker, or acceptance path.
 
-Body-level read, write, and type references are not emitted yet. Call targets
-are resolved through the same compiler symbol registry used by lowering; the
-emitter does not guess targets from source spelling alone. A successful document
-therefore reports:
+For source sets composed of fully modeled canonical forms and admitted typed
+expression compatibility forms, a successful document reports:
 
 ```json
 {
   "analysis": {
-    "status": "incomplete",
-    "complete": false,
-    "diagnostics_complete": true,
-    "incomplete_reason":
-      "read/write/type references are not emitted yet"
+    "status": "complete",
+    "complete": true,
+    "diagnostics_complete": true
   }
 }
 ```
 
-The collections that are present remain authoritative. Consumers must not treat
-an empty read, write, or type-reference subset as proof that no such uses exist.
-
 A semantic validation failure returns a nonzero exit status and publishes a
 `failed` document with empty semantic graph collections and an explicit
 diagnostic item.
+
+## Reference roles and targets
+
+`references` contains the following roles:
+
+- `call`: a canonical or typed call target;
+- `read`: a parameter, local, constant, or struct-field value read;
+- `write`: an assignment target, constructor field, or struct-field update;
+- `type`: an explicit type occurrence;
+- `import`: an imported declaration name;
+- `export`: an exported declaration name.
+
+Module-level declarations use stable `symbol:N` identifiers. Named struct type
+references and semantic field operations link to their `struct` or `field`
+symbol. Primitive types are compiler-resolved built-ins and therefore have
+`symbol_id: null` with `status: "resolved"`.
+
+Parameters and locals are validated lexical bindings rather than module
+symbols in schema version 1. Their read and write entries likewise use
+`symbol_id: null` with `status: "resolved"`. The exact span identifies the
+binding use, and the containing callable definition supplies its scope.
+Consumers must distinguish this case from an unresolved reference by checking
+`status`; a null symbol ID alone does not mean failure.
+
+The body collector covers the canonical surface forms advertised by
+`weavec capabilities --json`, including bare identifier reads, `let`, `set`,
+`cast`, `new`, `field-get`, `field-set`, quantum operands, typed expression
+forms, and the admitted `param_get`, `local_get`, `global_get`, `local_set`,
+and `global_set` compatibility spellings. Call targets remain resolved through
+the compiler's module-aware symbol registry.
+
+The compatibility registry also admits a deliberately broad low-level WIR
+family. When a valid source uses an unmodeled low-level form whose identifier
+operands are not necessarily value references, analysis remains `incomplete`
+rather than guessing roles or emitting false relationships. Nested modeled
+expressions are still collected.
 
 ## Identity and ordering
 
@@ -155,16 +186,15 @@ exported name, kind, signature, or module identity changes it.
 `analysis.status` is one of:
 
 - `complete`: every collection required by the schema is authoritative;
-- `incomplete`: emitted collections are authoritative, but at least one required
-  semantic category is unavailable;
+- `incomplete`: the source set contains an accepted low-level compatibility
+  form whose identifier operand roles are not fully modeled;
 - `failed`: semantic analysis did not produce a trustworthy graph.
 
 `analysis.complete` is true only for `complete`. Consumers must inspect status
 before answering absence questions.
 
 The embedded diagnostics envelope uses `weavec-diagnostics-v1`. Diagnostic
-completeness is independent of graph completeness: the initial emitter can
-report complete diagnostics while the reference graph remains incomplete.
+completeness is independent of graph completeness.
 
 ## Consumer rules
 
@@ -175,17 +205,18 @@ A consumer must:
 3. preserve supplied source ordering;
 4. interpret spans as UTF-8 byte ranges;
 5. inspect completeness before answering negative queries;
-6. use interface hashes only with the documented algorithm identifier;
-7. never infer visibility, imports, or semantic identity from filenames.
+6. inspect reference status before interpreting a null symbol ID;
+7. use interface hashes only with the documented algorithm identifier;
+8. never infer visibility, imports, or semantic identity from filenames.
 
 Jacquard should map compiler spans to stable structural node IDs. It must not
 reconstruct Weave name resolution from source examples.
 
-## Implementation path
+## Evolution
 
-The next bounded slice adds body-level read, write, and type references, allowing
-successful analysis to become complete. Later work may extend diagnostic spans
-and symbol kinds while remaining backward-compatible through additive fields
-or a new major schema version.
+Future versions may add lexical binding symbols, richer expression-type records,
+or additional relationship kinds. Additive fields remain ignorable by tolerant
+v1 consumers; changes that alter required identity or interpretation require a
+new major schema version.
 
 The compiler remains the sole semantic authority throughout that work.
