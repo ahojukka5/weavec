@@ -25,6 +25,9 @@
   (extern weave_surface_struct_name
     (params (type i32))
     (returns ptr))
+  (extern weave_surface_struct_wir_name
+    (params (type i32))
+    (returns ptr))
   (extern weave_surface_struct_field_count
     (params (type i32))
     (returns i32))

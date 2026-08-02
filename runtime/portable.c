@@ -123,10 +123,20 @@ static char *weave_rt_mkdtemp(char *path_template) {
 
 #define weave_surface_symbols_reset weave_surface_symbols_reset_storage
 #define weave_surface_symbol_begin weave_surface_symbol_begin_storage
+#define weave_surface_struct_type_or_declare \
+    weave_surface_struct_type_or_declare_storage
+#define weave_surface_struct_define weave_surface_struct_define_storage
+#define weave_surface_struct_name weave_surface_struct_name_storage
 #include "surface_symbols.c"
+#undef weave_surface_struct_name
+#undef weave_surface_struct_define
+#undef weave_surface_struct_type_or_declare
 #undef weave_surface_symbol_begin
 #undef weave_surface_symbols_reset
+#define weave_surface_symbols_reset weave_surface_symbols_reset_symbol_names
 #include "module_wir_names.c"
+#undef weave_surface_symbols_reset
+#include "module_struct_names.c"
 #include "json_writer.c"
 #include "document_publish.c"
 #include "semantic_index.c"
