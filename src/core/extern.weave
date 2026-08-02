@@ -28,6 +28,8 @@
   (extern weave_rt_print_version (params) (returns i32))
   (extern weave_rt_print_capabilities (params) (returns i32))
   (extern weave_rt_format_main (params (argc i32) (argv ptr)) (returns i32))
+  (extern weave_rt_semantic_index_main
+    (params (argc i32) (argv ptr)) (returns i32))
   (extern weave_rt_contract_fail (params (msg ptr)) (returns void))
   (extern weave_rt_build_main (params (argc i32) (argv ptr)) (returns i32))
   (extern weave_rt_set_source_index (params (source_index i64)) (returns void))

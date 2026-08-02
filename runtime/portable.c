@@ -128,8 +128,9 @@ static char *weave_rt_mkdtemp(char *path_template) {
 #undef weave_surface_symbols_reset
 #include "module_wir_names.c"
 #include "json_writer.c"
-#include "capabilities_json.c"
 #include "document_publish.c"
+#include "semantic_index.c"
+#include "capabilities_json.c"
 #include "build_manifest_json.c"
 #include "semantic_diagnostic_transport.c"
 
