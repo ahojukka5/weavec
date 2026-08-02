@@ -54,6 +54,24 @@
       (params (sst_fd i32) (sst_type i32))
       (returns void)
       (do
+        ; Human diagnostics are written to stderr and keep the source spelling.
+        ; Generated WIR helper references use the compiler-owned module name.
+        (if
+          (condition (and_bool
+            (ne_i32 (param_get sst_fd) (const_i32 2))
+            (ne_i32 (call_i32 weave_surface_struct_is_type
+              (param_get sst_type)) (const_i32 0))))
+          (then (do
+            (let sst_helper_name ptr (call_ptr weave_surface_struct_wir_name
+              (param_get sst_type)))
+            (if
+              (condition (ne_ptr (local_get sst_helper_name) (const_null)))
+              (then (do
+                (call_void write_cstr
+                  (param_get sst_fd) (local_get sst_helper_name))
+                (return_void)))
+              (else (do)))))
+          (else (do)))
         (let sst_name ptr (call_ptr sst_type_name_ptr (param_get sst_type)))
         (if
           (condition (ne_ptr (local_get sst_name) (const_null)))
