@@ -30,10 +30,6 @@ jobs:
   test:
     name: build & test (${{ matrix.name }})
     needs: guard-self-hosted
-    # Job-level `if:` can't reference the matrix context, so the
-    # self-hosted-legs-only trust check below is a step instead; this just
-    # keeps the job from being skipped outright when guard-self-hosted fails
-    # (which it does, on purpose, for untrusted fork PRs).
     if: always()
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -67,9 +63,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # clang/llvm/curl/git/python3 are already preinstalled on this
-      # runner's image; there is no sudo here (unprivileged Apptainer, no
-      # root), so an `apt-get install` step would fail outright.
       - name: Verify LLVM and SDK tools (Linux, preinstalled on this runner)
         if: runner.os == 'Linux'
         run: |
@@ -126,8 +119,37 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Same as the `test` job: no sudo/apt-get here, everything is already
-      # preinstalled on this runner's image.
+      - name: Select self-host scratch storage
+        shell: bash
+        run: |
+          set -euo pipefail
+          best_dir=''
+          best_kib=0
+          for candidate in \
+            "${TMPDIR:-}" \
+            "${RUNNER_TEMP:-}" \
+            /tmp \
+            "$GITHUB_WORKSPACE"; do
+            [[ -n "$candidate" && -d "$candidate" && -w "$candidate" ]] || continue
+            available="$(df -Pk "$candidate" | awk 'NR == 2 { print $4 }')"
+            [[ "$available" =~ ^[0-9]+$ ]] || continue
+            if (( available > best_kib )); then
+              best_dir="$candidate"
+              best_kib="$available"
+            fi
+          done
+          [[ -n "$best_dir" ]] || {
+            echo '::error::No writable filesystem is available for self-host artifacts.'
+            exit 1
+          }
+          scratch="$best_dir/weavec-selfhost-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          rm -rf "$scratch" build
+          mkdir -p "$scratch"
+          ln -s "$scratch" build
+          echo "WEAVEC_SELFHOST_SCRATCH=$scratch" >> "$GITHUB_ENV"
+          printf 'Selected %s with %s KiB available.\n' "$best_dir" "$best_kib"
+          df -h "$scratch"
+
       - name: Verify self-host toolchain (preinstalled on this runner)
         run: |
           clang --version
@@ -141,6 +163,16 @@ jobs:
           ./build.sh 2>&1 | tee selfhost-seed.log
           test -x build/weavec
 
+      - name: Reclaim seed intermediates
+        shell: bash
+        run: |
+          set -euo pipefail
+          find "$WEAVEC_SELFHOST_SCRATCH" \
+            -mindepth 1 -maxdepth 1 ! -name weavec \
+            -exec rm -rf -- {} +
+          test -x build/weavec
+          df -h "$WEAVEC_SELFHOST_SCRATCH"
+
       - name: Run deep self-host
         shell: bash
         run: |
@@ -152,6 +184,13 @@ jobs:
           test -x build/selfhost/stage1/weavec
           test -x build/selfhost/stage2/weavec
 
+      - name: Summarize failed self-host stage
+        if: failure()
+        shell: bash
+        run: |
+          find -L build/selfhost -maxdepth 3 -type f \
+            -printf '%p %s bytes\n' 2>/dev/null | sort || true
+
       - name: Upload failed self-host evidence
         if: failure()
         uses: actions/upload-artifact@v4
@@ -160,6 +199,10 @@ jobs:
           path: |
             selfhost-seed.log
             selfhost.log
+            build/selfhost/stage1/weavec.wir
+            build/selfhost/stage1/weavec.ll
+            build/selfhost/**/*.backend.stdout
+            build/selfhost/**/*.backend.stderr
             build/selfhost/**/*.failed
             build/selfhost/**/*.version.txt
             build/selfhost/**/*.smoke.wir
@@ -167,3 +210,10 @@ jobs:
             build/selfhost/**/*.smoke.stderr
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Clean self-host scratch storage
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "${WEAVEC_SELFHOST_SCRATCH:-}"
+          rm -f build
