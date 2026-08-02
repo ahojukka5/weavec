@@ -61,6 +61,13 @@ static int weave_surface_struct_is_module_scoped(void) {
         weave_surface_current_module >= 0;
 }
 
+static int weave_surface_struct_slice_valid(
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    return source != NULL && start >= 0 && length > 0;
+}
+
 static int32_t weave_surface_struct_install_names(
     int32_t type,
     char *source_name,
@@ -99,6 +106,9 @@ int32_t weave_surface_struct_type_or_declare(
         return weave_surface_struct_type_or_declare_storage(
             source, start, length);
     }
+    if (!weave_surface_struct_slice_valid(source, start, length)) {
+        return 0;
+    }
     char *source_name = weave_surface_copy_slice(source, start, length);
     char *wir_name = weave_surface_mangle_struct_name(
         weave_surface_current_module, source + start, length);
@@ -123,6 +133,9 @@ int32_t weave_surface_struct_define(
     int64_t length) {
     if (!weave_surface_struct_is_module_scoped()) {
         return weave_surface_struct_define_storage(source, start, length);
+    }
+    if (!weave_surface_struct_slice_valid(source, start, length)) {
+        return -1;
     }
     char *source_name = weave_surface_copy_slice(source, start, length);
     char *wir_name = weave_surface_mangle_struct_name(
