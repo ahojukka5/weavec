@@ -62,6 +62,21 @@
             (param_get sst_fd) (const_string_ptr "unknown")))))
         (return_void)))
 
+  (fn sst_emit_struct_wir_name
+      (params (sst_fd i32) (sst_type i32))
+      (returns void)
+      (do
+        (let sst_wir_name ptr (call_ptr weave_surface_struct_wir_name
+          (param_get sst_type)))
+        (if
+          (condition (ne_ptr (local_get sst_wir_name) (const_null)))
+          (then (do
+            (call_void write_cstr (param_get sst_fd) (local_get sst_wir_name))))
+          (else (do
+            (call_void write_cstr
+              (param_get sst_fd) (const_string_ptr "unknown")))))
+        (return_void)))
+
   (fn sst_emit_wir_type
       (params (sst_fd i32) (sst_type i32))
       (returns void)
