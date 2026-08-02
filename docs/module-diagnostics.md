@@ -31,6 +31,7 @@ Every structured module diagnostic has:
 | `frontend.module.import-invalid-symbol` | `import-symbol` | An imported symbol is not an identifier. |
 | `frontend.module.duplicate-import` | `import-symbol` | The same module binding was imported more than once. |
 | `frontend.module.conflicting-import` | `import-symbol` | Different modules provide the same imported binding. |
+| `frontend.module.import-local-collision` | `import-symbol` | The imported binding conflicts with a declaration in the current module. |
 | `frontend.module.import-registration` | `import-symbol` | The compiler could not register an otherwise valid import. |
 | `frontend.module.import-missing-module` | `import-module` | The named source module does not exist. |
 | `frontend.module.import-missing-symbol` | `import-symbol` | The source module does not declare the requested symbol. |

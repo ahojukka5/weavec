@@ -76,11 +76,15 @@ Wildcard imports are not supported. The compiler rejects:
 - a missing source symbol;
 - a private source symbol;
 - the same imported binding repeated;
-- two modules imported under the same local symbol name.
+- two modules imported under the same local symbol name;
+- an imported binding that conflicts with a callable or constant declared in
+  the current module.
 
 A call first resolves a declaration in its own module, then an explicitly
 imported exported declaration. An exported name in another module is not ambient;
-it remains unavailable until imported.
+it remains unavailable until imported. Because imported bindings and local
+declarations cannot share a name, this lookup order never silently shadows a
+valid import.
 
 ## Ordering and cycles
 
@@ -128,17 +132,16 @@ The experimental slices provide:
 - private-by-default callable lookup;
 - deterministic WIR names for colliding private callables and constants used by
   canonical calls;
-- duplicate imports, conflicting imports, missing and private symbols,
-  mixed-root inputs, raw-linkage collisions, and cycles are rejected;
+- duplicate imports, conflicting imports, local/import collisions, missing and
+  private symbols, mixed-root inputs, raw-linkage collisions, and cycles are
+  rejected with structured module diagnostics;
 - legacy `program` compatibility.
 
 The following work remains under issue #53:
 
 - module-aware rewriting for explicit WIR-shaped `call_*` compatibility forms;
 - contract-lowered duplicate private callable names;
-- explicit diagnostics for a local declaration colliding with an imported name;
 - module-scoped struct type identities;
-- structured module diagnostics in `weavec-diagnostics-v1`;
 - semantic-index definitions, imports, exports, references, and interface hashes.
 
 ## Tooling contract
