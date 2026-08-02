@@ -14,41 +14,38 @@
       (code ptr) (role ptr) (symbol_node i64))
     (returns void)
     (do
-      (let module_diag_start i64 (const_i64 -1))
-      (let module_diag_length i64 (const_i64 0))
+      (let module_diag_node i64 (param_get node))
       (let module_diag_symbol_start i64 (const_i64 -1))
       (let module_diag_symbol_length i64 (const_i64 0))
       (if
-        (condition (ne_i64 (param_get node) (const_i64 -1)))
-        (then (do
-          (set module_diag_start (call_i64 node_text_start
-            (param_get tree) (param_get node)))
-          (set module_diag_length (call_i64 node_text_len
-            (param_get tree) (param_get node)))
-          (if
-            (condition (ne_i64 (param_get symbol_node) (const_i64 -1)))
-            (then (do
-              (set module_diag_symbol_start (call_i64 node_text_start
-                (param_get tree) (param_get symbol_node)))
-              (set module_diag_symbol_length (call_i64 node_text_len
-                (param_get tree) (param_get symbol_node)))))
-            (else (do)))
-          (call_void weave_rt_diag_record
-            (param_get code)
-            (param_get source)
-            (local_get module_diag_start)
-            (local_get module_diag_length)
-            (const_null)
-            (const_null)
-            (const_i32 -1)
-            (const_i32 -1)
-            (const_i32 -1)
-            (param_get role)
-            (param_get source)
-            (local_get module_diag_symbol_start)
-            (local_get module_diag_symbol_length)
-            (const_i32 0))))
+        (condition (eq_i64 (local_get module_diag_node) (const_i64 -1)))
+        (then (do (set module_diag_node (const_i64 0))))
         (else (do)))
+      (if
+        (condition (ne_i64 (param_get symbol_node) (const_i64 -1)))
+        (then (do
+          (set module_diag_symbol_start (call_i64 node_text_start
+            (param_get tree) (param_get symbol_node)))
+          (set module_diag_symbol_length (call_i64 node_text_len
+            (param_get tree) (param_get symbol_node)))))
+        (else (do)))
+      (call_void weave_rt_diag_record
+        (param_get code)
+        (param_get source)
+        (call_i64 node_text_start
+          (param_get tree) (local_get module_diag_node))
+        (call_i64 node_text_len
+          (param_get tree) (local_get module_diag_node))
+        (const_null)
+        (const_null)
+        (const_i32 -1)
+        (const_i32 -1)
+        (const_i32 -1)
+        (param_get role)
+        (param_get source)
+        (local_get module_diag_symbol_start)
+        (local_get module_diag_symbol_length)
+        (const_i32 0))
       (call_void surface_error_prefix (const_string_ptr "module"))
       (call_void write_cstr (const_i32 2) (param_get message))
       (if
