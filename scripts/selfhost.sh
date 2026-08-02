@@ -115,14 +115,28 @@ build_stage() {
   local compiler="$1"
   local out_dir="$2"
   local out_bin="$out_dir/weavec"
+  local backend_stdout="$out_dir/weavec.backend.stdout"
+  local backend_stderr="$out_dir/weavec.backend.stderr"
+  local backend_status
 
   mkdir -p "$out_dir"
+  rm -f "$backend_stdout" "$backend_stderr"
 
   log "frontend $out_dir/weavec.wir"
   "$compiler" --frontend "$out_dir/weavec.wir" "${SOURCES[@]}"
 
   log "backend $out_dir/weavec.ll"
-  "$compiler" --backend "$out_dir/weavec.wir" "$out_dir/weavec.ll"
+  set +e
+  "$compiler" --backend "$out_dir/weavec.wir" "$out_dir/weavec.ll" \
+    >"$backend_stdout" 2>"$backend_stderr"
+  backend_status="$?"
+  set -e
+  if [[ "$backend_status" -ne 0 ]]; then
+    cat "$backend_stdout"
+    cat "$backend_stderr" >&2
+    fail "stage backend failed with status $backend_status; retained $out_dir/weavec.wir, $backend_stdout, and $backend_stderr"
+  fi
+  rm -f "$backend_stdout" "$backend_stderr"
 
   local runtime_ll=()
   local mod
