@@ -34,6 +34,8 @@ names used when they were released.
   separate release-package `BUILD-MANIFEST`.
 - [Machine-readable diagnostics](diagnostics.md) —
   `weavec-diagnostics-v1`, stable phase exits, and source-span provenance.
+- [Structured module diagnostics](module-diagnostics.md) — stable module,
+  import, and export error codes, operand roles, and exact-span policy.
 - [Source-linked compilation trace](compilation-trace.md) —
   `weavec-compilation-trace-v1`, deterministic lowering and optimization events,
   and exact original source spans.
