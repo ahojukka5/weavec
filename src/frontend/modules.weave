@@ -9,9 +9,46 @@
   (version "0.1")
 
   (fn surface_module_error
-    (params (source ptr) (tree ptr) (node i64) (message ptr))
+    (params
+      (source ptr) (tree ptr) (node i64) (message ptr)
+      (code ptr) (role ptr) (symbol_node i64))
     (returns void)
     (do
+      (let module_diag_start i64 (const_i64 -1))
+      (let module_diag_length i64 (const_i64 0))
+      (let module_diag_symbol_start i64 (const_i64 -1))
+      (let module_diag_symbol_length i64 (const_i64 0))
+      (if
+        (condition (ne_i64 (param_get node) (const_i64 -1)))
+        (then (do
+          (set module_diag_start (call_i64 node_text_start
+            (param_get tree) (param_get node)))
+          (set module_diag_length (call_i64 node_text_len
+            (param_get tree) (param_get node)))
+          (if
+            (condition (ne_i64 (param_get symbol_node) (const_i64 -1)))
+            (then (do
+              (set module_diag_symbol_start (call_i64 node_text_start
+                (param_get tree) (param_get symbol_node)))
+              (set module_diag_symbol_length (call_i64 node_text_len
+                (param_get tree) (param_get symbol_node)))))
+            (else (do)))
+          (call_void weave_rt_diag_record
+            (param_get code)
+            (param_get source)
+            (local_get module_diag_start)
+            (local_get module_diag_length)
+            (const_null)
+            (const_null)
+            (const_i32 -1)
+            (const_i32 -1)
+            (const_i32 -1)
+            (param_get role)
+            (param_get source)
+            (local_get module_diag_symbol_start)
+            (local_get module_diag_symbol_length)
+            (const_i32 0))))
+        (else (do)))
       (call_void surface_error_prefix (const_string_ptr "module"))
       (call_void write_cstr (const_i32 2) (param_get message))
       (if
@@ -79,7 +116,10 @@
         (then (do
           (call_void surface_module_error
             (param_get source) (param_get tree) (param_get clause)
-            (const_string_ptr "export requires at least one symbol"))
+            (const_string_ptr "export requires at least one symbol")
+            (const_string_ptr "frontend.module.export-empty")
+            (const_string_ptr "export")
+            (const_i64 -1))
           (return (const_i32 1))))
         (else (do)))
       (while
@@ -91,7 +131,10 @@
             (then (do
               (call_void surface_module_error
                 (param_get source) (param_get tree) (local_get symbol)
-                (const_string_ptr "export symbol must be an identifier"))
+                (const_string_ptr "export symbol must be an identifier")
+                (const_string_ptr "frontend.module.export-invalid-symbol")
+                (const_string_ptr "export-symbol")
+                (local_get symbol))
               (return (const_i32 1))))
             (else (do)))
           (let status i32 (call_i32 weave_surface_module_add_export
@@ -106,11 +149,17 @@
                 (then (do
                   (call_void surface_module_error
                     (param_get source) (param_get tree) (local_get symbol)
-                    (const_string_ptr "duplicate export"))))
+                    (const_string_ptr "duplicate export")
+                    (const_string_ptr "frontend.module.duplicate-export")
+                    (const_string_ptr "export-symbol")
+                    (local_get symbol))))
                 (else (do
                   (call_void surface_module_error
                     (param_get source) (param_get tree) (local_get symbol)
-                    (const_string_ptr "cannot register export")))))
+                    (const_string_ptr "cannot register export")
+                    (const_string_ptr "frontend.module.export-registration")
+                    (const_string_ptr "export-symbol")
+                    (local_get symbol)))))
               (return (const_i32 1))))
             (else (do)))
           (set symbol (call_i64 node_next_sibling
@@ -127,7 +176,10 @@
         (then (do
           (call_void surface_module_error
             (param_get source) (param_get tree) (param_get clause)
-            (const_string_ptr "import shape is (import MODULE (SYMBOL...))"))
+            (const_string_ptr "import shape is (import MODULE (SYMBOL...))")
+            (const_string_ptr "frontend.module.import-shape")
+            (const_string_ptr "import")
+            (const_i64 -1))
           (return (const_i32 1))))
         (else (do)))
       (let module_node i64 (call_i64 nth_child
@@ -143,7 +195,10 @@
         (then (do
           (call_void surface_module_error
             (param_get source) (param_get tree) (param_get clause)
-            (const_string_ptr "import requires a module and symbol list"))
+            (const_string_ptr "import requires a module and symbol list")
+            (const_string_ptr "frontend.module.import-shape")
+            (const_string_ptr "import")
+            (const_i64 -1))
           (return (const_i32 1))))
         (else (do)))
       (let symbol i64 (call_i64 node_first_child
@@ -153,7 +208,10 @@
         (then (do
           (call_void surface_module_error
             (param_get source) (param_get tree) (local_get symbols_node)
-            (const_string_ptr "import symbol list cannot be empty"))
+            (const_string_ptr "import symbol list cannot be empty")
+            (const_string_ptr "frontend.module.import-empty")
+            (const_string_ptr "import")
+            (local_get module_node))
           (return (const_i32 1))))
         (else (do)))
       (while
@@ -165,7 +223,10 @@
             (then (do
               (call_void surface_module_error
                 (param_get source) (param_get tree) (local_get symbol)
-                (const_string_ptr "import symbol must be an identifier"))
+                (const_string_ptr "import symbol must be an identifier")
+                (const_string_ptr "frontend.module.import-invalid-symbol")
+                (const_string_ptr "import-symbol")
+                (local_get symbol))
               (return (const_i32 1))))
             (else (do)))
           (let status i32 (call_i32 weave_surface_module_add_import
@@ -182,18 +243,27 @@
                 (then (do
                   (call_void surface_module_error
                     (param_get source) (param_get tree) (local_get symbol)
-                    (const_string_ptr "duplicate import"))))
+                    (const_string_ptr "duplicate import")
+                    (const_string_ptr "frontend.module.duplicate-import")
+                    (const_string_ptr "import-symbol")
+                    (local_get symbol))))
                 (else (do
                   (if
                     (condition (eq_i32 (local_get status) (const_i32 -3)))
                     (then (do
                       (call_void surface_module_error
                         (param_get source) (param_get tree) (local_get symbol)
-                        (const_string_ptr "conflicting imported binding"))))
+                        (const_string_ptr "conflicting imported binding")
+                        (const_string_ptr "frontend.module.conflicting-import")
+                        (const_string_ptr "import-symbol")
+                        (local_get symbol))))
                     (else (do
                       (call_void surface_module_error
                         (param_get source) (param_get tree) (local_get symbol)
-                        (const_string_ptr "cannot register import"))))))))
+                        (const_string_ptr "cannot register import")
+                        (const_string_ptr "frontend.module.import-registration")
+                        (const_string_ptr "import-symbol")
+                        (local_get symbol))))))))
               (return (const_i32 1))))
             (else (do)))
           (set symbol (call_i64 node_next_sibling
@@ -214,7 +284,10 @@
             (then (do
               (call_void surface_module_error
                 (param_get source) (param_get tree) (const_i64 0)
-                (const_string_ptr "cannot mix legacy program and explicit module roots"))
+                (const_string_ptr "cannot mix legacy program and explicit module roots")
+                (const_string_ptr "frontend.module.mixed-roots")
+                (const_string_ptr "module")
+                (const_i64 -1))
               (return (const_i32 1))))
             (else (do)))
           (return (const_i32 0))))
@@ -225,7 +298,10 @@
         (then (do
           (call_void surface_module_error
             (param_get source) (param_get tree) (const_i64 0)
-            (const_string_ptr "root must be program or module"))
+            (const_string_ptr "root must be program or module")
+            (const_string_ptr "frontend.module.invalid-root")
+            (const_string_ptr "root")
+            (const_i64 -1))
           (return (const_i32 1))))
         (else (do)))
       (let name_node i64 (call_i64 surface_module_name_node (param_get tree)))
@@ -237,7 +313,10 @@
         (then (do
           (call_void surface_module_error
             (param_get source) (param_get tree) (local_get name_node)
-            (const_string_ptr "module name must be an identifier"))
+            (const_string_ptr "module name must be an identifier")
+            (const_string_ptr "frontend.module.invalid-name")
+            (const_string_ptr "module-name")
+            (local_get name_node))
           (return (const_i32 1))))
         (else (do)))
       (let begin_status i32 (call_i32 weave_surface_module_begin
@@ -252,18 +331,27 @@
             (then (do
               (call_void surface_module_error
                 (param_get source) (param_get tree) (local_get name_node)
-                (const_string_ptr "duplicate module"))))
+                (const_string_ptr "duplicate module")
+                (const_string_ptr "frontend.module.duplicate")
+                (const_string_ptr "module-name")
+                (local_get name_node))))
             (else (do
               (if
                 (condition (eq_i32 (local_get begin_status) (const_i32 -3)))
                 (then (do
                   (call_void surface_module_error
                     (param_get source) (param_get tree) (local_get name_node)
-                    (const_string_ptr "cannot mix explicit modules with legacy programs"))))
+                    (const_string_ptr "cannot mix explicit modules with legacy programs")
+                    (const_string_ptr "frontend.module.mixed-roots")
+                    (const_string_ptr "module-name")
+                    (local_get name_node))))
                 (else (do
                   (call_void surface_module_error
                     (param_get source) (param_get tree) (local_get name_node)
-                    (const_string_ptr "cannot register module"))))))))
+                    (const_string_ptr "cannot register module")
+                    (const_string_ptr "frontend.module.registration")
+                    (const_string_ptr "module-name")
+                    (local_get name_node))))))))
           (return (const_i32 1))))
         (else (do)))
       (let child i64 (call_i64 node_next_sibling
@@ -342,7 +430,10 @@
             (then (do
               (call_void surface_module_error
                 (param_get source) (param_get tree) (local_get symbol)
-                (const_string_ptr "exported symbol is not declared in this module"))
+                (const_string_ptr "exported symbol is not declared in this module")
+                (const_string_ptr "frontend.module.export-undeclared")
+                (const_string_ptr "export-symbol")
+                (local_get symbol))
               (return (const_i32 1))))
             (else (do)))
           (set symbol (call_i64 node_next_sibling
@@ -376,18 +467,27 @@
                 (then (do
                   (call_void surface_module_error
                     (param_get source) (param_get tree) (local_get module_node)
-                    (const_string_ptr "imported module does not exist"))))
+                    (const_string_ptr "imported module does not exist")
+                    (const_string_ptr "frontend.module.import-missing-module")
+                    (const_string_ptr "import-module")
+                    (local_get module_node))))
                 (else (do
                   (if
                     (condition (eq_i32 (local_get status) (const_i32 -2)))
                     (then (do
                       (call_void surface_module_error
                         (param_get source) (param_get tree) (local_get symbol)
-                        (const_string_ptr "imported symbol does not exist"))))
+                        (const_string_ptr "imported symbol does not exist")
+                        (const_string_ptr "frontend.module.import-missing-symbol")
+                        (const_string_ptr "import-symbol")
+                        (local_get symbol))))
                     (else (do
                       (call_void surface_module_error
                         (param_get source) (param_get tree) (local_get symbol)
-                        (const_string_ptr "imported symbol is private"))))))))
+                        (const_string_ptr "imported symbol is private")
+                        (const_string_ptr "frontend.module.import-private-symbol")
+                        (const_string_ptr "import-symbol")
+                        (local_get symbol))))))))
               (return (const_i32 1))))
             (else (do)))
           (set symbol (call_i64 node_next_sibling
@@ -409,7 +509,10 @@
         (then (do
           (call_void surface_module_error
             (param_get source) (param_get tree) (const_i64 0)
-            (const_string_ptr "module was not registered during declaration pass"))
+            (const_string_ptr "module was not registered during declaration pass")
+            (const_string_ptr "frontend.module.unregistered")
+            (const_string_ptr "module")
+            (call_i64 surface_module_name_node (param_get tree)))
           (return (const_i32 1))))
         (else (do)))
       (if
@@ -419,7 +522,10 @@
           (call_void surface_module_error
             (param_get source) (param_get tree)
             (call_i64 surface_module_name_node (param_get tree))
-            (const_string_ptr "import cycle includes module"))
+            (const_string_ptr "import cycle includes module")
+            (const_string_ptr "frontend.module.import-cycle")
+            (const_string_ptr "module-name")
+            (call_i64 surface_module_name_node (param_get tree)))
           (return (const_i32 1))))
         (else (do)))
       (let name_node i64 (call_i64 surface_module_name_node (param_get tree)))
