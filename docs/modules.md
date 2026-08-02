@@ -4,9 +4,9 @@ Weave has an experimental explicit-module surface for bounding the names visible
 to an LLM or structural tool. The compiler, not the filesystem or an external
 indexer, validates module identity, imports, exports, and callable visibility.
 
-This is the second implementation slice of issue #53. It establishes the source
-interface, visibility model, and deterministic private-symbol naming without
-changing WIR core version 2.
+The issue #53 implementation series establishes the source interface, visibility
+model, deterministic private-symbol naming, and module-scoped nominal types
+without changing WIR core version 2.
 
 ## Canonical roots
 
@@ -122,6 +122,27 @@ Canonical `(call NAME ...)` forms use the same resolved WIR identifier as the
 target declaration. Unique private names remain unchanged, so this slice does
 not churn existing WIR when no collision exists.
 
+## Module-scoped struct identities
+
+A struct declared in an explicit module has a nominal identity formed from its
+module identity and source type name. Two modules may therefore both declare
+`Record`; the resulting types are distinct even when their field lists happen to
+match. A local type annotation resolves only to the struct owned by the current
+module. This slice does not add public type exports or type-import syntax.
+
+Generated constructor and accessor helpers use deterministic compiler-owned WIR
+base names. For `Record` in modules `alpha` and `beta`, the bases are:
+
+```text
+__weave_m_616c706861__t_5265636f7264
+__weave_m_62657461__t_5265636f7264
+```
+
+The `_new`, `_get_FIELD`, and `_set_FIELD` suffixes are appended to those bases.
+Diagnostics continue to display the source spelling `Record`, not the encoded
+helper name. Legacy `program` sources retain the historical `Record_new`,
+`Record_get_FIELD`, and `Record_set_FIELD` compatibility ABI.
+
 ## Current implementation boundary
 
 The experimental slices provide:
@@ -132,6 +153,7 @@ The experimental slices provide:
 - private-by-default callable lookup;
 - deterministic WIR names for colliding private callables and constants used by
   canonical calls;
+- module-scoped nominal struct identities and deterministic generated helpers;
 - duplicate imports, conflicting imports, local/import collisions, missing and
   private symbols, mixed-root inputs, raw-linkage collisions, and cycles are
   rejected with structured module diagnostics;
@@ -141,7 +163,6 @@ The following work remains under issue #53:
 
 - module-aware rewriting for explicit WIR-shaped `call_*` compatibility forms;
 - contract-lowered duplicate private callable names;
-- module-scoped struct type identities;
 - semantic-index definitions, imports, exports, references, and interface hashes.
 
 ## Tooling contract
