@@ -75,6 +75,37 @@ assert actual == expected_text, (actual, expected_text)
 PY
 }
 
+cat > "$TMP/missing-name.weave" <<'WEAVE'
+(module)
+WEAVE
+set +e
+"$WEAVEC" build "$TMP/missing-name.weave" \
+  -o "$TMP/missing-name" \
+  --diagnostics-json "$TMP/missing-name.json" \
+  >"$TMP/missing-name.stdout" 2>"$TMP/missing-name.stderr"
+missing_name_status="$?"
+set -e
+[[ "$missing_name_status" -eq 10 ]]
+[[ ! -e "$TMP/missing-name" ]]
+grep -Fq 'weavec: surface module: module name must be an identifier' \
+  "$TMP/missing-name.stderr"
+python3 - "$TMP/missing-name.json" <<'PY'
+import json
+import pathlib
+import sys
+
+document = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+diagnostic = document["diagnostics"][0]
+assert diagnostic["code"] == "frontend.module.invalid-name"
+assert diagnostic["operand_role"] == "module-name"
+assert "symbol" not in diagnostic
+assert diagnostic["span_origin"] == "compiler-semantic"
+assert diagnostic["analysis_complete"] is True
+source = pathlib.Path(diagnostic["source"]).read_bytes()
+span = diagnostic["span"]
+assert source[span["start_byte"]:span["end_byte"]] == b"(module)"
+PY
+
 cat > "$TMP/missing-module.weave" <<'WEAVE'
 (module application
   (import absent (answer))
