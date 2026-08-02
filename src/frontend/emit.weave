@@ -156,6 +156,16 @@
                 (param_get fd) (param_get source) (param_get tree) (param_get node))
               (return_void)))
             (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 surface_is_wir_call_node
+              (param_get tree) (param_get source) (param_get node))
+              (const_i32 0)))
+            (then (do
+              (call_void surface_emit_wir_call
+                (param_get fd) (param_get source) (param_get tree)
+                (param_get node))
+              (return_void)))
+            (else (do)))
           (call_void write_byte (param_get fd) (const_i32 40))
           (let child i64 (call_i64 node_first_child (param_get tree) (param_get node)))
           (let first i32 (const_i32 1))
