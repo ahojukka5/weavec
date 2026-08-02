@@ -114,6 +114,9 @@ bash "$ROOT/test/modules/test.sh"
 log 'module diagnostics'
 bash "$ROOT/test/module-diagnostics/test.sh"
 
+log 'module collision diagnostics'
+bash "$ROOT/test/module-collisions/test.sh"
+
 log 'module symbol names'
 bash "$ROOT/test/module-symbols/test.sh"
 
