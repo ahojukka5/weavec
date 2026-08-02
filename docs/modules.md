@@ -119,8 +119,11 @@ retain their source spelling. Those raw linkage names must remain globally
 unique.
 
 Canonical `(call NAME ...)` forms use the same resolved WIR identifier as the
-target declaration. Unique private names remain unchanged, so this slice does
-not churn existing WIR when no collision exists.
+target declaration. Explicit WIR-shaped compatibility forms `call_i32`,
+`call_i64`, `call_f32`, `call_f64`, `call_bool`, `call_ptr`, and `call_void` also
+resolve their callee through the module registry. Unique private names remain
+unchanged, so module resolution does not churn existing WIR when no collision
+exists.
 
 ## Module-scoped struct identities
 
@@ -152,7 +155,7 @@ The experimental slices provide:
 - explicit imported bindings;
 - private-by-default callable lookup;
 - deterministic WIR names for colliding private callables and constants used by
-  canonical calls;
+  canonical and explicit WIR-shaped calls;
 - module-scoped nominal struct identities and deterministic generated helpers;
 - duplicate imports, conflicting imports, local/import collisions, missing and
   private symbols, mixed-root inputs, raw-linkage collisions, and cycles are
@@ -161,7 +164,6 @@ The experimental slices provide:
 
 The following work remains under issue #53:
 
-- module-aware rewriting for explicit WIR-shaped `call_*` compatibility forms;
 - contract-lowered duplicate private callable names;
 - semantic-index definitions, imports, exports, references, and interface hashes.
 
