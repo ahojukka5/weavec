@@ -84,11 +84,11 @@ cat > "$TMP/alpha.weave" <<'WEAVE'
   (fn helper
     (params)
     (returns i32)
-    (do (return (call offset))))
+    (do (return (call_i32 offset))))
   (fn alpha-value
     (params)
     (returns i32)
-    (do (return (call helper)))))
+    (do (return (call_i32 helper)))))
 WEAVE
 
 cat > "$TMP/beta.weave" <<'WEAVE'
@@ -98,11 +98,11 @@ cat > "$TMP/beta.weave" <<'WEAVE'
   (fn helper
     (params)
     (returns i32)
-    (do (return (call offset))))
+    (do (return (call_i32 offset))))
   (fn beta-value
     (params)
     (returns i32)
-    (do (return (call helper)))))
+    (do (return (call_i32 helper)))))
 WEAVE
 
 cat > "$TMP/main.weave" <<'WEAVE'
