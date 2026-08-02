@@ -30,7 +30,11 @@ jobs:
   test:
     name: build & test (${{ matrix.name }})
     needs: guard-self-hosted
-    if: always() && (matrix.name == 'macos-sdk' || needs.guard-self-hosted.result == 'success')
+    # Job-level `if:` can't reference the matrix context, so the
+    # self-hosted-legs-only trust check below is a step instead; this just
+    # keeps the job from being skipped outright when guard-self-hosted fails
+    # (which it does, on purpose, for untrusted fork PRs).
+    if: always()
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -54,6 +58,12 @@ jobs:
       WEAVEC_BOOTSTRAP_LIBC: ${{ matrix.libc }}
 
     steps:
+      - name: Reject self-hosted legs when the trust guard failed
+        if: matrix.os == 'self-hosted' && needs.guard-self-hosted.result != 'success'
+        run: |
+          echo "::error::This self-hosted leg does not run for pull requests from forks."
+          exit 1
+
       - name: Checkout
         uses: actions/checkout@v4
 
