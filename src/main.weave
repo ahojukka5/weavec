@@ -56,6 +56,10 @@
     (params (ctx ptr) (name_node i64))
     (returns i32)
     (do
+      (if
+        (condition (eq_i64 (param_get name_node) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
       (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
       (let source ptr (call_ptr ctx_get_source (param_get ctx)))
       (if
@@ -83,6 +87,10 @@
     (params (ctx ptr) (decls_node i64) (name_node i64))
     (returns i32)
     (do
+      (if
+        (condition (eq_i64 (param_get name_node) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
       (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
       (let source ptr (call_ptr ctx_get_source (param_get ctx)))
       (let child i64 (call_i64 node_first_child (local_get tree) (param_get decls_node)))
@@ -132,13 +140,18 @@
           (let name_node i64 (call_i64 nth_child
             (local_get tree) (param_get node) (const_i64 1)))
           (if
-            (condition (or_bool
-              (eq_i64 (local_get name_node) (const_i64 -1))
-              (and_bool
-                (eq_i32 (call_i32 backend_is_implicit_callable
-                  (param_get ctx) (local_get name_node)) (const_i32 0))
-                (eq_i32 (call_i32 backend_decls_has_callable
-                  (param_get ctx) (param_get decls_node) (local_get name_node)) (const_i32 0)))))
+            (condition (eq_i64 (local_get name_node) (const_i64 -1)))
+            (then (do
+              (call_void diag_unknown_identifier
+                (param_get ctx) (local_get name_node))
+              (return (const_i32 1))))
+            (else (do)))
+          (if
+            (condition (and_bool
+              (eq_i32 (call_i32 backend_is_implicit_callable
+                (param_get ctx) (local_get name_node)) (const_i32 0))
+              (eq_i32 (call_i32 backend_decls_has_callable
+                (param_get ctx) (param_get decls_node) (local_get name_node)) (const_i32 0))))
             (then (do
               (call_void diag_unknown_identifier (param_get ctx) (local_get name_node))
               (return (const_i32 1))))
@@ -242,10 +255,15 @@
         (else (do)))
       (let decls_node i64 (call_i64 find_decls_node (local_get validation_ctx) (const_i64 0)))
       (if
-        (condition (or_bool
-          (eq_i64 (local_get decls_node) (const_i64 -1))
-          (ne_i32 (call_i32 backend_validate_call_targets
-            (local_get validation_ctx) (local_get decls_node) (local_get decls_node)) (const_i32 0))))
+        (condition (eq_i64 (local_get decls_node) (const_i64 -1)))
+        (then (do
+          (call_void ctx_free (local_get validation_ctx))
+          (call_void free (local_get source))
+          (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 backend_validate_call_targets
+          (local_get validation_ctx) (local_get decls_node) (local_get decls_node)) (const_i32 0)))
         (then (do
           (call_void ctx_free (local_get validation_ctx))
           (call_void free (local_get source))
