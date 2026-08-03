@@ -84,6 +84,7 @@ cat > "$TMP/alpha.weave" <<'WEAVE'
   (fn helper
     (params)
     (returns i32)
+    (requires (const_bool true))
     (do (return (call_i32 offset))))
   (fn alpha-value
     (params)
@@ -98,6 +99,7 @@ cat > "$TMP/beta.weave" <<'WEAVE'
   (fn helper
     (params)
     (returns i32)
+    (requires (const_bool true))
     (do (return (call_i32 offset))))
   (fn beta-value
     (params)
@@ -128,6 +130,7 @@ for symbol in "$alpha_helper" "$beta_helper" "$alpha_offset" "$beta_offset"; do
   grep -Fq "(fn $symbol" "$TMP/module-symbols.wir"
   grep -Fq "(call_i32 $symbol" "$TMP/module-symbols.wir"
 done
+! grep -Fq '(fn helper ' "$TMP/module-symbols.wir"
 grep -Fq '(fn alpha-value ' "$TMP/module-symbols.wir"
 grep -Fq '(fn beta-value ' "$TMP/module-symbols.wir"
 grep -Fq '(fn main ' "$TMP/module-symbols.wir"
