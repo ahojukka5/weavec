@@ -1,16 +1,16 @@
 # Weave project manifest version 1
 
-Status: specification candidate for epic #111 and issue #118.
+Status: implemented manifest-selection contract for epic #111.
 
 A Weave project is rooted by one UTF-8 file named `weave.project`. The file is a
 versioned S-expression document separate from surface `.weave` sources and from
 `weavec-build-manifest-v1` JSON build evidence.
 
-This document fixes the first-version manifest semantics before project discovery,
-module loading, public type interfaces, or incremental builds are implemented.
-The reference corpus and checker under `spec/project-manifest/` and
-`scripts/check_project_manifest_spec.py` are normative for the structural rules
-in this specification.
+This document fixes the first-version manifest semantics used by the compiler's
+project-selection boundary. The reference corpus and checker under
+`spec/project-manifest/` and `scripts/check_project_manifest_spec.py` are normative
+for the structural rules, while the production parser in the final compiler is
+covered by project-discovery regressions.
 
 ## Canonical example
 
@@ -150,7 +150,9 @@ always writes the resolved value explicitly.
 
 The manifest value is not an output directory and cannot escape the project.
 The existing public `-o` or `--output` command-line option overrides this default
-and retains its current path semantics.
+and retains its current path semantics. The selected manifest is protected as an
+input: neither the explicit output, the manifest default, diagnostics, traces,
+nor another requested artifact may alias `weave.project`.
 
 ## Canonical serialization
 
@@ -176,32 +178,36 @@ semicolon comments through the same deterministic attachment policy documented
 for surface formatting. Comments are not semantic and do not participate in the
 reference checker model.
 
-The eventual command spelling is owned by #119. It may extend `weavec fmt` or add
-a project-specific formatter, but it must emit this exact structural normal form.
+A dedicated project-formatting command has not yet been added. When introduced,
+it must emit this exact structural normal form.
 
 ## Command-line mode precedence
 
-Issue #119 must implement these precedence rules:
+The final compiler implements these precedence rules:
 
 1. Supplying explicit `.weave` source arguments selects existing source-list mode.
    Project discovery does not silently affect that build.
-2. Project-only options are invalid when combined with explicit source arguments.
-3. With no explicit source arguments, an explicit project/manifest selection
-   takes precedence over implicit discovery.
+2. `--project` is invalid when combined with explicit source arguments.
+3. With no explicit source arguments, `--project PATH` or `--project=PATH` selects
+   a project directory or a regular file named exactly `weave.project`.
 4. With neither sources nor an explicit project selection, `weavec build`
-   discovers the nearest admitted `weave.project` according to #119.
-5. `-o` or `--output` overrides the manifest `output` value.
-6. Existing target, optimization, CPU, runtime, and tooling options apply to the
+   discovers the nearest admitted `weave.project` from the current directory
+   toward the filesystem root.
+5. A nearer malformed or unreadable manifest is authoritative and prevents
+   fallback to a more distant parent manifest.
+6. `-o` or `--output` overrides the manifest `output` value.
+7. Existing target, optimization, CPU, runtime, and tooling options apply to the
    selected project build without changing project identity.
-7. Format 1 provides no command-line override for `name`, `kind`, roots, or
+8. Format 1 provides no command-line override for `name`, `kind`, roots, or
    `entry`.
 
-Ambiguous combinations fail rather than selecting a mode heuristically.
+Ambiguous combinations fail rather than selecting a mode heuristically. See
+[Command reference](command-reference.md) for the exact invocation forms.
 
 ## Diagnostics contract
 
-The implementation must use stable project-manifest diagnostic codes. The first
-version reserves these families:
+The production parser uses stable project-manifest diagnostic codes. Version 1
+reserves these families:
 
 ```text
 project.manifest.read
@@ -220,31 +226,21 @@ project.manifest.entry
 project.manifest.output
 ```
 
-Diagnostics should use the most specific source role available:
+Diagnostics use the most specific source span available. Structural failures
+point at the malformed field or value. A missing conditional field points at the
+root because no narrower source span exists. Manifest failure occurs before WIR
+or native output publication.
 
-```text
-manifest-root
-manifest-field
-manifest-format
-project-name
-project-kind
-source-root
-test-root
-entry-module
-output-name
-```
-
-Structural failures point at the malformed field or value. A missing conditional
-field points at the root because no narrower source span exists. Manifest failure
-occurs before WIR or native output publication.
-
-Exact public exit-code integration belongs to #119 and protocol publication to
-#123.
+Human diagnostics retain raw driver exit `2`. When `--diagnostics-json` can be
+published safely, the same failure is represented by `weavec-diagnostics-v1` with
+stable driver exit `15`, the selected manifest path, and an exact byte span where
+one exists. Full project protocol publication remains owned by #123.
 
 ## Capability and build-evidence representation
 
-When project mode is implemented, `weavec capabilities --json` must publish an
-experimental `projects` feature containing at least:
+The generic stable `build` command in `weavec capabilities --json` remains valid
+for source-list and project selection. The exact additive `projects` feature
+schema is owned by #123 and must eventually contain at least:
 
 - manifest filename `weave.project`;
 - root head `weave-project`;
@@ -253,8 +249,9 @@ experimental `projects` feature containing at least:
 - project-build command availability;
 - the absence of external dependencies and lockfiles.
 
-The exact additive schema change is owned by #123. Tools must not infer project
-support merely because this specification exists.
+Tools must not infer complete project builds merely from the manifest
+specification or command availability. Source discovery remains explicitly
+pending until #120.
 
 A project build that requests `weavec-build-manifest-v1` must add a `project`
 object rather than reinterpret the existing ordered `sources` field. The object
@@ -274,15 +271,21 @@ object.
 
 ## Compatibility and implementation boundary
 
-This specification does not make current `weavec build` discover projects. It
-does not change surface Weave, module semantics, WIR core version 2, runtime
-packaging, or existing explicit source-list builds.
+Project selection, nearest-parent discovery, version-1 parsing, command-line
+precedence, output-default resolution, manifest protection, human diagnostics,
+and diagnostics JSON integration are implemented by #119.
+
+A valid selected project currently ends at the explicit
+`project.sources.pending` boundary. Issue #120 replaces that boundary with
+deterministic source membership. No current project-selection behavior changes
+surface Weave, module semantics, WIR core version 2, runtime packaging, or
+existing explicit source-list builds.
 
 Format 1 contains no dependency declarations, lockfile, package registry,
 workspace, build script, arbitrary environment interpolation, conditional target
 section, or hidden filename conventions.
 
-Implementation proceeds through #119, #120, #121, #122, and #123. Integrated
+Implementation continues through #120, #121, #122, and #123. Integrated
 qualification is tracked by #124. Incremental compilation in #125 may use only the
 stable project semantics and interface facts established by those earlier
 slices.
