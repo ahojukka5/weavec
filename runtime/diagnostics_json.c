@@ -7,6 +7,11 @@
 #ifndef WEAVEC_DIAGNOSTICS_JSON_C
 #define WEAVEC_DIAGNOSTICS_JSON_C
 
+// A compiler-owned wrapper may publish a logical source identity while using a
+// different physical file solely to resolve byte offsets into line/column facts.
+// Ordinary diagnostics leave this unset and preserve the historical behavior.
+static const char *weave_diag_span_source_override = NULL;
+
 typedef struct weave_diagnostics_span {
     uint64_t start_byte;
     uint64_t end_byte;
@@ -277,8 +282,11 @@ static int weave_diag_write_result(
     }
     if (!semantic_present && record != NULL && record->has_span &&
         record->source != NULL) {
+        const char *span_source = weave_diag_span_source_override != NULL
+            ? weave_diag_span_source_override
+            : record->source;
         span = weave_diagnostics_resolve_span(
-            record->source,
+            span_source,
             record->start_byte,
             record->end_byte);
     }
