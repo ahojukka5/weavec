@@ -40,6 +40,9 @@ python3 "$ROOT/scripts/check_wir_core_version.py"
 log 'WIR next source-location fixtures'
 python3 "$ROOT/scripts/check_wir_next_source_locations.py"
 
+log 'WIR next source-location views'
+python3 "$ROOT/scripts/wir_next_source_views.py" self-test
+
 log 'compiler source manifest'
 bash "$ROOT/test/compiler-sources/test.sh"
 

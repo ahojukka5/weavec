@@ -1,0 +1,18 @@
+(core-module
+  (core-version 3)
+  (sources
+    (source 0
+      (name "renamed/main.weave")
+      (sha256 "1111111111111111111111111111111111111111111111111111111111111111")))
+  (locations
+    (location 0
+      (origin related (span 0 10 52))))
+  (decls
+    (annotated
+      (metadata vendor.example (tag secondary))
+      (located 0
+        (fn main
+          (params)
+          (returns i32)
+          (do
+            (return (const_i32 42))))))))
