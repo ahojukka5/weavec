@@ -141,6 +141,24 @@
           (ptr_add (local_get nodes)
             (mul_i64 (param_get index) (call_i64 tree_node_size))))))
 
+    ; Report whether an index names an existing node. Keep one return so this
+    ; runtime remains stable under the frozen bootstrap backend.
+    (fn tree_index_valid
+      (params (tree ptr) (index i64))
+      (returns i32)
+      (do
+        (let valid i32 (const_i32 0))
+        (if
+          (condition (ge_i64 (param_get index) (const_i64 0)))
+          (then (do
+            (if
+              (condition (lt_i64
+                (param_get index) (call_i64 tree_count (param_get tree))))
+              (then (do (set valid (const_i32 1))))
+              (else (do)))))
+          (else (do)))
+        (return (local_get valid))))
+
     ; Append a new node to the tree
     ; Returns the index of the new node, or -1 on failure
     (fn tree_append_node
@@ -201,43 +219,96 @@
       (params (tree ptr) (index i64))
       (returns i32)
       (do
-        (let node ptr (call_ptr tree_node_at (param_get tree) (param_get index)))
-        (return (load_i32 (local_get node)))))
+        (let result i32 (const_i32 0))
+        (if
+          (condition (ne_i32 (call_i32 tree_index_valid
+            (param_get tree) (param_get index)) (const_i32 0)))
+          (then (do
+            (let node ptr (call_ptr tree_node_at
+              (param_get tree) (param_get index)))
+            (set result (load_i32 (local_get node)))))
+          (else (do)))
+        (return (local_get result))))
 
     (fn node_text_start
       (params (tree ptr) (index i64))
       (returns i64)
       (do
-        (let node ptr (call_ptr tree_node_at (param_get tree) (param_get index)))
-        (return (load_i64 (ptr_add (local_get node) (const_i64 8))))))
+        (let result i64 (const_i64 -1))
+        (if
+          (condition (ne_i32 (call_i32 tree_index_valid
+            (param_get tree) (param_get index)) (const_i32 0)))
+          (then (do
+            (let node ptr (call_ptr tree_node_at
+              (param_get tree) (param_get index)))
+            (set result
+              (load_i64 (ptr_add (local_get node) (const_i64 8))))))
+          (else (do)))
+        (return (local_get result))))
 
     (fn node_text_len
       (params (tree ptr) (index i64))
       (returns i64)
       (do
-        (let node ptr (call_ptr tree_node_at (param_get tree) (param_get index)))
-        (return (load_i64 (ptr_add (local_get node) (const_i64 16))))))
+        (let result i64 (const_i64 0))
+        (if
+          (condition (ne_i32 (call_i32 tree_index_valid
+            (param_get tree) (param_get index)) (const_i32 0)))
+          (then (do
+            (let node ptr (call_ptr tree_node_at
+              (param_get tree) (param_get index)))
+            (set result
+              (load_i64 (ptr_add (local_get node) (const_i64 16))))))
+          (else (do)))
+        (return (local_get result))))
 
     (fn node_first_child
       (params (tree ptr) (index i64))
       (returns i64)
       (do
-        (let node ptr (call_ptr tree_node_at (param_get tree) (param_get index)))
-        (return (load_i64 (ptr_add (local_get node) (const_i64 24))))))
+        (let result i64 (const_i64 -1))
+        (if
+          (condition (ne_i32 (call_i32 tree_index_valid
+            (param_get tree) (param_get index)) (const_i32 0)))
+          (then (do
+            (let node ptr (call_ptr tree_node_at
+              (param_get tree) (param_get index)))
+            (set result
+              (load_i64 (ptr_add (local_get node) (const_i64 24))))))
+          (else (do)))
+        (return (local_get result))))
 
     (fn node_next_sibling
       (params (tree ptr) (index i64))
       (returns i64)
       (do
-        (let node ptr (call_ptr tree_node_at (param_get tree) (param_get index)))
-        (return (load_i64 (ptr_add (local_get node) (const_i64 32))))))
+        (let result i64 (const_i64 -1))
+        (if
+          (condition (ne_i32 (call_i32 tree_index_valid
+            (param_get tree) (param_get index)) (const_i32 0)))
+          (then (do
+            (let node ptr (call_ptr tree_node_at
+              (param_get tree) (param_get index)))
+            (set result
+              (load_i64 (ptr_add (local_get node) (const_i64 32))))))
+          (else (do)))
+        (return (local_get result))))
 
     (fn node_value
       (params (tree ptr) (index i64))
       (returns i64)
       (do
-        (let node ptr (call_ptr tree_node_at (param_get tree) (param_get index)))
-        (return (load_i64 (ptr_add (local_get node) (const_i64 40))))))
+        (let result i64 (const_i64 0))
+        (if
+          (condition (ne_i32 (call_i32 tree_index_valid
+            (param_get tree) (param_get index)) (const_i32 0)))
+          (then (do
+            (let node ptr (call_ptr tree_node_at
+              (param_get tree) (param_get index)))
+            (set result
+              (load_i64 (ptr_add (local_get node) (const_i64 40))))))
+          (else (do)))
+        (return (local_get result))))
 
     ; =============================================================================
     ; Node field mutators
@@ -247,16 +318,30 @@
       (params (tree ptr) (index i64) (child_index i64))
       (returns void)
       (do
-        (let node ptr (call_ptr tree_node_at (param_get tree) (param_get index)))
-        (store_i64 (ptr_add (local_get node) (const_i64 24)) (param_get child_index))
+        (if
+          (condition (ne_i32 (call_i32 tree_index_valid
+            (param_get tree) (param_get index)) (const_i32 0)))
+          (then (do
+            (let node ptr (call_ptr tree_node_at
+              (param_get tree) (param_get index)))
+            (store_i64 (ptr_add (local_get node) (const_i64 24))
+              (param_get child_index))))
+          (else (do)))
         (return_void)))
 
     (fn node_set_next_sibling
       (params (tree ptr) (index i64) (sibling_index i64))
       (returns void)
       (do
-        (let node ptr (call_ptr tree_node_at (param_get tree) (param_get index)))
-        (store_i64 (ptr_add (local_get node) (const_i64 32)) (param_get sibling_index))
+        (if
+          (condition (ne_i32 (call_i32 tree_index_valid
+            (param_get tree) (param_get index)) (const_i32 0)))
+          (then (do
+            (let node ptr (call_ptr tree_node_at
+              (param_get tree) (param_get index)))
+            (store_i64 (ptr_add (local_get node) (const_i64 32))
+              (param_get sibling_index))))
+          (else (do)))
         (return_void)))
 
   )
