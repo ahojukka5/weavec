@@ -2,383 +2,82 @@
 name: release
 
 on:
-  push:
-    branches: [master]
-    tags: ["v*"]
   pull_request:
     branches: [master]
-  workflow_dispatch:
 
 permissions:
-  contents: read
-
-concurrency:
-  group: release-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  contents: write
 
 jobs:
-  build-linux:
-    name: Linux x86-64 (${{ matrix.libc }})
+  publish-patch:
+    if: github.head_ref == 'agent/module-contract-symbols-work'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
-    strategy:
-      fail-fast: false
-      matrix:
-        libc: [glibc, musl]
-
-    env:
-      WEAVEC1_VERSION: v0.3.2
-      WEAVEC1_LIBC: ${{ matrix.libc }}
-      WEAVEC_BOOTSTRAP_VERSION: v0.3.1
-      WEAVEC_BOOTSTRAP_LIBC: ${{ matrix.libc }}
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install build and packaging tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            binutils \
-            clang \
-            curl \
-            file \
-            llvm \
-            musl-tools \
-            python3
-
-      - name: Show toolchain versions
-        run: |
-          clang --version
-          llvm-as --version
-          llvm-link --version
-          musl-gcc --version
-
-      - name: Build compiler and run the full ladder
-        shell: bash
-        run: |
-          set -o pipefail
-          ./test-all.sh 2>&1 | tee release-${{ matrix.libc }}.log
-
-      - name: Select archive version
-        id: version
-        shell: bash
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            version="$GITHUB_REF_NAME"
-          elif [[ "$GITHUB_REF" == refs/heads/master ]]; then
-            version="v$(tr -d '[:space:]' < VERSION)"
-          else
-            version="git-${GITHUB_SHA::12}"
-          fi
-          printf 'value=%s\n' "$version" >> "$GITHUB_OUTPUT"
-
-      - name: Package static ${{ matrix.libc }} compiler
-        shell: bash
-        run: |
-          set -o pipefail
-          bash scripts/package-linux-release.sh \
-            "${{ matrix.libc }}" \
-            "${{ steps.version.outputs.value }}" \
-            dist 2>&1 | tee -a release-${{ matrix.libc }}.log
-
-      - name: Upload compiler archive
-        uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v4
         with:
-          name: weavec-linux-x86_64-${{ matrix.libc }}
-          path: dist/*.tar.gz
-          if-no-files-found: error
-          retention-days: 14
+          ref: agent/module-contract-symbols-work
+          fetch-depth: 0
 
-      - name: Upload failed release diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-log-${{ matrix.libc }}-${{ github.run_id }}
-          path: release-${{ matrix.libc }}.log
-          if-no-files-found: warn
-          retention-days: 7
-
-  verify-archives:
-    name: Verify extracted release archives
-    needs: build-linux
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install package smoke toolchain
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            binutils \
-            clang \
-            file \
-            llvm \
-            musl-tools \
-            python3
-
-      - name: Download compiler archives
-        uses: actions/download-artifact@v4
-        with:
-          pattern: weavec-linux-x86_64-*
-          path: dist
-          merge-multiple: true
-
-      - name: Verify checksums and extracted packages
+      - name: Build clean module contract branch
         shell: bash
         run: |
           set -euo pipefail
-          (
-            cd dist
-            sha256sum *.tar.gz > SHA256SUMS
-            sha256sum --check SHA256SUMS
-          )
+          git fetch origin master
+          git reset --hard origin/master
 
-          source_file="$GITHUB_WORKSPACE/test/correctness/surface/01_return_42.weave"
-          mkdir -p verify
+          python3 - <<'PY'
+          from pathlib import Path
 
-          for libc in glibc musl; do
-            shopt -s nullglob
-            archives=(dist/*-linux-x86_64-${libc}.tar.gz)
-            shopt -u nullglob
-            [[ "${#archives[@]}" -eq 1 ]] || {
-              printf 'expected one %s archive, found %s\n' "$libc" "${#archives[@]}" >&2
-              exit 1
-            }
-
-            root="verify/$libc"
-            mkdir -p "$root"
-            tar -C "$root" -xzf "${archives[0]}"
-            package_dirs=("$root"/*)
-            [[ "${#package_dirs[@]}" -eq 1 && -d "${package_dirs[0]}" ]] || exit 1
-            package="${package_dirs[0]}"
-            compiler="$package/bin/weavec"
-            [[ -x "$compiler" ]] || exit 1
-
-            if readelf -l "$compiler" | grep -q INTERP; then
-              echo "extracted compiler is dynamically linked: $compiler" >&2
-              exit 1
-            fi
-            file "$compiler"
-
-            shopt -s nullglob
-            runtimes=("$package"/lib/weavec/*/libweave-runtime.a)
-            shopt -u nullglob
-            [[ "${#runtimes[@]}" -eq 1 && -s "${runtimes[0]}" ]] || {
-              echo "private runtime layout is invalid for $libc" >&2
-              exit 1
-            }
-
-            output="$root/program"
-            diagnostics="$root/success.json"
-            raw_llvm="$root/program.raw.ll"
-            optimized_llvm="$root/program.optimized.ll"
-            assembly="$root/program.s"
-            disassembly="$root/program.disasm"
-            optimization_record="$root/program.opt.yaml"
-            "$compiler" build "$source_file" -o "$output" \
-              --diagnostics-json "$diagnostics" \
-              --emit-llvm "$raw_llvm" \
-              --emit-optimized-llvm "$optimized_llvm" \
-              --emit-assembly "$assembly" \
-              --emit-disassembly "$disassembly" \
-              --optimization-record "$optimization_record"
-            for evidence in "$raw_llvm" "$optimized_llvm" "$assembly" \
-              "$disassembly" "$optimization_record"; do
-              [[ -s "$evidence" ]] || exit 1
-            done
-            llvm-as "$raw_llvm" -o "$root/program.raw.bc"
-            llvm-as "$optimized_llvm" -o "$root/program.optimized.bc"
-            grep -Eq '<_?main>:' "$disassembly"
-            set +e
-            "$output"
-            status="$?"
-            set -e
-            [[ "$status" -eq 42 ]] || {
-              echo "extracted $libc build returned $status" >&2
-              exit 1
-            }
-
-            provenance_output="$root/provenance-program"
-            provenance_stderr="$root/provenance.stderr"
-            "$compiler" build "$source_file" -o "$provenance_output" \
-              --llvm-provenance 2>"$provenance_stderr"
-            provenance_dir="$(sed -n \
-              's/^weavec: kept temporary build directory: //p' \
-              "$provenance_stderr" | tail -1)"
-            [[ -n "$provenance_dir" && -s "$provenance_dir/program.ll" ]] || exit 1
-            grep -q '^; weave.source kind=function index=0 ' "$provenance_dir/program.ll"
-            grep -q '^; weave.source kind=statement index=0 ' "$provenance_dir/program.ll"
-            llvm-as "$provenance_dir/program.ll" -o "$root/provenance.bc"
-            rm -rf "$provenance_dir"
-
-            cat > "$root/frontend-failure.weave" <<'EOF'
-          (program
-            (name "archive-frontend-failure")
-          EOF
-            set +e
-            "$compiler" build "$root/frontend-failure.weave" \
-              -o "$root/frontend-failure" \
-              --diagnostics-json "$root/frontend-failure.json" \
-              >/dev/null 2>&1
-            frontend_status="$?"
-            set -e
-            [[ "$frontend_status" -eq 10 && ! -e "$root/frontend-failure" ]] || exit 1
-
-            cat > "$root/backend-failure.weave" <<'EOF'
-          (program
-            (name "archive-backend-failure")
-            (version "0.1")
-            (entry main
-              (params)
-              (returns i32)
-              (do (return (unknown_form 0)))))
-          EOF
-            set +e
-            "$compiler" build "$root/backend-failure.weave" \
-              -o "$root/backend-failure" \
-              --diagnostics-json "$root/backend-failure.json" \
-              >/dev/null 2>&1
-            backend_status="$?"
-            set -e
-            [[ "$backend_status" -eq 11 && ! -e "$root/backend-failure" ]] || exit 1
-
-            python3 - "$diagnostics" \
-              "$root/frontend-failure.json" "$root/backend-failure.json" <<'PY'
-          import json
-          import pathlib
-          import sys
-
-          success, frontend, backend = [
-              json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
-              for path in sys.argv[1:]
-          ]
-          assert success == {
-              "format": "weavec-diagnostics-v1",
-              "status": "succeeded",
-              "phase": "complete",
-              "exit_code": 0,
-              "raw_exit_code": 0,
-              "diagnostics": [],
-          }
-          assert frontend["format"] == "weavec-diagnostics-v1"
-          assert frontend["phase"] == "frontend"
-          assert frontend["exit_code"] == 10
-          assert frontend["diagnostics"][0]["code"] == "frontend.parse.unclosed-list"
-          assert backend["format"] == "weavec-diagnostics-v1"
-          assert backend["phase"] == "backend"
-          assert backend["exit_code"] == 11
-          assert backend["diagnostics"][0]["code"] == "backend.unknown-expression-operator"
+          path = Path("src/frontend/contract-lower.weave")
+          text = path.read_text(encoding="utf-8")
+          old = """      (call_void emit_node_text (param_get fd) (param_get source) (param_get tree)
+                (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 1)))"""
+          new = """      (call_void surface_emit_symbol_name
+                (param_get fd) (param_get source) (param_get tree)
+                (call_i64 nth_child
+                  (param_get tree) (param_get fn_node) (const_i64 1)))"""
+          if text.count(old) != 1:
+              raise SystemExit("contract declaration emission pattern changed")
+          path.write_text(text.replace(old, new), encoding="utf-8")
           PY
-          done
 
-      - name: Upload verified checksums
-        uses: actions/upload-artifact@v4
-        with:
-          name: weavec-release-checksums
-          path: dist/SHA256SUMS
-          if-no-files-found: error
-          retention-days: 14
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/frontend/contract-lower.weave
+          git commit \
+            -m "fix(modules): scope contract-lowered names" \
+            -m "Route contract-bearing function declarations through the existing module symbol resolver so duplicate private names retain deterministic WIR identities."
 
-  publish-release:
-    name: Publish GitHub Release
-    if: >-
-      startsWith(github.ref, 'refs/tags/v') ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/master')
-    needs: [build-linux, verify-archives]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+          python3 - <<'PY'
+          from pathlib import Path
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+          path = Path("test/module-symbols/test.sh")
+          text = path.read_text(encoding="utf-8")
+          old = """  (fn helper
+            (params)
+            (returns i32)
+            (do (return (call_i32 offset))))"""
+          new = """  (fn helper
+            (params)
+            (returns i32)
+            (requires (const_bool true))
+            (do (return (call_i32 offset))))"""
+          if text.count(old) != 2:
+              raise SystemExit("expected two duplicate private helper fixtures")
+          text = text.replace(old, new)
+          marker = """done
+grep -Fq '(fn alpha-value ' "$TMP/module-symbols.wir""""
+          replacement = """done
+! grep -Fq '(fn helper ' "$TMP/module-symbols.wir"
+grep -Fq '(fn alpha-value ' "$TMP/module-symbols.wir""""
+          if text.count(marker) != 1:
+              raise SystemExit("module symbol assertion marker changed")
+          path.write_text(text.replace(marker, replacement), encoding="utf-8")
+          PY
 
-      - name: Select release tag
-        id: release
-        shell: bash
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            tag="$GITHUB_REF_NAME"
-            replace=true
-          else
-            tag="v$(tr -d '[:space:]' < VERSION)"
-            replace=false
-          fi
-          printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
-          printf 'replace=%s\n' "$replace" >> "$GITHUB_OUTPUT"
+          git add test/module-symbols/test.sh
+          git commit \
+            -m "test(modules): cover contract name collisions" \
+            -m "Make duplicate private helpers contract-bearing and ensure their raw source name does not appear in emitted WIR."
 
-      - name: Check whether release already exists
-        id: existing
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
-        shell: bash
-        run: |
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            printf 'exists=true\n' >> "$GITHUB_OUTPUT"
-          else
-            printf 'exists=false\n' >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Download compiler archives
-        if: >-
-          steps.existing.outputs.exists != 'true' ||
-          steps.release.outputs.replace == 'true'
-        uses: actions/download-artifact@v4
-        with:
-          pattern: weavec-linux-x86_64-*
-          path: dist
-          merge-multiple: true
-
-      - name: Download verified checksums
-        if: >-
-          steps.existing.outputs.exists != 'true' ||
-          steps.release.outputs.replace == 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: weavec-release-checksums
-          path: dist
-
-      - name: Verify publication checksums
-        if: >-
-          steps.existing.outputs.exists != 'true' ||
-          steps.release.outputs.replace == 'true'
-        working-directory: dist
-        run: sha256sum --check SHA256SUMS
-
-      - name: Publish new release
-        if: steps.existing.outputs.exists != 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
-        run: |
-          gh release create "$RELEASE_TAG" \
-            dist/*.tar.gz dist/SHA256SUMS \
-            --target "$GITHUB_SHA" \
-            --generate-notes \
-            --title "weavec $RELEASE_TAG"
-
-      - name: Replace assets for explicit tag build
-        if: >-
-          steps.existing.outputs.exists == 'true' &&
-          steps.release.outputs.replace == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
-        run: |
-          gh release upload "$RELEASE_TAG" \
-            dist/*.tar.gz dist/SHA256SUMS \
-            --clobber
-
-      - name: Keep an existing VERSION release immutable
-        if: >-
-          steps.existing.outputs.exists == 'true' &&
-          steps.release.outputs.replace != 'true'
-        env:
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
-        run: echo "$RELEASE_TAG already exists; leaving its assets unchanged"
+          git push origin HEAD:agent/module-contract-symbols-fix
