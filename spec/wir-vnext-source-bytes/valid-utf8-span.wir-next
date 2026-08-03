@@ -1,0 +1,16 @@
+(core-module
+  (core-version 3)
+  (sources
+    (source 0
+      (name "utf8.weave")
+      (sha256 "e57d8a8ea6845243ba02420f4a325aa4ff1927fb83a168bdb6a3a102099c24ab")))
+  (locations
+    (location 0
+      (origin direct (span 0 0 2))))
+  (decls
+    (located 0
+      (fn main
+        (params)
+        (returns i32)
+        (do
+          (return (const_i32 42)))))))
