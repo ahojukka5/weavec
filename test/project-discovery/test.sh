@@ -149,7 +149,7 @@ expect_exit 2 bash -c \
 grep -F 'driver.ambiguous-build-mode' "$TMP/mixed.err"
 [[ ! -e "$LEGACY/mixed" ]]
 
-# No requested output may overwrite the selected manifest.
+# No requested or default output may overwrite the selected manifest.
 write_project "$CHILD" child-app child-bin
 cp "$CHILD/weave.project" "$TMP/manifest.before"
 expect_exit 2 "$WEAVEC" build --project "$CHILD" \
@@ -157,8 +157,39 @@ expect_exit 2 "$WEAVEC" build --project "$CHILD" \
 grep -F 'driver.output-aliases-project-manifest' "$TMP/alias.err"
 cmp "$TMP/manifest.before" "$CHILD/weave.project"
 
+write_project "$CHILD" child-app weave.project
+cp "$CHILD/weave.project" "$TMP/default-alias.before"
+expect_exit 2 "$WEAVEC" build --project "$CHILD" \
+  >/dev/null 2>"$TMP/default-alias.err"
+grep -F 'driver.output-aliases-project-manifest' "$TMP/default-alias.err"
+cmp "$TMP/default-alias.before" "$CHILD/weave.project"
+
+# Diagnostic or trace publication must not replace even a malformed manifest.
+cat > "$CHILD/weave.project" <<'EOF_MALFORMED'
+(weave-project (format 1) (mystery true))
+EOF_MALFORMED
+cp "$CHILD/weave.project" "$TMP/protocol-alias.before"
+expect_exit 2 "$WEAVEC" build --project "$CHILD" \
+  --diagnostics-json "$CHILD/weave.project" \
+  >/dev/null 2>"$TMP/protocol-alias.err"
+grep -F 'driver.output-aliases-project-manifest' "$TMP/protocol-alias.err"
+cmp "$TMP/protocol-alias.before" "$CHILD/weave.project"
+
+# Escaped NUL bytes cannot be truncated into apparently valid path values.
+cat > "$CHILD/weave.project" <<'EOF_NUL'
+(weave-project
+  (format 1)
+  (name child-app)
+  (kind executable)
+  (source-roots "src\u0000-hidden")
+  (entry application))
+EOF_NUL
+expect_exit 2 "$WEAVEC" build --project "$CHILD" \
+  >/dev/null 2>"$TMP/nul.err"
+grep -F 'project.manifest.path' "$TMP/nul.err"
+
 "$WEAVEC" build --help > "$TMP/help.txt"
 grep -F -- '--project <directory-or-manifest>' "$TMP/help.txt"
 grep -F 'explicit source arguments' "$TMP/help.txt"
 
-printf 'project-discovery: precedence and diagnostics checks passed\n'
+printf 'project-discovery: precedence, diagnostics, and safety checks passed\n'
