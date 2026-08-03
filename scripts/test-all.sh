@@ -102,6 +102,9 @@ bash "$ROOT/test/capabilities/test.sh"
 log 'project discovery'
 bash "$ROOT/test/project-discovery/test.sh"
 
+log 'project source discovery'
+bash "$ROOT/test/project-source-discovery/test.sh"
+
 log 'semantic-index emitter'
 bash "$ROOT/test/semantic-index/test.sh"
 

@@ -28,6 +28,13 @@ write_project() {
   (entry application)
   (output "$output"))
 EOF_PROJECT
+  cat > "$path/src/application.weave" <<'EOF_SOURCE'
+(module application
+  (entry main
+    (params)
+    (returns i32)
+    (do (return 0))))
+EOF_SOURCE
 }
 
 expect_exit() {
@@ -55,9 +62,10 @@ mkdir -p "$NESTED"
 expect_exit 2 bash -c \
   'cd "$1" && "$2" build >"$3" 2>"$4"' \
   _ "$NESTED" "$WEAVEC" "$TMP/nearest.out" "$TMP/nearest.err"
-grep -F "$CHILD/weave.project" "$TMP/nearest.err"
+grep -F 'project.graph.pending' "$TMP/nearest.err"
+grep -F 'discovered 1 project modules' "$TMP/nearest.err"
 grep -F "$CHILD/child-bin" "$TMP/nearest.err"
-if grep -F "$PARENT/weave.project" "$TMP/nearest.err" >/dev/null; then
+if grep -F "$PARENT/parent-bin" "$TMP/nearest.err" >/dev/null; then
   printf 'project-discovery: skipped the nearer manifest\n' >&2
   exit 1
 fi
@@ -66,12 +74,14 @@ fi
 expect_exit 2 bash -c \
   'cd "$1" && "$2" build --project "$3" >"$4" 2>"$5"' \
   _ "$TMP" "$WEAVEC" "$CHILD" "$TMP/explicit-dir.out" "$TMP/explicit-dir.err"
-grep -F "$CHILD/weave.project" "$TMP/explicit-dir.err"
+grep -F 'project.graph.pending' "$TMP/explicit-dir.err"
+grep -F "$CHILD/child-bin" "$TMP/explicit-dir.err"
 
 expect_exit 2 bash -c \
   'cd "$1" && "$2" build --project "$3" -o custom-bin >"$4" 2>"$5"' \
   _ "$TMP" "$WEAVEC" "$CHILD/weave.project" \
   "$TMP/explicit-file.out" "$TMP/explicit-file.err"
+grep -F 'project.graph.pending' "$TMP/explicit-file.err"
 grep -F 'output custom-bin' "$TMP/explicit-file.err"
 
 # An invalid nearer manifest is authoritative and must not fall back to a parent.
