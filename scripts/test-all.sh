@@ -96,6 +96,9 @@ bash "$ROOT/test/formatter/test.sh"
 log 'correctness'
 bash "$ROOT/test.sh"
 
+log 'backend call validation'
+bash "$ROOT/test/backend-call-validation/test.sh"
+
 log 'surface elaboration'
 bash "$ROOT/test/surface-elaboration/test.sh"
 
