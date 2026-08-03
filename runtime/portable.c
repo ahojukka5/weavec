@@ -176,4 +176,22 @@ static int weave_trace_write_document(
 #define weave_rt_build_main weave_rt_build_main_path_safety_legacy
 #include "path_safety.c"
 #undef weave_rt_build_main
+
+static int weave_project_ascii_alpha(int value) {
+    unsigned char ch = (unsigned char)value;
+    return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z');
+}
+
+static int weave_project_ascii_alnum(int value) {
+    unsigned char ch = (unsigned char)value;
+    return weave_project_ascii_alpha(ch) || (ch >= '0' && ch <= '9');
+}
+
+#define isalpha weave_project_ascii_alpha
+#define isalnum weave_project_ascii_alnum
+#define weave_rt_build_main weave_rt_build_main_project_legacy
 #include "project_driver.c"
+#undef weave_rt_build_main
+#undef isalnum
+#undef isalpha
+#include "project_safety.c"
