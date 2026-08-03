@@ -7,6 +7,54 @@
 #ifndef WEAVEC_PROJECT_SAFETY_C
 #define WEAVEC_PROJECT_SAFETY_C
 
+static int weave_project_safety_utf8(
+    const unsigned char *data,
+    size_t length,
+    size_t *start_out,
+    size_t *end_out) {
+    for (size_t i = 0; i < length;) {
+        unsigned char first = data[i];
+        size_t width = 0;
+        if (first <= 0x7f) {
+            ++i;
+            continue;
+        }
+        if (first >= 0xc2 && first <= 0xdf) {
+            width = 2;
+        } else if (first >= 0xe0 && first <= 0xef) {
+            width = 3;
+        } else if (first >= 0xf0 && first <= 0xf4) {
+            width = 4;
+        } else {
+            *start_out = i;
+            *end_out = i + 1;
+            return 0;
+        }
+        if (i + width > length) {
+            *start_out = i;
+            *end_out = length;
+            return 0;
+        }
+        for (size_t j = 1; j < width; ++j) {
+            if ((data[i + j] & 0xc0u) != 0x80u) {
+                *start_out = i;
+                *end_out = i + j + 1;
+                return 0;
+            }
+        }
+        if ((first == 0xe0 && data[i + 1] < 0xa0) ||
+            (first == 0xed && data[i + 1] >= 0xa0) ||
+            (first == 0xf0 && data[i + 1] < 0x90) ||
+            (first == 0xf4 && data[i + 1] >= 0x90)) {
+            *start_out = i;
+            *end_out = i + width;
+            return 0;
+        }
+        i += width;
+    }
+    return 1;
+}
+
 static int weave_project_safety_forbidden_nul(
     const unsigned char *data,
     size_t length,
@@ -119,6 +167,22 @@ int weave_rt_build_main(int argc, char **argv) {
     if (source != NULL) {
         size_t start = 0;
         size_t end = 0;
+        if (!weave_project_safety_utf8(
+                source, source_length, &start, &end)) {
+            weave_project_error error = {
+                .code = "project.manifest.parse",
+                .message = "project manifest is not valid UTF-8",
+                .source = manifest_path,
+                .start = start,
+                .end = end,
+                .has_span = 1,
+            };
+            int result = weave_project_publish_error(
+                &error, request.diagnostics, request.trace, 2);
+            free(source);
+            free(request.output_paths);
+            return result;
+        }
         if (weave_project_safety_forbidden_nul(
                 source, source_length, &start, &end)) {
             weave_project_error error = {
