@@ -1,0 +1,15 @@
+(core-module
+  (core-version 3)
+  (sources
+    (source 0
+      (name "main.weave")
+      (sha256 "4444444444444444444444444444444444444444444444444444444444444444")))
+  (locations
+    (location 0
+      (origin direct (span 1 0 4))))
+  (decls
+    (located 0
+      (fn main
+        (params)
+        (returns i32)
+        (do (return (const_i32 42)))))))

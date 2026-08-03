@@ -1,0 +1,24 @@
+(core-module
+  (core-version 3)
+  (sources
+    (source 0
+      (name "cycle.weave")
+      (sha256 "6666666666666666666666666666666666666666666666666666666666666666")))
+  (locations
+    (location 0
+      (generated)
+      (derived-from lowering 1))
+    (location 1
+      (generated)
+      (derived-from lowering 0)))
+  (decls
+    (located 0
+      (fn first
+        (params)
+        (returns i32)
+        (do (return (const_i32 20)))))
+    (located 1
+      (fn second
+        (params)
+        (returns i32)
+        (do (return (const_i32 22)))))))
