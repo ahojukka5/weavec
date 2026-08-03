@@ -173,4 +173,7 @@ static int weave_trace_write_document(
 #undef weave_rt_build_main
 #include "trace_runtime.c"
 #include "semantic_diagnostic_record.c"
+#define weave_rt_build_main weave_rt_build_main_path_safety_legacy
 #include "path_safety.c"
+#undef weave_rt_build_main
+#include "project_driver.c"
