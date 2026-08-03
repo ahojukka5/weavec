@@ -33,6 +33,16 @@ read_metrics_field() {
   printf '%s' "${line#*=}"
 }
 
+assert_canonical_empty_params() {
+  local wir="$1"
+  local label="$2"
+  if grep -Fq '(params ())' "$wir"; then
+    fail "$label: frontend retained legacy empty parameter marker"
+    return 1
+  fi
+  return 0
+}
+
 [[ -x "$WEAVEC" ]] || {
   printf '[weavec-quantum-e2e] build/weavec not found; run ./build.sh first\n' >&2
   exit 1
@@ -43,6 +53,21 @@ read_metrics_field() {
 }
 
 mkdir -p "$OUT_DIR"
+
+if [[ "${RUNNER_OS:-}" == "macOS" ]]; then
+  stress_src="$FIXTURE_ROOT/e2e/test-bell-pair-trace.weave"
+  for iteration in {1..32}; do
+    stress_wir="$OUT_DIR/test-bell-pair-trace-stress-$iteration.wir"
+    if ! "$WEAVEC" --frontend "$stress_wir" "$stress_src"; then
+      fail "test-bell-pair-trace: frontend stress run $iteration failed"
+      break
+    fi
+    if ! assert_canonical_empty_params \
+      "$stress_wir" "test-bell-pair-trace stress run $iteration"; then
+      break
+    fi
+  done
+fi
 
 find_paths=()
 for d in "${E2E_DIRS[@]}"; do
@@ -62,6 +87,9 @@ while IFS= read -r -d '' src; do
 
   if ! "$WEAVEC" --frontend "$wir" "$src"; then
     fail "$base: frontend failed"
+    continue
+  fi
+  if ! assert_canonical_empty_params "$wir" "$base"; then
     continue
   fi
   if ! "$WEAVEC" --backend "$wir" "$ll"; then
