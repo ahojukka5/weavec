@@ -16,7 +16,7 @@ reimplementing Weave semantics.
 
 The top-level `format` is `weavec-capabilities-v1`, with schema identifier
 `urn:weavec:schema:capabilities:v1`. The corresponding JSON Schema is stored at
-[`schemas/weavec-capabilities-v1.schema.json`](schemas/weavec-capabilities-v1.schema.json).
+[`weavec-capabilities-v1.schema.json`](schemas/weavec-capabilities-v1.schema.json).
 
 Within one compiler binary and target package, output is deterministic and
 byte-for-byte repeatable. Compiler development builds naturally report their
@@ -78,10 +78,23 @@ field-leading comments attached during that move. Generated accessor names are
 reported separately as the `generated-struct-abi` compatibility family.
 
 The `modules` feature is experimental. The registry publishes exact `module`,
-`import`, and `export` forms. The compiler validates explicit callable interfaces,
-private-by-default visibility, conflicts, and import cycles while preserving
-legacy `program` roots. Deterministic WIR name mangling and semantic-index output
-remain follow-up work under issue #53.
+`import`, and `export` forms. The compiler validates explicit callable
+interfaces, private-by-default visibility, conflicts, raw-linkage collisions,
+module-scoped nominal struct identities, and import cycles while preserving
+legacy `program` roots. It also emits deterministic private WIR names and
+publishes semantic-index module definitions, imports, exports, references, call
+edges, and interface hashes independently of source argument order.
+
+The next module milestone is project and package usability rather than completion
+of the closed issue #53 implementation series. Epic
+[#111](https://github.com/ahojukka5/weavec/issues/111) owns project manifests,
+deterministic source discovery, public type interfaces, entry-module selection,
+and the later incremental-build boundary. Tools must continue to treat
+`modules` as experimental until that user-facing project contract stabilizes.
+
+The application-language roadmap and its five epics are documented in
+[`roadmap.md`](roadmap.md). Planned capabilities should link to their owning epic
+or focused subissue instead of using completed historical issue numbers.
 
 ### Surface grammar
 
