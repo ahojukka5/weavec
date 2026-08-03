@@ -1,6 +1,7 @@
 {
   "valid": [
     "valid-direct.wir-next",
+    "valid-direct-alt-metadata.wir-next",
     "valid-generated.wir-next",
     "valid-multi-origin.wir-next"
   ],
@@ -9,5 +10,9 @@
     "invalid-reversed-span.wir-next": "span end precedes start",
     "invalid-unknown-location.wir-next": "unknown location id 1",
     "invalid-unknown-source.wir-next": "unknown source id 1"
+  },
+  "comparison_pair": {
+    "left": "valid-direct.wir-next",
+    "right": "valid-direct-alt-metadata.wir-next"
   }
 }
