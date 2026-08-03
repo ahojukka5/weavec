@@ -197,7 +197,10 @@ static int weave_project_ascii_alnum(int value) {
 #define weave_rt_build_main weave_rt_build_main_source_discovery_legacy
 #include "project_sources.c"
 #undef weave_rt_build_main
+#define weave_rt_build_main weave_rt_build_main_project_graph_legacy
+#include "project_graph.c"
+#undef weave_rt_build_main
 #define weave_rt_build_main_project_legacy \
-    weave_rt_build_main_source_discovery_legacy
+    weave_rt_build_main_project_graph_legacy
 #include "project_safety.c"
 #undef weave_rt_build_main_project_legacy
