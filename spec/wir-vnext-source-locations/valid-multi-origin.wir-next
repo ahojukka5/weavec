@@ -1,0 +1,23 @@
+(core-module
+  (core-version 3)
+  (sources
+    (source 0
+      (name "left.weave")
+      (sha256 "1111111111111111111111111111111111111111111111111111111111111111"))
+    (source 1
+      (name "right.weave")
+      (sha256 "2222222222222222222222222222222222222222222222222222222222222222")))
+  (locations
+    (location 0
+      (origin lowering (span 0 10 20))
+      (origin related (span 1 30 40)))
+    (location 1
+      (origin direct (span 1 42 50))))
+  (decls
+    (located 0
+      (fn combine
+        (params)
+        (returns i32)
+        (do
+          (located 1
+            (return (const_i32 42))))))))
