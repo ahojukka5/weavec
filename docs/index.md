@@ -15,6 +15,9 @@ names used when they were released.
   bootstrap boundary, runtime ownership, self-hosting, and verification model.
 - [Application-language roadmap](roadmap.md) — the five usability epics,
   dependency order, subissue workflow, compatibility rules, and deferred work.
+- [Weave project manifest version 1](project-manifest.md) — canonical
+  `weave.project` grammar, defaults, path rules, project kinds, diagnostics, and
+  command-line precedence for the project-system implementation.
 - [Development builds](development-builds.md) — SDK-only final-compiler builds,
   canonical scripts, dependency overrides, and no-build test qualification.
 - [Command reference](command-reference.md) — public build command,

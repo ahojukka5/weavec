@@ -1,0 +1,111 @@
+{
+  "canonical": [
+    {
+      "name": "executable-defaults-and-order",
+      "input": "(weave-project\n  (source-roots \"src\" \"lib\")\n  (entry application)\n  (kind executable)\n  (name demo)\n  (format 1))\n",
+      "canonical": "(weave-project\n  (format 1)\n  (name demo)\n  (kind executable)\n  (source-roots \"lib\" \"src\")\n  (test-roots \"test\")\n  (entry application)\n  (output \"demo\"))\n"
+    },
+    {
+      "name": "executable-explicit-values",
+      "input": "; project comment\n(weave-project\n  (format 1)\n  (name compiler_tools)\n  (kind executable)\n  (source-roots \"src\")\n  (test-roots \"tests/unit\" \"tests/integration\")\n  (entry driver)\n  (output \"weave-tools\"))\n",
+      "canonical": "(weave-project\n  (format 1)\n  (name compiler_tools)\n  (kind executable)\n  (source-roots \"src\")\n  (test-roots \"tests/integration\" \"tests/unit\")\n  (entry driver)\n  (output \"weave-tools\"))\n"
+    },
+    {
+      "name": "library-without-tests",
+      "input": "(weave-project\n  (format 1)\n  (name arithmetic)\n  (kind library)\n  (source-roots \"src\")\n  (test-roots))\n",
+      "canonical": "(weave-project\n  (format 1)\n  (name arithmetic)\n  (kind library)\n  (source-roots \"src\")\n  (test-roots)\n  (output \"arithmetic\"))\n"
+    }
+  ],
+  "invalid": [
+    {
+      "name": "empty",
+      "input": "",
+      "error": "manifest is empty"
+    },
+    {
+      "name": "wrong-root",
+      "input": "(project (format 1))\n",
+      "error": "manifest root must be weave-project"
+    },
+    {
+      "name": "unsupported-format",
+      "input": "(weave-project (format 2) (name demo) (kind library) (source-roots \"src\"))\n",
+      "error": "unsupported project manifest format"
+    },
+    {
+      "name": "missing-name",
+      "input": "(weave-project (format 1) (kind library) (source-roots \"src\"))\n",
+      "error": "missing manifest field 'name'"
+    },
+    {
+      "name": "duplicate-kind",
+      "input": "(weave-project (format 1) (name demo) (kind library) (kind executable) (source-roots \"src\"))\n",
+      "error": "duplicate manifest field 'kind'"
+    },
+    {
+      "name": "unknown-field",
+      "input": "(weave-project (format 1) (name demo) (kind library) (source-roots \"src\") (dependencies))\n",
+      "error": "unknown manifest field 'dependencies'"
+    },
+    {
+      "name": "invalid-name",
+      "input": "(weave-project (format 1) (name \"demo\") (kind library) (source-roots \"src\"))\n",
+      "error": "project name must be an identifier"
+    },
+    {
+      "name": "unknown-kind",
+      "input": "(weave-project (format 1) (name demo) (kind plugin) (source-roots \"src\"))\n",
+      "error": "project kind must be executable or library"
+    },
+    {
+      "name": "empty-source-roots",
+      "input": "(weave-project (format 1) (name demo) (kind library) (source-roots))\n",
+      "error": "source-roots must contain at least one path"
+    },
+    {
+      "name": "absolute-source-root",
+      "input": "(weave-project (format 1) (name demo) (kind library) (source-roots \"/src\"))\n",
+      "error": "source root must be project-relative"
+    },
+    {
+      "name": "parent-source-root",
+      "input": "(weave-project (format 1) (name demo) (kind library) (source-roots \"../src\"))\n",
+      "error": "source root has a noncanonical path component"
+    },
+    {
+      "name": "duplicate-source-root",
+      "input": "(weave-project (format 1) (name demo) (kind library) (source-roots \"src\" \"src\"))\n",
+      "error": "source-roots contains a duplicate path"
+    },
+    {
+      "name": "overlapping-source-roots",
+      "input": "(weave-project (format 1) (name demo) (kind library) (source-roots \"src\" \"src/generated\"))\n",
+      "error": "source-roots contains overlapping paths 'src' and 'src/generated'"
+    },
+    {
+      "name": "missing-executable-entry",
+      "input": "(weave-project (format 1) (name demo) (kind executable) (source-roots \"src\"))\n",
+      "error": "executable project requires an entry field"
+    },
+    {
+      "name": "library-entry",
+      "input": "(weave-project (format 1) (name demo) (kind library) (source-roots \"src\") (entry demo))\n",
+      "error": "library project must not contain an entry field"
+    },
+    {
+      "name": "invalid-output",
+      "input": "(weave-project (format 1) (name demo) (kind library) (source-roots \"src\") (output \"bin/demo\"))\n",
+      "error": "output name must be one path component"
+    },
+    {
+      "name": "source-root-not-string",
+      "input": "(weave-project (format 1) (name demo) (kind library) (source-roots src))\n",
+      "error": "source root must be a string"
+    },
+    {
+      "name": "source-test-overlap",
+      "input": "(weave-project (format 1) (name demo) (kind library) (source-roots \"src\") (test-roots \"src/test\"))\n",
+      "error": "source-roots and test-roots must not overlap: 'src' and 'src/test'"
+    }
+  ]
+}
