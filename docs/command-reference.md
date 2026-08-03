@@ -7,6 +7,8 @@ tooling.
 
 ## Native build
 
+Explicit source-list mode is:
+
 ```text
 weavec build <input.weave> [input2.weave ...] -o <program>
              [--target <triple>]
@@ -26,27 +28,71 @@ weavec build <input.weave> [input2.weave ...] -o <program>
              [--keep-temporaries]
 ```
 
-Example:
+Project mode is selected when no explicit `.weave` source arguments are present:
+
+```text
+weavec build [--project <directory-or-manifest>] [-o <program>]
+             [the same target, optimization, tooling, and evidence options]
+```
+
+Explicit source-list example:
 
 ```sh
 weavec build main.weave library.weave -o application
 ./application
 ```
 
-The command performs surface lowering to WIR core version 2, self-hosted
-backend compilation to raw LLVM IR, explicit LLVM optimization, target assembly
-and object generation, private runtime selection, target linking, optional final
-disassembly, and atomic output publication. The seed and self-hosted compiler
-generations use the same WIR v2 boundary. See [Architecture](architecture.md) and
-[WIR core version 2](wir.md).
+The source-list command performs surface lowering to WIR core version 2,
+self-hosted backend compilation to raw LLVM IR, explicit LLVM optimization,
+target assembly and object generation, private runtime selection, target linking,
+optional final disassembly, and atomic output publication. The seed and
+self-hosted compiler generations use the same WIR v2 boundary. See
+[Architecture](architecture.md) and [WIR core version 2](wir.md).
+
+### Build-mode precedence
+
+The command chooses exactly one input mode:
+
+1. Any explicit non-option source argument selects source-list mode. Nearby
+   `weave.project` files are ignored.
+2. `--project` cannot be combined with explicit source arguments.
+3. With no source arguments, `--project PATH` or `--project=PATH` selects either a
+   project directory or a regular file named exactly `weave.project`.
+4. With neither sources nor `--project`, discovery starts at the current working
+   directory and selects the nearest `weave.project` while walking toward the
+   filesystem root.
+5. A nearer malformed or unreadable manifest is authoritative. Discovery never
+   skips it to use a more distant parent project.
+
+An explicit project path is independent of the current directory. Relative paths
+are resolved from the invocation directory; the selected manifest is then
+canonicalized to its physical path for reading and output-alias protection.
+
+The selected manifest is parsed against
+[Weave project manifest version 1](project-manifest.md). Manifest diagnostics use
+stable `project.manifest.*` codes, and `--diagnostics-json` reports them through
+`weavec-diagnostics-v1` with stable driver exit `15`.
+
+Project selection and manifest validation are implemented. Deterministic source
+membership is the next slice under issue #120. Until that lands, a valid project
+selection ends at the explicit `project.sources.pending` boundary without
+publishing WIR, native output, or auxiliary compiler artifacts. Without diagnostics
+JSON this boundary returns raw exit `2`; with diagnostics JSON it returns stable
+driver exit `15`.
 
 ### Inputs and output
 
-- At least one `.weave` source is required.
-- `-o` and `--output` name the native executable.
-- Source order is preserved in the build manifest and passed to the frontend.
+- Source-list mode requires at least one `.weave` source.
+- Project mode requires a selected valid `weave.project`.
+- In source-list mode, `-o` or `--output` names the native executable.
+- In project mode, `-o` or `--output` overrides the manifest `output`; otherwise
+  the default output is anchored in the selected project directory.
+- Source order is preserved in source-list build manifests and passed to the
+  frontend.
 - Executable, WIR, raw LLVM, optimized LLVM, assembly, disassembly, optimization
   record, manifest, diagnostics, and trace paths must be distinct when requested.
+- No requested or manifest-default output may alias the selected
+  `weave.project`, including when the manifest itself is malformed.
 - A failed build does not publish a partial executable at the requested path.
 
 ### Target selection
@@ -265,6 +311,6 @@ When `weavec build` writes diagnostics JSON, the public stable phase exits are:
 | `12` | LLVM IR to object generation failed. |
 | `13` | Target linker failed. |
 | `14` | Atomic output publication failed. |
-| `15` | Build driver or toolchain setup failed. |
+| `15` | Build driver, project selection, or toolchain setup failed. |
 
 The diagnostics document also records `raw_exit_code` from the underlying phase.
