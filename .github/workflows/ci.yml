@@ -81,4 +81,4 @@ grep -Fq '(fn alpha-value ' "$TMP/module-symbols.wir""""
             -m "test(modules): cover contract name collisions" \
             -m "Make duplicate private helpers contract-bearing and ensure their raw source name does not appear in emitted WIR."
 
-          git push --force origin HEAD:agent/module-contract-symbols
+          git push origin HEAD:agent/module-contract-symbols-fix
