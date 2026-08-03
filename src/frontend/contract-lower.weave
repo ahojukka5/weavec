@@ -471,8 +471,10 @@
       (call_void emit_source_span_for_node
         (param_get fd) (param_get source) (param_get tree) (param_get fn_node))
       (call_void write_cstr (param_get fd) (const_string_ptr "    (fn "))
-      (call_void emit_node_text (param_get fd) (param_get source) (param_get tree)
-        (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 1)))
+      (call_void surface_emit_symbol_name
+        (param_get fd) (param_get source) (param_get tree)
+        (call_i64 nth_child
+          (param_get tree) (param_get fn_node) (const_i64 1)))
       (call_void write_byte (param_get fd) (const_i32 32))
       (call_void emit_node (param_get fd) (param_get source) (param_get tree)
         (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 2)))
