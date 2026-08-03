@@ -100,6 +100,10 @@ annotate LLVM function and statement groups with surface and WIR ranges. Direct
 and older WIR remain accepted and use the documented inference fallback; the
 comments never change WIR v2 semantics.
 
+The proposed first-class replacement belongs to a future coordinated WIR
+revision and is documented separately in
+[Next-version WIR source locations](wir-next-source-locations.md).
+
 ## Repository enforcement
 
 The repository audit:
@@ -129,5 +133,6 @@ Each negative backend case must return failure without leaving an output file.
 - [Architecture](architecture.md)
 - [Command reference](command-reference.md)
 - [Language reference](language-reference.md)
+- [Next-version WIR source locations](wir-next-source-locations.md)
 - [Source and fixture style](source-style.md)
 - [Performance demonstrations](performance-demonstrations.md)
