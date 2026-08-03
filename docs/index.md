@@ -13,6 +13,8 @@ names used when they were released.
 
 - [Architecture](architecture.md) — compiler layers, source-to-executable flow,
   bootstrap boundary, runtime ownership, self-hosting, and verification model.
+- [Application-language roadmap](roadmap.md) — the five usability epics,
+  dependency order, subissue workflow, compatibility rules, and deferred work.
 - [Development builds](development-builds.md) — SDK-only final-compiler builds,
   canonical scripts, dependency overrides, and no-build test qualification.
 - [Command reference](command-reference.md) — public build command,
