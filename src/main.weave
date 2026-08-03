@@ -7,6 +7,7 @@
 ;   weavec fmt [--check | --output OUTPUT] SOURCE
 ;   weavec analyze SOURCE... --semantic-index-json INDEX
 ;   weavec build <input.weave> [input2.weave ...] -o <program>
+;   weavec build [--project <directory-or-manifest>] [-o <program>]
 ;   weavec --backend <input.wir> <output.ll>
 ;   weavec --frontend [--strict-contracts] <output.wir> <input.weave> [input2.weave ...]
 ;   weavec --dump-quantum-stats <output.metrics> <input.weave>
@@ -351,14 +352,14 @@
             (param_get argc) (param_get argv)))))
         (else (do)))
       (if
-        (condition (lt_i32 (param_get argc) (const_i32 3)))
-        (then (do (return (const_i32 1))))
-        (else (do)))
-      (if
         (condition (ne_i32 (call_i32 cstr_equals
           (local_get arg1) (const_string_ptr "build") (const_i64 5)) (const_i32 0)))
         (then (do
           (return (call_i32 weave_rt_build_main (param_get argc) (param_get argv)))))
+        (else (do)))
+      (if
+        (condition (lt_i32 (param_get argc) (const_i32 3)))
+        (then (do (return (const_i32 1))))
         (else (do)))
       (if
         (condition (ne_i32 (call_i32 cstr_equals
