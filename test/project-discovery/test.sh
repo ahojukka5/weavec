@@ -59,30 +59,27 @@ write_project "$CHILD" child-app child-bin
 mkdir -p "$NESTED"
 
 # The nearest manifest wins and its default output is anchored at its directory.
-expect_exit 2 bash -c \
+expect_exit 0 bash -c \
   'cd "$1" && "$2" build >"$3" 2>"$4"' \
   _ "$NESTED" "$WEAVEC" "$TMP/nearest.out" "$TMP/nearest.err"
-grep -F 'project.graph.pending' "$TMP/nearest.err"
-grep -F 'discovered 1 project modules' "$TMP/nearest.err"
-grep -F "$CHILD/child-bin" "$TMP/nearest.err"
-if grep -F "$PARENT/parent-bin" "$TMP/nearest.err" >/dev/null; then
-  printf 'project-discovery: skipped the nearer manifest\n' >&2
-  exit 1
-fi
+[[ -x "$CHILD/child-bin" ]]
+"$CHILD/child-bin"
+[[ ! -e "$PARENT/parent-bin" ]]
 
 # Explicit project directory and explicit manifest file are cwd-independent.
-expect_exit 2 bash -c \
+rm -f "$CHILD/child-bin"
+expect_exit 0 bash -c \
   'cd "$1" && "$2" build --project "$3" >"$4" 2>"$5"' \
   _ "$TMP" "$WEAVEC" "$CHILD" "$TMP/explicit-dir.out" "$TMP/explicit-dir.err"
-grep -F 'project.graph.pending' "$TMP/explicit-dir.err"
-grep -F "$CHILD/child-bin" "$TMP/explicit-dir.err"
+[[ -x "$CHILD/child-bin" ]]
+"$CHILD/child-bin"
 
-expect_exit 2 bash -c \
+expect_exit 0 bash -c \
   'cd "$1" && "$2" build --project "$3" -o custom-bin >"$4" 2>"$5"' \
   _ "$TMP" "$WEAVEC" "$CHILD/weave.project" \
   "$TMP/explicit-file.out" "$TMP/explicit-file.err"
-grep -F 'project.graph.pending' "$TMP/explicit-file.err"
-grep -F 'output custom-bin' "$TMP/explicit-file.err"
+[[ -x "$TMP/custom-bin" ]]
+"$TMP/custom-bin"
 
 # An invalid nearer manifest is authoritative and must not fall back to a parent.
 cat > "$CHILD/weave.project" <<'EOF_INVALID'
@@ -203,4 +200,4 @@ grep -F 'project.manifest.path' "$TMP/nul.err"
 grep -F -- '--project <directory-or-manifest>' "$TMP/help.txt"
 grep -F 'explicit source arguments' "$TMP/help.txt"
 
-printf 'project-discovery: precedence, diagnostics, and safety checks passed\n'
+printf 'project-discovery: precedence, builds, diagnostics, and safety passed\n'
