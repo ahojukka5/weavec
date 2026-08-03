@@ -18,6 +18,9 @@ names used when they were released.
 - [Weave project manifest version 1](project-manifest.md) — canonical
   `weave.project` grammar, defaults, path rules, project kinds, diagnostics, and
   command-line precedence for the project-system implementation.
+- [Deterministic project source discovery](project-source-discovery.md) — admitted
+  files, filesystem and symlink policy, compiler-declared module identities,
+  logical paths, stable ordering, and diagnostics.
 - [Development builds](development-builds.md) — SDK-only final-compiler builds,
   canonical scripts, dependency overrides, and no-build test qualification.
 - [Command reference](command-reference.md) — public build command,
