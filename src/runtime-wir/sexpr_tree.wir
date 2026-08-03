@@ -234,7 +234,9 @@
       (params (tree ptr) (index i64))
       (returns i64)
       (do
-        (let result i64 (const_i64 -1))
+        ; Invalid nodes represent an empty slice at source offset zero. This
+        ; keeps eager optional-child comparisons from forming source - 1.
+        (let result i64 (const_i64 0))
         (if
           (condition (ne_i32 (call_i32 tree_index_valid
             (param_get tree) (param_get index)) (const_i32 0)))
