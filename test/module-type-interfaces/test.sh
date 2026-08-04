@@ -200,7 +200,7 @@ diff -u \
   <(normalize_wir "$TMP/project-b.wir")
 
 # Struct declarations already participate in the module interface hash. Verify
-# that a public type import resolves to that struct symbol in either source order.
+# that the import and every Record type use resolve to the defining struct symbol.
 "$WEAVEC" analyze "$TMP/records.weave" "$TMP/main.weave" \
   --semantic-index-json "$TMP/index-forward.json"
 "$WEAVEC" analyze "$TMP/main.weave" "$TMP/records.weave" \
@@ -218,6 +218,10 @@ def facts(document):
     assert document["analysis"]["status"] == "complete"
     modules = {item["id"]: item for item in document["modules"]}
     symbols = {item["id"]: item for item in document["symbols"]}
+    sources = {
+        item["id"]: pathlib.Path(item["path"]).read_text(encoding="utf-8")
+        for item in document["sources"]
+    }
     records = next(item for item in document["modules"] if item["name"] == "records")
     record = next(
         item for item in document["symbols"]
@@ -226,7 +230,11 @@ def facts(document):
         and item["name"] == "Record"
     )
     assert record["visibility"] == "public"
-    assert record["signature"]["canonical"] == "(struct (field value i32))"
+    canonical = record["signature"]["canonical"]
+    assert canonical.startswith("(struct"), canonical
+    assert canonical.endswith(")"), canonical
+    assert canonical.count("(field ") == 1, canonical
+    assert "(field value i32)" in canonical, canonical
     imported = next(
         item for item in document["imports"]
         if item["imported_name"] == "Record"
@@ -235,10 +243,24 @@ def facts(document):
     assert symbols[imported["symbol_id"]]["kind"] == "struct"
     assert symbols[imported["symbol_id"]]["name"] == "Record"
     assert modules[symbols[imported["symbol_id"]]["module_id"]]["name"] == "records"
+
+    def referenced_text(reference):
+        span = reference["span"]
+        return sources[span["source_id"]][span["start"]:span["end"]]
+
+    type_references = [
+        reference for reference in document["references"]
+        if reference["role"] == "type"
+        and referenced_text(reference) == "Record"
+    ]
+    assert len(type_references) >= 10, type_references
+    assert all(reference["status"] == "resolved" for reference in type_references)
+    assert all(reference["symbol_id"] == record["id"] for reference in type_references)
     return (
         records["interface"]["sha256"],
-        record["signature"]["canonical"],
+        canonical,
         imported["status"],
+        len(type_references),
     )
 
 
