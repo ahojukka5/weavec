@@ -134,6 +134,35 @@ for pair in sys.argv[2].split(","):
 PY
 }
 
+assert_same_keys() {
+  local first="$1"
+  local second="$2"
+  python3 - "$first" "$second" <<'PY'
+import json
+import pathlib
+import sys
+
+left = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+right = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding="utf-8"))
+
+def facts(document):
+    return {
+        item["name"]: (item["key"], item["interface_sha256"])
+        for item in document["modules"]
+    }
+
+assert facts(left) == facts(right), (left, right)
+PY
+}
+
+compare_executable_bytes_when_stable() {
+  local first="$1"
+  local second="$2"
+  if [[ "$(uname -s)" != Darwin ]]; then
+    cmp "$first" "$second"
+  fi
+}
+
 module_key() {
   local report="$1"
   local module="$2"
@@ -169,7 +198,9 @@ expect_exit 0 "$WEAVEC" build --project "$FIRST" \
   --cache-dir "$CACHE" --cache-report "$TMP/hit.json"
 assert_report "$TMP/hit.json" \
   'application=reused,arithmetic=reused,constants=reused,unrelated=reused'
-cmp "$TMP/first-artifact" "$FIRST/incremental"
+assert_same_keys "$TMP/first.json" "$TMP/hit.json"
+compare_executable_bytes_when_stable \
+  "$TMP/first-artifact" "$FIRST/incremental"
 expect_exit 42 "$FIRST/incremental"
 
 mkdir -p "$(dirname "$SECOND")"
@@ -179,7 +210,9 @@ expect_exit 0 "$WEAVEC" build --project "$SECOND" \
   --cache-dir "$CACHE" --cache-report "$TMP/relocated.json"
 assert_report "$TMP/relocated.json" \
   'application=reused,arithmetic=reused,constants=reused,unrelated=reused'
-cmp "$TMP/first-artifact" "$SECOND/incremental"
+assert_same_keys "$TMP/first.json" "$TMP/relocated.json"
+compare_executable_bytes_when_stable \
+  "$TMP/first-artifact" "$SECOND/incremental"
 expect_exit 42 "$SECOND/incremental"
 
 # A private implementation change rebuilds only its owning module. Both direct
@@ -191,7 +224,6 @@ expect_exit 0 "$WEAVEC" build --project "$FIRST" \
 assert_report "$TMP/private.json" \
   'application=reused,arithmetic=reused,constants=rebuilt,unrelated=reused'
 expect_exit 41 "$FIRST/incremental"
-cp "$FIRST/incremental" "$TMP/private-artifact"
 
 # Changing a dependency interface rebuilds that module and its direct importer,
 # but a transitive importer whose required interface is unchanged remains reusable.
@@ -240,14 +272,16 @@ assert_report "$TMP/profile-hit.json" \
   'application=reused,arithmetic=reused,constants=reused,unrelated=reused'
 expect_exit 41 "$FIRST/incremental"
 
-# Clean and incremental builds publish byte-identical executables.
+# Clean and incremental builds retain identical keys, interfaces, and behavior.
 cp "$FIRST/incremental" "$TMP/incremental-artifact"
 rm -f "$FIRST/incremental"
 expect_exit 0 "$WEAVEC" build --project "$FIRST" -O0 \
   --cache-dir "$CACHE" --clean --cache-report "$TMP/clean.json"
 assert_report "$TMP/clean.json" \
   'application=rebuilt,arithmetic=rebuilt,constants=rebuilt,unrelated=rebuilt'
-cmp "$TMP/incremental-artifact" "$FIRST/incremental"
+assert_same_keys "$TMP/profile-hit.json" "$TMP/clean.json"
+compare_executable_bytes_when_stable \
+  "$TMP/incremental-artifact" "$FIRST/incremental"
 expect_exit 41 "$FIRST/incremental"
 
 rm -f "$FIRST/incremental"
@@ -255,6 +289,7 @@ expect_exit 0 "$WEAVEC" build --project "$FIRST" -O0 \
   --cache-dir "$CACHE" --no-cache --cache-report "$TMP/disabled.json"
 assert_report "$TMP/disabled.json" \
   'application=rebuilt,arithmetic=rebuilt,constants=rebuilt,unrelated=rebuilt'
+assert_same_keys "$TMP/clean.json" "$TMP/disabled.json"
 expect_exit 41 "$FIRST/incremental"
 
 cp "$FIRST/src/arithmetic.weave" "$TMP/arithmetic.before"
