@@ -64,6 +64,7 @@ names used when they were released.
 
 - [Executable contracts and explain mode](contracts-and-explain.md)
 - [Explicit modules and interfaces](modules.md)
+- [Public nominal type interfaces](public-nominal-types.md)
 - [Semantic structs](semantic-structs.md)
 - [Struct layout and compatibility ABI](struct-layout.md)
 - [Quantum surface support](quantum.md)

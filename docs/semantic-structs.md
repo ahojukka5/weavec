@@ -5,9 +5,9 @@ layout. Source code uses semantic construction and field operations; generated
 constructor and accessor names remain a WIR-v2 compatibility detail.
 
 The feature remains experimental while its broader surface contract stabilizes.
-The compiler semantics, type checking, diagnostics, native behavior, and
-constructor-field formatting described here are implemented and regression
-tested.
+The compiler semantics, type checking, diagnostics, native behavior, module
+interfaces, and constructor-field formatting described here are implemented and
+regression tested.
 
 ## Declaration
 
@@ -34,6 +34,37 @@ return declarations may use the struct name directly:
 Nominal struct types lower physically to WIR `ptr`; WIR core version 2 is not
 extended.
 
+## Module interfaces
+
+An explicit module may export a struct through the ordinary symbol interface:
+
+```weave
+(module records
+  (export Record)
+  (struct Record
+    (field value i32)))
+```
+
+A consumer must import that type explicitly before using it:
+
+```weave
+(module application
+  (import records (Record))
+  (fn identity
+    (params (value Record))
+    (returns Record)
+    (do (return value))))
+```
+
+The imported name retains the defining module's nominal identity. Importing it
+does not create a consumer-local copy, and two modules' same-spelled structs
+remain incompatible. Types share the module binding namespace with functions,
+externs, entries, and constants, so local and imported name collisions are
+rejected deterministically.
+
+See [Public nominal type interfaces](public-nominal-types.md) for visibility,
+re-export policy, project behavior, semantic-index facts, and stable diagnostics.
+
 ## Construction
 
 The canonical constructor is:
@@ -47,18 +78,19 @@ The canonical constructor is:
 
 Constructor fields are named rather than positional. The compiler:
 
-1. resolves the struct declaration;
+1. resolves the local or imported struct declaration;
 2. rejects malformed, unknown, duplicate, or missing fields;
 3. checks every value against its declared field type;
 4. emits arguments in declaration order, independent of source order;
-5. lowers to the generated `Record_new` compatibility function.
+5. lowers to the generated defining-module compatibility function.
 
 `weavec fmt` also writes complete, unambiguous constructors in declaration order.
 A comment immediately preceding a field clause is attached to that field and
 moves with it. Malformed, unknown, duplicate, and incomplete constructors retain
 source order so formatting never hides or repairs the semantic error.
 
-For the declaration above, the example lowers structurally to:
+For a legacy-program declaration named `Record`, the example lowers structurally
+to:
 
 ```weave
 (call_ptr Record_new
@@ -67,7 +99,8 @@ For the declaration above, the example lowers structurally to:
   (const_f64 2))
 ```
 
-No source author or agent needs to synthesize `Record_new` or remember positional
+Explicit modules use a deterministic module-qualified helper name instead. No
+source author or agent needs to synthesize either helper or remember positional
 field order.
 
 ## Field access
@@ -77,9 +110,9 @@ field order.
 (field-set record count new-count)
 ```
 
-The receiver's nominal type selects the generated getter or setter. The compiler
-rejects an untyped pointer, a non-struct value, an unknown field, or an assigned
-value with the wrong type.
+The receiver's nominal type selects the generated getter or setter from the
+defining module. The compiler rejects an untyped pointer, a non-struct value, an
+unknown field, or an assigned value with the wrong type.
 
 Field operations are ordinary expressions or statements and compose with other
 canonical forms:
@@ -111,9 +144,16 @@ future language feature defines them explicitly.
 
 Type names are interned deterministically during declaration collection. A
 function may refer to a struct declared later in the same source or in a later
-input file. Before a parameter, return, or local type is emitted, the compiler
-verifies that the provisional type was actually defined and reports the exact
-type occurrence otherwise.
+input file.
+
+For an imported type, the compiler creates a provisional identity from the
+explicitly named defining module and source type name. The later declaration
+completes that same identity. Before a parameter, return, or local type is emitted,
+the compiler verifies that the provisional type was actually defined and reports
+the exact type occurrence otherwise.
+
+Source argument order and absolute checkout path therefore do not affect nominal
+identity, generated helper names, or interface hashes.
 
 ## Diagnostics
 
@@ -135,13 +175,16 @@ frontend.struct.field.malformed
 frontend.struct.field-type-mismatch
 ```
 
-Diagnostics identify the relevant struct or field, expected and actual types when
-known, operand role, and exact source span. A failed frontend compilation does
-not publish partial WIR or a native executable.
+Module visibility and binding failures use the stable `frontend.module.*` codes
+documented in [Public nominal type interfaces](public-nominal-types.md).
+Diagnostics identify the relevant struct, import, export, declaration, or field,
+expected and actual types when known, operand role, and exact source span. A failed
+frontend compilation does not publish partial WIR or a native executable.
 
 ## Compatibility ABI
 
-The existing generated functions remain callable by low-level source:
+The existing generated functions remain callable by low-level source. Legacy
+programs use:
 
 ```text
 TYPE_new
@@ -149,9 +192,10 @@ TYPE_get_FIELD
 TYPE_set_FIELD
 ```
 
-They are represented in `weavec-capabilities-v1` as the
-`generated-struct-abi` compatibility family. New code should use `new`,
-`field-get`, and `field-set`.
+Explicit modules use deterministic defining-module-qualified bases before the
+same `_new`, `_get_FIELD`, and `_set_FIELD` suffixes. Both forms are represented
+in `weavec-capabilities-v1` by the `generated-struct-abi` compatibility family.
+New code should use `new`, `field-get`, and `field-set`.
 
 See [Struct layout and compatibility ABI](struct-layout.md) for sizes,
 alignments, memory operations, and allocation layout.
