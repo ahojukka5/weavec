@@ -108,7 +108,7 @@ jobs:
     name: deep self-host ladder
     needs: [test, guard-self-hosted]
     runs-on: self-hosted
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       WEAVEC1_VERSION: v0.3.2
       WEAVEC1_LIBC: glibc
@@ -183,6 +183,12 @@ jobs:
         run: |
           test -x build/selfhost/stage1/weavec
           test -x build/selfhost/stage2/weavec
+
+      - name: Run stage-2 project acceptance
+        shell: bash
+        run: |
+          env WEAVEC="$GITHUB_WORKSPACE/build/selfhost/stage2/weavec" \
+            bash test/project-acceptance/test.sh
 
       - name: Summarize failed self-host stage
         if: failure()
