@@ -145,8 +145,14 @@ static char *weave_rt_mkdtemp(char *path_template) {
 #include "module_struct_names.c"
 #include "json_writer.c"
 #include "document_publish.c"
+#define weave_rt_semantic_index_main \
+    weave_rt_semantic_index_main_project_legacy
 #include "semantic_index.c"
+#undef weave_rt_semantic_index_main
+#define weave_rt_print_capabilities \
+    weave_rt_print_capabilities_project_legacy
 #include "capabilities_json.c"
+#undef weave_rt_print_capabilities
 #include "build_manifest_json.c"
 #include "semantic_diagnostic_transport.c"
 
@@ -206,7 +212,10 @@ static int weave_project_ascii_alnum(int value) {
 #define weave_rt_build_main weave_rt_build_main_project_graph_legacy
 #include "project_graph.c"
 #undef weave_rt_build_main
+#define weave_rt_build_main weave_rt_build_main_project_protocol_legacy
 #define weave_rt_build_main_project_legacy \
     weave_rt_build_main_project_graph_legacy
 #include "project_safety.c"
 #undef weave_rt_build_main_project_legacy
+#undef weave_rt_build_main
+#include "project_protocols.c"
