@@ -128,6 +128,40 @@ successful build manifest. Requested diagnostics and traces may still be
 published with incomplete project facts so tools can explain the failure without
 reimplementing project discovery.
 
+## Acceptance command
+
+The integrated public project workflow is qualified with one reusable command:
+
+```sh
+bash test/project-acceptance/test.sh
+```
+
+A specific compiler, including an extracted release compiler or a self-hosted
+stage compiler, is selected explicitly:
+
+```sh
+bash test/project-acceptance/test.sh --compiler /path/to/weavec
+```
+
+The acceptance runner composes the focused module-interface, nominal-type,
+project-selection, source-admission, graph-resolution, protocol, relocation, and
+failure suites. It requires all representative executable and library builds to
+succeed, native programs to return their expected status, normalized relocated
+outputs and interface hashes to agree, and failed builds to retain stable human
+and JSON diagnostics without partial executables.
+
+The standard qualification matrix invokes this command in three environments:
+
+- the compiler built from published SDKs on Linux glibc, Linux musl, and macOS;
+- each extracted static Linux release package, using only its packaged compiler
+  and private runtime; and
+- the stage-2 compiler produced by the deep self-host ladder.
+
+Issue [#124](https://github.com/ahojukka5/weavec/issues/124) is complete only after
+the exact merged `master` revision passes both the CI push workflow and the
+release push workflow. Pull-request checks establish review readiness but do not
+by themselves close that acceptance gate.
+
 ## Compatibility boundary
 
 This feature does not change surface syntax, `weave.project` format version 1,
