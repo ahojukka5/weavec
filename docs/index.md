@@ -23,6 +23,8 @@ names used when they were released.
   logical paths, stable ordering, and diagnostics.
 - [Project facts in compiler protocols](project-protocols.md) — shared project
   context in manifests, diagnostics, traces, semantic indexes, and capabilities.
+- [Incremental project builds](incremental-project-builds.md) — interface-hash
+  module caching, invalidation, controls, atomic storage, evidence, and safety.
 - [Development builds](development-builds.md) — SDK-only final-compiler builds,
   canonical scripts, dependency overrides, and no-build test qualification.
 - [Command reference](command-reference.md) — public build command,
