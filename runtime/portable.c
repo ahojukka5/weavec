@@ -218,4 +218,20 @@ static int weave_project_ascii_alnum(int value) {
 #include "project_safety.c"
 #undef weave_rt_build_main_project_legacy
 #undef weave_rt_build_main
+
+static int weave_project_protocol_load_selection(
+    const char *selection,
+    weave_project_manifest *manifest,
+    weave_project_error *error) {
+    char manifest_path[PATH_MAX];
+    return weave_project_manifest_path(
+               selection,
+               manifest_path,
+               sizeof(manifest_path),
+               error) &&
+        weave_project_load(manifest_path, manifest, error);
+}
+
+#define weave_project_load weave_project_protocol_load_selection
 #include "project_protocols.c"
+#undef weave_project_load
