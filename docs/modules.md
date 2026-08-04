@@ -2,13 +2,14 @@
 
 Weave has an experimental explicit-module surface for bounding the names visible
 to an LLM or structural tool. The compiler, not the filesystem or an external
-indexer, validates module identity, imports, exports, callable visibility, and
-module-scoped nominal identities.
+indexer, validates module identity, imports, exports, callable visibility, public
+nominal types, and module-scoped identities.
 
 The completed issue #53 implementation series established the source interface,
 visibility model, deterministic private-symbol naming, module-scoped nominal
 types, structured diagnostics, and semantic-index representation without
-changing WIR core version 2.
+changing WIR core version 2. Project-system issue #122 extends those interfaces
+to public nominal struct types.
 
 ## Canonical roots
 
@@ -38,7 +39,10 @@ An export clause names one or more declarations from the current module:
 
 ```weave
 (module arithmetic
-  (export add-two subtract-two)
+  (export Number add-two subtract-two)
+
+  (struct Number
+    (field value i32))
 
   (fn add-two
     (params (left i32) (right i32))
@@ -53,9 +57,10 @@ An export clause names one or more declarations from the current module:
       (return (op subtract left right)))))
 ```
 
-Each exported name must identify a callable or constant declared in that module.
-Empty, duplicate, and missing exports are rejected. Declarations not listed by an
-export clause are private.
+Each exported name must identify a callable, constant, or struct declared in that
+module. Empty, duplicate, and missing exports are rejected. Declarations not
+listed by an export clause are private. An imported declaration is not locally
+owned and cannot be re-exported implicitly.
 
 ## Imports
 
@@ -63,7 +68,12 @@ An import names one source module and an explicit symbol list:
 
 ```weave
 (module application
-  (import arithmetic (add-two))
+  (import arithmetic (Number add-two))
+
+  (fn identity
+    (params (value Number))
+    (returns Number)
+    (do (return value)))
 
   (entry main
     (params)
@@ -75,26 +85,34 @@ An import names one source module and an explicit symbol list:
 Wildcard imports are not supported. The compiler rejects:
 
 - a missing source module;
-- a missing source symbol;
-- a private source symbol;
+- a missing source symbol or type;
+- a private source symbol or type;
 - the same imported binding repeated;
-- two modules imported under the same local symbol name;
-- an imported binding that conflicts with a callable or constant declared in
-  the current module.
+- two modules imported under the same local name;
+- an imported binding that conflicts with any callable, constant, or struct
+  declared in the current module.
 
-A call first resolves a declaration in its own module, then an explicitly
-imported exported declaration. An exported name in another module is not ambient;
-it remains unavailable until imported. Because imported bindings and local
-declarations cannot share a name, this lookup order never silently shadows a
-valid import.
+Functions, constants, entries, externs, and nominal types share one local binding
+namespace. A call resolves a local declaration and then an explicitly imported
+exported declaration. A type annotation resolves a local struct and then an
+explicit imported public struct. An exported name in another module is not
+ambient; it remains unavailable until imported. This lookup never silently
+shadows a valid import.
+
+See [Public nominal type interfaces](public-nominal-types.md) for type ownership,
+use sites, re-export policy, semantic-index representation, and diagnostics.
 
 ## Ordering and cycles
 
-All module, import, export, and declaration facts are collected before interface
-validation. An import may therefore refer to a module that appears later in the
-command line. Reversing source arguments does not change name visibility,
+All module, import, export, callable, constant, and nominal-type facts are
+collected before interface validation and declaration emission. An import may
+therefore refer to a module that appears later in the command line. Imported type
+references create the defining module's deterministic provisional identity and
+the later declaration completes that identity.
+
+Reversing source arguments does not change name visibility, nominal identity,
 normalized semantic WIR, module interfaces, semantic references, call edges, or
-private-stable interface hashes.
+interface hashes.
 
 Import cycles are rejected. The compiler reports a cycle before emitting
 declarations, and failed frontend compilation does not publish a partial WIR
@@ -134,9 +152,12 @@ exists.
 A struct declared in an explicit module has a nominal identity formed from its
 module identity and source type name. Two modules may therefore both declare
 `Record`; the resulting types are distinct even when their field lists happen to
-match. A local type annotation resolves only to the struct owned by the current
-module. Public type export and import syntax is part of the project-system
-roadmap rather than the completed callable-interface slice.
+match.
+
+A local type annotation resolves to the struct owned by the current module or to
+one explicitly imported public struct. Importing a struct preserves the defining
+module's identity; it does not create a structurally equivalent consumer-local
+type.
 
 Generated constructor and accessor helpers use deterministic compiler-owned WIR
 base names. For `Record` in modules `alpha` and `beta`, the bases are:
@@ -156,31 +177,37 @@ helper name. Legacy `program` sources retain the historical `Record_new`,
 The completed module implementation provides:
 
 - explicit module identities;
-- explicit callable and constant exports;
-- explicit imported bindings;
-- private-by-default callable lookup;
+- explicit callable, constant, and nominal struct exports;
+- explicit imported bindings shared by value and type positions;
+- private-by-default callable, constant, and nominal-type lookup;
 - deterministic WIR names for colliding private callables and constants across
   canonical calls, explicit typed calls, and contract lowering;
 - module-scoped nominal struct identities and deterministic generated helpers;
+- construction, field access, mutation, parameters, returns, and locals using
+  imported public structs;
+- a single collision-checked local binding namespace;
 - structured diagnostics for duplicate and conflicting imports, local/import
-  collisions, missing and private symbols, mixed roots, raw-linkage collisions,
-  malformed interfaces, and import cycles;
-- semantic-index module definitions, imports, exports, symbol references, call
-  edges, and private-stable interface hashes;
+  collisions, type/value collisions, missing and private symbols, mixed roots,
+  raw-linkage collisions, malformed interfaces, and import cycles;
+- semantic-index module definitions, public struct symbols, imports, exports,
+  references, call edges, and interface hashes;
 - source-order-independent normalized module semantics and interface facts;
 - legacy `program` compatibility.
 
 ## Roadmap boundary
 
 Epic [#111](https://github.com/ahojukka5/weavec/issues/111) turns these compiler
-semantics into a practical project and package foundation. It owns:
+semantics into a practical project and package foundation. Completed slices now
+provide:
 
 - a canonical project manifest;
 - deterministic module-to-file discovery;
 - local dependency graph resolution and entry-module selection;
-- public type exports and imports;
-- project-level build, diagnostics, manifest, trace, and semantic-index behavior;
-- later interface-hash-based incremental compilation.
+- public nominal type exports and imports.
+
+Remaining project-system work owns additive project facts in diagnostics,
+manifests, traces, semantic indexes, integrated qualification, and later
+interface-hash-based incremental compilation.
 
 The module feature remains experimental until that project-level user experience
 is stable. New work should be filed as focused subissues of #111 rather than
@@ -188,12 +215,12 @@ reopening the completed issue #53 implementation series.
 
 ## Tooling contract
 
-`weavec capabilities --json` reports the `modules` feature as experimental and
-publishes the `module`, `import`, and `export` form heads with exact arities and
-roles. `weavec analyze --semantic-index-json` publishes the compiler-authoritative
-module graph, symbol interfaces, references, call edges, and interface hashes.
-Tools should check feature status before generating modular source.
+`weavec capabilities --json` reports the `modules` and `semantic-structs` features
+as experimental and publishes the `module`, `import`, `export`, `struct`, `new`,
+`field-get`, and `field-set` forms with exact arities and roles.
 
-The compiler remains the semantic authority. Jacquard and other tools should not
-infer visibility from filenames, directory layout, source argument order, or the
-encoded WIR spelling.
+`weavec analyze --semantic-index-json` publishes compiler-authoritative module
+graphs, public struct symbols and signatures, import/export references, call edges,
+and interface hashes. Tools should require the relevant capabilities and must not
+infer visibility or nominal identity from filenames, directory layout, source
+argument order, or encoded WIR spelling.
