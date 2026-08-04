@@ -61,6 +61,9 @@ bash "$ROOT/test/surface-symbols/test.sh"
 log 'semantic-index contract'
 bash "$ROOT/test/semantic-index-contract/test.sh"
 
+log 'project protocol contract'
+bash "$ROOT/test/project-protocol-contract/test.sh"
+
 log 'build boundary'
 bash "$ROOT/test/build-boundary/test.sh"
 
@@ -104,6 +107,9 @@ bash "$ROOT/test/project-discovery/test.sh"
 
 log 'project source discovery'
 bash "$ROOT/test/project-source-discovery/test.sh"
+
+log 'project protocols'
+bash "$ROOT/test/project-protocols/test.sh"
 
 log 'semantic-index emitter'
 bash "$ROOT/test/semantic-index/test.sh"

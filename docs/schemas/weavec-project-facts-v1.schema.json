@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:weavec:schema:project-facts:v1",
+  "title": "weavec-project-facts-v1",
+  "type": "object",
+  "required": [
+    "format",
+    "complete",
+    "resolution_phase",
+    "selection",
+    "name",
+    "kind",
+    "manifest",
+    "root",
+    "source_roots",
+    "test_roots",
+    "entry_module",
+    "output",
+    "resolved_output",
+    "sources",
+    "module_order",
+    "module_graph"
+  ],
+  "properties": {
+    "format": {"const": "weavec-project-facts-v1"},
+    "complete": {"type": "boolean"},
+    "resolution_phase": {
+      "enum": [
+        "project-manifest",
+        "project-sources",
+        "project-graph",
+        "complete"
+      ]
+    },
+    "selection": {"type": ["string", "null"]},
+    "name": {"type": ["string", "null"]},
+    "kind": {
+      "oneOf": [
+        {"enum": ["executable", "library"]},
+        {"type": "null"}
+      ]
+    },
+    "manifest": {
+      "oneOf": [
+        {"$ref": "#/$defs/manifest"},
+        {"type": "null"}
+      ]
+    },
+    "root": {
+      "oneOf": [
+        {"$ref": "#/$defs/root"},
+        {"type": "null"}
+      ]
+    },
+    "source_roots": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/logical_path"}
+    },
+    "test_roots": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/logical_path"}
+    },
+    "entry_module": {"type": ["string", "null"]},
+    "output": {"type": ["string", "null"]},
+    "resolved_output": {"type": ["string", "null"]},
+    "sources": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/source"}
+    },
+    "module_order": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "module_graph": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/module"}
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"complete": {"const": true}},
+        "required": ["complete"]
+      },
+      "then": {
+        "properties": {
+          "resolution_phase": {"const": "complete"},
+          "name": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["executable", "library"]},
+          "manifest": {"$ref": "#/$defs/manifest"},
+          "root": {"$ref": "#/$defs/root"},
+          "output": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "logical_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    },
+    "physical_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "manifest": {
+      "type": "object",
+      "required": ["logical_path", "physical_path"],
+      "properties": {
+        "logical_path": {"const": "weave.project"},
+        "physical_path": {"$ref": "#/$defs/physical_path"}
+      },
+      "additionalProperties": true
+    },
+    "root": {
+      "type": "object",
+      "required": ["physical_path"],
+      "properties": {
+        "physical_path": {"$ref": "#/$defs/physical_path"}
+      },
+      "additionalProperties": true
+    },
+    "source": {
+      "type": "object",
+      "required": ["module", "logical_path", "physical_path"],
+      "properties": {
+        "module": {"type": "string", "minLength": 1},
+        "logical_path": {"$ref": "#/$defs/logical_path"},
+        "physical_path": {"$ref": "#/$defs/physical_path"}
+      },
+      "additionalProperties": true
+    },
+    "module": {
+      "type": "object",
+      "required": ["module", "source", "imports"],
+      "properties": {
+        "module": {"type": "string", "minLength": 1},
+        "source": {"$ref": "#/$defs/logical_path"},
+        "imports": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
