@@ -234,7 +234,27 @@ portable across supported hosts and covered by the complete platform matrix.
 8. Update the README, changelog, and every affected reference or design
    document.
 9. Inspect the complete base-to-head diff and commit list, clean feature-branch
-   history, and open a focused pull request.
+   history, and open a focused pull request as a draft while validation runs.
+
+## Pull request readiness and CI completion
+
+A pull request is not ready for review until every required check for its exact
+current head has completed successfully.
+
+- Keep the pull request in draft while any required workflow or check is queued,
+  pending, in progress, cancelled, timed out, or failing.
+- A red or cancelled check means the contribution is unfinished. Inspect the
+  logs, fix the underlying code, tests, workflow, or runner interaction, and run
+  fresh validation rather than asking a reviewer to accept the failure.
+- Continue the task until the complete required matrix is green. Do not stop with
+  a status report while a fixable required check remains unresolved.
+- After rebasing, squashing, force-pushing, or otherwise rewriting history, treat
+  all earlier results as stale and validate the new exact head again.
+- Mark the pull request ready for review only after CI is green, the final commit
+  history is clean, and the pull-request validation summary matches that head.
+- If required external infrastructure is unavailable, leave the pull request in
+  draft and describe the blocker precisely. Unavailable CI does not make the
+  contribution ready.
 
 CI runs the normal ladder with Linux glibc SDKs, Linux musl SDKs, and native
 macOS SDKs. The deep-selfhost CI job builds the seed first, then verifies

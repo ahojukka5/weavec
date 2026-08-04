@@ -71,6 +71,24 @@ Always provide the direct pull-request link. State honestly which validation was
 run, which could not be run, and whether the branch contains exactly the intended
 commits and files.
 
+## CI completion gate
+
+A task is not complete while any required check for the exact current pull-request
+head is queued, pending, in progress, cancelled, timed out, or failing.
+
+- Keep the pull request in draft while required CI is unresolved or red.
+- Do not stop at reporting a failed or cancelled check. Inspect its logs, fix the
+  underlying code, test, workflow, or runner interaction, and trigger fresh
+  validation for the exact corrected head.
+- Continue until every required check is green. A red check is unfinished work,
+  not a status that can be explained away or handed to the reviewer.
+- After every history rewrite or force-push, discard earlier evidence and rerun
+  all required qualification on the new exact head.
+- Mark the pull request ready for review only after the complete required matrix
+  is green and the branch history and validation summary are final.
+- If external infrastructure is unavailable, keep the pull request in draft and
+  report the concrete blocker. Do not claim the task or pull request is ready.
+
 ## Reviewing and merging a pull request
 
 Reviewing a PR opened by another agent or contributor is a separate
