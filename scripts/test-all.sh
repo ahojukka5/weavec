@@ -102,14 +102,8 @@ bash "$ROOT/test/version/test.sh"
 log 'compiler capabilities'
 bash "$ROOT/test/capabilities/test.sh"
 
-log 'project discovery'
-bash "$ROOT/test/project-discovery/test.sh"
-
-log 'project source discovery'
-bash "$ROOT/test/project-source-discovery/test.sh"
-
-log 'project protocols'
-bash "$ROOT/test/project-protocols/test.sh"
+log 'public project acceptance'
+bash "$ROOT/test/project-acceptance/test.sh"
 
 log 'semantic-index emitter'
 bash "$ROOT/test/semantic-index/test.sh"
@@ -138,9 +132,6 @@ bash "$ROOT/test/struct-layout/test.sh"
 log 'semantic structs'
 bash "$ROOT/test/semantic-structs/test.sh"
 
-log 'module interfaces'
-bash "$ROOT/test/modules/test.sh"
-
 log 'module diagnostics'
 bash "$ROOT/test/module-diagnostics/test.sh"
 
@@ -149,9 +140,6 @@ bash "$ROOT/test/module-collisions/test.sh"
 
 log 'module struct identities'
 bash "$ROOT/test/module-structs/test.sh"
-
-log 'module nominal type interfaces'
-bash "$ROOT/test/module-type-interfaces/test.sh"
 
 log 'module symbol names'
 bash "$ROOT/test/module-symbols/test.sh"

@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # This repository is public. The linux-*-sdks legs of `test` below (and
   # all of `deep-selfhost`) run on the self-hosted LUMI runner and must
@@ -108,7 +112,7 @@ jobs:
     name: deep self-host ladder
     needs: [test, guard-self-hosted]
     runs-on: self-hosted
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       WEAVEC1_VERSION: v0.3.2
       WEAVEC1_LIBC: glibc
@@ -183,6 +187,13 @@ jobs:
         run: |
           test -x build/selfhost/stage1/weavec
           test -x build/selfhost/stage2/weavec
+
+      - name: Run stage-2 project acceptance
+        shell: bash
+        run: |
+          env WEAVEC="$GITHUB_WORKSPACE/build/selfhost/stage2/weavec" \
+            WEAVEC_RUNTIME="$GITHUB_WORKSPACE/runtime/program.c" \
+            bash test/project-acceptance/test.sh
 
       - name: Summarize failed self-host stage
         if: failure()
