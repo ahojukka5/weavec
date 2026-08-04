@@ -31,6 +31,13 @@ EOF_SOURCE
 
 sources=("$TMP/application.weave" "$TMP/arithmetic.weave")
 
+# The ordinary complete unit remains independently valid through the public
+# frontend/backend path.
+"$WEAVEC" --frontend "$TMP/complete.wir" "${sources[@]}"
+"$WEAVEC" --backend "$TMP/complete.wir" "$TMP/complete.ll"
+grep -F 'define i32 @main' "$TMP/complete.ll"
+grep -F 'define i32 @answer' "$TMP/complete.ll"
+
 env WEAVEC_INTERNAL_BODY_SOURCE_INDEX=0 \
   "$WEAVEC" --frontend "$TMP/application.wir" "${sources[@]}"
 env WEAVEC_INTERNAL_BODY_SOURCE_INDEX=1 \
@@ -50,12 +57,6 @@ if grep -F '(fn main ' "$TMP/arithmetic.wir" >/dev/null; then
   printf 'module-body-selection: entry body entered arithmetic unit\n' >&2
   exit 1
 fi
-
-"$WEAVEC" --backend "$TMP/application.wir" "$TMP/application.ll"
-"$WEAVEC" --backend "$TMP/arithmetic.wir" "$TMP/arithmetic.ll"
-grep -F 'define i32 @main' "$TMP/application.ll"
-grep -F 'declare i32 @answer' "$TMP/application.ll"
-grep -F 'define i32 @answer' "$TMP/arithmetic.ll"
 
 # Invalid cross-module interfaces still fail before body selection.
 cat > "$TMP/invalid.weave" <<'EOF_SOURCE'
