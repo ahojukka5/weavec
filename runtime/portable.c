@@ -244,10 +244,13 @@ static int weave_project_protocol_load_selection(
 #include "project_protocol_safety.c"
 #undef weave_rt_build_main
 #include "project_cache_selection.c"
-#define weave_rt_build_main weave_rt_build_main_project_module_legacy
+#define weave_rt_build_main weave_rt_build_main_project_whole_cache
 #include "project_cache.c"
 #undef weave_rt_build_main
+#include "project_cache_dispatch.c"
 #include "project_module_interfaces.c"
+#define weave_rt_build_main_project_module_legacy weave_project_cache_dispatch
 #define lower_sources weave_project_module_lower_sources
 #include "project_module_cache.c"
 #undef lower_sources
+#undef weave_rt_build_main_project_module_legacy
