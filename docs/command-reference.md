@@ -73,12 +73,12 @@ The selected manifest is parsed against
 stable `project.manifest.*` codes, and `--diagnostics-json` reports them through
 `weavec-diagnostics-v1` with stable driver exit `15`.
 
-Project selection and manifest validation are implemented. Deterministic source
-membership is the next slice under issue #120. Until that lands, a valid project
-selection ends at the explicit `project.sources.pending` boundary without
-publishing WIR, native output, or auxiliary compiler artifacts. Without diagnostics
-JSON this boundary returns raw exit `2`; with diagnostics JSON it returns stable
-driver exit `15`.
+Project mode discovers admitted source modules, resolves their import graph into a
+deterministic dependency order, validates executable entry ownership, and invokes
+the same frontend and backend used by explicit source-list builds. Library projects
+publish their normalized WIR bundle instead of a native executable. Project-owned
+machine-readable outputs include the additive `weavec-project-facts-v1` object
+documented in [Project facts in compiler protocols](project-protocols.md).
 
 ### Inputs and output
 
@@ -151,6 +151,11 @@ public phase exit codes while preserving human-readable stderr. See
 of source-linked frontend transformations performed by the real lowering and
 optimization paths. See [Source-linked compilation trace](compilation-trace.md).
 
+In project mode, each requested JSON document carries the same additive top-level
+`project` member. It identifies the selected project, logical source membership,
+entry module, deterministic module graph, and current resolution phase without
+changing the enclosing version-one document format.
+
 `--emit-wir <path>` and `--emit-llvm <path>` atomically publish the successful
 frontend and backend artifacts at stable paths. They are intended for external
 compiler tooling and remain available when a later phase fails. See
@@ -170,6 +175,33 @@ By default, WIR, LLVM IR, and object files are removed after the build.
 `--keep-temporaries` retains the private temporary directory and prints its path
 to stderr. This is a compiler-development aid, not a reproducible output
 location.
+
+## Semantic analysis
+
+Explicit source-list analysis is:
+
+```text
+weavec analyze <input.weave> [input2.weave ...]
+               --semantic-index-json <path>
+```
+
+Project analysis is:
+
+```text
+weavec analyze [--project <directory-or-manifest>]
+               --semantic-index-json <path>
+```
+
+Project analysis uses the same manifest selection, source admission, dependency
+order, and module identities as `weavec build`. The semantic index keeps its
+existing module, symbol, import, export, reference, call-edge, public nominal type,
+and interface-hash facts and adds the shared `weavec-project-facts-v1` context.
+Project-relative logical source paths are relocation-stable; documented physical
+paths remain observational.
+
+The semantic-index output path may not alias the selected manifest or an admitted
+project source. Project selection or graph failures do not publish a partial
+semantic index.
 
 ## Canonical formatter
 
