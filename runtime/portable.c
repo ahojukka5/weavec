@@ -244,4 +244,7 @@ static int weave_project_protocol_load_selection(
 #include "project_protocol_safety.c"
 #undef weave_rt_build_main
 #include "project_cache_selection.c"
+#define weave_rt_build_main weave_rt_build_main_project_module_legacy
 #include "project_cache.c"
+#undef weave_rt_build_main
+#include "project_module_cache.c"
