@@ -28,7 +28,13 @@ cat > "$TMP/registry.c" <<'C'
     weave_surface_struct_type_or_declare_storage
 #define weave_surface_struct_define weave_surface_struct_define_storage
 #define weave_surface_struct_name weave_surface_struct_name_storage
+#define weave_surface_module_export_status \
+    weave_surface_module_export_status_storage
+#define weave_surface_module_import_status \
+    weave_surface_module_import_status_storage
 #include "runtime/surface_symbols.c"
+#undef weave_surface_module_import_status
+#undef weave_surface_module_export_status
 #undef weave_surface_struct_name
 #undef weave_surface_struct_define
 #undef weave_surface_struct_type_or_declare
@@ -40,13 +46,15 @@ cat > "$TMP/registry.c" <<'C'
 #include "runtime/module_struct_names.c"
 
 int main(void) {
-    static const char names[] = "alphaRecordvaluebeta";
+    static const char names[] = "alphaRecordvaluebetagamma";
 
     weave_surface_symbols_reset();
     assert(weave_surface_module_begin(names, 0, 5) == 0);
     int32_t alpha = weave_surface_struct_define(names, 5, 6);
     assert(alpha >= WEAVEC_SURFACE_STRUCT_TYPE_BASE);
     assert(weave_surface_struct_add_field(alpha, names, 11, 5, 2) == 0);
+    assert(weave_surface_module_add_export(names, 5, 6) == 0);
+    assert(weave_surface_module_export_status(names, 5, 6) == 0);
     assert(strcmp(weave_surface_struct_name(alpha), "Record") == 0);
     assert(strcmp(
         weave_surface_struct_wir_name(alpha),
@@ -63,6 +71,15 @@ int main(void) {
         "__weave_m_62657461__t_5265636f7264") == 0);
     assert(weave_surface_struct_field_type(alpha, 0) == 2);
     assert(weave_surface_struct_field_type(beta, 0) == 3);
+
+    assert(weave_surface_module_begin(names, 20, 5) == 2);
+    assert(weave_surface_module_add_import(
+        names, 0, 5, 5, 6) == 0);
+    assert(weave_surface_module_import_status(
+        names, 0, 5, 5, 6) == 0);
+    assert(weave_surface_module_import_status(
+        names, 16, 4, 5, 6) == -3);
+    assert(weave_surface_struct_type_or_declare(names, 5, 6) == alpha);
 
     assert(weave_surface_module_select(names, 0, 5) == 0);
     assert(weave_surface_struct_type_or_declare(names, 5, 6) == alpha);

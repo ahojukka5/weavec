@@ -144,6 +144,9 @@ bash "$ROOT/test/module-collisions/test.sh"
 log 'module struct identities'
 bash "$ROOT/test/module-structs/test.sh"
 
+log 'module nominal type interfaces'
+bash "$ROOT/test/module-type-interfaces/test.sh"
+
 log 'module symbol names'
 bash "$ROOT/test/module-symbols/test.sh"
 
