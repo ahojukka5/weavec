@@ -101,7 +101,7 @@ if grep -F "$PARENT/weave.project" "$TMP/invalid.err" >/dev/null; then
   exit 1
 fi
 
-# Diagnostics use the stable driver exit and project-manifest code.
+# Diagnostics use the stable driver exit and project-manifest protocol phase.
 expect_exit 15 bash -c \
   'cd "$1" && "$2" build --diagnostics-json "$3" >/dev/null 2>"$4"' \
   _ "$NESTED" "$WEAVEC" "$TMP/diagnostics.json" "$TMP/diagnostics.err"
@@ -113,13 +113,21 @@ import sys
 document = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert document["format"] == "weavec-diagnostics-v1"
 assert document["status"] == "failed"
-assert document["phase"] == "driver"
+assert document["phase"] == "project-manifest"
 assert document["exit_code"] == 15
 assert len(document["diagnostics"]) == 1
 item = document["diagnostics"][0]
+assert item["phase"] == "project-manifest"
 assert item["code"] == "project.manifest.unknown-field"
 assert item["source"] == sys.argv[2]
 assert item["span"] is not None
+project = document["project"]
+assert project["format"] == "weavec-project-facts-v1"
+assert project["complete"] is False
+assert project["resolution_phase"] == "project-manifest"
+assert project["manifest"] is None
+assert project["sources"] == []
+assert project["module_graph"] == []
 PY
 
 # Missing discovery is deterministic and explicit source mode ignores projects.
