@@ -185,6 +185,11 @@
           (param_get tree) (param_get source)) (const_i32 0)))
         (then (do (return (const_i32 1))))
         (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 weave_rt_emit_current_source_body) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
       (let first_decl i64 (call_i64 program_first_decl (param_get tree) (param_get source)))
       (if
         (condition (ne_i32 (call_i32 validate_program_effect_clauses
