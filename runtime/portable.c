@@ -127,7 +127,13 @@ static char *weave_rt_mkdtemp(char *path_template) {
     weave_surface_struct_type_or_declare_storage
 #define weave_surface_struct_define weave_surface_struct_define_storage
 #define weave_surface_struct_name weave_surface_struct_name_storage
+#define weave_surface_module_export_status \
+    weave_surface_module_export_status_storage
+#define weave_surface_module_import_status \
+    weave_surface_module_import_status_storage
 #include "surface_symbols.c"
+#undef weave_surface_module_import_status
+#undef weave_surface_module_export_status
 #undef weave_surface_struct_name
 #undef weave_surface_struct_define
 #undef weave_surface_struct_type_or_declare
