@@ -55,6 +55,9 @@ bash "$ROOT/test/compiler-sources/test.sh"
 log 'self-host fixed-point verifier'
 bash "$ROOT/test/selfhost-fixed-point/test.sh"
 
+log 'structured semantic type graph'
+bash "$ROOT/test/semantic-type-graph/test.sh"
+
 log 'surface semantic storage'
 bash "$ROOT/test/surface-symbols/test.sh"
 
