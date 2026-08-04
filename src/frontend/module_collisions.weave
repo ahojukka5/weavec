@@ -9,8 +9,8 @@
   (name "module_collisions")
   (version "0.1")
 
-  (fn surface_module_decl_matches
-    (params (tree ptr) (source ptr) (decl i64) (symbol i64))
+  (fn surface_module_decl_is_struct
+    (params (tree ptr) (source ptr) (decl i64))
     (returns i32)
     (do
       (if
@@ -18,27 +18,61 @@
           (param_get tree) (param_get decl)) (call_i32 node_list)))
         (then (do (return (const_i32 0))))
         (else (do)))
+      (return (call_i32 head_equals
+        (param_get tree) (param_get source) (param_get decl)
+        (const_string_ptr "struct") (const_i64 6)))))
+
+  (fn surface_module_decl_is_value
+    (params (tree ptr) (source ptr) (decl i64))
+    (returns i32)
+    (do
       (if
-        (condition (not_bool
-          (or_bool
-            (or_bool
-              (ne_i32 (call_i32 head_equals
-                (param_get tree) (param_get source) (param_get decl)
-                (const_string_ptr "fn") (const_i64 2)) (const_i32 0))
-              (ne_i32 (call_i32 head_equals
-                (param_get tree) (param_get source) (param_get decl)
-                (const_string_ptr "extern") (const_i64 6)) (const_i32 0)))
-            (or_bool
-              (ne_i32 (call_i32 head_equals
-                (param_get tree) (param_get source) (param_get decl)
-                (const_string_ptr "entry") (const_i64 5)) (const_i32 0))
-              (ne_i32 (call_i32 head_equals
-                (param_get tree) (param_get source) (param_get decl)
-                (const_string_ptr "const") (const_i64 5)) (const_i32 0))))))
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get tree) (param_get decl)) (call_i32 node_list)))
         (then (do (return (const_i32 0))))
         (else (do)))
-      (let name i64 (call_i64 nth_child
-        (param_get tree) (param_get decl) (const_i64 1)))
+      (return
+        (or_bool
+          (or_bool
+            (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get decl)
+              (const_string_ptr "fn") (const_i64 2)) (const_i32 0))
+            (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get decl)
+              (const_string_ptr "extern") (const_i64 6)) (const_i32 0)))
+          (or_bool
+            (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get decl)
+              (const_string_ptr "entry") (const_i64 5)) (const_i32 0))
+            (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get decl)
+              (const_string_ptr "const") (const_i64 5)) (const_i32 0)))))))
+
+  (fn surface_module_decl_name
+    (params (tree ptr) (source ptr) (decl i64))
+    (returns i64)
+    (do
+      (if
+        (condition (and_bool
+          (eq_i32 (call_i32 surface_module_decl_is_struct
+            (param_get tree) (param_get source) (param_get decl)) (const_i32 0))
+          (eq_i32 (call_i32 surface_module_decl_is_value
+            (param_get tree) (param_get source) (param_get decl)) (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 nth_child
+        (param_get tree) (param_get decl) (const_i64 1)))))
+
+  (fn surface_module_decl_matches
+    (params (tree ptr) (source ptr) (decl i64) (symbol i64))
+    (returns i32)
+    (do
+      (let name i64 (call_i64 surface_module_decl_name
+        (param_get tree) (param_get source) (param_get decl)))
+      (if
+        (condition (eq_i64 (local_get name) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
       (return (call_i32 ident_nodes_equal
         (param_get tree) (param_get source) (local_get name) (param_get symbol)))))
 
@@ -61,6 +95,68 @@
             (param_get tree) (local_get child)))))
       (return (const_i32 0))))
 
+  (fn surface_validate_module_local_type_collisions
+    (params (tree ptr) (source ptr))
+    (returns i32)
+    (do
+      (let left i64 (call_i64 node_first_child
+        (param_get tree) (const_i64 0)))
+      (while
+        (condition (ne_i64 (local_get left) (const_i64 -1)))
+        (do
+          (let left_name i64 (call_i64 surface_module_decl_name
+            (param_get tree) (param_get source) (local_get left)))
+          (if
+            (condition (ne_i64 (local_get left_name) (const_i64 -1)))
+            (then (do
+              (let right i64 (call_i64 node_next_sibling
+                (param_get tree) (local_get left)))
+              (while
+                (condition (ne_i64 (local_get right) (const_i64 -1)))
+                (do
+                  (let right_name i64 (call_i64 surface_module_decl_name
+                    (param_get tree) (param_get source) (local_get right)))
+                  (if
+                    (condition (and_bool
+                      (ne_i64 (local_get right_name) (const_i64 -1))
+                      (and_bool
+                        (ne_i32 (call_i32 ident_nodes_equal
+                          (param_get tree) (param_get source)
+                          (local_get left_name) (local_get right_name))
+                          (const_i32 0))
+                        (or_bool
+                          (and_bool
+                            (ne_i32 (call_i32 surface_module_decl_is_struct
+                              (param_get tree) (param_get source) (local_get left))
+                              (const_i32 0))
+                            (ne_i32 (call_i32 surface_module_decl_is_value
+                              (param_get tree) (param_get source) (local_get right))
+                              (const_i32 0)))
+                          (and_bool
+                            (ne_i32 (call_i32 surface_module_decl_is_value
+                              (param_get tree) (param_get source) (local_get left))
+                              (const_i32 0))
+                            (ne_i32 (call_i32 surface_module_decl_is_struct
+                              (param_get tree) (param_get source) (local_get right))
+                              (const_i32 0)))))))
+                    (then (do
+                      (call_void surface_module_error
+                        (param_get source) (param_get tree) (local_get right_name)
+                        (const_string_ptr
+                          "nominal type conflicts with callable or constant declaration")
+                        (const_string_ptr
+                          "frontend.module.type-value-collision")
+                        (const_string_ptr "declaration-name")
+                        (local_get right_name))
+                      (return (const_i32 1))))
+                    (else (do)))
+                  (set right (call_i64 node_next_sibling
+                    (param_get tree) (local_get right)))))))
+            (else (do)))
+          (set left (call_i64 node_next_sibling
+            (param_get tree) (local_get left)))))
+      (return (const_i32 0))))
+
   (fn surface_validate_module_import_collisions
     (params (tree ptr) (source ptr))
     (returns i32)
@@ -69,6 +165,11 @@
         (condition (eq_i32 (call_i32 surface_module_is_explicit
           (param_get tree) (param_get source)) (const_i32 0)))
         (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_validate_module_local_type_collisions
+          (param_get tree) (param_get source)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
         (else (do)))
       (let child i64 (call_i64 node_first_child
         (param_get tree) (const_i64 0)))
