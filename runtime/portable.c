@@ -240,4 +240,7 @@ static int weave_project_protocol_load_selection(
 #undef weave_publish_document
 #undef weave_rt_build_main
 #undef weave_project_load
+#define weave_rt_build_main weave_rt_build_main_project_cache_legacy
 #include "project_protocol_safety.c"
+#undef weave_rt_build_main
+#include "project_cache.c"
