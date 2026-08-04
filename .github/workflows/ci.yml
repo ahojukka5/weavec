@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # This repository is public. The linux-*-sdks legs of `test` below (and
   # all of `deep-selfhost`) run on the self-hosted LUMI runner and must
