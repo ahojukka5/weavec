@@ -251,6 +251,9 @@ static int weave_project_protocol_load_selection(
 #include "project_module_interfaces.c"
 #define weave_rt_build_main_project_module_legacy weave_project_cache_dispatch
 #define lower_sources weave_project_module_lower_sources
+#define weave_rt_build_main weave_rt_build_main_incremental_core
 #include "project_module_cache.c"
+#undef weave_rt_build_main
 #undef lower_sources
 #undef weave_rt_build_main_project_module_legacy
+#include "project_cache_outer.c"
