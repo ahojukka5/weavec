@@ -145,8 +145,14 @@ static char *weave_rt_mkdtemp(char *path_template) {
 #include "module_struct_names.c"
 #include "json_writer.c"
 #include "document_publish.c"
+#define weave_rt_semantic_index_main \
+    weave_rt_semantic_index_main_project_legacy
 #include "semantic_index.c"
+#undef weave_rt_semantic_index_main
+#define weave_rt_print_capabilities \
+    weave_rt_print_capabilities_project_legacy
 #include "capabilities_json.c"
+#undef weave_rt_print_capabilities
 #include "build_manifest_json.c"
 #include "semantic_diagnostic_transport.c"
 
@@ -206,7 +212,32 @@ static int weave_project_ascii_alnum(int value) {
 #define weave_rt_build_main weave_rt_build_main_project_graph_legacy
 #include "project_graph.c"
 #undef weave_rt_build_main
+#define weave_rt_build_main weave_rt_build_main_project_protocol_legacy
 #define weave_rt_build_main_project_legacy \
     weave_rt_build_main_project_graph_legacy
 #include "project_safety.c"
 #undef weave_rt_build_main_project_legacy
+#undef weave_rt_build_main
+
+static int weave_project_protocol_load_selection(
+    const char *selection,
+    weave_project_manifest *manifest,
+    weave_project_error *error) {
+    char manifest_path[PATH_MAX];
+    return weave_project_manifest_path(
+               selection,
+               manifest_path,
+               sizeof(manifest_path),
+               error) &&
+        weave_project_load(manifest_path, manifest, error);
+}
+
+#include "project_protocol_publish.c"
+#define weave_project_load weave_project_protocol_load_selection
+#define weave_rt_build_main weave_rt_build_main_project_facts_legacy
+#define weave_publish_document weave_project_protocol_publish_document
+#include "project_protocols.c"
+#undef weave_publish_document
+#undef weave_rt_build_main
+#undef weave_project_load
+#include "project_protocol_safety.c"
