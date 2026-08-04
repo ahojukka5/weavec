@@ -51,16 +51,24 @@ static int64_t weave_project_module_symbol_name_node(
     return head < 0 ? -1 : node_next_sibling(tree, head);
 }
 
-static const char *weave_project_module_wir_name(
+static int weave_project_module_emit_symbol_name(
+    int descriptor,
     const weave_si_model *model,
     const weave_si_symbol *symbol) {
     int64_t name_node = weave_project_module_symbol_name_node(model, symbol);
-    if (name_node < 0) return NULL;
+    if (name_node < 0 || symbol->source_index >= model->source_count) {
+        return 0;
+    }
     const weave_si_source *source = &model->sources[symbol->source_index];
-    return weave_surface_symbol_wir_name(
-        source->bytes,
-        node_text_start(source->tree, name_node),
-        node_text_len(source->tree, name_node));
+    int64_t start = node_text_start(source->tree, name_node);
+    int64_t length = node_text_len(source->tree, name_node);
+    if (start < 0 || length <= 0 ||
+        (uint64_t)start > (uint64_t)source->length ||
+        (uint64_t)length > (uint64_t)source->length - (uint64_t)start) {
+        return 0;
+    }
+    return weave_project_module_write_all(
+        descriptor, source->bytes + start, (size_t)length);
 }
 
 static int weave_project_module_emit_callable_interfaces(
@@ -77,16 +85,14 @@ static int weave_project_module_emit_callable_interfaces(
             continue;
         }
         const char *suffix = strchr(symbol->signature, ' ');
-        const char *wir_name = weave_project_module_wir_name(model, symbol);
-        if (suffix == NULL || wir_name == NULL || *wir_name == '\0') {
-            return 0;
-        }
+        if (suffix == NULL) return 0;
+
         static const char prefix[] = "    (extern ";
         static const char newline[] = "\n";
         if (!weave_project_module_write_all(
                 descriptor, prefix, sizeof(prefix) - 1) ||
-            !weave_project_module_write_all(
-                descriptor, wir_name, strlen(wir_name)) ||
+            !weave_project_module_emit_symbol_name(
+                descriptor, model, symbol) ||
             !weave_project_module_write_all(
                 descriptor, suffix, strlen(suffix)) ||
             !weave_project_module_write_all(
