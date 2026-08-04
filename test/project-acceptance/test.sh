@@ -78,6 +78,8 @@ run_suite 'project selection, precedence, and output safety' \
   test/project-discovery/test.sh
 run_suite 'source admission, graph resolution, entries, and libraries' \
   test/project-source-discovery/test.sh
+run_suite 'module cache report contract' \
+  test/project-cache-contract/test.sh
 run_suite 'content-addressed project cache' \
   test/project-incremental-cache/test.sh
 run_suite 'protocols, relocation determinism, and project analysis' \
