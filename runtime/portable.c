@@ -249,11 +249,15 @@ static int weave_project_protocol_load_selection(
 #undef weave_rt_build_main
 #include "project_cache_dispatch.c"
 #include "project_module_interfaces.c"
+#include "project_cache_json_optional.c"
 #define weave_rt_build_main_project_module_legacy weave_project_cache_dispatch
 #define lower_sources weave_project_module_lower_sources
+#define weave_project_cache_json_string \
+    weave_project_cache_json_string_optional
 #define weave_rt_build_main weave_rt_build_main_incremental_core
 #include "project_module_cache.c"
 #undef weave_rt_build_main
+#undef weave_project_cache_json_string
 #undef lower_sources
 #undef weave_rt_build_main_project_module_legacy
 #include "project_cache_outer.c"
