@@ -67,6 +67,13 @@ static int weave_project_cache_preflight_manifest(
     return 1;
 }
 
+static int weave_project_cache_has_internal_reporters(void) {
+    const char *sources = getenv("WEAVEC_INTERNAL_PROJECT_SOURCES");
+    const char *graph = getenv("WEAVEC_INTERNAL_PROJECT_GRAPH");
+    return (sources != NULL && *sources != '\0') ||
+        (graph != NULL && *graph != '\0');
+}
+
 int weave_rt_build_main(int argc, char **argv) {
     weave_project_cache_options options = {0};
     if (!weave_project_cache_parse_options(argc, argv, &options)) {
@@ -76,7 +83,8 @@ int weave_rt_build_main(int argc, char **argv) {
 
     int result = 0;
     if (weave_project_cache_requires_legacy_protocols(
-            options.argc, options.argv)) {
+            options.argc, options.argv) ||
+        weave_project_cache_has_internal_reporters()) {
         result = weave_rt_build_main_project_cache_legacy(
             options.argc, options.argv);
         weave_project_cache_options_clear(&options);
