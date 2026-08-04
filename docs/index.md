@@ -15,6 +15,8 @@ names used when they were released.
   bootstrap boundary, runtime ownership, self-hosting, and verification model.
 - [Application-language roadmap](roadmap.md) — the five usability epics,
   dependency order, subissue workflow, compatibility rules, and deferred work.
+- [Structured semantic type graph](structured-type-graph.md) — canonical type
+  identities, interning, node kinds, legacy migration, and the WIR-v2 boundary.
 - [Weave project manifest version 1](project-manifest.md) — canonical
   `weave.project` grammar, defaults, path rules, project kinds, diagnostics, and
   command-line precedence for the project-system implementation.
