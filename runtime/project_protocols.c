@@ -433,11 +433,31 @@ static int weave_project_protocol_publish_augmented(
     return 0;
 }
 
+static int weave_project_protocol_path_is_observable(
+    const char *path,
+    const weave_project_protocol_context *context) {
+    if (path == NULL || *path == '\0') return 0;
+    if (context->manifest_loaded &&
+        weave_path_safety_aliases(path, context->manifest.path)) {
+        return 0;
+    }
+    if (context->sources_loaded) {
+        for (size_t index = 0; index < context->registry.count; ++index) {
+            if (weave_path_safety_aliases(
+                    path,
+                    context->registry.items[index].physical_path)) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 static int weave_project_protocol_augment_file(
     const char *path,
     const weave_project_protocol_context *context,
     int replace_driver_phase) {
-    if (path == NULL || *path == '\0') return 0;
+    if (!weave_project_protocol_path_is_observable(path, context)) return 0;
     size_t base_length = 0;
     unsigned char *base = weave_diag_read_file(path, &base_length);
     if (base == NULL) return 1;
