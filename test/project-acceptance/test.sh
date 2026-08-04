@@ -72,6 +72,8 @@ run_suite 'module visibility and explicit interfaces' \
   test/modules/test.sh
 run_suite 'public nominal type interfaces' \
   test/module-type-interfaces/test.sh
+run_suite 'selected module body WIR units' \
+  test/module-body-selection/test.sh
 run_suite 'project selection, precedence, and output safety' \
   test/project-discovery/test.sh
 run_suite 'source admission, graph resolution, entries, and libraries' \
