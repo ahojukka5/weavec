@@ -91,14 +91,14 @@ build_project() {
     --semantic-index-json "$prefix.index.json"
 }
 
-build_project "$FIRST" "$TMP/first"
-build_project "$SECOND" "$TMP/second"
+build_project "$FIRST" "$FIRST/protocol"
+build_project "$SECOND" "$SECOND/protocol"
 
 expect_exit 0 "$WEAVEC" capabilities --json > "$TMP/capabilities.json"
 
 python3 - \
-  "$TMP/first" \
-  "$TMP/second" \
+  "$FIRST/protocol" \
+  "$SECOND/protocol" \
   "$FIRST" \
   "$SECOND" \
   "$TMP/capabilities.json" <<'PY'
