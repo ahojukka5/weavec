@@ -112,8 +112,13 @@ symbol-level semantic facts.
 - manifest name, version, and supported kinds; and
 - logical-versus-physical path policy.
 
-Tools should check this capability instead of inferring support from the presence
-of a `weave.project` file.
+It also publishes `incremental_project_builds` with the independent
+`weavec-project-module-cache-v1` report protocol, cache controls, default cache
+location, validation order, interface-hash invalidation model, and relocation-safe
+key policy.
+
+Tools should check these capabilities instead of inferring support from the
+presence of a `weave.project` file or undocumented command behavior.
 
 ## Safety and publication
 
@@ -127,6 +132,11 @@ Failed project resolution does not publish a native binary, WIR product, or
 successful build manifest. Requested diagnostics and traces may still be
 published with incomplete project facts so tools can explain the failure without
 reimplementing project discovery.
+
+Incremental caching does not replace protocol publication. Builds that request
+manifests, diagnostics, traces, semantic indexes, contracts, audits, or phase
+artifacts run through the established complete protocol pipeline. Cache reports
+are separate additive evidence and cannot alias a project input or output.
 
 ## Acceptance command
 
@@ -144,11 +154,12 @@ bash test/project-acceptance/test.sh --compiler /path/to/weavec
 ```
 
 The acceptance runner composes the focused module-interface, nominal-type,
-project-selection, source-admission, graph-resolution, protocol, relocation, and
-failure suites. It requires all representative executable and library builds to
-succeed, native programs to return their expected status, normalized relocated
-outputs and interface hashes to agree, and failed builds to retain stable human
-and JSON diagnostics without partial executables.
+project-selection, source-admission, graph-resolution, incremental-cache,
+protocol, relocation, and failure suites. It requires representative executable
+and library builds to succeed, native programs to return their expected status,
+module cache keys and interface hashes to obey the deterministic edit matrix, and
+failed builds to retain stable human and JSON diagnostics without partial
+executables.
 
 The standard qualification matrix invokes this command in three environments:
 
@@ -157,19 +168,17 @@ The standard qualification matrix invokes this command in three environments:
   and private runtime; and
 - the stage-2 compiler produced by the deep self-host ladder.
 
-Issue [#124](https://github.com/ahojukka5/weavec/issues/124) is complete only after
-the exact merged `master` revision passes both the CI push workflow and the
-release push workflow. Pull-request checks establish review readiness but do not
-by themselves close that acceptance gate.
+Issue [#124](https://github.com/ahojukka5/weavec/issues/124) was completed only
+after the exact merged `master` revision passed both the CI push workflow and the
+release push workflow. Issue
+[#125](https://github.com/ahojukka5/weavec/issues/125) applies the same merged-head
+completion rule to incremental compilation.
 
 ## Compatibility boundary
 
-This feature does not change surface syntax, `weave.project` format version 1,
-WIR core version 2, generated symbol names, the struct ABI, or existing diagnostic
-codes. It adds project context to permissive version-one JSON protocols and adds a
-project-aware semantic-index entry point.
-
-Incremental compilation and project caches remain later work. Issue
-[#125](https://github.com/ahojukka5/weavec/issues/125) may consume the stable
-logical paths, module order, and public interface hashes defined here without
-changing this protocol.
+Project facts and incremental compilation do not change surface syntax,
+`weave.project` format version 1, WIR core version 2, generated symbol names, the
+struct ABI, or existing diagnostic codes. Project context remains additive in
+permissive version-one host protocols, while incremental reuse publishes the
+separate `weavec-project-module-cache-v1` document described in
+[Incremental project builds](incremental-project-builds.md).
