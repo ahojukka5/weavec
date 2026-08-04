@@ -35,8 +35,15 @@ run_case() {
   local name="$1"
   local code="$2"
   local role="$3"
-  local text="$4"
+  local expected_span="$4"
+  local expected_symbol="$expected_span"
   shift 4
+
+  if [[ "$expected_span" == *'|'* ]]; then
+    expected_symbol="${expected_span#*|}"
+    expected_span="${expected_span%%|*}"
+  fi
+  printf 'module-type-interfaces: negative case %s\n' "$name"
 
   rm -f "$TMP/$name" "$TMP/$name.json"
   set +e
@@ -55,31 +62,33 @@ run_case() {
   }
   [[ ! -e "$TMP/$name" ]]
 
-  python3 - "$TMP/$name.json" "$code" "$role" "$text" <<'PY'
+  python3 - \
+    "$TMP/$name.json" "$code" "$role" "$expected_span" "$expected_symbol" <<'PY'
 import json
 import pathlib
 import sys
 
 path = pathlib.Path(sys.argv[1])
-expected_code, expected_role, expected_text = sys.argv[2:]
+expected_code, expected_role, expected_span, expected_symbol = sys.argv[2:]
 document = json.loads(path.read_text(encoding="utf-8"))
-assert document["format"] == "weavec-diagnostics-v1"
-assert document["status"] == "failed"
-assert document["phase"] == "frontend"
-assert document["exit_code"] == 10
+assert document["format"] == "weavec-diagnostics-v1", document
+assert document["status"] == "failed", document
+assert document["phase"] == "frontend", document
+assert document["exit_code"] == 10, document
 matches = [
     item for item in document["diagnostics"]
     if item["code"] == expected_code
 ]
 assert len(matches) == 1, (expected_code, document["diagnostics"])
 diagnostic = matches[0]
-assert diagnostic["span_origin"] == "compiler-semantic"
-assert diagnostic["analysis_complete"] is True
-assert diagnostic["operand_role"] == expected_role
-assert diagnostic["symbol"] == expected_text
+assert diagnostic["span_origin"] == "compiler-semantic", diagnostic
+assert diagnostic["analysis_complete"] is True, diagnostic
+assert diagnostic["operand_role"] == expected_role, diagnostic
+assert diagnostic["symbol"] == expected_symbol, diagnostic
 source = pathlib.Path(diagnostic["source"]).read_bytes()
 span = diagnostic["span"]
-assert source[span["start_byte"]:span["end_byte"]].decode() == expected_text
+actual_span = source[span["start_byte"]:span["end_byte"]].decode()
+assert actual_span == expected_span, (actual_span, expected_span, diagnostic)
 PY
 }
 
@@ -370,7 +379,7 @@ cat > "$TMP/nominal-mismatch.weave" <<'WEAVE'
       (return (call accept-beta value)))))
 WEAVE
 run_case same-name-nominal-mismatch \
-  frontend.call.argument-type-mismatch argument value \
+  frontend.call.argument-type-mismatch argument 'value|accept-beta' \
   "$TMP/nominal-mismatch.weave" \
   "$TMP/alpha-type.weave" "$TMP/beta-type.weave"
 
