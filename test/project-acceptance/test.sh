@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WEAVEC="${WEAVEC:-$ROOT/build/weavec}"
+WEAVEC_RUNTIME="${WEAVEC_RUNTIME:-}"
 
 usage() {
   cat <<'EOF'
@@ -42,6 +43,16 @@ done
 }
 WEAVEC="$(cd "$(dirname "$WEAVEC")" && pwd -P)/$(basename "$WEAVEC")"
 
+if [[ -n "$WEAVEC_RUNTIME" ]]; then
+  [[ -r "$WEAVEC_RUNTIME" ]] || {
+    printf 'project-acceptance: runtime not readable: %s\n' \
+      "$WEAVEC_RUNTIME" >&2
+    exit 1
+  }
+  WEAVEC_RUNTIME="$(cd "$(dirname "$WEAVEC_RUNTIME")" && pwd -P)/$(basename "$WEAVEC_RUNTIME")"
+  export WEAVEC_RUNTIME
+fi
+
 run_suite() {
   local label="$1"
   local path="$2"
@@ -50,6 +61,11 @@ run_suite() {
 }
 
 printf '[weavec-project-acceptance] compiler: %s\n' "$WEAVEC"
+if [[ -n "$WEAVEC_RUNTIME" ]]; then
+  printf '[weavec-project-acceptance] runtime: %s\n' "$WEAVEC_RUNTIME"
+else
+  printf '[weavec-project-acceptance] runtime: compiler discovery\n'
+fi
 "$WEAVEC" --version
 
 run_suite 'module visibility and explicit interfaces' \
