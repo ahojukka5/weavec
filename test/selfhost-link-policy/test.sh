@@ -9,6 +9,7 @@ trap 'rm -rf "$WORK"' EXIT
 CHECKOUT="$WORK/weavec"
 FAKEBIN="$WORK/bin"
 COUNT_FILE="$WORK/clang-count"
+ARGS_FILE="$WORK/clang-args"
 mkdir -p \
   "$CHECKOUT/scripts" \
   "$CHECKOUT/build" \
@@ -21,6 +22,7 @@ cp "$ROOT/scripts/compiler-sources.sh" "$CHECKOUT/scripts/compiler-sources.sh"
 ln -s "$ROOT/compiler" "$CHECKOUT/compiler"
 ln -s "$ROOT/src" "$CHECKOUT/src"
 printf '0\n' > "$COUNT_FILE"
+: > "$ARGS_FILE"
 
 cat > "$CHECKOUT/build/weavec" <<'EOF'
 #!/usr/bin/env bash
@@ -88,17 +90,33 @@ cat > "$FAKEBIN/clang" <<'EOF'
 set -euo pipefail
 count="$(cat "$WEAVEC_TEST_CLANG_COUNT")"
 printf '%s\n' "$((count + 1))" > "$WEAVEC_TEST_CLANG_COUNT"
+printf '%q ' "$@" >> "$WEAVEC_TEST_CLANG_ARGS"
+printf '\n' >> "$WEAVEC_TEST_CLANG_ARGS"
 
 output=""
+compile_only=0
 while (($#)); do
-  if [[ "$1" == -o ]]; then
-    output="$2"
-    shift 2
-  else
-    shift
-  fi
+  case "$1" in
+    -c)
+      compile_only=1
+      shift
+      ;;
+    -o)
+      output="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
 done
 [[ -n "$output" ]]
+
+if [[ "$compile_only" -eq 1 ]]; then
+  printf '%s\n' 'fake decimal support bitcode' > "$output"
+  exit 0
+fi
+
 cat > "$output" <<'BROKEN'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -124,6 +142,7 @@ set +e
 PATH="$FAKEBIN:$PATH" \
 WEAVEC_VERSION_OVERRIDE=v0.3.0 \
 WEAVEC_TEST_CLANG_COUNT="$COUNT_FILE" \
+WEAVEC_TEST_CLANG_ARGS="$ARGS_FILE" \
   bash "$CHECKOUT/selfhost.sh" > "$WORK/selfhost.stdout" 2> "$WORK/selfhost.stderr"
 status="$?"
 set -e
@@ -132,11 +151,22 @@ set -e
   printf 'selfhost-link-policy: unusable compiler unexpectedly succeeded\n' >&2
   exit 1
 }
-[[ "$(cat "$COUNT_FILE")" == 1 ]] || {
-  printf 'selfhost-link-policy: expected one clang invocation, got %s\n' \
+[[ "$(cat "$COUNT_FILE")" == 2 ]] || {
+  printf 'selfhost-link-policy: expected support compile plus one link, got %s\n' \
     "$(cat "$COUNT_FILE")" >&2
   exit 1
 }
+[[ "$(wc -l < "$ARGS_FILE")" -eq 2 ]]
+sed -n '1p' "$ARGS_FILE" | grep -Fq -- '-emit-llvm'
+sed -n '1p' "$ARGS_FILE" | grep -Fq -- '-c'
+sed -n '1p' "$ARGS_FILE" | grep -Fq -- 'runtime/decimal_surface.c'
+sed -n '1p' "$ARGS_FILE" | grep -Fq -- 'decimal-surface.bc'
+if sed -n '2p' "$ARGS_FILE" | grep -Fq -- '-emit-llvm'; then
+  printf 'selfhost-link-policy: final compiler link became a compile-only step\n' >&2
+  exit 1
+fi
+sed -n '2p' "$ARGS_FILE" | grep -Fq -- 'runtime/portable.c'
+sed -n '2p' "$ARGS_FILE" | grep -Fq -- 'runtime/formatter_driver.c'
 
 stage="$CHECKOUT/build/selfhost/stage1/weavec"
 [[ ! -e "$stage" ]]
@@ -148,4 +178,4 @@ stage="$CHECKOUT/build/selfhost/stage1/weavec"
 grep -Fq 'linked compiler failed validation' "$WORK/selfhost.stderr"
 grep -Fq 'synthetic frontend failure' "$stage.smoke.stderr"
 
-printf 'selfhost-link-policy: single-attempt failure retention passed\n'
+printf 'selfhost-link-policy: support compile and single-attempt failure retention passed\n'

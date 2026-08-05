@@ -54,7 +54,7 @@ An export clause names one or more declarations from the current module:
     (params (left i32) (right i32))
     (returns i32)
     (do
-      (return (op subtract left right)))))
+      (return (op sub left right)))))
 ```
 
 Each exported name must identify a callable, constant, or struct declared in that

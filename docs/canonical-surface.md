@@ -45,12 +45,16 @@ selects the admitted typed WIR operator from the operand types:
 
 The canonical names are:
 
-- arithmetic: `add`, `subtract`, `multiply`, `divide`, and `remainder`;
+- arithmetic: `add`, `sub`, `mul`, `div`, and `mod`;
 - integer bit operations: `bit-and`, `bit-or`, `bit-xor`, `shift-left`, and
   `shift-right`;
 - comparisons: `equal`, `not-equal`, `less-than`, `less-or-equal`,
   `greater-than`, and `greater-or-equal`;
 - Boolean operations: `and`, `or`, and `not`.
+
+The short arithmetic names deliberately match the established WIR and common
+programming-language vocabulary. The former long surface spellings `subtract`,
+`multiply`, `divide`, and `remainder` are not canonical forms.
 
 Arithmetic supports `i32`, `i64`, `f32`, and `f64`. Bit operations support
 `i32` and `i64`. Ordered comparisons support numeric operands, while pointer

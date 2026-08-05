@@ -15,6 +15,7 @@ SEED="$ROOT/build/weavec"
 BUILD_DIR="$ROOT/build/selfhost"
 VERSION_LL="$BUILD_DIR/weavec-version.ll"
 VERSION_BC="$BUILD_DIR/weavec-version.bc"
+DECIMAL_SURFACE_BC="$BUILD_DIR/decimal-surface.bc"
 SMOKE_SOURCE="$BUILD_DIR/selfhost-smoke.weave"
 
 # shellcheck source=scripts/weavec-version.sh
@@ -41,6 +42,8 @@ chmod -R u+rw "$BUILD_DIR" 2>/dev/null || true
 mkdir -p "$BUILD_DIR"
 weavec_write_version_llvm "$WEAVEC_VERSION" "$VERSION_LL"
 llvm-as "$VERSION_LL" -o "$VERSION_BC"
+clang -O2 -emit-llvm -c "$ROOT/runtime/decimal_surface.c" \
+  -o "$DECIMAL_SURFACE_BC"
 
 cat > "$SMOKE_SOURCE" <<'WEAVE'
 (program
@@ -148,6 +151,7 @@ build_stage() {
 
   log "link $out_dir/weavec.bc"
   llvm-link "$out_dir/weavec.ll" "${runtime_ll[@]}" "$VERSION_BC" \
+    --override="$DECIMAL_SURFACE_BC" \
     -o "$out_dir/weavec.bc"
 
   link_stage_binary "$out_dir/weavec.bc" "$out_bin"

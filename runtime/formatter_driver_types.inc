@@ -98,10 +98,10 @@ static const char *weave_fmt_operator_name(
     (base_length == sizeof(text) - 1 && \
      memcmp(context->source + start, text, sizeof(text) - 1) == 0)
     if (WEAVE_FMT_BASE("add")) canonical = "add";
-    else if (WEAVE_FMT_BASE("sub")) canonical = "subtract";
-    else if (WEAVE_FMT_BASE("mul")) canonical = "multiply";
-    else if (WEAVE_FMT_BASE("div")) canonical = "divide";
-    else if (WEAVE_FMT_BASE("mod")) canonical = "remainder";
+    else if (WEAVE_FMT_BASE("sub")) canonical = "sub";
+    else if (WEAVE_FMT_BASE("mul")) canonical = "mul";
+    else if (WEAVE_FMT_BASE("div")) canonical = "div";
+    else if (WEAVE_FMT_BASE("mod")) canonical = "mod";
     else if (WEAVE_FMT_BASE("and")) {
         canonical = type == WEAVE_FMT_BOOL ? "and" : "bit-and";
         bool_result = type == WEAVE_FMT_BOOL;
@@ -190,4 +190,3 @@ static int weave_fmt_parse_cast_head(
     *target_type = target;
     return 1;
 }
-

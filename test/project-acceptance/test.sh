@@ -68,6 +68,8 @@ else
 fi
 "$WEAVEC" --version
 
+run_suite 'floating-point arithmetic and readable output' \
+  test/float-arithmetic/test.sh
 run_suite 'module visibility and explicit interfaces' \
   test/modules/test.sh
 run_suite 'public nominal type interfaces' \

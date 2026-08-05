@@ -13,6 +13,8 @@ names used when they were released.
 
 - [Architecture](architecture.md) — compiler layers, source-to-executable flow,
   bootstrap boundary, runtime ownership, self-hosting, and verification model.
+- [Runtime implementation boundary](runtime-boundary.md) — Weave-first portable
+  behavior, the narrow C/host ABI role, and removal rules for temporary helpers.
 - [Application-language roadmap](roadmap.md) — the five usability epics,
   dependency order, subissue workflow, compatibility rules, and deferred work.
 - [Structured semantic type graph](structured-type-graph.md) — canonical type

@@ -181,6 +181,7 @@ build_weavec() {
 
   local version_ll="$BUILD_DIR/weavec-version.ll"
   local version_bc="$BUILD_DIR/weavec-version.bc"
+  local decimal_surface_bc="$BUILD_DIR/decimal-surface.bc"
   weavec_write_version_llvm "$WEAVEC_VERSION" "$version_ll"
   llvm-as "$version_ll" -o "$version_bc" || \
     fail "failed to assemble compiler version module"
@@ -206,8 +207,13 @@ build_weavec() {
       fail "weavec1 failed to compile weavec.wir"
   fi
 
+  log "compiling decimal surface support"
+  clang -O2 -emit-llvm -c "$WEAVEC_DIR/runtime/decimal_surface.c" \
+    -o "$decimal_surface_bc" || fail "failed to compile decimal surface support"
+
   log "linking compiler and parser library"
   llvm-link "$BUILD_DIR/weavec.ll" "$WEAVE_SEXPR_LIBRARY" "$version_bc" \
+    --override="$decimal_surface_bc" \
     -o "$BUILD_DIR/weavec.bc" || fail "llvm-link failed"
 
   log "linking weavec executable"

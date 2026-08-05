@@ -91,10 +91,10 @@ static const char *const weave_cap_primitive_types[] = {
 };
 static const char *const weave_cap_operator_names[] = {
     "add",
-    "subtract",
-    "multiply",
-    "divide",
-    "remainder",
+    "sub",
+    "mul",
+    "div",
+    "mod",
     "bit-and",
     "bit-or",
     "bit-xor",

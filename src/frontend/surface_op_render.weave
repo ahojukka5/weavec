@@ -28,25 +28,25 @@
       (if
         (condition (ne_i32 (call_i32 sop_name_is
           (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
-          (const_string_ptr "subtract") (const_i64 8)) (const_i32 0)))
+          (const_string_ptr "sub") (const_i64 3)) (const_i32 0)))
         (then (do (call_void write_cstr (param_get sop_fd) (const_string_ptr "sub")) (return_void)))
         (else (do)))
       (if
         (condition (ne_i32 (call_i32 sop_name_is
           (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
-          (const_string_ptr "multiply") (const_i64 8)) (const_i32 0)))
+          (const_string_ptr "mul") (const_i64 3)) (const_i32 0)))
         (then (do (call_void write_cstr (param_get sop_fd) (const_string_ptr "mul")) (return_void)))
         (else (do)))
       (if
         (condition (ne_i32 (call_i32 sop_name_is
           (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
-          (const_string_ptr "divide") (const_i64 6)) (const_i32 0)))
+          (const_string_ptr "div") (const_i64 3)) (const_i32 0)))
         (then (do (call_void write_cstr (param_get sop_fd) (const_string_ptr "div")) (return_void)))
         (else (do)))
       (if
         (condition (ne_i32 (call_i32 sop_name_is
           (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
-          (const_string_ptr "remainder") (const_i64 9)) (const_i32 0)))
+          (const_string_ptr "mod") (const_i64 3)) (const_i32 0)))
         (then (do (call_void write_cstr (param_get sop_fd) (const_string_ptr "mod")) (return_void)))
         (else (do)))
       (if

@@ -153,7 +153,7 @@ Statements and control flow:
   (set current (op add current 1))
   (if
     (condition (op less-than current 10))
-    (then (do (set current (op multiply current 2))))
+    (then (do (set current (op mul current 2))))
     (else (do (set current 10))))
   (while
     (condition (op less-than current 20))

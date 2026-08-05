@@ -70,6 +70,9 @@ bash "$ROOT/test/project-protocol-contract/test.sh"
 log 'build boundary'
 bash "$ROOT/test/build-boundary/test.sh"
 
+log 'runtime implementation boundary'
+bash "$ROOT/test/runtime-boundary/test.sh"
+
 log 'development entrypoints'
 bash "$ROOT/test/development-entrypoints/test.sh"
 
