@@ -15,7 +15,7 @@ weavec0 → weavec1 → weavec-bootstrap → weavec
 |---|---|
 | `weavec0` | Minimal hand-written LLVM-IR seed that builds Stage 1. |
 | `weavec1` | Complete stable WIR core version 2 to LLVM backend and Stage 1 SDK. |
-| `weavec-bootstrap` | Frozen surface-Weave to WIR core version 2 bootstrap frontend and parser SDK. |
+| `weavec-bootstrap` | Frozen surface-Weave to WIR core version 2 bootstrap frontend. |
 | `weavec` | Evolving user-facing compiler, self-hosted frontend/backend, native build driver, diagnostics, and product runtime boundary. |
 
 The three lower repositories are frozen bootstrap infrastructure. New surface
@@ -27,10 +27,10 @@ The complete compiler chain now uses one intermediate-format version:
 
 ```text
 surface compiler sources
-        │ weavec-bootstrap v0.3.0
+        │ weavec-bootstrap v0.3.1
         ▼
 WIR core version 2
-        │ weavec1 v0.3.1
+        │ weavec1 v0.3.2
         ▼
 LLVM IR for the seed weavec compiler
         │ self-hosted generations
@@ -118,6 +118,27 @@ the canonical stable compilation-trace action metadata. Frontend transformations
 call semantic registry wrappers rather than embedding free-form kind, pass, and
 action strings at each lowering site.
 
+### Self-hosted S-expression parser
+
+```text
+src/parser/tokens.weave
+src/parser/tree.weave
+src/parser/lexer.weave
+src/parser/parser.weave
+```
+
+These modules own the token store, syntax tree, lexer, and parser used by final
+`weavec`. They are ordinary ordered compiler sources, not a separately linked
+runtime. The lower bootstrap frontend parses these files only so it can lower
+them into the initial seed compiler; stage 1 and stage 2 compile the same source
+set with `weavec` itself.
+
+WIR is an intermediate representation, not a production implementation language.
+Repository WIR files may be backend inputs, golden fixtures, performance corpora,
+or compatibility tests, but production compiler behavior belongs in surface
+Weave whenever surface Weave can express it. Parser semantics must not be moved
+into C or hand-written WIR to bypass that ownership rule.
+
 ### Surface frontend and analysis
 
 ```text
@@ -169,19 +190,18 @@ src/main.weave
 The entry module dispatches the public `build` command and low-level frontend,
 backend, quantum statistics, explain, and audit modes.
 
-## Parser-library boundary
+## Parser bootstrap boundary
 
-The parser implementation is maintained by `weavec-bootstrap`. `weavec` does not
-link individual generated parser modules or rewrite bootstrap build scripts. The
-published dependency boundary is:
+`weavec-bootstrap` remains the frozen tool that reads and lowers the ordered
+surface-Weave compiler sources for the seed build. Its parser is therefore part
+of the lower-stage build tool itself, not a parser implementation inherited by
+final `weavec`.
 
-```text
-weavec-bootstrap SDK/lib/libweave-sexpr.bc
-```
-
-Every supported host downloads the matching checksum-verified
-`weavec-bootstrap` SDK and links this parser library as one unit. There is no
-source-chain fallback.
+Final `weavec` obtains `lex`, `parse`, tree accessors, and token/node helpers from
+`src/parser/*.weave` in `compiler/sources.list`. The seed link does not consume
+lower-stage parser bitcode, and self-hosted generations do not compile or link a
+private `src/runtime-wir` parser. This keeps one production parser implementation
+in the same source language and ownership model as the rest of the compiler.
 
 ## Host support and target runtime
 
@@ -241,7 +261,7 @@ runtime.
    2 at `build/weavec.wir`;
 4. compile that WIR into `build/weavec.ll` with `weavec1`, or use an explicitly
    selected self-hosted backend only when the supplied WIR is compatible with it;
-5. link compiler bitcode with `libweave-sexpr.bc` into `build/weavec.bc`;
+5. link compiler bitcode with the compiler-version module into `build/weavec.bc`;
 6. link the development `build/weavec` executable with compiler host support.
 
 Linux x86-64 uses glibc or musl SDK archives; macOS arm64 and x86-64 use native
@@ -263,15 +283,15 @@ build/selfhost/stage1/weavec
 build/selfhost/stage2/weavec
 ```
 
-Each stage uses the self-hosted frontend to emit WIR core version 2, uses the
-self-hosted backend to emit LLVM, builds the parser runtime modules, links the
-compiler exactly once, and must pass version and frontend smoke validation before
-publication.
+Each stage uses the self-hosted frontend to emit WIR core version 2 for the
+complete compiler source set, including `src/parser/`, then uses the self-hosted
+backend to emit LLVM and links the compiler exactly once. Every stage must pass
+version and frontend smoke validation before publication.
 
 After both generations exist, self-host qualification verifies a fixed point:
 
 - normalized stage-1 and stage-2 compiler WIR must match;
-- normalized compiler and parser-runtime LLVM must match;
+- normalized compiler LLVM must match;
 - exported defined symbol sets must match independently of linked addresses;
 - normalized hashes, LLVM structure summaries, symbol sets, and unified diffs are
   retained under `build/selfhost/fixed-point` when any comparison fails.

@@ -57,6 +57,10 @@ surface-language contract stabilises.
 
 ### Changed
 
+- Moved the production S-expression token store, tree, lexer, and parser from
+  hand-written WIR into the ordinary self-hosted surface-Weave compiler source
+  set; seed and deep-self-host links no longer inherit lower-stage parser
+  bitcode or compile a private `src/runtime-wir` implementation.
 - Moved canonical development entrypoints under `scripts/`, made final-compiler
   builds consume released lower-stage SDKs on every supported host, and added
   `scripts/test-all.sh --no-build` for qualification without rebuilding.

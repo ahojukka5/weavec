@@ -58,13 +58,6 @@ for source in "${WEAVEC_COMPILER_SOURCES[@]}"; do
   SOURCES+=("$ROOT/$source")
 done
 
-RUNTIME_MODULES=(
-  sexpr_tokens
-  sexpr_tree
-  sexpr_lexer
-  sexpr_parser
-)
-
 link_stage_binary() {
   local bc="$1"
   local out_bin="$2"
@@ -138,16 +131,8 @@ build_stage() {
   fi
   rm -f "$backend_stdout" "$backend_stderr"
 
-  local runtime_ll=()
-  local mod
-  for mod in "${RUNTIME_MODULES[@]}"; do
-    log "runtime $mod"
-    "$compiler" --backend "$ROOT/src/runtime-wir/$mod.wir" "$out_dir/$mod.ll"
-    runtime_ll+=("$out_dir/$mod.ll")
-  done
-
   log "link $out_dir/weavec.bc"
-  llvm-link "$out_dir/weavec.ll" "${runtime_ll[@]}" "$VERSION_BC" \
+  llvm-link "$out_dir/weavec.ll" "$VERSION_BC" \
     -o "$out_dir/weavec.bc"
 
   link_stage_binary "$out_dir/weavec.bc" "$out_bin"

@@ -22,8 +22,7 @@ symlinks. New documentation and automation should use the canonical paths.
 `scripts/build.sh` consumes two versioned release packages:
 
 - `weavec1`, which translates WIR core version 2 to LLVM IR;
-- `weavec-bootstrap`, which lowers the compiler's surface sources to WIR and
-  provides `libweave-sexpr.bc`.
+- `weavec-bootstrap`, which lowers the compiler's surface sources to WIR.
 
 The build selects a package suffix from the current host:
 
@@ -60,9 +59,13 @@ weavec1 SDK/
 
 weavec-bootstrap SDK/
 ├── bin/weavec-bootstrap
-├── bin/weavec-bootstrap-cat
-└── lib/libweave-sexpr.bc
+└── bin/weavec-bootstrap-cat
 ```
+
+The bootstrap compiler uses its own parser while lowering the source tree, but
+`scripts/build.sh` does not link lower-stage parser bitcode into final `weavec`.
+The final parser is compiled from `src/parser/*.weave` in the ordinary compiler
+source manifest.
 
 `WEAVEC_BACKEND=/path/to/weavec` may explicitly replace the Stage 1 backend for
 compiler-development experiments. It is never selected from stale self-host

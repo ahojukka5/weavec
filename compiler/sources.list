@@ -5,6 +5,10 @@
 # are reference implementations or target-specific modules are intentionally
 # not implied by this list.
 src/core/extern.weave
+src/parser/tokens.weave
+src/parser/tree.weave
+src/parser/lexer.weave
+src/parser/parser.weave
 src/core/struct_extern.weave
 src/core/io.weave
 src/core/util.weave

@@ -173,7 +173,7 @@ cd weavec
 ./test-all.sh
 ```
 
-macOS currently uses pinned source fallbacks:
+macOS uses the matching published native SDKs:
 
 ```sh
 brew install llvm git
@@ -195,27 +195,22 @@ There are no current `weavec2` or `weavefront` compatibility aliases.
 
 ## SDK-first seed bootstrap
 
-The normal Linux seed build downloads:
+The normal seed build downloads host-matched, checksum-verified lower-stage SDKs:
 
-- `weavec1 v0.3.1` for WIR core version 2 to LLVM compilation;
-- `weavec-bootstrap v0.3.0` for surface-to-WIR-v2 lowering and
-  `libweave-sexpr.bc`.
+- `weavec1 v0.3.2` for WIR core version 2 to LLVM compilation;
+- `weavec-bootstrap v0.3.1` for surface-to-WIR-v2 lowering and the multifile
+  bootstrap driver.
 
-The selected glibc or musl archives are verified against release checksums and
-cached under `build/vendor/`. The normal Linux path does not clone or build
-`weavec0`, `weavec1`, or `weavec-bootstrap` from source.
+The selected glibc, musl, or macOS archives are cached under `build/vendor/`.
+The normal build does not clone or rebuild `weavec0`, `weavec1`, or
+`weavec-bootstrap` from source.
 
-Unsupported hosts and explicit development configurations use pinned source
-fallbacks. Stage 0 is resolved only when Stage 1 must be built from source.
-
-The parser boundary is one published artifact:
-
-```text
-weavec-bootstrap SDK/lib/libweave-sexpr.bc
-```
-
-`weavec` does not consume individual generated parser modules or rewrite lower
-repository build scripts.
+The bootstrap frontend necessarily has a parser with which to read the final
+compiler sources, but that lower-stage parser is a build tool rather than a
+runtime component of the resulting compiler. The parser that ships in `weavec`
+lives under `src/parser/` and is lowered from surface Weave together with every
+other compiler source. Lower-stage parser bitcode is not linked into final
+`weavec`, and deep self-hosting recompiles the same parser source at every stage.
 
 ## Low-level compiler modes
 
@@ -250,8 +245,8 @@ See the [command reference](docs/command-reference.md),
 - quantum LLVM validation;
 - basic self-host integration tests.
 
-CI executes the full ladder with Linux glibc SDKs, Linux musl SDKs, and the macOS
-source fallback.
+CI executes the full ladder with Linux glibc SDKs, Linux musl SDKs, and native
+macOS SDKs.
 
 Deep self-hosting is a separate permanent CI and release gate:
 

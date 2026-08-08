@@ -34,6 +34,13 @@ find "$ROOT/src" -type f -name '*.weave' -print |
 diff -u "$WORK/discovered.list" "$WORK/classified.list" || \
   fail 'src/*.weave files are not completely classified by compiler/sources.list'
 
+if find "$ROOT/src" -type f -name '*.wir' -print -quit | grep -q .; then
+  fail 'production compiler source under src/ must be surface Weave, not WIR'
+fi
+if grep -Fq 'src/runtime-wir' "$ROOT/selfhost.sh"; then
+  fail 'selfhost.sh still owns a private production WIR source path'
+fi
+
 for consumer in \
   "$ROOT/build.sh" \
   "$ROOT/selfhost.sh" \
