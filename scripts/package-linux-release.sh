@@ -107,6 +107,12 @@ fi
 rm -rf "$RELEASE_BUILD"
 mkdir -p "$PACKAGE_DIR/bin" "$RUNTIME_DIR" "$ARCHIVE_DIR"
 
+# Public Weave source libraries and runnable examples are part of the toolchain
+# package. Keeping their repository-relative layout makes documented build
+# commands work unchanged from the extracted package root.
+cp -R "$ROOT/stdlib" "$PACKAGE_DIR/stdlib"
+cp -R "$ROOT/examples" "$PACKAGE_DIR/examples"
+
 clang -Wno-override-module -O2 -c "$COMPILER_BC" -o "$COMPILER_OBJ"
 "$RUNTIME_CC" -O2 -ffunction-sections -fdata-sections \
   -c "$ROOT/runtime/program.c" -o "$RUNTIME_OBJ"
@@ -371,6 +377,8 @@ libc=$LIBC
 target=$TARGET
 compiler=bin/weavec
 runtime=lib/weavec/$TARGET/libweave-runtime.a
+stdlib=stdlib
+examples=examples
 weavec1_version=${WEAVEC1_VERSION:-v0.3.2}
 weavec_bootstrap_version=${WEAVEC_BOOTSTRAP_VERSION:-v0.3.1}
 source_commit=${GITHUB_SHA:-unknown}
@@ -438,4 +446,45 @@ rm -rf "$PROVENANCE_DIR"
 
 rm -f "$ARCHIVE"
 tar -C "$RELEASE_BUILD" -czf "$ARCHIVE" "$PACKAGE_NAME"
+
+# Exercise a real user-facing program from a freshly extracted copy of the
+# archive. This catches packages that contain the compiler/runtime but omit
+# public Weave source dependencies such as stdlib modules.
+EXTRACTED_SMOKE="$RELEASE_BUILD/extracted-package-smoke"
+EXTRACTED_PACKAGE="$EXTRACTED_SMOKE/$PACKAGE_NAME"
+EXTRACTED_FLOAT_BIN="$EXTRACTED_SMOKE/float-arithmetic"
+EXTRACTED_FLOAT_OUT="$EXTRACTED_SMOKE/float-arithmetic.stdout"
+EXTRACTED_FLOAT_ERR="$EXTRACTED_SMOKE/float-arithmetic.stderr"
+EXTRACTED_FLOAT_EXPECTED="$EXTRACTED_SMOKE/float-arithmetic.expected"
+rm -rf "$EXTRACTED_SMOKE"
+mkdir -p "$EXTRACTED_SMOKE"
+tar -C "$EXTRACTED_SMOKE" -xzf "$ARCHIVE"
+[[ -x "$EXTRACTED_PACKAGE/bin/weavec" ]]
+[[ -s "$EXTRACTED_PACKAGE/stdlib/io.weave" ]]
+[[ -s "$EXTRACTED_PACKAGE/examples/float-arithmetic/main.weave" ]]
+cat > "$EXTRACTED_FLOAT_EXPECTED" <<'EOF_FLOAT'
+1.5 + 2.25 = 3.75
+7.0 / 2.0 = 3.5
+2.5 * 4.0 - 1.0 = 9.0
+EOF_FLOAT
+"$EXTRACTED_PACKAGE/bin/weavec" build \
+  "$EXTRACTED_PACKAGE/stdlib/io.weave" \
+  "$EXTRACTED_PACKAGE/examples/float-arithmetic/main.weave" \
+  -o "$EXTRACTED_FLOAT_BIN"
+set +e
+LC_ALL=C "$EXTRACTED_FLOAT_BIN" >"$EXTRACTED_FLOAT_OUT" 2>"$EXTRACTED_FLOAT_ERR"
+extracted_float_status="$?"
+set -e
+if [[ "$extracted_float_status" -ne 0 || -s "$EXTRACTED_FLOAT_ERR" ]]; then
+  printf 'extracted float example failed (status=%s)\n' \
+    "$extracted_float_status" >&2
+  cat "$EXTRACTED_FLOAT_ERR" >&2
+  exit 1
+fi
+cmp "$EXTRACTED_FLOAT_EXPECTED" "$EXTRACTED_FLOAT_OUT" || {
+  printf 'extracted float example stdout mismatch\n' >&2
+  exit 1
+}
+rm -rf "$EXTRACTED_SMOKE"
+
 printf '%s\n' "$ARCHIVE"
