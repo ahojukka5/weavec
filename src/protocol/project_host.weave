@@ -1,0 +1,62 @@
+; SPDX-License-Identifier: Apache-2.0
+; Opaque project-context accessors. These expose compiler facts only; the public
+; project protocol schema and ordering are owned by project.weave.
+
+(program
+  (name "project-protocol-host")
+  (version "0.1")
+
+  (extern weave_host_project_protocol_active (params) (returns ptr))
+  (extern weave_host_project_resolution_phase
+    (params (prh_context ptr)) (returns ptr))
+  (extern weave_host_project_selection
+    (params (prh_context ptr)) (returns ptr))
+  (extern weave_host_project_manifest_loaded
+    (params (prh_context ptr)) (returns i32))
+  (extern weave_host_project_manifest_name
+    (params (prh_context ptr)) (returns ptr))
+  (extern weave_host_project_manifest_kind
+    (params (prh_context ptr)) (returns ptr))
+  (extern weave_host_project_manifest_path
+    (params (prh_context ptr)) (returns ptr))
+  (extern weave_host_project_manifest_directory
+    (params (prh_context ptr)) (returns ptr))
+  (extern weave_host_project_manifest_entry
+    (params (prh_context ptr)) (returns ptr))
+  (extern weave_host_project_manifest_output
+    (params (prh_context ptr)) (returns ptr))
+  (extern weave_host_project_source_root_count
+    (params (prh_context ptr)) (returns i64))
+  (extern weave_host_project_source_root_at
+    (params (prh_context ptr) (prh_index i64)) (returns ptr))
+  (extern weave_host_project_test_root_count
+    (params (prh_context ptr)) (returns i64))
+  (extern weave_host_project_test_root_at
+    (params (prh_context ptr) (prh_index i64)) (returns ptr))
+  (extern weave_host_project_output_resolved
+    (params (prh_context ptr)) (returns i32))
+  (extern weave_host_project_resolved_output
+    (params (prh_context ptr)) (returns ptr))
+  (extern weave_host_project_sources_loaded
+    (params (prh_context ptr)) (returns i32))
+  (extern weave_host_project_source_count
+    (params (prh_context ptr)) (returns i64))
+  (extern weave_host_project_source_module
+    (params (prh_context ptr) (prh_index i64)) (returns ptr))
+  (extern weave_host_project_source_logical_path
+    (params (prh_context ptr) (prh_index i64)) (returns ptr))
+  (extern weave_host_project_source_physical_path
+    (params (prh_context ptr) (prh_index i64)) (returns ptr))
+  (extern weave_host_project_graph_loaded
+    (params (prh_context ptr)) (returns i32))
+  (extern weave_host_project_graph_order_count
+    (params (prh_context ptr)) (returns i64))
+  (extern weave_host_project_graph_order_source_index
+    (params (prh_context ptr) (prh_order_index i64)) (returns i64))
+  (extern weave_host_project_graph_edge_count
+    (params (prh_context ptr) (prh_source_index i64)) (returns i64))
+  (extern weave_host_project_graph_edge_target_source_index
+    (params
+      (prh_context ptr) (prh_source_index i64) (prh_edge_index i64))
+    (returns i64))
+)

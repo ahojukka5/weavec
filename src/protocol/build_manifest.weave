@@ -1,0 +1,71 @@
+; SPDX-License-Identifier: Apache-2.0
+; Weave-owned serializer for weavec-build-manifest-v1.
+
+(program
+  (name "build-manifest-protocol")
+  (version "0.1")
+
+  (fn weave_protocol_build_manifest_serialize
+    (params
+      (bm_writer ptr)
+      (bm_status ptr) (bm_phase ptr) (bm_target ptr)
+      (bm_compiler ptr) (bm_runtime ptr) (bm_optimizer ptr)
+      (bm_codegen ptr) (bm_linker ptr) (bm_objdump ptr)
+      (bm_optimization ptr) (bm_cpu ptr) (bm_tune_cpu ptr)
+      (bm_output ptr) (bm_sources ptr) (bm_source_count i32))
+    (returns i32)
+    (do
+      (call_i32 weave_host_json_object_begin (param_get bm_writer))
+      (call_void protocol_json_key_string
+        (param_get bm_writer) (const_string_ptr "format")
+        (const_string_ptr "weavec-build-manifest-v1"))
+      (call_void protocol_json_key_string
+        (param_get bm_writer) (const_string_ptr "status") (param_get bm_status))
+      (call_void protocol_json_key_string
+        (param_get bm_writer) (const_string_ptr "phase") (param_get bm_phase))
+      (call_void protocol_json_key_string
+        (param_get bm_writer) (const_string_ptr "target") (param_get bm_target))
+      (call_void protocol_json_key_string
+        (param_get bm_writer) (const_string_ptr "compiler") (param_get bm_compiler))
+      (call_void protocol_json_key_string
+        (param_get bm_writer) (const_string_ptr "runtime") (param_get bm_runtime))
+      (call_void protocol_json_key_string
+        (param_get bm_writer) (const_string_ptr "optimizer") (param_get bm_optimizer))
+      (call_void protocol_json_key_string
+        (param_get bm_writer) (const_string_ptr "codegen") (param_get bm_codegen))
+      (call_void protocol_json_key_string
+        (param_get bm_writer) (const_string_ptr "linker") (param_get bm_linker))
+      (call_void protocol_json_key_string
+        (param_get bm_writer) (const_string_ptr "objdump") (param_get bm_objdump))
+
+      (call_i32 weave_host_json_key
+        (param_get bm_writer) (const_string_ptr "optimization"))
+      (call_i32 weave_host_json_object_begin (param_get bm_writer))
+      (call_void protocol_json_key_string
+        (param_get bm_writer) (const_string_ptr "level") (param_get bm_optimization))
+      (call_void protocol_json_key_nullable_string
+        (param_get bm_writer) (const_string_ptr "cpu") (param_get bm_cpu))
+      (call_void protocol_json_key_nullable_string
+        (param_get bm_writer) (const_string_ptr "tune_cpu") (param_get bm_tune_cpu))
+      (call_i32 weave_host_json_object_end (param_get bm_writer))
+
+      (call_void protocol_json_key_string
+        (param_get bm_writer) (const_string_ptr "output") (param_get bm_output))
+      (call_i32 weave_host_json_key (param_get bm_writer) (const_string_ptr "sources"))
+      (call_i32 weave_host_json_array_begin (param_get bm_writer))
+      (let bm_index i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get bm_index) (param_get bm_source_count)))
+        (do
+          (let bm_source ptr
+            (load_ptr
+              (ptr_add
+                (param_get bm_sources)
+                (mul_i64 (cast_i32_to_i64 (local_get bm_index)) (const_i64 8)))))
+          (call_void protocol_json_string (param_get bm_writer) (local_get bm_source))
+          (set bm_index (add_i32 (local_get bm_index) (const_i32 1)))))
+      (call_i32 weave_host_json_array_end (param_get bm_writer))
+      (call_void protocol_write_active_project (param_get bm_writer))
+      (call_i32 weave_host_json_object_end (param_get bm_writer))
+      (return (const_i32 0))))
+)

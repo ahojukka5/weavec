@@ -1,0 +1,47 @@
+; SPDX-License-Identifier: Apache-2.0
+; protocol/host.weave — minimal native mechanics used by protocol serializers
+;
+; These externs expose no compiler schema or language policy. They are the
+; temporary byte-serialization boundary until surface Weave has safe owned
+; String/Bytes support.
+
+(program
+  (name "protocol-host")
+  (version "0.1")
+
+  (extern weave_host_json_object_begin
+    (params (ph_writer ptr)) (returns i32))
+  (extern weave_host_json_object_end
+    (params (ph_writer ptr)) (returns i32))
+  (extern weave_host_json_array_begin
+    (params (ph_writer ptr)) (returns i32))
+  (extern weave_host_json_array_end
+    (params (ph_writer ptr)) (returns i32))
+  (extern weave_host_json_key
+    (params (ph_writer ptr) (ph_key ptr)) (returns i32))
+  (extern weave_host_json_string
+    (params (ph_writer ptr) (ph_value ptr)) (returns i32))
+  (extern weave_host_json_nullable_string
+    (params (ph_writer ptr) (ph_value ptr)) (returns i32))
+  (extern weave_host_json_string_bytes
+    (params (ph_writer ptr) (ph_data ptr) (ph_length i64)) (returns i32))
+  (extern weave_host_json_null
+    (params (ph_writer ptr)) (returns i32))
+  (extern weave_host_json_i64
+    (params (ph_writer ptr) (ph_value i64)) (returns i32))
+  (extern weave_host_json_u64
+    (params (ph_writer ptr) (ph_value i64)) (returns i32))
+  (extern weave_host_json_bool
+    (params (ph_writer ptr) (ph_value i32)) (returns i32))
+  (extern weave_host_json_append_trusted_lines
+    (params (ph_writer ptr) (ph_path ptr)) (returns i32))
+  (extern weave_host_compiler_version (params) (returns ptr))
+  (extern weave_host_default_target (params) (returns ptr))
+
+  ; libc comparison is host mechanics, not protocol policy. Protocol modules
+  ; decide which protocol strings are compared and what the result means.
+  (extern strcmp
+    (params (ph_left ptr) (ph_right ptr)) (returns i32))
+  (extern strncmp
+    (params (ph_left ptr) (ph_right ptr) (ph_length i64)) (returns i32))
+)

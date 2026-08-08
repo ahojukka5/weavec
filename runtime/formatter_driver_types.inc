@@ -128,21 +128,23 @@ static const char *weave_fmt_operator_name(
     return canonical;
 }
 
+static int32_t weave_fmt_semantic_type_ref(weave_fmt_type type) {
+    switch (type) {
+        case WEAVE_FMT_I32: return surface_type_i32();
+        case WEAVE_FMT_I64: return surface_type_i64();
+        case WEAVE_FMT_F32: return surface_type_f32();
+        case WEAVE_FMT_F64: return surface_type_f64();
+        default: return 0;
+    }
+}
+
 static int weave_fmt_cast_pair_admitted(
     weave_fmt_type source,
     weave_fmt_type target) {
-    const char *source_name = weave_fmt_type_name(source);
-    const char *target_name = weave_fmt_type_name(target);
-    if (source_name == NULL || target_name == NULL) return 0;
-    for (size_t index = 0;
-         index < sizeof(weave_cap_cast_pairs) / sizeof(weave_cap_cast_pairs[0]);
-         ++index) {
-        if (strcmp(weave_cap_cast_pairs[index].source, source_name) == 0 &&
-            strcmp(weave_cap_cast_pairs[index].target, target_name) == 0) {
-            return 1;
-        }
-    }
-    return 0;
+    int32_t source_type = weave_fmt_semantic_type_ref(source);
+    int32_t target_type = weave_fmt_semantic_type_ref(target);
+    if (source_type == 0 || target_type == 0) return 0;
+    return sop_cast_pair_supported(source_type, target_type) != 0;
 }
 
 static int weave_fmt_parse_cast_head(
@@ -190,4 +192,3 @@ static int weave_fmt_parse_cast_head(
     *target_type = target;
     return 1;
 }
-

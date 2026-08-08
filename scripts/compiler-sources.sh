@@ -11,6 +11,7 @@ weavec_load_compiler_sources() {
   local root="$1"
   local manifest="${2:-$root/compiler/sources.list}"
   local line line_number=0 path classification seen=$'\n'
+  local validator_dir validator
 
   WEAVEC_COMPILER_SOURCES=()
   WEAVEC_NONLINKED_SOURCES=()
@@ -90,4 +91,22 @@ weavec_load_compiler_sources() {
     weavec_compiler_sources_error "$manifest: no linked compiler sources declared"
     return 1
   fi
+
+  command -v python3 >/dev/null 2>&1 || {
+    weavec_compiler_sources_error \
+      "python3 is required to validate linked compiler source units"
+    return 1
+  }
+  validator_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  validator="$validator_dir/validate-compiler-source.py"
+  [[ -f "$validator" ]] || {
+    weavec_compiler_sources_error "source validator not found: $validator"
+    return 1
+  }
+
+  local linked_paths=()
+  for path in "${WEAVEC_COMPILER_SOURCES[@]}"; do
+    linked_paths+=("$root/$path")
+  done
+  python3 "$validator" "${linked_paths[@]}" || return 1
 }

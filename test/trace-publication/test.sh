@@ -25,19 +25,83 @@ static size_t weave_source_form_end(
 }
 
 #include "json_writer.c"
+
+// This unit owns only the native trace transport/publication boundary. Public
+// trace schema lives in surface Weave and is exercised by the compiler-level
+// trace tests after the compiler is built.
+int weave_protocol_trace_event_serialize(
+    void *opaque,
+    const char *kind,
+    const char *pass,
+    const char *action,
+    long long source_index,
+    const char *source_path,
+    long long span_start,
+    long long span_end,
+    const unsigned char *surface,
+    long long surface_length,
+    int detail_present,
+    const unsigned char *detail,
+    long long detail_length) {
+    (void)kind;
+    (void)pass;
+    (void)action;
+    (void)source_index;
+    (void)source_path;
+    (void)span_start;
+    (void)span_end;
+    (void)surface;
+    (void)surface_length;
+    (void)detail_present;
+    (void)detail;
+    (void)detail_length;
+    weave_json_writer *writer = opaque;
+    return weave_json_object_begin(writer) && weave_json_object_end(writer)
+        ? 0 : 1;
+}
+
+int weave_protocol_trace_document_serialize(
+    void *opaque,
+    const char *status,
+    const char *phase,
+    char **sources,
+    int source_count,
+    const char *events_path) {
+    (void)status;
+    (void)phase;
+    (void)sources;
+    (void)source_count;
+    (void)events_path;
+    weave_json_writer *writer = opaque;
+    return weave_json_object_begin(writer) && weave_json_object_end(writer)
+        ? 0 : 1;
+}
+
 #include "document_publish.c"
 #include "trace_runtime.c"
 
-static void exercise_remaining_writer_operations(void) {
+static void exercise_writer_mechanics(void) {
     FILE *stream = tmpfile();
     if (stream == NULL) {
         abort();
     }
     weave_json_writer writer;
     weave_json_writer_init(&writer, stream);
-    if (!weave_json_array_begin(&writer) ||
+    static const unsigned char trusted[] = "true";
+    if (!weave_json_object_begin(&writer) ||
+        !weave_json_key(&writer, "signed") ||
+        !weave_json_int64(&writer, -2) ||
+        !weave_json_key(&writer, "unsigned") ||
+        !weave_json_uint64(&writer, 2) ||
+        !weave_json_key(&writer, "trusted") ||
+        !weave_json_trusted_value(&writer, trusted, 4) ||
+        !weave_json_key(&writer, "nullable") ||
         !weave_json_nullable_string(&writer, NULL) ||
+        !weave_json_key(&writer, "items") ||
+        !weave_json_array_begin(&writer) ||
+        !weave_json_string(&writer, "value") ||
         !weave_json_array_end(&writer) ||
+        !weave_json_object_end(&writer) ||
         !weave_json_writer_finish(&writer)) {
         abort();
     }
@@ -48,7 +112,7 @@ int main(int argc, char **argv) {
     if (argc != 2) {
         return 1;
     }
-    exercise_remaining_writer_operations();
+    exercise_writer_mechanics();
 
     char events[4096];
     char output[4096];
@@ -89,14 +153,13 @@ int main(int argc, char **argv) {
     if (stream == NULL) {
         return 5;
     }
-    char data[8192];
+    char data[128];
     size_t count = fread(data, 1, sizeof(data) - 1, stream);
     data[count] = '\0';
     if (ferror(stream) || fclose(stream) != 0) {
         return 6;
     }
-    if (strstr(data, "weavec-compilation-trace-v1") == NULL ||
-        strstr(data, "\\\"a\\\\nb\\\"") == NULL) {
+    if (strcmp(data, "{}\n") != 0) {
         return 7;
     }
     return 0;
@@ -109,19 +172,5 @@ cc -std=c11 -Wall -Wextra -Werror \
 
 "$WORK/test" "$WORK"
 python3 -m json.tool "$WORK/trace.json" >/dev/null
-python3 - <<'PY' "$WORK/trace.json"
-import json
-import sys
 
-with open(sys.argv[1], encoding="utf-8") as stream:
-    document = json.load(stream)
-assert document["format"] == "weavec-compilation-trace-v1"
-assert document["status"] == "succeeded"
-assert document["phase"] == "complete"
-assert document["sources"] == ["source.weave"]
-assert len(document["events"]) == 1
-assert document["events"][0]["source"] == "source.weave"
-assert document["events"][0]["detail"] == '"a\\nb"'
-PY
-
-printf 'trace-publication: checked event and document serialization passed\n'
+printf 'trace-publication: native transport and checked publication passed\n'

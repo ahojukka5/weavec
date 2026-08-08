@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Compiler-owned project protocol facade. The existing project resolver remains
-// the semantic authority. This final wrapper observes the same manifest, source
-// registry, and module graph and adds those facts to public JSON protocols.
+// Project-mode orchestration and opaque fact access. Public project protocol
+// schemas are owned by src/protocol/project.weave. This native layer resolves
+// project files, exposes facts to Weave, and performs only schema-agnostic file
+// publication mechanics for the older semantic-index serializer.
 
 #ifndef WEAVEC_PROJECT_PROTOCOLS_C
 #define WEAVEC_PROJECT_PROTOCOLS_C
@@ -21,13 +22,9 @@ typedef struct weave_project_protocol_context {
     char resolved_output[PATH_MAX];
 } weave_project_protocol_context;
 
-typedef struct weave_project_protocol_document {
-    const unsigned char *base;
-    size_t base_length;
-    const unsigned char *project;
-    size_t project_length;
-    const char *replacement_phase;
-} weave_project_protocol_document;
+static weave_project_protocol_context *weave_project_protocol_active_context = NULL;
+
+extern void protocol_write_active_project(void *writer);
 
 static void weave_project_protocol_context_clear(
     weave_project_protocol_context *context) {
@@ -105,210 +102,220 @@ static void weave_project_protocol_prepare_build(
     free(request.output_paths);
 }
 
-static int weave_project_protocol_write_string_array(
-    weave_json_writer *writer,
-    char **values,
-    size_t count) {
-    if (!weave_json_array_begin(writer)) return 0;
-    for (size_t index = 0; index < count; ++index) {
-        if (!weave_json_string(writer, values[index])) return 0;
-    }
-    return weave_json_array_end(writer);
+// Opaque fact accessors used by src/protocol/project.weave. These functions own
+// no field names, JSON shape, ordering, or compatibility policy.
+void *weave_host_project_protocol_active(void) {
+    return weave_project_protocol_active_context;
 }
 
-static int weave_project_protocol_write_project(
-    weave_json_writer *writer,
-    const weave_project_protocol_context *context) {
-    if (!weave_json_object_begin(writer) ||
-        !weave_json_key(writer, "format") ||
-        !weave_json_string(writer, "weavec-project-facts-v1") ||
-        !weave_json_key(writer, "complete") ||
-        !weave_diagnostics_bool(
-            writer,
-            context->resolution_phase != NULL &&
-                strcmp(context->resolution_phase, "complete") == 0) ||
-        !weave_json_key(writer, "resolution_phase") ||
-        !weave_json_string(
-            writer,
-            context->resolution_phase != NULL
-                ? context->resolution_phase
-                : "project-manifest") ||
-        !weave_json_key(writer, "selection") ||
-        !weave_json_nullable_string(writer, context->selection) ||
-        !weave_json_key(writer, "name")) {
-        return 0;
-    }
-
-    if (!context->manifest_loaded) {
-        return weave_json_null(writer) &&
-            weave_json_key(writer, "kind") &&
-            weave_json_null(writer) &&
-            weave_json_key(writer, "manifest") &&
-            weave_json_null(writer) &&
-            weave_json_key(writer, "root") &&
-            weave_json_null(writer) &&
-            weave_json_key(writer, "source_roots") &&
-            weave_json_array_begin(writer) &&
-            weave_json_array_end(writer) &&
-            weave_json_key(writer, "test_roots") &&
-            weave_json_array_begin(writer) &&
-            weave_json_array_end(writer) &&
-            weave_json_key(writer, "entry_module") &&
-            weave_json_null(writer) &&
-            weave_json_key(writer, "output") &&
-            weave_json_null(writer) &&
-            weave_json_key(writer, "resolved_output") &&
-            weave_json_null(writer) &&
-            weave_json_key(writer, "sources") &&
-            weave_json_array_begin(writer) &&
-            weave_json_array_end(writer) &&
-            weave_json_key(writer, "module_order") &&
-            weave_json_array_begin(writer) &&
-            weave_json_array_end(writer) &&
-            weave_json_key(writer, "module_graph") &&
-            weave_json_array_begin(writer) &&
-            weave_json_array_end(writer) &&
-            weave_json_object_end(writer);
-    }
-
-    if (!weave_json_string(writer, context->manifest.name) ||
-        !weave_json_key(writer, "kind") ||
-        !weave_json_string(writer, context->manifest.kind) ||
-        !weave_json_key(writer, "manifest") ||
-        !weave_json_object_begin(writer) ||
-        !weave_json_key(writer, "logical_path") ||
-        !weave_json_string(writer, WEAVE_PROJECT_MANIFEST_NAME) ||
-        !weave_json_key(writer, "physical_path") ||
-        !weave_json_string(writer, context->manifest.path) ||
-        !weave_json_object_end(writer) ||
-        !weave_json_key(writer, "root") ||
-        !weave_json_object_begin(writer) ||
-        !weave_json_key(writer, "physical_path") ||
-        !weave_json_string(writer, context->manifest.directory) ||
-        !weave_json_object_end(writer) ||
-        !weave_json_key(writer, "source_roots") ||
-        !weave_project_protocol_write_string_array(
-            writer,
-            context->manifest.source_roots,
-            context->manifest.source_root_count) ||
-        !weave_json_key(writer, "test_roots") ||
-        !weave_project_protocol_write_string_array(
-            writer,
-            context->manifest.test_roots,
-            context->manifest.test_root_count) ||
-        !weave_json_key(writer, "entry_module")) {
-        return 0;
-    }
-
-    if (strcmp(context->manifest.kind, "executable") == 0) {
-        if (!weave_json_string(writer, context->manifest.entry)) return 0;
-    } else if (!weave_json_null(writer)) {
-        return 0;
-    }
-
-    if (!weave_json_key(writer, "output") ||
-        !weave_json_string(writer, context->manifest.output) ||
-        !weave_json_key(writer, "resolved_output")) {
-        return 0;
-    }
-    if (context->output_resolved) {
-        if (!weave_json_string(writer, context->resolved_output)) return 0;
-    } else if (!weave_json_null(writer)) {
-        return 0;
-    }
-
-    if (!weave_json_key(writer, "sources") ||
-        !weave_json_array_begin(writer)) {
-        return 0;
-    }
-    if (context->sources_loaded) {
-        for (size_t index = 0; index < context->registry.count; ++index) {
-            const weave_project_source *source =
-                &context->registry.items[index];
-            if (!weave_json_object_begin(writer) ||
-                !weave_json_key(writer, "module") ||
-                !weave_json_string(writer, source->module_name) ||
-                !weave_json_key(writer, "logical_path") ||
-                !weave_json_string(writer, source->logical_path) ||
-                !weave_json_key(writer, "physical_path") ||
-                !weave_json_string(writer, source->physical_path) ||
-                !weave_json_object_end(writer)) {
-                return 0;
-            }
-        }
-    }
-    if (!weave_json_array_end(writer) ||
-        !weave_json_key(writer, "module_order") ||
-        !weave_json_array_begin(writer)) {
-        return 0;
-    }
-    if (context->graph_loaded) {
-        for (size_t index = 0; index < context->graph.order_count; ++index) {
-            size_t source_index = context->graph.order[index];
-            if (!weave_json_string(
-                    writer,
-                    context->registry.items[source_index].module_name)) {
-                return 0;
-            }
-        }
-    }
-    if (!weave_json_array_end(writer) ||
-        !weave_json_key(writer, "module_graph") ||
-        !weave_json_array_begin(writer)) {
-        return 0;
-    }
-    if (context->graph_loaded) {
-        for (size_t order_index = 0;
-             order_index < context->graph.order_count;
-             ++order_index) {
-            size_t source_index = context->graph.order[order_index];
-            const weave_project_graph_node *node =
-                &context->graph.nodes[source_index];
-            if (!weave_json_object_begin(writer) ||
-                !weave_json_key(writer, "module") ||
-                !weave_json_string(
-                    writer,
-                    context->registry.items[source_index].module_name) ||
-                !weave_json_key(writer, "source") ||
-                !weave_json_string(
-                    writer,
-                    context->registry.items[source_index].logical_path) ||
-                !weave_json_key(writer, "imports") ||
-                !weave_json_array_begin(writer)) {
-                return 0;
-            }
-            for (size_t edge_index = 0;
-                 edge_index < node->edge_count;
-                 ++edge_index) {
-                if (!weave_json_string(
-                        writer,
-                        context->registry.items[
-                            node->edges[edge_index].target].module_name)) {
-                    return 0;
-                }
-            }
-            if (!weave_json_array_end(writer) ||
-                !weave_json_object_end(writer)) {
-                return 0;
-            }
-        }
-    }
-    return weave_json_array_end(writer) &&
-        weave_json_object_end(writer);
+const char *weave_host_project_resolution_phase(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL ? context->resolution_phase : NULL;
 }
 
-static int weave_project_protocol_render_project(
+const char *weave_host_project_selection(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL ? context->selection : NULL;
+}
+
+int weave_host_project_manifest_loaded(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL ? context->manifest_loaded : 0;
+}
+
+const char *weave_host_project_manifest_name(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL ? context->manifest.name : NULL;
+}
+
+const char *weave_host_project_manifest_kind(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL ? context->manifest.kind : NULL;
+}
+
+const char *weave_host_project_manifest_path(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL ? context->manifest.path : NULL;
+}
+
+const char *weave_host_project_manifest_directory(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL ? context->manifest.directory : NULL;
+}
+
+const char *weave_host_project_manifest_entry(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL ? context->manifest.entry : NULL;
+}
+
+const char *weave_host_project_manifest_output(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL ? context->manifest.output : NULL;
+}
+
+long long weave_host_project_source_root_count(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL ? (long long)context->manifest.source_root_count : 0;
+}
+
+const char *weave_host_project_source_root_at(void *opaque, long long index) {
+    const weave_project_protocol_context *context = opaque;
+    if (context == NULL || index < 0 ||
+        (size_t)index >= context->manifest.source_root_count) return NULL;
+    return context->manifest.source_roots[index];
+}
+
+long long weave_host_project_test_root_count(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL ? (long long)context->manifest.test_root_count : 0;
+}
+
+const char *weave_host_project_test_root_at(void *opaque, long long index) {
+    const weave_project_protocol_context *context = opaque;
+    if (context == NULL || index < 0 ||
+        (size_t)index >= context->manifest.test_root_count) return NULL;
+    return context->manifest.test_roots[index];
+}
+
+int weave_host_project_output_resolved(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL ? context->output_resolved : 0;
+}
+
+const char *weave_host_project_resolved_output(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL && context->output_resolved
+        ? context->resolved_output : NULL;
+}
+
+int weave_host_project_sources_loaded(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL ? context->sources_loaded : 0;
+}
+
+long long weave_host_project_source_count(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL ? (long long)context->registry.count : 0;
+}
+
+static const weave_project_source *weave_project_protocol_source_at(
     const weave_project_protocol_context *context,
+    long long index) {
+    if (context == NULL || index < 0 ||
+        (size_t)index >= context->registry.count) return NULL;
+    return &context->registry.items[index];
+}
+
+const char *weave_host_project_source_module(void *opaque, long long index) {
+    const weave_project_source *source = weave_project_protocol_source_at(
+        opaque, index);
+    return source != NULL ? source->module_name : NULL;
+}
+
+const char *weave_host_project_source_logical_path(void *opaque, long long index) {
+    const weave_project_source *source = weave_project_protocol_source_at(
+        opaque, index);
+    return source != NULL ? source->logical_path : NULL;
+}
+
+const char *weave_host_project_source_physical_path(void *opaque, long long index) {
+    const weave_project_source *source = weave_project_protocol_source_at(
+        opaque, index);
+    return source != NULL ? source->physical_path : NULL;
+}
+
+int weave_host_project_graph_loaded(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL ? context->graph_loaded : 0;
+}
+
+long long weave_host_project_graph_order_count(void *opaque) {
+    const weave_project_protocol_context *context = opaque;
+    return context != NULL ? (long long)context->graph.order_count : 0;
+}
+
+long long weave_host_project_graph_order_source_index(
+    void *opaque,
+    long long order_index) {
+    const weave_project_protocol_context *context = opaque;
+    if (context == NULL || order_index < 0 ||
+        (size_t)order_index >= context->graph.order_count) return -1;
+    return (long long)context->graph.order[order_index];
+}
+
+long long weave_host_project_graph_edge_count(
+    void *opaque,
+    long long source_index) {
+    const weave_project_protocol_context *context = opaque;
+    if (context == NULL || source_index < 0 ||
+        (size_t)source_index >= context->registry.count) return 0;
+    return (long long)context->graph.nodes[source_index].edge_count;
+}
+
+long long weave_host_project_graph_edge_target_source_index(
+    void *opaque,
+    long long source_index,
+    long long edge_index) {
+    const weave_project_protocol_context *context = opaque;
+    if (context == NULL || source_index < 0 || edge_index < 0 ||
+        (size_t)source_index >= context->registry.count) return -1;
+    const weave_project_graph_node *node = &context->graph.nodes[source_index];
+    if ((size_t)edge_index >= node->edge_count) return -1;
+    return (long long)node->edges[edge_index].target;
+}
+
+int weave_rt_build_main(int argc, char **argv) {
+    weave_project_protocol_context context = {0};
+    weave_project_protocol_prepare_build(argc, argv, &context);
+    weave_project_protocol_active_context = context.active ? &context : NULL;
+    int result = weave_rt_build_main_project_protocol_legacy(argc, argv);
+    weave_project_protocol_active_context = NULL;
+    weave_project_protocol_context_clear(&context);
+    return result;
+}
+
+// Project-mode capability facts are part of the Weave-owned capability document.
+int weave_rt_print_capabilities(void) {
+    return weave_rt_print_capabilities_project_legacy();
+}
+
+// The semantic-index serializer predates #166. Preserve its existing project
+// attachment using a schema-agnostic merge of two complete JSON objects. The
+// appended object's field name and value are both produced by project.weave.
+typedef struct weave_project_object_merge {
+    const unsigned char *base;
+    size_t base_length;
+    const unsigned char *fragment;
+    size_t fragment_length;
+} weave_project_object_merge;
+
+static size_t weave_project_trim_json_end(
+    const unsigned char *bytes,
+    size_t length) {
+    while (length > 0 &&
+           (bytes[length - 1] == '\n' || bytes[length - 1] == '\r' ||
+            bytes[length - 1] == ' ' || bytes[length - 1] == '\t')) {
+        --length;
+    }
+    return length;
+}
+
+static int weave_project_protocol_render_fragment(
+    weave_project_protocol_context *context,
     unsigned char **bytes_out,
     size_t *length_out) {
     FILE *stream = tmpfile();
     if (stream == NULL) return 0;
     weave_json_writer writer;
     weave_json_writer_init(&writer, stream);
-    int ok = weave_project_protocol_write_project(&writer, context) &&
-        weave_json_writer_finish(&writer) &&
-        fflush(stream) == 0 &&
+    weave_project_protocol_context *saved = weave_project_protocol_active_context;
+    weave_project_protocol_active_context = context;
+    int ok = weave_json_object_begin(&writer);
+    if (ok) protocol_write_active_project(&writer);
+    ok = ok && weave_json_object_end(&writer) &&
+        weave_json_writer_finish(&writer) && fflush(stream) == 0 &&
         fseek(stream, 0, SEEK_END) == 0;
+    weave_project_protocol_active_context = saved;
     long end = ok ? ftell(stream) : -1;
     if (end < 0 || fseek(stream, 0, SEEK_SET) != 0) ok = 0;
     unsigned char *bytes = NULL;
@@ -327,319 +334,66 @@ static int weave_project_protocol_render_project(
         free(bytes);
         return 0;
     }
-    size_t length = (size_t)end;
-    while (length > 0 &&
-           (bytes[length - 1] == '\n' ||
-            bytes[length - 1] == '\r' ||
-            bytes[length - 1] == ' ' ||
-            bytes[length - 1] == '\t')) {
-        --length;
-    }
     *bytes_out = bytes;
-    *length_out = length;
+    *length_out = (size_t)end;
     return 1;
 }
 
-static const char *weave_project_protocol_phase_for_code(
-    const unsigned char *bytes,
-    size_t length,
-    const char *fallback) {
-    const char *text = (const char *)bytes;
-    if (length == 0) return fallback;
-    if (strstr(text, "\"code\": \"project.manifest.") != NULL ||
-        strstr(
-            text,
-            "\"code\": \"driver.output-aliases-project-manifest\"") != NULL) {
-        return "project-manifest";
-    }
-    if (strstr(text, "\"code\": \"project.source.") != NULL ||
-        strstr(
-            text,
-            "\"code\": \"driver.output-aliases-project-source\"") != NULL) {
-        return "project-sources";
-    }
-    if (strstr(text, "\"code\": \"project.graph.") != NULL ||
-        strstr(text, "\"code\": \"project.entry.") != NULL ||
-        strstr(text, "\"code\": \"project.library.") != NULL) {
-        return "project-graph";
-    }
-    return fallback;
-}
-
-static int weave_project_protocol_write_replaced(
-    FILE *stream,
-    const unsigned char *bytes,
-    size_t length,
-    const char *replacement_phase) {
-    static const char needle[] = "\"phase\": \"driver\"";
-    const size_t needle_length = sizeof(needle) - 1;
-    size_t offset = 0;
-    while (offset < length) {
-        size_t match = offset;
-        while (match + needle_length <= length &&
-               memcmp(bytes + match, needle, needle_length) != 0) {
-            ++match;
-        }
-        if (match + needle_length > length) {
-            return fwrite(bytes + offset, 1, length - offset, stream) ==
-                length - offset;
-        }
-        if (fwrite(bytes + offset, 1, match - offset, stream) !=
-                match - offset ||
-            fprintf(
-                stream,
-                "\"phase\": \"%s\"",
-                replacement_phase) < 0) {
-            return 0;
-        }
-        offset = match + needle_length;
-    }
-    return 1;
-}
-
-static int weave_project_protocol_publish_augmented(
+static int weave_project_protocol_publish_merged_object(
     FILE *stream,
     const void *opaque) {
-    const weave_project_protocol_document *document = opaque;
-    size_t base_length = document->base_length;
-    while (base_length > 0 &&
-           (document->base[base_length - 1] == '\n' ||
-            document->base[base_length - 1] == '\r' ||
-            document->base[base_length - 1] == ' ' ||
-            document->base[base_length - 1] == '\t')) {
-        --base_length;
-    }
-    if (base_length == 0 || document->base[base_length - 1] != '}') {
+    const weave_project_object_merge *document = opaque;
+    size_t base_length = weave_project_trim_json_end(
+        document->base, document->base_length);
+    size_t fragment_length = weave_project_trim_json_end(
+        document->fragment, document->fragment_length);
+    if (base_length < 2 || fragment_length < 2 ||
+        document->base[0] != '{' || document->base[base_length - 1] != '}' ||
+        document->fragment[0] != '{' ||
+        document->fragment[fragment_length - 1] != '}') {
         return 1;
     }
     --base_length;
-    int ok = document->replacement_phase != NULL
-        ? weave_project_protocol_write_replaced(
-              stream,
-              document->base,
-              base_length,
-              document->replacement_phase)
-        : fwrite(document->base, 1, base_length, stream) == base_length;
-    if (!ok ||
-        fputs(",\n  \"project\": ", stream) == EOF ||
-        fwrite(
-            document->project,
-            1,
-            document->project_length,
-            stream) != document->project_length ||
-        fputs("\n}\n", stream) == EOF) {
+    --fragment_length;
+    if (fwrite(document->base, 1, base_length, stream) != base_length ||
+        fputc(',', stream) == EOF ||
+        fwrite(document->fragment + 1, 1, fragment_length - 1, stream) !=
+            fragment_length - 1 ||
+        fputs("}\n", stream) == EOF) {
         return 1;
     }
     return 0;
 }
 
-static int weave_project_protocol_path_is_observable(
+static int weave_project_protocol_merge_file(
     const char *path,
-    const weave_project_protocol_context *context) {
-    if (path == NULL || *path == '\0') return 0;
-    if (context->manifest_loaded &&
-        weave_path_safety_aliases(path, context->manifest.path)) {
-        return 0;
-    }
-    if (context->sources_loaded) {
-        for (size_t index = 0; index < context->registry.count; ++index) {
-            if (weave_path_safety_aliases(
-                    path,
-                    context->registry.items[index].physical_path)) {
-                return 0;
-            }
-        }
-    }
-    return 1;
-}
-
-static int weave_project_protocol_augment_file(
-    const char *path,
-    const weave_project_protocol_context *context,
-    int replace_driver_phase) {
-    if (!weave_project_protocol_path_is_observable(path, context)) return 0;
+    weave_project_protocol_context *context) {
+    if (path == NULL || access(path, F_OK) != 0) return 0;
     size_t base_length = 0;
     unsigned char *base = weave_diag_read_file(path, &base_length);
     if (base == NULL) return 1;
-
-    unsigned char *project = NULL;
-    size_t project_length = 0;
-    if (!weave_project_protocol_render_project(
-            context,
-            &project,
-            &project_length)) {
+    unsigned char *fragment = NULL;
+    size_t fragment_length = 0;
+    if (!weave_project_protocol_render_fragment(
+            context, &fragment, &fragment_length)) {
         free(base);
         return 1;
     }
-
-    const char *phase = NULL;
-    if (replace_driver_phase) {
-        phase = weave_project_protocol_phase_for_code(
-            base,
-            base_length,
-            context->resolution_phase != NULL
-                ? context->resolution_phase
-                : "project-manifest");
-    }
-    weave_project_protocol_document document = {
+    weave_project_object_merge document = {
         .base = base,
         .base_length = base_length,
-        .project = project,
-        .project_length = project_length,
-        .replacement_phase = phase,
+        .fragment = fragment,
+        .fragment_length = fragment_length,
     };
     int result = weave_publish_document(
         path,
         "project protocol",
         0644,
-        weave_project_protocol_publish_augmented,
+        weave_project_protocol_publish_merged_object,
         &document);
-    free(project);
+    free(fragment);
     free(base);
     return result;
-}
-
-static const char *weave_project_protocol_option_value(
-    int argc,
-    char **argv,
-    const char *name) {
-    for (int index = 2; index + 1 < argc; ++index) {
-        if (strcmp(argv[index], name) == 0) return argv[index + 1];
-    }
-    return NULL;
-}
-
-int weave_rt_build_main(int argc, char **argv) {
-    weave_project_protocol_context context = {0};
-    weave_project_protocol_prepare_build(argc, argv, &context);
-    int result = weave_rt_build_main_project_protocol_legacy(argc, argv);
-    if (!context.active) return result;
-
-    const char *manifest = weave_project_protocol_option_value(
-        argc, argv, "--manifest-json");
-    const char *diagnostics = weave_project_protocol_option_value(
-        argc, argv, "--diagnostics-json");
-    const char *trace = weave_project_protocol_option_value(
-        argc, argv, "--trace-json");
-
-    int publication_failed = 0;
-    if (manifest != NULL && access(manifest, F_OK) == 0) {
-        publication_failed |= weave_project_protocol_augment_file(
-            manifest, &context, 0) != 0;
-    }
-    if (diagnostics != NULL && access(diagnostics, F_OK) == 0) {
-        publication_failed |= weave_project_protocol_augment_file(
-            diagnostics, &context, 1) != 0;
-    }
-    if (trace != NULL && access(trace, F_OK) == 0) {
-        publication_failed |= weave_project_protocol_augment_file(
-            trace, &context, result != 0) != 0;
-    }
-
-    weave_project_protocol_context_clear(&context);
-    if (publication_failed && result == 0) return WEAVEC_EXIT_PUBLISH;
-    return result;
-}
-
-typedef struct weave_project_capability_document {
-    const unsigned char *base;
-    size_t base_length;
-} weave_project_capability_document;
-
-static int weave_project_protocol_publish_capabilities(
-    FILE *stream,
-    const void *opaque) {
-    const weave_project_capability_document *document = opaque;
-    size_t length = document->base_length;
-    while (length > 0 &&
-           (document->base[length - 1] == '\n' ||
-            document->base[length - 1] == '\r' ||
-            document->base[length - 1] == ' ' ||
-            document->base[length - 1] == '\t')) {
-        --length;
-    }
-    if (length == 0 || document->base[length - 1] != '}') return 1;
-    --length;
-    if (fwrite(document->base, 1, length, stream) != length) return 1;
-    return fputs(
-        ",\n"
-        "  \"project_mode\": {\n"
-        "    \"feature\": {\n"
-        "      \"id\": \"project-builds\",\n"
-        "      \"status\": \"experimental\",\n"
-        "      \"issue\": 123\n"
-        "    },\n"
-        "    \"protocol\": {\n"
-        "      \"id\": \"weavec-project-facts-v1\",\n"
-        "      \"field\": \"project\",\n"
-        "      \"extends\": [\n"
-        "        \"weavec-build-manifest-v1\",\n"
-        "        \"weavec-diagnostics-v1\",\n"
-        "        \"weavec-compilation-trace-v1\",\n"
-        "        \"weavec-semantic-index-v1\"\n"
-        "      ]\n"
-        "    },\n"
-        "    \"commands\": [\n"
-        "      \"build [--project <directory-or-manifest>]\",\n"
-        "      \"analyze [--project <directory-or-manifest>] "
-            "--semantic-index-json <path>\"\n"
-        "    ],\n"
-        "    \"manifest\": {\n"
-        "      \"name\": \"weave.project\",\n"
-        "      \"version\": 1,\n"
-        "      \"kinds\": [\"executable\", \"library\"]\n"
-        "    },\n"
-        "    \"path_policy\": {\n"
-        "      \"logical_project_paths\": \"relocation-stable\",\n"
-        "      \"physical_paths\": \"observational\"\n"
-        "    }\n"
-        "  }\n"
-        "}\n",
-        stream) == EOF
-        ? 1
-        : 0;
-}
-
-int weave_rt_print_capabilities(void) {
-    FILE *temporary = tmpfile();
-    if (temporary == NULL) return 1;
-    int saved = dup(STDOUT_FILENO);
-    if (saved < 0 || dup2(fileno(temporary), STDOUT_FILENO) < 0) {
-        if (saved >= 0) close(saved);
-        fclose(temporary);
-        return 1;
-    }
-    int result = weave_rt_print_capabilities_project_legacy();
-    fflush(stdout);
-    int restore_failed = dup2(saved, STDOUT_FILENO) < 0;
-    close(saved);
-    if (result != 0 || restore_failed ||
-        fseek(temporary, 0, SEEK_END) != 0) {
-        fclose(temporary);
-        return 1;
-    }
-    long end = ftell(temporary);
-    if (end < 0 || fseek(temporary, 0, SEEK_SET) != 0) {
-        fclose(temporary);
-        return 1;
-    }
-    unsigned char *base = malloc((size_t)end + 1);
-    if (base == NULL ||
-        fread(base, 1, (size_t)end, temporary) != (size_t)end) {
-        free(base);
-        fclose(temporary);
-        return 1;
-    }
-    fclose(temporary);
-    base[end] = '\0';
-    weave_project_capability_document document = {
-        .base = base,
-        .base_length = (size_t)end,
-    };
-    int published = weave_project_protocol_publish_capabilities(
-        stdout, &document);
-    free(base);
-    return published != 0 || fflush(stdout) != 0 ? 1 : 0;
 }
 
 typedef struct weave_project_analyze_request {
@@ -757,26 +511,19 @@ static int weave_project_protocol_analyze_project(
     char output[PATH_MAX];
     if (!weave_project_protocol_absolute_path(
             request->output, output, sizeof(output))) {
-        fputs(
-            "weavec: semantic-index output path is invalid\n",
-            stderr);
+        fputs("weavec: semantic-index output path is invalid\n", stderr);
         weave_project_protocol_context_clear(&context);
         return 2;
     }
     if (weave_path_safety_aliases(output, context.manifest.path)) {
-        fputs(
-            "weavec: semantic-index output aliases weave.project\n",
-            stderr);
+        fputs("weavec: semantic-index output aliases weave.project\n", stderr);
         weave_project_protocol_context_clear(&context);
         return 2;
     }
     for (size_t index = 0; index < context.registry.count; ++index) {
         if (weave_path_safety_aliases(
-                output,
-                context.registry.items[index].physical_path)) {
-            fputs(
-                "weavec: semantic-index output aliases a project source\n",
-                stderr);
+                output, context.registry.items[index].physical_path)) {
+            fputs("weavec: semantic-index output aliases a project source\n", stderr);
             weave_project_protocol_context_clear(&context);
             return 2;
         }
@@ -793,8 +540,7 @@ static int weave_project_protocol_analyze_project(
     analyze[analyze_argc++] = "analyze";
     for (size_t index = 0; index < context.graph.order_count; ++index) {
         analyze[analyze_argc++] =
-            context.registry.items[
-                context.graph.order[index]].logical_path;
+            context.registry.items[context.graph.order[index]].logical_path;
     }
     analyze[analyze_argc++] = "--semantic-index-json";
     analyze[analyze_argc++] = output;
@@ -807,14 +553,15 @@ static int weave_project_protocol_analyze_project(
         weave_project_protocol_context_clear(&context);
         return 1;
     }
+    weave_project_protocol_active_context = &context;
     int result = weave_rt_semantic_index_main_project_legacy(
         analyze_argc, analyze);
+    weave_project_protocol_active_context = NULL;
     int restore_failed = chdir(original_directory) != 0;
     free(analyze);
 
     if (!restore_failed && access(output, F_OK) == 0 &&
-        weave_project_protocol_augment_file(
-            output, &context, 0) != 0) {
+        weave_project_protocol_merge_file(output, &context) != 0) {
         result = 1;
     }
     weave_project_protocol_context_clear(&context);
@@ -837,8 +584,7 @@ int weave_rt_semantic_index_main(int argc, char **argv) {
             stderr);
         return 2;
     }
-    return weave_project_protocol_analyze_project(
-        argc, argv, &request);
+    return weave_project_protocol_analyze_project(argc, argv, &request);
 }
 
 #endif

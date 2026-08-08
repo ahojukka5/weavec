@@ -72,4 +72,66 @@ if weavec_load_compiler_sources \
   fail 'symbolic-link compiler source was accepted'
 fi
 
+mkdir -p "$WORK/valid-root/src/core"
+cat > "$WORK/valid-root/src/core/unit.weave" <<'WEAVE'
+(program
+  (name "valid")
+  (version "0.1")
+  (fn valid_source
+    (params)
+    (returns void)
+    (do (return_void))))
+WEAVE
+printf 'src/core/unit.weave\n' > "$WORK/valid.list"
+weavec_load_compiler_sources "$WORK/valid-root" "$WORK/valid.list" || \
+  fail 'well-formed compiler source unit was rejected'
+
+mkdir -p "$WORK/unbalanced-root/src/core"
+cat > "$WORK/unbalanced-root/src/core/unit.weave" <<'WEAVE'
+(program
+  (name "unbalanced")
+  (version "0.1")
+  (fn broken
+    (params)
+    (returns void)
+    (do (return_void)))
+WEAVE
+printf 'src/core/unit.weave\n' > "$WORK/unbalanced.list"
+if weavec_load_compiler_sources \
+    "$WORK/unbalanced-root" "$WORK/unbalanced.list" >/dev/null 2>&1; then
+  fail 'unbalanced compiler source unit was accepted'
+fi
+
+mkdir -p "$WORK/misleading-root/src/core"
+cat > "$WORK/misleading-root/src/core/unit.weave" <<'WEAVE'
+; A comment mentioning (program before the real source wrapper must be rejected
+; while the published v0.3.1 multifile combiner is in the bootstrap chain.
+(program
+  (name "misleading")
+  (version "0.1")
+  (fn valid_source
+    (params)
+    (returns void)
+    (do (return_void))))
+WEAVE
+printf 'src/core/unit.weave\n' > "$WORK/misleading.list"
+if weavec_load_compiler_sources \
+    "$WORK/misleading-root" "$WORK/misleading.list" >/dev/null 2>&1; then
+  fail 'bootstrap-misleading compiler source unit was accepted'
+fi
+
+mkdir -p "$WORK/nested-root/src/core"
+cat > "$WORK/nested-root/src/core/unit.weave" <<'WEAVE'
+(wrapper
+  (program
+    (name "nested")
+    (version "0.1")))
+WEAVE
+printf 'src/core/unit.weave\n' > "$WORK/nested.list"
+if weavec_load_compiler_sources \
+    "$WORK/nested-root" "$WORK/nested.list" >/dev/null 2>&1; then
+  fail 'nested compiler program wrapper was accepted'
+fi
+
+bash "$ROOT/test/protocol-boundary/test.sh"
 printf 'compiler-sources: canonical ordered manifest passed\n'

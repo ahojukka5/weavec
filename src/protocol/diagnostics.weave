@@ -1,0 +1,261 @@
+; SPDX-License-Identifier: Apache-2.0
+; Weave-owned serializer for weavec-diagnostics-v1.
+
+(program
+  (name "diagnostics-protocol")
+  (version "0.1")
+
+  (fn diagnostics_write_span
+    (params
+      (dg_writer ptr) (dg_present i32)
+      (dg_start i64) (dg_end i64)
+      (dg_start_line i64) (dg_start_column i64)
+      (dg_end_line i64) (dg_end_column i64))
+    (returns void)
+    (do
+      (if
+        (condition (eq_i32 (param_get dg_present) (const_i32 0)))
+        (then (do
+          (call_void protocol_json_null (param_get dg_writer))
+          (return_void)))
+        (else (do)))
+      (call_i32 weave_host_json_object_begin (param_get dg_writer))
+      (call_void protocol_json_key_u64
+        (param_get dg_writer) (const_string_ptr "start_byte") (param_get dg_start))
+      (call_void protocol_json_key_u64
+        (param_get dg_writer) (const_string_ptr "end_byte") (param_get dg_end))
+      (call_void protocol_json_key_u64
+        (param_get dg_writer) (const_string_ptr "start_line") (param_get dg_start_line))
+      (call_void protocol_json_key_u64
+        (param_get dg_writer) (const_string_ptr "start_column") (param_get dg_start_column))
+      (call_void protocol_json_key_u64
+        (param_get dg_writer) (const_string_ptr "end_line") (param_get dg_end_line))
+      (call_void protocol_json_key_u64
+        (param_get dg_writer) (const_string_ptr "end_column") (param_get dg_end_column))
+      (call_i32 weave_host_json_object_end (param_get dg_writer))
+      (return_void)))
+
+  (fn weave_protocol_diagnostics_serialize
+    (params
+      (dg_writer ptr)
+      (dg_status ptr) (dg_document_phase ptr)
+      (dg_stable_exit i32) (dg_raw_exit i32)
+      (dg_record_present i32)
+      (dg_record_code ptr) (dg_record_severity ptr) (dg_record_phase ptr)
+      (dg_record_message ptr) (dg_record_source ptr) (dg_record_span_origin ptr)
+      (dg_span_present i32)
+      (dg_span_start i64) (dg_span_end i64)
+      (dg_span_start_line i64) (dg_span_start_column i64)
+      (dg_span_end_line i64) (dg_span_end_column i64)
+      (dg_semantic_present i32) (dg_semantic_flags i32)
+      (dg_semantic_code ptr) (dg_semantic_source ptr)
+      (dg_expected_type ptr) (dg_actual_type ptr)
+      (dg_argument_index i32) (dg_expected_count i32) (dg_actual_count i32)
+      (dg_operand_role ptr) (dg_symbol ptr)
+      (dg_replacement ptr) (dg_repair_confidence ptr)
+      (dg_replacement_span_present i32)
+      (dg_replacement_start i64) (dg_replacement_end i64)
+      (dg_replacement_start_line i64) (dg_replacement_start_column i64)
+      (dg_replacement_end_line i64) (dg_replacement_end_column i64))
+    (returns i32)
+    (do
+      (call_i32 weave_host_json_object_begin (param_get dg_writer))
+      (call_void protocol_json_key_string
+        (param_get dg_writer) (const_string_ptr "format")
+        (const_string_ptr "weavec-diagnostics-v1"))
+      (call_void protocol_json_key_string
+        (param_get dg_writer) (const_string_ptr "status") (param_get dg_status))
+      (call_void protocol_json_key_string
+        (param_get dg_writer) (const_string_ptr "phase") (param_get dg_document_phase))
+      (call_void protocol_json_key_i64
+        (param_get dg_writer) (const_string_ptr "exit_code")
+        (cast_i32_to_i64 (param_get dg_stable_exit)))
+      (call_void protocol_json_key_i64
+        (param_get dg_writer) (const_string_ptr "raw_exit_code")
+        (cast_i32_to_i64 (param_get dg_raw_exit)))
+      (call_i32 weave_host_json_key (param_get dg_writer) (const_string_ptr "diagnostics"))
+      (call_i32 weave_host_json_array_begin (param_get dg_writer))
+
+      (if
+        (condition (ne_i32 (param_get dg_record_present) (const_i32 0)))
+        (then (do
+          (let dg_code ptr (param_get dg_record_code))
+          (let dg_source ptr (param_get dg_record_source))
+          (let dg_span_origin ptr (param_get dg_record_span_origin))
+          (let dg_severity ptr (param_get dg_record_severity))
+          (let dg_phase ptr (param_get dg_record_phase))
+          (let dg_message ptr (param_get dg_record_message))
+          (if
+            (condition (eq_ptr (local_get dg_severity) (const_null)))
+            (then (do (set dg_severity (const_string_ptr "error"))))
+            (else (do)))
+          (if
+            (condition (eq_ptr (local_get dg_phase) (const_null)))
+            (then (do (set dg_phase (param_get dg_document_phase))))
+            (else (do)))
+          (if
+            (condition (eq_ptr (local_get dg_message) (const_null)))
+            (then (do (set dg_message (const_string_ptr "compiler failed"))))
+            (else (do)))
+          (if
+            (condition (eq_ptr (local_get dg_span_origin) (const_null)))
+            (then (do (set dg_span_origin (const_string_ptr "none"))))
+            (else (do)))
+          (if
+            (condition (ne_i32 (param_get dg_semantic_present) (const_i32 0)))
+            (then (do
+              (set dg_code (param_get dg_semantic_code))
+              (set dg_source (param_get dg_semantic_source))
+              (set dg_span_origin (const_string_ptr "compiler-semantic"))))
+            (else (do)))
+
+          (let dg_analysis_complete i32 (const_i32 0))
+          (if
+            (condition (ne_i32 (param_get dg_semantic_present) (const_i32 0)))
+            (then (do (set dg_analysis_complete (const_i32 1))))
+            (else (do
+              (if
+                (condition
+                  (eq_i32
+                    (call_i32 strcmp
+                      (local_get dg_span_origin)
+                      (const_string_ptr "compiler-preflight"))
+                    (const_i32 0)))
+                (then (do (set dg_analysis_complete (const_i32 1))))
+                (else (do))))))
+
+          (call_i32 weave_host_json_object_begin (param_get dg_writer))
+          (call_void protocol_json_key_string
+            (param_get dg_writer) (const_string_ptr "code") (local_get dg_code))
+          (call_void protocol_json_key_string
+            (param_get dg_writer) (const_string_ptr "severity") (local_get dg_severity))
+          (call_void protocol_json_key_string
+            (param_get dg_writer) (const_string_ptr "phase") (local_get dg_phase))
+          (call_void protocol_json_key_string
+            (param_get dg_writer) (const_string_ptr "message") (local_get dg_message))
+          (call_void protocol_json_key_nullable_string
+            (param_get dg_writer) (const_string_ptr "source") (local_get dg_source))
+          (call_void protocol_json_key_string
+            (param_get dg_writer) (const_string_ptr "span_origin") (local_get dg_span_origin))
+          (call_i32 weave_host_json_key (param_get dg_writer) (const_string_ptr "span"))
+          (call_void diagnostics_write_span
+            (param_get dg_writer) (param_get dg_span_present)
+            (param_get dg_span_start) (param_get dg_span_end)
+            (param_get dg_span_start_line) (param_get dg_span_start_column)
+            (param_get dg_span_end_line) (param_get dg_span_end_column))
+          (call_void protocol_json_key_bool
+            (param_get dg_writer) (const_string_ptr "analysis_complete")
+            (local_get dg_analysis_complete))
+
+          (if
+            (condition (ne_i32 (param_get dg_semantic_present) (const_i32 0)))
+            (then (do
+              (if
+                (condition
+                  (ne_i32
+                    (and_i32 (param_get dg_semantic_flags) (const_i32 1))
+                    (const_i32 0)))
+                (then (do
+                  (call_void protocol_json_key_string
+                    (param_get dg_writer) (const_string_ptr "expected_type")
+                    (param_get dg_expected_type))))
+                (else (do)))
+              (if
+                (condition
+                  (ne_i32
+                    (and_i32 (param_get dg_semantic_flags) (const_i32 2))
+                    (const_i32 0)))
+                (then (do
+                  (call_void protocol_json_key_string
+                    (param_get dg_writer) (const_string_ptr "actual_type")
+                    (param_get dg_actual_type))))
+                (else (do)))
+              (if
+                (condition
+                  (ne_i32
+                    (and_i32 (param_get dg_semantic_flags) (const_i32 4))
+                    (const_i32 0)))
+                (then (do
+                  (call_void protocol_json_key_i64
+                    (param_get dg_writer) (const_string_ptr "argument_index")
+                    (cast_i32_to_i64 (param_get dg_argument_index)))))
+                (else (do)))
+              (if
+                (condition
+                  (ne_i32
+                    (and_i32 (param_get dg_semantic_flags) (const_i32 8))
+                    (const_i32 0)))
+                (then (do
+                  (call_void protocol_json_key_i64
+                    (param_get dg_writer) (const_string_ptr "expected_count")
+                    (cast_i32_to_i64 (param_get dg_expected_count)))
+                  (call_void protocol_json_key_i64
+                    (param_get dg_writer) (const_string_ptr "actual_count")
+                    (cast_i32_to_i64 (param_get dg_actual_count)))))
+                (else (do)))
+              (if
+                (condition
+                  (ne_i32
+                    (and_i32 (param_get dg_semantic_flags) (const_i32 16))
+                    (const_i32 0)))
+                (then (do
+                  (call_void protocol_json_key_string
+                    (param_get dg_writer) (const_string_ptr "operand_role")
+                    (param_get dg_operand_role))))
+                (else (do)))
+              (if
+                (condition
+                  (ne_i32
+                    (and_i32 (param_get dg_semantic_flags) (const_i32 32))
+                    (const_i32 0)))
+                (then (do
+                  (call_void protocol_json_key_string
+                    (param_get dg_writer) (const_string_ptr "symbol")
+                    (param_get dg_symbol))))
+                (else (do)))))
+            (else (do)))
+
+          (call_i32 weave_host_json_key (param_get dg_writer) (const_string_ptr "candidates"))
+          (call_i32 weave_host_json_array_begin (param_get dg_writer))
+          (call_i32 weave_host_json_array_end (param_get dg_writer))
+          (call_i32 weave_host_json_key
+            (param_get dg_writer) (const_string_ptr "related_locations"))
+          (call_i32 weave_host_json_array_begin (param_get dg_writer))
+          (call_i32 weave_host_json_array_end (param_get dg_writer))
+          (call_i32 weave_host_json_key (param_get dg_writer) (const_string_ptr "repairs"))
+          (call_i32 weave_host_json_array_begin (param_get dg_writer))
+          (if
+            (condition
+              (and_bool
+                (ne_i32 (param_get dg_semantic_present) (const_i32 0))
+                (ne_i32
+                  (and_i32 (param_get dg_semantic_flags) (const_i32 64))
+                  (const_i32 0))))
+            (then (do
+              (call_i32 weave_host_json_object_begin (param_get dg_writer))
+              (call_void protocol_json_key_string
+                (param_get dg_writer) (const_string_ptr "kind") (const_string_ptr "replace"))
+              (call_void protocol_json_key_string
+                (param_get dg_writer) (const_string_ptr "replacement")
+                (param_get dg_replacement))
+              (call_i32 weave_host_json_key
+                (param_get dg_writer) (const_string_ptr "replacement_span"))
+              (call_void diagnostics_write_span
+                (param_get dg_writer) (param_get dg_replacement_span_present)
+                (param_get dg_replacement_start) (param_get dg_replacement_end)
+                (param_get dg_replacement_start_line) (param_get dg_replacement_start_column)
+                (param_get dg_replacement_end_line) (param_get dg_replacement_end_column))
+              (call_void protocol_json_key_string
+                (param_get dg_writer) (const_string_ptr "confidence")
+                (param_get dg_repair_confidence))
+              (call_i32 weave_host_json_object_end (param_get dg_writer))))
+            (else (do)))
+          (call_i32 weave_host_json_array_end (param_get dg_writer))
+          (call_i32 weave_host_json_object_end (param_get dg_writer))))
+        (else (do)))
+
+      (call_i32 weave_host_json_array_end (param_get dg_writer))
+      (call_void protocol_write_active_project (param_get dg_writer))
+      (call_i32 weave_host_json_object_end (param_get dg_writer))
+      (return (const_i32 0))))
+)

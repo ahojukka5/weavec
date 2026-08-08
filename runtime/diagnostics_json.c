@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Typed serializer for weavec-diagnostics-v1. Diagnostic classification and
-// span discovery remain in diagnostics_driver.c; this module owns schema
-// serialization, semantic-sidecar enrichment, and transactional publication.
+// Native data/publication bridge for weavec-diagnostics-v1. Diagnostic
+// classification and span discovery remain host/compiler mechanics; the public
+// schema, field ordering, optional-field policy, and repair representation are
+// owned by src/protocol/diagnostics.weave.
 
 #ifndef WEAVEC_DIAGNOSTICS_JSON_C
 #define WEAVEC_DIAGNOSTICS_JSON_C
@@ -34,172 +35,109 @@ typedef struct weave_diagnostics_document {
     int semantic_present;
 } weave_diagnostics_document;
 
-static int weave_diagnostics_bool(
-    weave_json_writer *writer,
-    int value) {
-    const unsigned char *text = (const unsigned char *)(value ? "true" : "false");
-    return weave_json_trusted_value(writer, text, value ? 4 : 5);
-}
+extern const char *project_protocol_effective_diagnostic_phase(
+    const char *current,
+    const char *code);
 
-static int weave_diagnostics_write_span(
-    weave_json_writer *writer,
-    const weave_diagnostics_span *span) {
-    if (span == NULL || !span->present) {
-        return weave_json_null(writer);
-    }
-    return weave_json_object_begin(writer) &&
-        weave_json_key(writer, "start_byte") &&
-        weave_json_uint64(writer, span->start_byte) &&
-        weave_json_key(writer, "end_byte") &&
-        weave_json_uint64(writer, span->end_byte) &&
-        weave_json_key(writer, "start_line") &&
-        weave_json_uint64(writer, span->start_line) &&
-        weave_json_key(writer, "start_column") &&
-        weave_json_uint64(writer, span->start_column) &&
-        weave_json_key(writer, "end_line") &&
-        weave_json_uint64(writer, span->end_line) &&
-        weave_json_key(writer, "end_column") &&
-        weave_json_uint64(writer, span->end_column) &&
-        weave_json_object_end(writer);
-}
-
-static int weave_diagnostics_write_repairs(
-    weave_json_writer *writer,
-    const weave_diagnostics_document *document) {
-    if (!weave_json_array_begin(writer)) {
-        return 0;
-    }
-    const weave_semantic_diagnostic *semantic = &document->semantic;
-    if (document->semantic_present &&
-        (semantic->flags & WEAVE_SEMANTIC_HAS_REPAIR) != 0) {
-        if (!weave_json_object_begin(writer) ||
-            !weave_json_key(writer, "kind") ||
-            !weave_json_string(writer, "replace") ||
-            !weave_json_key(writer, "replacement") ||
-            !weave_json_string(writer, semantic->replacement) ||
-            !weave_json_key(writer, "replacement_span") ||
-            !weave_diagnostics_write_span(
-                writer, &document->replacement_span) ||
-            !weave_json_key(writer, "confidence") ||
-            !weave_json_string(writer, semantic->repair_confidence) ||
-            !weave_json_object_end(writer)) {
-            return 0;
-        }
-    }
-    return weave_json_array_end(writer);
-}
+extern int weave_protocol_diagnostics_serialize(
+    void *writer,
+    const char *status,
+    const char *document_phase,
+    int stable_exit_code,
+    int raw_exit_code,
+    int record_present,
+    const char *record_code,
+    const char *record_severity,
+    const char *record_phase,
+    const char *record_message,
+    const char *record_source,
+    const char *record_span_origin,
+    int span_present,
+    long long span_start,
+    long long span_end,
+    long long span_start_line,
+    long long span_start_column,
+    long long span_end_line,
+    long long span_end_column,
+    int semantic_present,
+    int semantic_flags,
+    const char *semantic_code,
+    const char *semantic_source,
+    const char *expected_type,
+    const char *actual_type,
+    int argument_index,
+    int expected_count,
+    int actual_count,
+    const char *operand_role,
+    const char *symbol,
+    const char *replacement,
+    const char *repair_confidence,
+    int replacement_span_present,
+    long long replacement_start,
+    long long replacement_end,
+    long long replacement_start_line,
+    long long replacement_start_column,
+    long long replacement_end_line,
+    long long replacement_end_column);
 
 static int weave_diagnostics_serialize(
     weave_json_writer *writer,
     const void *opaque) {
     const weave_diagnostics_document *document = opaque;
-    if (!weave_json_object_begin(writer) ||
-        !weave_json_key(writer, "format") ||
-        !weave_json_string(writer, "weavec-diagnostics-v1") ||
-        !weave_json_key(writer, "status") ||
-        !weave_json_string(writer, document->status) ||
-        !weave_json_key(writer, "phase") ||
-        !weave_json_string(writer, document->phase) ||
-        !weave_json_key(writer, "exit_code") ||
-        !weave_json_int64(writer, document->stable_exit_code) ||
-        !weave_json_key(writer, "raw_exit_code") ||
-        !weave_json_int64(writer, document->raw_exit_code) ||
-        !weave_json_key(writer, "diagnostics") ||
-        !weave_json_array_begin(writer)) {
-        return 1;
-    }
-
     const weave_diag_record *record = document->record;
-    if (record != NULL && record->code != NULL) {
-        const weave_semantic_diagnostic *semantic = &document->semantic;
-        const char *code = document->semantic_present
-            ? semantic->code : record->code;
-        const char *source = document->semantic_present
-            ? semantic->source : record->source;
-        const char *span_origin = document->semantic_present
-            ? "compiler-semantic"
-            : (record->span_origin != NULL ? record->span_origin : "none");
-        int analysis_complete = document->semantic_present ||
-            strcmp(span_origin, "compiler-preflight") == 0;
-
-        if (!weave_json_object_begin(writer) ||
-            !weave_json_key(writer, "code") ||
-            !weave_json_string(writer, code) ||
-            !weave_json_key(writer, "severity") ||
-            !weave_json_string(
-                writer,
-                record->severity != NULL ? record->severity : "error") ||
-            !weave_json_key(writer, "phase") ||
-            !weave_json_string(
-                writer,
-                record->phase != NULL ? record->phase : document->phase) ||
-            !weave_json_key(writer, "message") ||
-            !weave_json_string(
-                writer,
-                record->message != NULL ? record->message : "compiler failed") ||
-            !weave_json_key(writer, "source") ||
-            !weave_json_nullable_string(writer, source) ||
-            !weave_json_key(writer, "span_origin") ||
-            !weave_json_string(writer, span_origin) ||
-            !weave_json_key(writer, "span") ||
-            !weave_diagnostics_write_span(writer, &document->span) ||
-            !weave_json_key(writer, "analysis_complete") ||
-            !weave_diagnostics_bool(writer, analysis_complete)) {
-            return 1;
-        }
-
-        if (document->semantic_present) {
-            if ((semantic->flags & WEAVE_SEMANTIC_HAS_EXPECTED_TYPE) != 0 &&
-                (!weave_json_key(writer, "expected_type") ||
-                 !weave_json_string(writer, semantic->expected_type))) {
-                return 1;
-            }
-            if ((semantic->flags & WEAVE_SEMANTIC_HAS_ACTUAL_TYPE) != 0 &&
-                (!weave_json_key(writer, "actual_type") ||
-                 !weave_json_string(writer, semantic->actual_type))) {
-                return 1;
-            }
-            if ((semantic->flags & WEAVE_SEMANTIC_HAS_ARGUMENT_INDEX) != 0 &&
-                (!weave_json_key(writer, "argument_index") ||
-                 !weave_json_int64(writer, semantic->argument_index))) {
-                return 1;
-            }
-            if ((semantic->flags & WEAVE_SEMANTIC_HAS_COUNTS) != 0 &&
-                (!weave_json_key(writer, "expected_count") ||
-                 !weave_json_int64(writer, semantic->expected_count) ||
-                 !weave_json_key(writer, "actual_count") ||
-                 !weave_json_int64(writer, semantic->actual_count))) {
-                return 1;
-            }
-            if ((semantic->flags & WEAVE_SEMANTIC_HAS_OPERAND_ROLE) != 0 &&
-                (!weave_json_key(writer, "operand_role") ||
-                 !weave_json_string(writer, semantic->operand_role))) {
-                return 1;
-            }
-            if ((semantic->flags & WEAVE_SEMANTIC_HAS_SYMBOL) != 0 &&
-                (!weave_json_key(writer, "symbol") ||
-                 !weave_json_string(writer, semantic->symbol))) {
-                return 1;
-            }
-        }
-
-        if (!weave_json_key(writer, "candidates") ||
-            !weave_json_array_begin(writer) ||
-            !weave_json_array_end(writer) ||
-            !weave_json_key(writer, "related_locations") ||
-            !weave_json_array_begin(writer) ||
-            !weave_json_array_end(writer) ||
-            !weave_json_key(writer, "repairs") ||
-            !weave_diagnostics_write_repairs(writer, document) ||
-            !weave_json_object_end(writer)) {
-            return 1;
-        }
-    }
-
-    return weave_json_array_end(writer) &&
-        weave_json_object_end(writer)
-        ? 0
-        : 1;
+    const weave_semantic_diagnostic *semantic = &document->semantic;
+    int record_present = record != NULL && record->code != NULL;
+    const char *effective_code = document->semantic_present
+        ? semantic->code
+        : (record_present ? record->code : NULL);
+    const char *document_phase = project_protocol_effective_diagnostic_phase(
+        document->phase,
+        effective_code);
+    const char *record_phase = record_present && record->phase != NULL
+        ? project_protocol_effective_diagnostic_phase(
+              record->phase,
+              effective_code)
+        : NULL;
+    return weave_protocol_diagnostics_serialize(
+        writer,
+        document->status,
+        document_phase,
+        document->stable_exit_code,
+        document->raw_exit_code,
+        record_present,
+        record_present ? record->code : NULL,
+        record_present ? record->severity : NULL,
+        record_phase,
+        record_present ? record->message : NULL,
+        record_present ? record->source : NULL,
+        record_present ? record->span_origin : NULL,
+        document->span.present,
+        (long long)document->span.start_byte,
+        (long long)document->span.end_byte,
+        (long long)document->span.start_line,
+        (long long)document->span.start_column,
+        (long long)document->span.end_line,
+        (long long)document->span.end_column,
+        document->semantic_present,
+        (int)semantic->flags,
+        semantic->code,
+        semantic->source,
+        semantic->expected_type,
+        semantic->actual_type,
+        semantic->argument_index,
+        semantic->expected_count,
+        semantic->actual_count,
+        semantic->operand_role,
+        semantic->symbol,
+        semantic->replacement,
+        semantic->repair_confidence,
+        document->replacement_span.present,
+        (long long)document->replacement_span.start_byte,
+        (long long)document->replacement_span.end_byte,
+        (long long)document->replacement_span.start_line,
+        (long long)document->replacement_span.start_column,
+        (long long)document->replacement_span.end_line,
+        (long long)document->replacement_span.end_column);
 }
 
 static weave_diagnostics_span weave_diagnostics_resolve_span(

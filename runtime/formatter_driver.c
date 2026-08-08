@@ -26,13 +26,14 @@
 // The formatter is linked as its own translation unit directly into the
 // weavec executable (see build.sh/selfhost.sh), not into runtime/portable.c,
 // since it calls into the self-hosted parser and must never become part of
-// the private target-program runtime. It still reuses the compiler's own
-// admitted-cast registry rather than duplicating that table.
-#include "json_writer.c"
-#define WEAVE_CAP_ARRAY_LEN(values) (sizeof(values) / sizeof((values)[0]))
-#include "capabilities_json_types.inc"
-#include "capabilities_json_registry.inc"
-#undef WEAVE_CAP_ARRAY_LEN
+// the private target-program runtime. Language-level cast admission remains
+// owned by the self-hosted frontend; this native formatter only asks that
+// existing Weave policy whether a compatibility spelling is canonicalizable.
+extern int32_t surface_type_i32(void);
+extern int32_t surface_type_i64(void);
+extern int32_t surface_type_f32(void);
+extern int32_t surface_type_f64(void);
+extern int32_t sop_cast_pair_supported(int32_t source, int32_t target);
 
 extern void *lex(const char *source, int64_t length);
 extern void *parse(void *tokens);

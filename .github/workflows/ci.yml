@@ -12,30 +12,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
-  # This repository is public. The linux-*-sdks legs of `test` below (and
-  # all of `deep-selfhost`) run on the self-hosted LUMI runner and must
-  # never execute a fork's pull_request -- they need this job and fail
-  # outright (not a silent skip) if the PR's head repository isn't this
-  # same repository. macos-sdk runs on GitHub's own hosted runner
-  # (ephemeral, isolated per run) so it's exempted below, not gated here.
-  guard-self-hosted:
-    name: Verify trusted source for self-hosted jobs
-    runs-on: ubuntu-latest
-    steps:
-      - name: Reject pull requests from forks
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
-        run: |
-          echo "::error::Self-hosted LUMI runner jobs do not run for pull requests from forks (head repository: ${{ github.event.pull_request.head.repo.full_name }})."
-          exit 1
-
   test:
     name: build & test (${{ matrix.name }})
-    needs: guard-self-hosted
-    if: always()
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -43,10 +25,10 @@ jobs:
       matrix:
         include:
           - name: linux-glibc-sdks
-            os: self-hosted
+            os: ubuntu-latest
             libc: glibc
           - name: linux-musl-sdks
-            os: self-hosted
+            os: ubuntu-latest
             libc: musl
           - name: macos-sdk
             os: macos-latest
@@ -59,21 +41,29 @@ jobs:
       WEAVEC_BOOTSTRAP_LIBC: ${{ matrix.libc }}
 
     steps:
-      - name: Reject self-hosted legs when the trust guard failed
-        if: matrix.os == 'self-hosted' && needs.guard-self-hosted.result != 'success'
-        run: |
-          echo "::error::This self-hosted leg does not run for pull requests from forks."
-          exit 1
-
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify LLVM and SDK tools (Linux, preinstalled on this runner)
+      - name: Install LLVM toolchain (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            binutils \
+            clang \
+            curl \
+            file \
+            llvm \
+            musl-tools \
+            python3
+
+      - name: Verify toolchain (Linux)
         if: runner.os == 'Linux'
         run: |
           clang --version
           llvm-as --version
           llvm-link --version
+          python3 --version
 
       - name: Install LLVM toolchain (macOS)
         if: runner.os == 'macOS'
@@ -111,8 +101,8 @@ jobs:
 
   deep-selfhost:
     name: deep self-host ladder
-    needs: [test, guard-self-hosted]
-    runs-on: self-hosted
+    needs: test
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
       WEAVEC1_VERSION: v0.3.2
@@ -123,6 +113,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install self-host toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            binutils \
+            clang \
+            curl \
+            file \
+            llvm \
+            musl-tools \
+            python3
 
       - name: Select self-host scratch storage
         shell: bash
@@ -155,11 +157,12 @@ jobs:
           printf 'Selected %s with %s KiB available.\n' "$best_dir" "$best_kib"
           df -h "$scratch"
 
-      - name: Verify self-host toolchain (preinstalled on this runner)
+      - name: Verify self-host toolchain
         run: |
           clang --version
           llvm-as --version
           llvm-link --version
+          python3 --version
 
       - name: Build seed compiler
         shell: bash

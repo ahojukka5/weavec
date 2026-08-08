@@ -173,6 +173,25 @@ ensure_bootstrap_sdk() {
   validate_bootstrap_sdk "$sdk"
 }
 
+run_weavec1_backend() {
+  local input="$1"
+  local output="$2"
+
+  if [[ "$(uname -s)" == Darwin ]]; then
+    # Published weavec1 v0.3.2 recursively traverses the WIR tree. The current
+    # self-hosted compiler is large enough to exhaust macOS's default 8 MiB
+    # process stack, so raise only this bootstrap child process's soft limit.
+    # The final weavec executable carries its own link-time stack size below.
+    (
+      ulimit -s 32768 || exit 125
+      exec "$WEAVEC1_BIN" "$input" "$output"
+    )
+    return
+  fi
+
+  "$WEAVEC1_BIN" "$input" "$output"
+}
+
 weavec_load_compiler_sources "$WEAVEC_DIR"
 SOURCES=("${WEAVEC_COMPILER_SOURCES[@]}")
 
@@ -202,7 +221,7 @@ build_weavec() {
       "$BUILD_DIR/weavec.ll" || \
       fail "self-hosted backend failed to compile weavec.wir"
   else
-    "$WEAVEC1_BIN" "$BUILD_DIR/weavec.wir" "$BUILD_DIR/weavec.ll" || \
+    run_weavec1_backend "$BUILD_DIR/weavec.wir" "$BUILD_DIR/weavec.ll" || \
       fail "weavec1 failed to compile weavec.wir"
   fi
 

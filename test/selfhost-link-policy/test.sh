@@ -18,6 +18,8 @@ mkdir -p \
 cp "$ROOT/selfhost.sh" "$CHECKOUT/selfhost.sh"
 cp "$ROOT/scripts/weavec-version.sh" "$CHECKOUT/scripts/weavec-version.sh"
 cp "$ROOT/scripts/compiler-sources.sh" "$CHECKOUT/scripts/compiler-sources.sh"
+cp "$ROOT/scripts/validate-compiler-source.py" \
+  "$CHECKOUT/scripts/validate-compiler-source.py"
 ln -s "$ROOT/compiler" "$CHECKOUT/compiler"
 ln -s "$ROOT/src" "$CHECKOUT/src"
 printf '0\n' > "$COUNT_FILE"
