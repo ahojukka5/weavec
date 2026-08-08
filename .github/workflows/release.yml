@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 name: release
 
+# Release packaging and extracted-archive qualification are intentionally not
+# pull-request gates. Ordinary compiler correctness is covered by ci.yml.
 on:
   push:
     branches: [master]
     tags: ["v*"]
-  pull_request:
-    branches: [master]
   workflow_dispatch:
 
 permissions:
