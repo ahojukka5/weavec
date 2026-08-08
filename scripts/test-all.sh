@@ -129,6 +129,9 @@ bash "$ROOT/test/surface-elaboration/test.sh"
 log 'floating-point arithmetic'
 bash "$ROOT/test/float-arithmetic/test.sh"
 
+log 'Pythagorean command-line program'
+bash "$ROOT/test/pythagoras/test.sh"
+
 log 'contract result diagnostics'
 bash "$ROOT/test/contract-result-requires/test.sh"
 

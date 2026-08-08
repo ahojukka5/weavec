@@ -485,6 +485,33 @@ cmp "$EXTRACTED_FLOAT_EXPECTED" "$EXTRACTED_FLOAT_OUT" || {
   printf 'extracted float example stdout mismatch\n' >&2
   exit 1
 }
+
+EXTRACTED_PYTHAGORAS_BIN="$EXTRACTED_SMOKE/pythagoras"
+EXTRACTED_PYTHAGORAS_OUT="$EXTRACTED_SMOKE/pythagoras.stdout"
+EXTRACTED_PYTHAGORAS_ERR="$EXTRACTED_SMOKE/pythagoras.stderr"
+"$EXTRACTED_PACKAGE/bin/weavec" build \
+  "$EXTRACTED_PACKAGE/stdlib/process.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/parse.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/math.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/io.weave" \
+  "$EXTRACTED_PACKAGE/examples/pythagoras/main.weave" \
+  -o "$EXTRACTED_PYTHAGORAS_BIN"
+set +e
+LC_ALL=C "$EXTRACTED_PYTHAGORAS_BIN" 3 4 \
+  >"$EXTRACTED_PYTHAGORAS_OUT" 2>"$EXTRACTED_PYTHAGORAS_ERR"
+extracted_pythagoras_status="$?"
+set -e
+if [[ "$extracted_pythagoras_status" -ne 0 || -s "$EXTRACTED_PYTHAGORAS_ERR" ]]; then
+  printf 'extracted Pythagoras example failed (status=%s)\n' \
+    "$extracted_pythagoras_status" >&2
+  cat "$EXTRACTED_PYTHAGORAS_ERR" >&2
+  exit 1
+fi
+printf '5.0\n' > "$EXTRACTED_SMOKE/pythagoras.expected"
+cmp "$EXTRACTED_SMOKE/pythagoras.expected" "$EXTRACTED_PYTHAGORAS_OUT" || {
+  printf 'extracted Pythagoras example stdout mismatch\n' >&2
+  exit 1
+}
 rm -rf "$EXTRACTED_SMOKE"
 
 printf '%s\n' "$ARCHIVE"

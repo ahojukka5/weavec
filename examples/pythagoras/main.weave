@@ -1,0 +1,42 @@
+; SPDX-License-Identifier: Apache-2.0
+
+(program
+  (name "pythagoras")
+  (version "0.1")
+
+  ; std.process owns the native entry wrapper and calls this high-level function.
+  (fn program_main
+    (params)
+    (returns i32)
+    (do
+      (if
+        (condition (op not-equal (call args_count) 2))
+        (then (do
+          (call write_stderr "usage: pythagoras <a> <b>\n")
+          (return 2)))
+        (else (do)))
+      (if
+        (condition (op or
+          (op not (call parse_f64_valid (call arg 0)))
+          (op not (call parse_f64_valid (call arg 1)))))
+        (then (do
+          (call write_stderr "error: arguments must be numbers\n")
+          (return 2)))
+        (else (do)))
+      (let side_a f64 (call parse_f64 (call arg 0)))
+      (let side_b f64 (call parse_f64 (call arg 1)))
+      (if
+        (condition (op or
+          (op less-or-equal side_a 0.0)
+          (op less-or-equal side_b 0.0)))
+        (then (do
+          (call write_stderr "error: side lengths must be positive\n")
+          (return 2)))
+        (else (do)))
+      (let hypotenuse f64
+        (call sqrt_f64
+          (op add
+            (op mul side_a side_a)
+            (op mul side_b side_b))))
+      (call print_f64 "" hypotenuse)
+      (return 0))))

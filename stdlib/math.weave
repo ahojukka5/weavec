@@ -1,0 +1,36 @@
+; SPDX-License-Identifier: Apache-2.0
+; Small reusable numerical helpers implemented in Weave.
+;
+; Square root uses a fixed-count Newton iteration. Keeping it here avoids a
+; process-wide libm dependency and keeps the numerical algorithm in the language
+; implementation rather than the C host boundary.
+
+(program
+  (name "std.math")
+  (version "0.1")
+
+  (fn sqrt_f64
+    (params (value f64))
+    (returns f64)
+    (do
+      (if
+        (condition (le_f64 (param_get value) (const_f64 0.0)))
+        (then (do (return (const_f64 0.0))))
+        (else (do)))
+      (let guess f64 (param_get value))
+      (if
+        (condition (lt_f64 (local_get guess) (const_f64 1.0)))
+        (then (do (set guess (const_f64 1.0))))
+        (else (do)))
+      (let iteration i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get iteration) (const_i32 32)))
+        (do
+          (set guess
+            (mul_f64
+              (const_f64 0.5)
+              (add_f64
+                (local_get guess)
+                (div_f64 (param_get value) (local_get guess)))))
+          (set iteration (add_i32 (local_get iteration) (const_i32 1)))))
+      (return (local_get guess)))))

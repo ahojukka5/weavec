@@ -34,6 +34,16 @@
         (call_i64 strlen (param_get text)))
       (return_void)))
 
+  (fn write_stderr
+    (params (text ptr))
+    (returns void)
+    (do
+      (call_i64 write
+        (const_i32 2)
+        (param_get text)
+        (call_i64 strlen (param_get text)))
+      (return_void)))
+
   (fn write_digit
     (params (digit i32))
     (returns void)

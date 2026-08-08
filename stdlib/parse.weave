@@ -1,0 +1,120 @@
+; SPDX-License-Identifier: Apache-2.0
+; Deterministic ASCII floating-point parsing used by small command-line tools.
+;
+; Accepted grammar: -? DIGIT+ ('.' DIGIT+)?
+; Exponents, whitespace, plus signs, NaN, and infinities are intentionally out of
+; scope. Parsing behavior is implemented in Weave rather than delegated to libc.
+
+(program
+  (name "std.parse")
+  (version "0.1")
+
+  (fn parse_is_digit
+    (params (byte i32))
+    (returns bool)
+    (do
+      (return (and_bool
+        (ge_i32 (param_get byte) (const_i32 48))
+        (le_i32 (param_get byte) (const_i32 57))))))
+
+  (fn parse_f64_valid
+    (params (text ptr))
+    (returns bool)
+    (do
+      (if
+        (condition (eq_ptr (param_get text) (const_null)))
+        (then (do (return (const_bool false))))
+        (else (do)))
+      (let index i64 (const_i64 0))
+      (let current i32 (load_u8 (ptr_add (param_get text) (local_get index))))
+      (if
+        (condition (eq_i32 (local_get current) (const_i32 45)))
+        (then (do
+          (set index (add_i64 (local_get index) (const_i64 1)))
+          (set current (load_u8 (ptr_add (param_get text) (local_get index))))))
+        (else (do)))
+      (let whole_digits i32 (const_i32 0))
+      (while
+        (condition (call_bool parse_is_digit (local_get current)))
+        (do
+          (set whole_digits (add_i32 (local_get whole_digits) (const_i32 1)))
+          (set index (add_i64 (local_get index) (const_i64 1)))
+          (set current (load_u8 (ptr_add (param_get text) (local_get index))))))
+      (if
+        (condition (eq_i32 (local_get whole_digits) (const_i32 0)))
+        (then (do (return (const_bool false))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get current) (const_i32 46)))
+        (then (do
+          (set index (add_i64 (local_get index) (const_i64 1)))
+          (set current (load_u8 (ptr_add (param_get text) (local_get index))))
+          (let fraction_digits i32 (const_i32 0))
+          (while
+            (condition (call_bool parse_is_digit (local_get current)))
+            (do
+              (set fraction_digits (add_i32 (local_get fraction_digits) (const_i32 1)))
+              (set index (add_i64 (local_get index) (const_i64 1)))
+              (set current (load_u8 (ptr_add (param_get text) (local_get index))))))
+          (if
+            (condition (eq_i32 (local_get fraction_digits) (const_i32 0)))
+            (then (do (return (const_bool false))))
+            (else (do)))))
+        (else (do)))
+      (return (eq_i32 (local_get current) (const_i32 0)))))
+
+  (fn parse_f64
+    (params (text ptr))
+    (returns f64)
+    (do
+      (if
+        (condition (not_bool (call_bool parse_f64_valid (param_get text))))
+        (then (do (return (const_f64 0.0))))
+        (else (do)))
+      (let index i64 (const_i64 0))
+      (let negative i32 (const_i32 0))
+      (let current i32 (load_u8 (ptr_add (param_get text) (local_get index))))
+      (if
+        (condition (eq_i32 (local_get current) (const_i32 45)))
+        (then (do
+          (set negative (const_i32 1))
+          (set index (add_i64 (local_get index) (const_i64 1)))
+          (set current (load_u8 (ptr_add (param_get text) (local_get index))))))
+        (else (do)))
+      (let value f64 (const_f64 0.0))
+      (while
+        (condition (call_bool parse_is_digit (local_get current)))
+        (do
+          (let digit i32 (sub_i32 (local_get current) (const_i32 48)))
+          (set value
+            (add_f64
+              (mul_f64 (local_get value) (const_f64 10.0))
+              (cast_i32_to_f64 (local_get digit))))
+          (set index (add_i64 (local_get index) (const_i64 1)))
+          (set current (load_u8 (ptr_add (param_get text) (local_get index))))))
+      (if
+        (condition (eq_i32 (local_get current) (const_i32 46)))
+        (then (do
+          (set index (add_i64 (local_get index) (const_i64 1)))
+          (set current (load_u8 (ptr_add (param_get text) (local_get index))))
+          (let place f64 (const_f64 0.1))
+          (while
+            (condition (call_bool parse_is_digit (local_get current)))
+            (do
+              (let fraction_digit i32 (sub_i32 (local_get current) (const_i32 48)))
+              (set value
+                (add_f64
+                  (local_get value)
+                  (mul_f64
+                    (cast_i32_to_f64 (local_get fraction_digit))
+                    (local_get place))))
+              (set place (mul_f64 (local_get place) (const_f64 0.1)))
+              (set index (add_i64 (local_get index) (const_i64 1)))
+              (set current (load_u8 (ptr_add (param_get text) (local_get index)))))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (local_get negative) (const_i32 0)))
+        (then (do
+          (return (sub_f64 (const_f64 0.0) (local_get value)))))
+        (else (do)))
+      (return (local_get value)))))
