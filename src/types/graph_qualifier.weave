@@ -1,0 +1,117 @@
+; SPDX-License-Identifier: Apache-2.0
+; graph_qualifier.weave — pointer and ownership-qualified types
+;
+; Part of the self-hosted structured semantic type graph. This is compiler
+; logic, not host runtime logic.
+
+(program
+  (name "graph_qualifier")
+  (version "0.1")
+
+(fn type_graph_unary
+    (params
+      (graph ptr) (kind i32)
+      (identity_name ptr) (display_name ptr) (base i32))
+    (returns i32)
+    (do
+      (let base_node ptr
+        (call_ptr type_graph_node (param_get graph) (param_get base)))
+      (if
+        (condition (eq_ptr (local_get base_node) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let identity_buffer ptr (call_ptr type_buffer_new))
+      (let display_buffer ptr (call_ptr type_buffer_new))
+      (let ok i32 (const_i32 1))
+      (if (condition (or_bool
+          (eq_ptr (local_get identity_buffer) (const_null))
+          (eq_ptr (local_get display_buffer) (const_null))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append
+            (local_get identity_buffer) (param_get identity_name)) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append_field
+            (local_get identity_buffer)
+            (load_ptr (ptr_add (local_get base_node) (const_i64 16)))) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append
+            (local_get display_buffer) (param_get display_name)) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append
+            (local_get display_buffer) (const_string_ptr "<")) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append
+            (local_get display_buffer)
+            (load_ptr (ptr_add (local_get base_node) (const_i64 24)))) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append
+            (local_get display_buffer) (const_string_ptr ">")) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if
+        (condition (eq_i32 (local_get ok) (const_i32 0)))
+        (then (do
+          (call_void type_buffer_dispose (local_get identity_buffer))
+          (call_void type_buffer_dispose (local_get display_buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (let child_refs ptr (call_ptr malloc (const_i64 4)))
+      (if
+        (condition (eq_ptr (local_get child_refs) (const_null)))
+        (then (do
+          (call_void type_buffer_dispose (local_get identity_buffer))
+          (call_void type_buffer_dispose (local_get display_buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (store_i32 (local_get child_refs) (param_get base))
+      (let reference i32
+        (call_i32 type_graph_intern
+          (param_get graph)
+          (param_get kind)
+          (call_ptr type_buffer_take (local_get identity_buffer))
+          (call_ptr type_buffer_take (local_get display_buffer))
+          (local_get child_refs) (const_i64 1)))
+      (call_void free (local_get child_refs))
+      (return (local_get reference))))
+
+(fn type_graph_pointer
+    (params (graph ptr) (base i32))
+    (returns i32)
+    (do
+      (return (call_i32 type_graph_unary
+        (param_get graph) (call_i32 type_kind_pointer)
+        (const_string_ptr "pointer") (const_string_ptr "ptr")
+        (param_get base)))))
+
+(fn type_graph_owned
+    (params (graph ptr) (base i32))
+    (returns i32)
+    (do
+      (return (call_i32 type_graph_unary
+        (param_get graph) (call_i32 type_kind_owned)
+        (const_string_ptr "owned") (const_string_ptr "owned")
+        (param_get base)))))
+
+(fn type_graph_borrow
+    (params (graph ptr) (base i32))
+    (returns i32)
+    (do
+      (return (call_i32 type_graph_unary
+        (param_get graph) (call_i32 type_kind_borrow)
+        (const_string_ptr "borrow") (const_string_ptr "borrow")
+        (param_get base)))))
+
+(fn type_graph_borrow_mut
+    (params (graph ptr) (base i32))
+    (returns i32)
+    (do
+      (return (call_i32 type_graph_unary
+        (param_get graph) (call_i32 type_kind_borrow_mut)
+        (const_string_ptr "borrow-mut") (const_string_ptr "borrow-mut")
+        (param_get base)))))
+)

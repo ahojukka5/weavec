@@ -1,0 +1,336 @@
+; SPDX-License-Identifier: Apache-2.0
+; graph_storage.weave — graph storage, interning, and lifetime
+;
+; Part of the self-hosted structured semantic type graph. This is compiler
+; logic, not host runtime logic.
+
+(program
+  (name "graph_storage")
+  (version "0.1")
+
+(fn type_graph_node
+    (params (graph ptr) (reference i32))
+    (returns ptr)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get graph) (const_null))
+          (le_i32 (param_get reference) (const_i32 0))))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let count i64 (load_i64 (ptr_add (param_get graph) (const_i64 8))))
+      (if
+        (condition (gt_i64
+          (cast_i32_to_i64 (param_get reference))
+          (local_get count)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (return
+        (ptr_add
+          (load_ptr (param_get graph))
+          (mul_i64
+            (sub_i64
+              (cast_i32_to_i64 (param_get reference))
+              (const_i64 1))
+            (const_i64 72))))))
+
+(fn type_graph_reserve_nodes
+    (params (graph ptr))
+    (returns i32)
+    (do
+      (let count i64 (load_i64 (ptr_add (param_get graph) (const_i64 8))))
+      (let capacity i64
+        (load_i64 (ptr_add (param_get graph) (const_i64 16))))
+      (if
+        (condition (lt_i64 (local_get count) (local_get capacity)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let next_capacity i64 (const_i64 16))
+      (if
+        (condition (ne_i64 (local_get capacity) (const_i64 0)))
+        (then (do
+          (set next_capacity
+            (mul_i64 (local_get capacity) (const_i64 2)))))
+        (else (do)))
+      (if
+        (condition (le_i64 (local_get next_capacity) (local_get capacity)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let nodes ptr
+        (call_ptr realloc
+          (load_ptr (param_get graph))
+          (mul_i64 (local_get next_capacity) (const_i64 72))))
+      (if
+        (condition (eq_ptr (local_get nodes) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (store_ptr (param_get graph) (local_get nodes))
+      (store_i64
+        (ptr_add (param_get graph) (const_i64 16))
+        (local_get next_capacity))
+      (return (const_i32 1))))
+
+(fn type_graph_find
+    (params (graph ptr) (hash i64) (identity ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get graph) (const_null))
+          (eq_ptr (param_get identity) (const_null))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let count i64 (load_i64 (ptr_add (param_get graph) (const_i64 8))))
+      (let index i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get index) (local_get count)))
+        (do
+          (let node ptr
+            (ptr_add
+              (load_ptr (param_get graph))
+              (mul_i64 (local_get index) (const_i64 72))))
+          (if
+            (condition (and_bool
+              (eq_i64
+                (load_i64 (ptr_add (local_get node) (const_i64 8)))
+                (param_get hash))
+              (ne_i32
+                (call_i32 type_cstr_equal
+                  (load_ptr (ptr_add (local_get node) (const_i64 16)))
+                  (param_get identity))
+                (const_i32 0))))
+            (then (do
+              (return (cast_i64_to_i32
+                (add_i64 (local_get index) (const_i64 1))))))
+            (else (do)))
+          (set index (add_i64 (local_get index) (const_i64 1)))))
+      (return (const_i32 0))))
+
+(fn type_graph_children_valid
+    (params (graph ptr) (children ptr) (child_count i64))
+    (returns i32)
+    (do
+      (if
+        (condition (lt_i64 (param_get child_count) (const_i64 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (gt_i64 (param_get child_count) (const_i64 0))
+          (eq_ptr (param_get children) (const_null))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let index i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get index) (param_get child_count)))
+        (do
+          (let reference i32
+            (load_i32
+              (ptr_add
+                (param_get children)
+                (mul_i64 (local_get index) (const_i64 4)))))
+          (if
+            (condition (eq_ptr
+              (call_ptr type_graph_node
+                (param_get graph) (local_get reference))
+              (const_null)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set index (add_i64 (local_get index) (const_i64 1)))))
+      (return (const_i32 1))))
+
+(fn type_graph_copy_children
+    (params (children ptr) (child_count i64))
+    (returns ptr)
+    (do
+      (if
+        (condition (eq_i64 (param_get child_count) (const_i64 0)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let copy ptr
+        (call_ptr malloc
+          (mul_i64 (param_get child_count) (const_i64 4))))
+      (if
+        (condition (eq_ptr (local_get copy) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let index i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get index) (param_get child_count)))
+        (do
+          (store_i32
+            (ptr_add
+              (local_get copy)
+              (mul_i64 (local_get index) (const_i64 4)))
+            (load_i32
+              (ptr_add
+                (param_get children)
+                (mul_i64 (local_get index) (const_i64 4)))))
+          (set index (add_i64 (local_get index) (const_i64 1)))))
+      (return (local_get copy))))
+
+; Intern only structural identity. Optional owner/type-name/ordinal metadata is
+; owned by graph_metadata.weave so this bootstrap-facing function stays small.
+(fn type_graph_intern
+    (params
+      (graph ptr) (kind i32)
+      (identity ptr) (display ptr)
+      (children ptr) (child_count i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get graph) (const_null))
+          (or_bool
+            (eq_ptr (param_get identity) (const_null))
+            (eq_ptr (param_get display) (const_null)))))
+        (then (do
+          (if
+            (condition (ne_ptr (param_get identity) (const_null)))
+            (then (do (call_void free (param_get identity))))
+            (else (do)))
+          (if
+            (condition (ne_ptr (param_get display) (const_null)))
+            (then (do (call_void free (param_get display))))
+            (else (do)))
+          (return (const_i32 0))))
+        (else (do)))
+      (let hash i64 (call_i64 type_hash_bytes (param_get identity)))
+      (let existing i32
+        (call_i32 type_graph_find
+          (param_get graph) (local_get hash) (param_get identity)))
+      (if
+        (condition (ne_i32 (local_get existing) (const_i32 0)))
+        (then (do
+          (call_void free (param_get identity))
+          (call_void free (param_get display))
+          (return (local_get existing))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 type_graph_reserve_nodes (param_get graph))
+          (const_i32 0)))
+        (then (do
+          (call_void free (param_get identity))
+          (call_void free (param_get display))
+          (return (const_i32 0))))
+        (else (do)))
+      (let child_copy ptr
+        (call_ptr type_graph_copy_children
+          (param_get children) (param_get child_count)))
+      (if
+        (condition (and_bool
+          (gt_i64 (param_get child_count) (const_i64 0))
+          (eq_ptr (local_get child_copy) (const_null))))
+        (then (do
+          (call_void free (param_get identity))
+          (call_void free (param_get display))
+          (return (const_i32 0))))
+        (else (do)))
+      (let index i64 (load_i64 (ptr_add (param_get graph) (const_i64 8))))
+      (let node ptr
+        (ptr_add
+          (load_ptr (param_get graph))
+          (mul_i64 (local_get index) (const_i64 72))))
+      (store_i32 (local_get node) (param_get kind))
+      (store_i64 (ptr_add (local_get node) (const_i64 8)) (local_get hash))
+      (store_ptr (ptr_add (local_get node) (const_i64 16)) (param_get identity))
+      (store_ptr (ptr_add (local_get node) (const_i64 24)) (param_get display))
+      (store_ptr (ptr_add (local_get node) (const_i64 32)) (const_null))
+      (store_ptr (ptr_add (local_get node) (const_i64 40)) (const_null))
+      (store_i32 (ptr_add (local_get node) (const_i64 48)) (const_i32 0))
+      (store_ptr (ptr_add (local_get node) (const_i64 56)) (local_get child_copy))
+      (store_i64
+        (ptr_add (local_get node) (const_i64 64))
+        (param_get child_count))
+      (store_i64
+        (ptr_add (param_get graph) (const_i64 8))
+        (add_i64 (local_get index) (const_i64 1)))
+      (return
+        (cast_i64_to_i32 (add_i64 (local_get index) (const_i64 1))))))
+
+(fn type_graph_new
+    (params)
+    (returns ptr)
+    (do
+      (let graph ptr (call_ptr malloc (const_i64 32)))
+      (if
+        (condition (eq_ptr (local_get graph) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (store_ptr (local_get graph) (const_null))
+      (store_i64 (ptr_add (local_get graph) (const_i64 8)) (const_i64 0))
+      (store_i64 (ptr_add (local_get graph) (const_i64 16)) (const_i64 0))
+      (store_i32 (ptr_add (local_get graph) (const_i64 24)) (const_i32 0))
+      (let identity ptr (call_ptr type_cstr_copy (const_string_ptr "error")))
+      (let display ptr (call_ptr type_cstr_copy (const_string_ptr "<error>")))
+      (let error_ref i32
+        (call_i32 type_graph_intern
+          (local_get graph)
+          (call_i32 type_kind_error)
+          (local_get identity)
+          (local_get display)
+          (const_null)
+          (const_i64 0)))
+      (if
+        (condition (eq_i32 (local_get error_ref) (const_i32 0)))
+        (then (do
+          (call_void type_graph_free (local_get graph))
+          (return (const_null))))
+        (else (do)))
+      (store_i32
+        (ptr_add (local_get graph) (const_i64 24))
+        (local_get error_ref))
+      (return (local_get graph))))
+
+(fn type_graph_free
+    (params (graph ptr))
+    (returns void)
+    (do
+      (if
+        (condition (eq_ptr (param_get graph) (const_null)))
+        (then (do (return_void)))
+        (else (do)))
+      (let nodes ptr (load_ptr (param_get graph)))
+      (let count i64 (load_i64 (ptr_add (param_get graph) (const_i64 8))))
+      (let index i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get index) (local_get count)))
+        (do
+          (let node ptr
+            (ptr_add
+              (local_get nodes)
+              (mul_i64 (local_get index) (const_i64 72))))
+          (let identity ptr (load_ptr (ptr_add (local_get node) (const_i64 16))))
+          (let display ptr (load_ptr (ptr_add (local_get node) (const_i64 24))))
+          (let owner ptr (load_ptr (ptr_add (local_get node) (const_i64 32))))
+          (let node_name ptr (load_ptr (ptr_add (local_get node) (const_i64 40))))
+          (let children ptr (load_ptr (ptr_add (local_get node) (const_i64 56))))
+          (if (condition (ne_ptr (local_get identity) (const_null)))
+            (then (do (call_void free (local_get identity)))) (else (do)))
+          (if (condition (ne_ptr (local_get display) (const_null)))
+            (then (do (call_void free (local_get display)))) (else (do)))
+          (if (condition (ne_ptr (local_get owner) (const_null)))
+            (then (do (call_void free (local_get owner)))) (else (do)))
+          (if (condition (ne_ptr (local_get node_name) (const_null)))
+            (then (do (call_void free (local_get node_name)))) (else (do)))
+          (if (condition (ne_ptr (local_get children) (const_null)))
+            (then (do (call_void free (local_get children)))) (else (do)))
+          (set index (add_i64 (local_get index) (const_i64 1)))))
+      (if
+        (condition (ne_ptr (local_get nodes) (const_null)))
+        (then (do (call_void free (local_get nodes))))
+        (else (do)))
+      (call_void free (param_get graph))
+      (return_void)))
+
+(fn type_graph_error
+    (params (graph ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_ptr (param_get graph) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (load_i32 (ptr_add (param_get graph) (const_i64 24))))))
+)

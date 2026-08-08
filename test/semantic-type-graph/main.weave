@@ -1,0 +1,264 @@
+; SPDX-License-Identifier: Apache-2.0
+; Focused executable qualification for the self-hosted semantic type graph.
+
+(program
+  (name "semantic_type_graph_test")
+  (version "0.1")
+
+(fn main
+    (params)
+    (returns i32)
+    (do
+      (let left ptr (call_ptr type_graph_new))
+      (let right ptr (call_ptr type_graph_new))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get left) (const_null))
+          (eq_ptr (local_get right) (const_null))))
+        (then (do
+          (call_void type_graph_free (local_get left))
+          (call_void type_graph_free (local_get right))
+          (return (const_i32 1))))
+        (else (do)))
+
+      (let left_out ptr (call_ptr malloc (const_i64 12)))
+      (let right_out ptr (call_ptr malloc (const_i64 12)))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get left_out) (const_null))
+          (eq_ptr (local_get right_out) (const_null))))
+        (then (do
+          (if
+            (condition (ne_ptr (local_get left_out) (const_null)))
+            (then (do (call_void free (local_get left_out))))
+            (else (do)))
+          (if
+            (condition (ne_ptr (local_get right_out) (const_null)))
+            (then (do (call_void free (local_get right_out))))
+            (else (do)))
+          (call_void type_graph_free (local_get left))
+          (call_void type_graph_free (local_get right))
+          (return (const_i32 2))))
+        (else (do)))
+
+      (if
+        (condition (eq_i32
+          (call_i32 graph_test_build
+            (local_get left) (const_i32 0) (local_get left_out))
+          (const_i32 0)))
+        (then (do (return (const_i32 3))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 graph_test_build
+            (local_get right) (const_i32 1) (local_get right_out))
+          (const_i32 0)))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+
+      (let left_vector i32 (load_i32 (local_get left_out)))
+      (let left_function i32
+        (load_i32 (ptr_add (local_get left_out) (const_i64 4))))
+      (let left_ok i32
+        (load_i32 (ptr_add (local_get left_out) (const_i64 8))))
+      (let right_vector i32 (load_i32 (local_get right_out)))
+      (let right_function i32
+        (load_i32 (ptr_add (local_get right_out) (const_i64 4))))
+      (let right_ok i32
+        (load_i32 (ptr_add (local_get right_out) (const_i64 8))))
+
+      (if
+        (condition (eq_i32
+          (call_i32 type_graph_equal
+            (local_get left) (local_get left_vector)
+            (local_get right) (local_get right_vector))
+          (const_i32 0)))
+        (then (do (return (const_i32 5))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 type_graph_equal
+            (local_get left) (local_get left_function)
+            (local_get right) (local_get right_function))
+          (const_i32 0)))
+        (then (do (return (const_i32 6))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 type_graph_equal
+            (local_get left) (local_get left_ok)
+            (local_get right) (local_get right_ok))
+          (const_i32 0)))
+        (then (do (return (const_i32 7))))
+        (else (do)))
+      (if
+        (condition (ne_i64
+          (call_i64 type_graph_hash
+            (local_get left) (local_get left_function))
+          (call_i64 type_graph_hash
+            (local_get right) (local_get right_function))))
+        (then (do (return (const_i32 8))))
+        (else (do)))
+
+      (if
+        (condition (eq_i32
+          (call_i32 graph_test_strings_equal
+            (call_ptr type_graph_display
+              (local_get left) (local_get left_function))
+            (const_string_ptr "fn(collections::Vector<i32>, bool) -> i64"))
+          (const_i32 0)))
+        (then (do (return (const_i32 9))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 graph_test_strings_equal
+            (call_ptr type_graph_display
+              (local_get left) (local_get left_ok))
+            (const_string_ptr "core::Result<i32, bool>::Ok(i32)"))
+          (const_i32 0)))
+        (then (do (return (const_i32 10))))
+        (else (do)))
+
+      (let vector i32
+        (call_i32 type_graph_nominal
+          (local_get left)
+          (const_string_ptr "collections")
+          (const_string_ptr "Vector")))
+      (let i32_type i32
+        (call_i32 type_graph_primitive
+          (local_get left) (const_string_ptr "i32")))
+      (let argument ptr (call_ptr malloc (const_i64 4)))
+      (if
+        (condition (eq_ptr (local_get argument) (const_null)))
+        (then (do (return (const_i32 11))))
+        (else (do)))
+      (store_i32 (local_get argument) (local_get i32_type))
+      (if
+        (condition (ne_i32
+          (call_i32 type_graph_application
+            (local_get left) (local_get vector) (local_get argument)
+            (const_i64 1))
+          (local_get left_vector)))
+        (then (do (return (const_i32 12))))
+        (else (do)))
+      (call_void free (local_get argument))
+
+      (let point_a i32
+        (call_i32 type_graph_nominal
+          (local_get left) (const_string_ptr "a") (const_string_ptr "Point")))
+      (let point_b i32
+        (call_i32 type_graph_nominal
+          (local_get left) (const_string_ptr "b") (const_string_ptr "Point")))
+      (if
+        (condition (ne_i32
+          (call_i32 type_graph_equal
+            (local_get left) (local_get point_a)
+            (local_get left) (local_get point_b))
+          (const_i32 0)))
+        (then (do (return (const_i32 13))))
+        (else (do)))
+
+      (let parameter i32
+        (call_i32 type_graph_generic_parameter
+          (local_get left)
+          (const_string_ptr "collections::Vector")
+          (const_i32 0)
+          (const_string_ptr "T")))
+      (if
+        (condition (ne_i32
+          (call_i32 type_graph_kind (local_get left) (local_get parameter))
+          (call_i32 type_kind_generic_parameter)))
+        (then (do (return (const_i32 14))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 graph_test_strings_equal
+            (call_ptr type_graph_owner (local_get left) (local_get parameter))
+            (const_string_ptr "collections::Vector"))
+          (const_i32 0)))
+        (then (do (return (const_i32 15))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 graph_test_strings_equal
+            (call_ptr type_graph_name (local_get left) (local_get parameter))
+            (const_string_ptr "T"))
+          (const_i32 0)))
+        (then (do (return (const_i32 16))))
+        (else (do)))
+      (if
+        (condition (ne_i32
+          (call_i32 type_graph_ordinal (local_get left) (local_get parameter))
+          (const_i32 0)))
+        (then (do (return (const_i32 17))))
+        (else (do)))
+
+      (let pointer i32
+        (call_i32 type_graph_pointer (local_get left) (local_get point_a)))
+      (let owned i32
+        (call_i32 type_graph_owned (local_get left) (local_get point_a)))
+      (let borrow i32
+        (call_i32 type_graph_borrow (local_get left) (local_get point_a)))
+      (let borrow_mut i32
+        (call_i32 type_graph_borrow_mut (local_get left) (local_get point_a)))
+      (if
+        (condition (eq_i32 (call_i32 graph_test_strings_equal
+          (call_ptr type_graph_display (local_get left) (local_get pointer))
+          (const_string_ptr "ptr<a::Point>")) (const_i32 0)))
+        (then (do (return (const_i32 18)))) (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 graph_test_strings_equal
+          (call_ptr type_graph_display (local_get left) (local_get owned))
+          (const_string_ptr "owned<a::Point>")) (const_i32 0)))
+        (then (do (return (const_i32 19)))) (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 graph_test_strings_equal
+          (call_ptr type_graph_display (local_get left) (local_get borrow))
+          (const_string_ptr "borrow<a::Point>")) (const_i32 0)))
+        (then (do (return (const_i32 20)))) (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 graph_test_strings_equal
+          (call_ptr type_graph_display (local_get left) (local_get borrow_mut))
+          (const_string_ptr "borrow-mut<a::Point>")) (const_i32 0)))
+        (then (do (return (const_i32 21)))) (else (do)))
+
+      (if
+        (condition (ne_i64
+          (call_i64 type_graph_child_count
+            (local_get left) (local_get left_function))
+          (const_i64 3)))
+        (then (do (return (const_i32 22))))
+        (else (do)))
+      (if
+        (condition (ne_i32
+          (call_i32 type_graph_child
+            (local_get left) (local_get left_function) (const_i64 99))
+          (const_i32 0)))
+        (then (do (return (const_i32 23))))
+        (else (do)))
+      (if
+        (condition (ne_ptr
+          (call_ptr type_graph_identity (local_get left) (const_i32 0))
+          (const_null)))
+        (then (do (return (const_i32 24))))
+        (else (do)))
+      (if
+        (condition (ne_i32
+          (call_i32 type_graph_kind (local_get left) (const_i32 0))
+          (call_i32 type_kind_invalid)))
+        (then (do (return (const_i32 25))))
+        (else (do)))
+      (if
+        (condition (ne_i32
+          (call_i32 type_graph_application
+            (local_get left) (local_get vector) (const_null) (const_i64 0))
+          (const_i32 0)))
+        (then (do (return (const_i32 26))))
+        (else (do)))
+
+      (call_void free (local_get right_out))
+      (call_void free (local_get left_out))
+      (call_void type_graph_free (local_get right))
+      (call_void type_graph_free (local_get left))
+      (return (const_i32 0))))
+)

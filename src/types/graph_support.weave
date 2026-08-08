@@ -1,0 +1,378 @@
+; SPDX-License-Identifier: Apache-2.0
+; graph_support.weave — type text, hashing, and node-kind support
+;
+; Part of the self-hosted structured semantic type graph.  This is compiler
+; logic, not host runtime logic.
+
+(program
+  (name "graph_support")
+  (version "0.1")
+
+(fn type_kind_invalid (params) (returns i32) (do (return (const_i32 -1))))
+
+(fn type_kind_error (params) (returns i32) (do (return (const_i32 0))))
+
+(fn type_kind_primitive (params) (returns i32) (do (return (const_i32 1))))
+
+(fn type_kind_nominal (params) (returns i32) (do (return (const_i32 2))))
+
+(fn type_kind_generic_parameter (params) (returns i32) (do (return (const_i32 3))))
+
+(fn type_kind_application (params) (returns i32) (do (return (const_i32 4))))
+
+(fn type_kind_function (params) (returns i32) (do (return (const_i32 5))))
+
+(fn type_kind_variant (params) (returns i32) (do (return (const_i32 6))))
+
+(fn type_kind_pointer (params) (returns i32) (do (return (const_i32 7))))
+
+(fn type_kind_owned (params) (returns i32) (do (return (const_i32 8))))
+
+(fn type_kind_borrow (params) (returns i32) (do (return (const_i32 9))))
+
+(fn type_kind_borrow_mut (params) (returns i32) (do (return (const_i32 10))))
+
+(fn type_cstr_equal
+    (params (left ptr) (right ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get left) (const_null))
+          (eq_ptr (param_get right) (const_null))))
+        (then (do
+          (if
+            (condition (eq_ptr (param_get left) (param_get right)))
+            (then (do (return (const_i32 1))))
+            (else (do (return (const_i32 0)))))))
+        (else (do)))
+      (let left_len i64 (call_i64 strlen (param_get left)))
+      (let right_len i64 (call_i64 strlen (param_get right)))
+      (if
+        (condition (ne_i64 (local_get left_len) (local_get right_len)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let index i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get index) (local_get left_len)))
+        (do
+          (if
+            (condition (ne_i32
+              (load_u8 (ptr_add (param_get left) (local_get index)))
+              (load_u8 (ptr_add (param_get right) (local_get index)))))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set index (add_i64 (local_get index) (const_i64 1)))))
+      (return (const_i32 1))))
+
+(fn type_cstr_copy
+    (params (value ptr))
+    (returns ptr)
+    (do
+      (if
+        (condition (eq_ptr (param_get value) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let length i64 (call_i64 strlen (param_get value)))
+      (let copy ptr (call_ptr malloc (add_i64 (local_get length) (const_i64 1))))
+      (if
+        (condition (eq_ptr (local_get copy) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let index i64 (const_i64 0))
+      (while
+        (condition (le_i64 (local_get index) (local_get length)))
+        (do
+          (store_i8
+            (ptr_add (local_get copy) (local_get index))
+            (load_u8 (ptr_add (param_get value) (local_get index))))
+          (set index (add_i64 (local_get index) (const_i64 1)))))
+      (return (local_get copy))))
+
+(fn type_buffer_new
+    (params)
+    (returns ptr)
+    (do
+      (let buffer ptr (call_ptr malloc (const_i64 32)))
+      (if
+        (condition (eq_ptr (local_get buffer) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (store_ptr (local_get buffer) (const_null))
+      (store_i64 (ptr_add (local_get buffer) (const_i64 8)) (const_i64 0))
+      (store_i64 (ptr_add (local_get buffer) (const_i64 16)) (const_i64 0))
+      (store_i64 (ptr_add (local_get buffer) (const_i64 24)) (const_i64 0))
+      (return (local_get buffer))))
+
+(fn type_buffer_dispose
+    (params (buffer ptr))
+    (returns void)
+    (do
+      (if
+        (condition (eq_ptr (param_get buffer) (const_null)))
+        (then (do (return_void)))
+        (else (do)))
+      (let data ptr (load_ptr (param_get buffer)))
+      (if
+        (condition (ne_ptr (local_get data) (const_null)))
+        (then (do (call_void free (local_get data))))
+        (else (do)))
+      (call_void free (param_get buffer))
+      (return_void)))
+
+(fn type_buffer_fail
+    (params (buffer ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_ptr (param_get buffer) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (store_i64 (ptr_add (param_get buffer) (const_i64 24)) (const_i64 1))
+      (return (const_i32 0))))
+
+(fn type_buffer_reserve
+    (params (buffer ptr) (additional i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get buffer) (const_null))
+          (lt_i64 (param_get additional) (const_i64 0))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i64
+          (load_i64 (ptr_add (param_get buffer) (const_i64 24)))
+          (const_i64 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let length i64 (load_i64 (ptr_add (param_get buffer) (const_i64 8))))
+      (let required i64
+        (add_i64
+          (add_i64 (local_get length) (param_get additional))
+          (const_i64 1)))
+      (if
+        (condition (lt_i64 (local_get required) (local_get length)))
+        (then (do (return (call_i32 type_buffer_fail (param_get buffer)))))
+        (else (do)))
+      (let capacity i64 (load_i64 (ptr_add (param_get buffer) (const_i64 16))))
+      (if
+        (condition (ge_i64 (local_get capacity) (local_get required)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (eq_i64 (local_get capacity) (const_i64 0)))
+        (then (do (set capacity (const_i64 64))))
+        (else (do)))
+      (while
+        (condition (lt_i64 (local_get capacity) (local_get required)))
+        (do
+          (let next i64 (mul_i64 (local_get capacity) (const_i64 2)))
+          (if
+            (condition (le_i64 (local_get next) (local_get capacity)))
+            (then (do
+              (set capacity (local_get required))))
+            (else (do
+              (set capacity (local_get next)))))))
+      (let grown ptr
+        (call_ptr realloc
+          (load_ptr (param_get buffer))
+          (local_get capacity)))
+      (if
+        (condition (eq_ptr (local_get grown) (const_null)))
+        (then (do (return (call_i32 type_buffer_fail (param_get buffer)))))
+        (else (do)))
+      (store_ptr (param_get buffer) (local_get grown))
+      (store_i64
+        (ptr_add (param_get buffer) (const_i64 16))
+        (local_get capacity))
+      (return (const_i32 1))))
+
+(fn type_buffer_append_n
+    (params (buffer ptr) (value ptr) (length i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get value) (const_null))
+          (lt_i64 (param_get length) (const_i64 0))))
+        (then (do (return (call_i32 type_buffer_fail (param_get buffer)))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 type_buffer_reserve
+            (param_get buffer) (param_get length))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let data ptr (load_ptr (param_get buffer)))
+      (let current i64
+        (load_i64 (ptr_add (param_get buffer) (const_i64 8))))
+      (let index i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get index) (param_get length)))
+        (do
+          (store_i8
+            (ptr_add
+              (local_get data)
+              (add_i64 (local_get current) (local_get index)))
+            (load_u8 (ptr_add (param_get value) (local_get index))))
+          (set index (add_i64 (local_get index) (const_i64 1)))))
+      (let next_length i64 (add_i64 (local_get current) (param_get length)))
+      (store_i8 (ptr_add (local_get data) (local_get next_length)) (const_i32 0))
+      (store_i64
+        (ptr_add (param_get buffer) (const_i64 8))
+        (local_get next_length))
+      (return (const_i32 1))))
+
+(fn type_buffer_append
+    (params (buffer ptr) (value ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_ptr (param_get value) (const_null)))
+        (then (do (return (call_i32 type_buffer_fail (param_get buffer)))))
+        (else (do)))
+      (return
+        (call_i32 type_buffer_append_n
+          (param_get buffer)
+          (param_get value)
+          (call_i64 strlen (param_get value))))))
+
+(fn type_buffer_append_i64
+    (params (buffer ptr) (value i64))
+    (returns i32)
+    (do
+      (if
+        (condition (lt_i64 (param_get value) (const_i64 0)))
+        (then (do (return (call_i32 type_buffer_fail (param_get buffer)))))
+        (else (do)))
+      (if
+        (condition (eq_i64 (param_get value) (const_i64 0)))
+        (then (do
+          (return
+            (call_i32 type_buffer_append_n
+              (param_get buffer)
+              (const_string_ptr "0")
+              (const_i64 1)))))
+        (else (do)))
+      (let digits ptr (call_ptr malloc (const_i64 32)))
+      (if
+        (condition (eq_ptr (local_get digits) (const_null)))
+        (then (do (return (call_i32 type_buffer_fail (param_get buffer)))))
+        (else (do)))
+      (let count i64 (const_i64 0))
+      (let remaining i64 (param_get value))
+      (while
+        (condition (gt_i64 (local_get remaining) (const_i64 0)))
+        (do
+          (let digit i64 (mod_i64 (local_get remaining) (const_i64 10)))
+          (store_i8
+            (ptr_add (local_get digits) (local_get count))
+            (add_i32 (const_i32 48) (cast_i64_to_i32 (local_get digit))))
+          (set count (add_i64 (local_get count) (const_i64 1)))
+          (set remaining (div_i64 (local_get remaining) (const_i64 10)))))
+      (let ok i32 (const_i32 1))
+      (let index i64 (local_get count))
+      (while
+        (condition (and_bool
+          (gt_i64 (local_get index) (const_i64 0))
+          (ne_i32 (local_get ok) (const_i32 0))))
+        (do
+          (set index (sub_i64 (local_get index) (const_i64 1)))
+          (set ok
+            (call_i32 type_buffer_append_n
+              (param_get buffer)
+              (ptr_add (local_get digits) (local_get index))
+              (const_i64 1)))))
+      (call_void free (local_get digits))
+      (return (local_get ok))))
+
+(fn type_buffer_append_field
+    (params (buffer ptr) (value ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_ptr (param_get value) (const_null)))
+        (then (do (return (call_i32 type_buffer_fail (param_get buffer)))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 type_buffer_append
+            (param_get buffer) (const_string_ptr "|"))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 type_buffer_append_i64
+            (param_get buffer) (call_i64 strlen (param_get value)))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 type_buffer_append
+            (param_get buffer) (const_string_ptr ":"))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return
+        (call_i32 type_buffer_append
+          (param_get buffer) (param_get value)))))
+
+(fn type_buffer_take
+    (params (buffer ptr))
+    (returns ptr)
+    (do
+      (if
+        (condition (eq_ptr (param_get buffer) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (if
+        (condition (ne_i64
+          (load_i64 (ptr_add (param_get buffer) (const_i64 24)))
+          (const_i64 0)))
+        (then (do
+          (call_void type_buffer_dispose (param_get buffer))
+          (return (const_null))))
+        (else (do)))
+      (let data ptr (load_ptr (param_get buffer)))
+      (if
+        (condition (eq_ptr (local_get data) (const_null)))
+        (then (do
+          (set data (call_ptr malloc (const_i64 1)))
+          (if
+            (condition (eq_ptr (local_get data) (const_null)))
+            (then (do
+              (call_void free (param_get buffer))
+              (return (const_null))))
+            (else (do)))
+          (store_i8 (local_get data) (const_i32 0))))
+        (else (do)))
+      (call_void free (param_get buffer))
+      (return (local_get data))))
+
+(fn type_hash_bytes
+    (params (value ptr))
+    (returns i64)
+    (do
+      ; FNV-1a offset basis as the same 64-bit bit pattern in signed i64.
+      (let hash i64 (const_i64 -3750763034362895579))
+      (let index i64 (const_i64 0))
+      (while
+        (condition (ne_i32
+          (load_u8 (ptr_add (param_get value) (local_get index)))
+          (const_i32 0)))
+        (do
+          (set hash
+            (xor_i64
+              (local_get hash)
+              (cast_i32_to_i64
+                (load_u8 (ptr_add (param_get value) (local_get index))))))
+          (set hash
+            (mul_i64 (local_get hash) (const_i64 1099511628211)))
+          (set index (add_i64 (local_get index) (const_i64 1)))))
+      (return (local_get hash))))
+)

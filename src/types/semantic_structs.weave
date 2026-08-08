@@ -1,0 +1,166 @@
+; SPDX-License-Identifier: Apache-2.0
+; semantic_structs.weave — graph-backed nominal struct facade
+;
+; Language-level type meaning belongs to self-hosted Weave.  Host C supplies
+; only raw storage/module facts and one opaque mutable process-state pointer.
+
+(program
+  (name "semantic_structs")
+  (version "0.1")
+
+(fn weave_surface_struct_type_or_declare
+    (params (source ptr) (start i64) (length i64))
+    (returns i32)
+    (do
+      (let flat_type i32
+        (call_i32 weave_surface_struct_type_or_declare_flat
+          (param_get source) (param_get start) (param_get length)))
+      (if
+        (condition (le_i32 (local_get flat_type) (const_i32 0)))
+        (then (do (return (local_get flat_type))))
+        (else (do)))
+      (return
+        (call_i32 semantic_bind_struct
+          (local_get flat_type)
+          (call_ptr weave_surface_struct_owner_flat
+            (param_get source) (param_get start) (param_get length)
+            (local_get flat_type))))))
+
+(fn weave_surface_struct_define
+    (params (source ptr) (start i64) (length i64))
+    (returns i32)
+    (do
+      (let flat_type i32
+        (call_i32 weave_surface_struct_define_flat
+          (param_get source) (param_get start) (param_get length)))
+      (if
+        (condition (le_i32 (local_get flat_type) (const_i32 0)))
+        (then (do (return (local_get flat_type))))
+        (else (do)))
+      (return
+        (call_i32 semantic_bind_struct
+          (local_get flat_type)
+          (call_ptr weave_surface_struct_owner_flat
+            (param_get source) (param_get start) (param_get length)
+            (local_get flat_type))))))
+
+(fn weave_surface_struct_add_field
+    (params
+      (struct_type i32) (source ptr) (start i64) (length i64)
+      (field_type i32))
+    (returns i32)
+    (do
+      (let flat_type i32
+        (call_i32 semantic_flat_type (param_get struct_type)))
+      (if
+        (condition (le_i32 (local_get flat_type) (const_i32 0)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (return
+        (call_i32 weave_surface_struct_add_field_storage
+          (local_get flat_type)
+          (param_get source) (param_get start) (param_get length)
+          (param_get field_type)))))
+
+(fn weave_surface_struct_is_type
+    (params (type i32))
+    (returns i32)
+    (do
+      (if
+        (condition (gt_i32
+          (call_i32 semantic_flat_type (param_get type))
+          (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do (return (const_i32 0)))))))
+
+(fn weave_surface_struct_is_defined
+    (params (type i32))
+    (returns i32)
+    (do
+      (let flat_type i32 (call_i32 semantic_flat_type (param_get type)))
+      (if
+        (condition (le_i32 (local_get flat_type) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return
+        (call_i32 weave_surface_struct_is_defined_storage
+          (local_get flat_type)))))
+
+(fn weave_surface_struct_name
+    (params (type i32))
+    (returns ptr)
+    (do
+      (let flat_type i32 (call_i32 semantic_flat_type (param_get type)))
+      (if
+        (condition (le_i32 (local_get flat_type) (const_i32 0)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (return
+        (call_ptr weave_surface_struct_name_flat (local_get flat_type)))))
+
+(fn weave_surface_struct_wir_name
+    (params (type i32))
+    (returns ptr)
+    (do
+      (let flat_type i32 (call_i32 semantic_flat_type (param_get type)))
+      (if
+        (condition (le_i32 (local_get flat_type) (const_i32 0)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (return
+        (call_ptr weave_surface_struct_wir_name_flat (local_get flat_type)))))
+
+(fn weave_surface_struct_field_count
+    (params (type i32))
+    (returns i32)
+    (do
+      (let flat_type i32 (call_i32 semantic_flat_type (param_get type)))
+      (if
+        (condition (le_i32 (local_get flat_type) (const_i32 0)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (return
+        (call_i32 weave_surface_struct_field_count_storage
+          (local_get flat_type)))))
+
+(fn weave_surface_struct_field_type
+    (params (type i32) (field_index i32))
+    (returns i32)
+    (do
+      (let flat_type i32 (call_i32 semantic_flat_type (param_get type)))
+      (if
+        (condition (le_i32 (local_get flat_type) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return
+        (call_i32 weave_surface_struct_field_type_storage
+          (local_get flat_type) (param_get field_index)))))
+
+(fn weave_surface_struct_field_name
+    (params (type i32) (field_index i32))
+    (returns ptr)
+    (do
+      (let flat_type i32 (call_i32 semantic_flat_type (param_get type)))
+      (if
+        (condition (le_i32 (local_get flat_type) (const_i32 0)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (return
+        (call_ptr weave_surface_struct_field_name_storage
+          (local_get flat_type) (param_get field_index)))))
+
+(fn weave_surface_struct_find_field
+    (params
+      (type i32) (source ptr) (start i64) (length i64))
+    (returns i32)
+    (do
+      (let flat_type i32 (call_i32 semantic_flat_type (param_get type)))
+      (if
+        (condition (le_i32 (local_get flat_type) (const_i32 0)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (return
+        (call_i32 weave_surface_struct_find_field_storage
+          (local_get flat_type)
+          (param_get source) (param_get start) (param_get length)))))
+)

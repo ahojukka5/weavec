@@ -1,0 +1,141 @@
+; SPDX-License-Identifier: Apache-2.0
+; graph_query.weave — read-only graph queries and equality
+;
+; Part of the self-hosted structured semantic type graph.  This is compiler
+; logic, not host runtime logic.
+
+(program
+  (name "graph_query")
+  (version "0.1")
+
+(fn type_graph_kind
+    (params (graph ptr) (reference i32))
+    (returns i32)
+    (do
+      (let node ptr
+        (call_ptr type_graph_node (param_get graph) (param_get reference)))
+      (if
+        (condition (eq_ptr (local_get node) (const_null)))
+        (then (do (return (call_i32 type_kind_invalid))))
+        (else (do)))
+      (return (load_i32 (local_get node)))))
+
+(fn type_graph_identity
+    (params (graph ptr) (reference i32))
+    (returns ptr)
+    (do
+      (let node ptr
+        (call_ptr type_graph_node (param_get graph) (param_get reference)))
+      (if (condition (eq_ptr (local_get node) (const_null)))
+        (then (do (return (const_null)))) (else (do)))
+      (return (load_ptr (ptr_add (local_get node) (const_i64 16))))))
+
+(fn type_graph_display
+    (params (graph ptr) (reference i32))
+    (returns ptr)
+    (do
+      (let node ptr
+        (call_ptr type_graph_node (param_get graph) (param_get reference)))
+      (if (condition (eq_ptr (local_get node) (const_null)))
+        (then (do (return (const_null)))) (else (do)))
+      (return (load_ptr (ptr_add (local_get node) (const_i64 24))))))
+
+(fn type_graph_hash
+    (params (graph ptr) (reference i32))
+    (returns i64)
+    (do
+      (let node ptr
+        (call_ptr type_graph_node (param_get graph) (param_get reference)))
+      (if (condition (eq_ptr (local_get node) (const_null)))
+        (then (do (return (const_i64 0)))) (else (do)))
+      (return (load_i64 (ptr_add (local_get node) (const_i64 8))))))
+
+(fn type_graph_owner
+    (params (graph ptr) (reference i32))
+    (returns ptr)
+    (do
+      (let node ptr
+        (call_ptr type_graph_node (param_get graph) (param_get reference)))
+      (if (condition (eq_ptr (local_get node) (const_null)))
+        (then (do (return (const_null)))) (else (do)))
+      (return (load_ptr (ptr_add (local_get node) (const_i64 32))))))
+
+(fn type_graph_name
+    (params (graph ptr) (reference i32))
+    (returns ptr)
+    (do
+      (let node ptr
+        (call_ptr type_graph_node (param_get graph) (param_get reference)))
+      (if (condition (eq_ptr (local_get node) (const_null)))
+        (then (do (return (const_null)))) (else (do)))
+      (return (load_ptr (ptr_add (local_get node) (const_i64 40))))))
+
+(fn type_graph_ordinal
+    (params (graph ptr) (reference i32))
+    (returns i32)
+    (do
+      (let node ptr
+        (call_ptr type_graph_node (param_get graph) (param_get reference)))
+      (if (condition (eq_ptr (local_get node) (const_null)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (return (load_i32 (ptr_add (local_get node) (const_i64 48))))))
+
+(fn type_graph_child_count
+    (params (graph ptr) (reference i32))
+    (returns i64)
+    (do
+      (let node ptr
+        (call_ptr type_graph_node (param_get graph) (param_get reference)))
+      (if (condition (eq_ptr (local_get node) (const_null)))
+        (then (do (return (const_i64 0)))) (else (do)))
+      (return (load_i64 (ptr_add (local_get node) (const_i64 64))))))
+
+(fn type_graph_child
+    (params (graph ptr) (reference i32) (index i64))
+    (returns i32)
+    (do
+      (let node ptr
+        (call_ptr type_graph_node (param_get graph) (param_get reference)))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get node) (const_null))
+          (or_bool
+            (lt_i64 (param_get index) (const_i64 0))
+            (ge_i64
+              (param_get index)
+              (load_i64 (ptr_add (local_get node) (const_i64 64)))))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return
+        (load_i32
+          (ptr_add
+            (load_ptr (ptr_add (local_get node) (const_i64 56)))
+            (mul_i64 (param_get index) (const_i64 4)))))))
+
+(fn type_graph_equal
+    (params
+      (left_graph ptr) (left i32)
+      (right_graph ptr) (right i32))
+    (returns i32)
+    (do
+      (let left_node ptr
+        (call_ptr type_graph_node (param_get left_graph) (param_get left)))
+      (let right_node ptr
+        (call_ptr type_graph_node (param_get right_graph) (param_get right)))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get left_node) (const_null))
+          (eq_ptr (local_get right_node) (const_null))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i64
+          (load_i64 (ptr_add (local_get left_node) (const_i64 8)))
+          (load_i64 (ptr_add (local_get right_node) (const_i64 8)))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return
+        (call_i32 type_cstr_equal
+          (load_ptr (ptr_add (local_get left_node) (const_i64 16)))
+          (load_ptr (ptr_add (local_get right_node) (const_i64 16)))))))
+)

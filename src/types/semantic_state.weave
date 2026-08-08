@@ -1,0 +1,258 @@
+; SPDX-License-Identifier: Apache-2.0
+; semantic_state.weave — semantic graph lifetime and raw-slot binding
+;
+; Language-level type meaning belongs to self-hosted Weave. Host C supplies
+; only raw storage/module facts and one opaque mutable process-state pointer.
+
+(program
+  (name "semantic_state")
+  (version "0.1")
+
+(fn semantic_struct_base (params) (returns i32)
+    (do (return (const_i32 1024))))
+
+(fn semantic_struct_capacity (params) (returns i32)
+    (do (return (const_i32 512))))
+
+(fn semantic_refs_bytes (params) (returns i64)
+    (do (return (const_i64 2048))))
+
+(fn semantic_state_new
+    (params)
+    (returns ptr)
+    (do
+      (let state ptr (call_ptr malloc (const_i64 16)))
+      (if
+        (condition (eq_ptr (local_get state) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let graph ptr (call_ptr type_graph_new))
+      (if
+        (condition (eq_ptr (local_get graph) (const_null)))
+        (then (do
+          (call_void free (local_get state))
+          (return (const_null))))
+        (else (do)))
+      (let refs ptr (call_ptr malloc (call_i64 semantic_refs_bytes)))
+      (if
+        (condition (eq_ptr (local_get refs) (const_null)))
+        (then (do
+          (call_void type_graph_free (local_get graph))
+          (call_void free (local_get state))
+          (return (const_null))))
+        (else (do)))
+      (let slot_index i32 (const_i32 0))
+      (while
+        (condition (lt_i32
+          (local_get slot_index) (call_i32 semantic_struct_capacity)))
+        (do
+          (store_i32
+            (ptr_add
+              (local_get refs)
+              (mul_i64
+                (cast_i32_to_i64 (local_get slot_index))
+                (const_i64 4)))
+            (const_i32 0))
+          (set slot_index
+            (add_i32 (local_get slot_index) (const_i32 1)))))
+      (store_ptr (local_get state) (local_get graph))
+      (store_ptr (ptr_add (local_get state) (const_i64 8)) (local_get refs))
+      (return (local_get state))))
+
+(fn semantic_state
+    (params)
+    (returns ptr)
+    (do
+      (let state ptr (call_ptr weave_host_semantic_state_get))
+      (if
+        (condition (ne_ptr (local_get state) (const_null)))
+        (then (do (return (local_get state))))
+        (else (do)))
+      (set state (call_ptr semantic_state_new))
+      (if
+        (condition (eq_ptr (local_get state) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (call_void weave_host_semantic_state_set (local_get state))
+      (return (local_get state))))
+
+(fn semantic_graph
+    (params)
+    (returns ptr)
+    (do
+      (let state ptr (call_ptr semantic_state))
+      (if
+        (condition (eq_ptr (local_get state) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (return (load_ptr (local_get state)))))
+
+(fn semantic_refs
+    (params)
+    (returns ptr)
+    (do
+      (let state ptr (call_ptr semantic_state))
+      (if
+        (condition (eq_ptr (local_get state) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (return (load_ptr (ptr_add (local_get state) (const_i64 8))))))
+
+(fn semantic_flat_index
+    (params (flat_type i32))
+    (returns i32)
+    (do
+      (let slot_index i32
+        (sub_i32 (param_get flat_type) (call_i32 semantic_struct_base)))
+      (if
+        (condition (lt_i32 (local_get slot_index) (const_i32 0)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (if
+        (condition (ge_i32
+          (local_get slot_index)
+          (call_i32 semantic_struct_capacity)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (return (local_get slot_index))))
+
+(fn semantic_ref_at
+    (params (slot_index i32))
+    (returns i32)
+    (do
+      (let refs ptr (call_ptr semantic_refs))
+      (if
+        (condition (eq_ptr (local_get refs) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return
+        (load_i32
+          (ptr_add
+            (local_get refs)
+            (mul_i64
+              (cast_i32_to_i64 (param_get slot_index))
+              (const_i64 4)))))))
+
+(fn semantic_set_ref
+    (params (slot_index i32) (reference i32))
+    (returns void)
+    (do
+      (let refs ptr (call_ptr semantic_refs))
+      (if
+        (condition (eq_ptr (local_get refs) (const_null)))
+        (then (do (return_void)))
+        (else (do)))
+      (store_i32
+        (ptr_add
+          (local_get refs)
+          (mul_i64
+            (cast_i32_to_i64 (param_get slot_index))
+            (const_i64 4)))
+        (param_get reference))
+      (return_void)))
+
+(fn semantic_flat_type
+    (params (semantic_type i32))
+    (returns i32)
+    (do
+      (if
+        (condition (le_i32 (param_get semantic_type) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let slot_index i32 (const_i32 0))
+      (while
+        (condition (lt_i32
+          (local_get slot_index) (call_i32 semantic_struct_capacity)))
+        (do
+          (if
+            (condition (eq_i32
+              (call_i32 semantic_ref_at (local_get slot_index))
+              (param_get semantic_type)))
+            (then (do
+              (return
+                (add_i32
+                  (call_i32 semantic_struct_base)
+                  (local_get slot_index)))))
+            (else (do)))
+          (set slot_index
+            (add_i32 (local_get slot_index) (const_i32 1)))))
+      (return (const_i32 0))))
+
+(fn semantic_bind_struct
+    (params (flat_type i32) (owner ptr))
+    (returns i32)
+    (do
+      (let slot_index i32
+        (call_i32 semantic_flat_index (param_get flat_type)))
+      (if
+        (condition (lt_i32 (local_get slot_index) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_ptr (param_get owner) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let existing i32 (call_i32 semantic_ref_at (local_get slot_index)))
+      (if
+        (condition (ne_i32 (local_get existing) (const_i32 0)))
+        (then (do (return (local_get existing))))
+        (else (do)))
+      (let struct_name ptr
+        (call_ptr weave_surface_struct_name_flat (param_get flat_type)))
+      (if
+        (condition (eq_ptr (local_get struct_name) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let graph ptr (call_ptr semantic_graph))
+      (if
+        (condition (eq_ptr (local_get graph) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let reference i32
+        (call_i32 type_graph_nominal
+          (local_get graph) (param_get owner) (local_get struct_name)))
+      (if
+        (condition (eq_i32 (local_get reference) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (call_void semantic_set_ref
+        (local_get slot_index) (local_get reference))
+      (return (local_get reference))))
+
+(fn weave_semantic_type_primitive
+    (params (primitive_name ptr))
+    (returns i32)
+    (do
+      (let graph ptr (call_ptr semantic_graph))
+      (if
+        (condition (eq_ptr (local_get graph) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return
+        (call_i32 type_graph_primitive
+          (local_get graph) (param_get primitive_name)))))
+
+(fn weave_surface_symbols_reset
+    (params)
+    (returns void)
+    (do
+      (let state ptr (call_ptr weave_host_semantic_state_get))
+      (if
+        (condition (ne_ptr (local_get state) (const_null)))
+        (then (do
+          (let graph ptr (load_ptr (local_get state)))
+          (let refs ptr (load_ptr (ptr_add (local_get state) (const_i64 8))))
+          (if
+            (condition (ne_ptr (local_get graph) (const_null)))
+            (then (do (call_void type_graph_free (local_get graph))))
+            (else (do)))
+          (if
+            (condition (ne_ptr (local_get refs) (const_null)))
+            (then (do (call_void free (local_get refs))))
+            (else (do)))
+          (call_void free (local_get state))
+          (call_void weave_host_semantic_state_set (const_null))))
+        (else (do)))
+      (call_void weave_surface_symbols_reset_storage_all)
+      (return_void)))
+)
