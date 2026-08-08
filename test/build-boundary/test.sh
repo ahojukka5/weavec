@@ -57,7 +57,6 @@ printf 'bootstrap %s\n' "\$1" >> "$LOG"
 printf '(core-module (core-version 2) (decls))\n' > "\$1"
 EOF_BOOTSTRAP_CAT
 chmod +x "$BOOTSTRAP_SDK/bin/weavec-bootstrap-cat"
-printf 'parser bitcode\n' > "$BOOTSTRAP_SDK/lib/libweave-sexpr.bc"
 
 cat > "$CHECKOUT/build/selfhost/stage2/weavec" <<EOF_STALE
 #!/usr/bin/env bash

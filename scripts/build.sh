@@ -36,7 +36,6 @@ WEAVEC1_BIN=""
 WEAVEC_BOOTSTRAP_SDK_DIR=""
 WEAVEC_BOOTSTRAP_BIN=""
 WEAVEC_BOOTSTRAP_CAT=""
-WEAVE_SEXPR_LIBRARY=""
 SDK_SUFFIX=""
 
 log()  { printf '[weavec] %s\n' "$*" >&2; }
@@ -137,13 +136,10 @@ validate_bootstrap_sdk() {
     fail "bootstrap SDK compiler missing: $sdk/bin/weavec-bootstrap"
   [[ -x "$sdk/bin/weavec-bootstrap-cat" ]] || \
     fail "bootstrap SDK multifile driver missing: $sdk/bin/weavec-bootstrap-cat"
-  [[ -s "$sdk/lib/libweave-sexpr.bc" ]] || \
-    fail "bootstrap SDK parser library missing: $sdk/lib/libweave-sexpr.bc"
 
   WEAVEC_BOOTSTRAP_SDK_DIR="$sdk"
   WEAVEC_BOOTSTRAP_BIN="$sdk/bin/weavec-bootstrap"
   WEAVEC_BOOTSTRAP_CAT="$sdk/bin/weavec-bootstrap-cat"
-  WEAVE_SEXPR_LIBRARY="$sdk/lib/libweave-sexpr.bc"
 }
 
 ensure_weavec1_sdk() {
@@ -225,8 +221,8 @@ build_weavec() {
       fail "weavec1 failed to compile weavec.wir"
   fi
 
-  log "linking compiler and parser library"
-  llvm-link "$BUILD_DIR/weavec.ll" "$WEAVE_SEXPR_LIBRARY" "$version_bc" \
+  log "linking self-hosted compiler"
+  llvm-link "$BUILD_DIR/weavec.ll" "$version_bc" \
     -o "$BUILD_DIR/weavec.bc" || fail "llvm-link failed"
 
   log "linking weavec executable"

@@ -1,0 +1,59 @@
+; SPDX-License-Identifier: Apache-2.0
+; parser/tokens.weave
+;
+; Generic S-expression token kind constants.
+;
+; This module defines token types for any S-expression language.
+; It has NO knowledge of Surface Weave or WIR semantics.
+;
+; Token types:
+;   - LPAREN, RPAREN: parentheses for list structure
+;   - IDENT: identifiers (any symbol)
+;   - STRING: string literals
+;   - INT: integer literals
+;   - EOF: end of file
+
+(program
+  (name "parser.tokens")
+  (version "0.1")
+
+; Token kind constants
+; Each is a zero-argument function returning i32
+; Keep function accessors to preserve the parser ABI across bootstrap stages.
+
+(fn token_eof
+  (params)
+  (returns i32)
+  (do
+    (return (const_i32 0))))
+
+(fn token_lparen
+  (params)
+  (returns i32)
+  (do
+    (return (const_i32 1))))
+
+(fn token_rparen
+  (params)
+  (returns i32)
+  (do
+    (return (const_i32 2))))
+
+(fn token_ident
+  (params)
+  (returns i32)
+  (do
+    (return (const_i32 3))))
+
+(fn token_string
+  (params)
+  (returns i32)
+  (do
+    (return (const_i32 4))))
+
+(fn token_int
+  (params)
+  (returns i32)
+  (do
+    (return (const_i32 5))))
+)

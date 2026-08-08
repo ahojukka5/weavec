@@ -116,23 +116,4 @@
   (extern weave_surface_get_return_type (params) (returns i32))
   (extern weave_surface_set_error (params) (returns void))
   (extern weave_surface_has_error (params) (returns i32))
-
-  ; weavec-bootstrap C runtime — lex/parse
-  (extern lex (params (source ptr) (length i64)) (returns ptr))
-  (extern parse (params (tokens ptr)) (returns ptr))
-  (extern tree_free (params (tree ptr)) (returns void))
-
-  ; weavec-bootstrap C runtime — node accessors
-  (extern node_kind (params (tree ptr) (index i64)) (returns i32))
-  (extern node_text_start (params (tree ptr) (index i64)) (returns i64))
-  (extern node_text_len (params (tree ptr) (index i64)) (returns i64))
-  (extern node_first_child (params (tree ptr) (index i64)) (returns i64))
-  (extern node_next_sibling (params (tree ptr) (index i64)) (returns i64))
-  (extern node_value (params (tree ptr) (index i64)) (returns i64))
-
-  ; weavec-bootstrap C runtime — node kind constants
-  (extern node_list (params) (returns i32))
-  (extern node_ident (params) (returns i32))
-  (extern node_string (params) (returns i32))
-  (extern node_int (params) (returns i32))
 )

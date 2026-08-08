@@ -1,0 +1,274 @@
+; SPDX-License-Identifier: Apache-2.0
+; parser/parser.weave
+;
+; Generic S-expression parser.
+; Converts tokens into a tree structure.
+;
+; Algorithm:
+;   parse_sexpr := parse_list | parse_atom
+;   parse_list := LPAREN parse_sexpr* RPAREN
+;   parse_atom := IDENT | STRING | INT
+;
+; Tree structure uses first_child/next_sibling links:
+;   (a b c) becomes: LIST -> first_child=a, a->next_sibling=b, b->next_sibling=c
+
+(program
+  (name "parser.parser")
+  (version "0.1")
+
+
+; =============================================================================
+; Token accessor functions
+; =============================================================================
+
+; Get token kind at index
+(fn token_kind_at
+  (params (tokens ptr) (index i64))
+  (returns i32)
+  (do
+    (let kinds ptr (load_ptr (param_get tokens)))
+    (return (load_i32 (ptr_add (local_get kinds) (mul_i64 (param_get index) (const_i64 4)))))))
+
+; Get token start at index
+(fn token_start_at
+  (params (tokens ptr) (index i64))
+  (returns i64)
+  (do
+    (let starts ptr (load_ptr (ptr_add (param_get tokens) (const_i64 8))))
+    (return (load_i64 (ptr_add (local_get starts) (mul_i64 (param_get index) (const_i64 8)))))))
+
+; Get token length at index
+(fn token_length_at
+  (params (tokens ptr) (index i64))
+  (returns i64)
+  (do
+    (let lengths ptr (load_ptr (ptr_add (param_get tokens) (const_i64 16))))
+    (return (load_i64 (ptr_add (local_get lengths) (mul_i64 (param_get index) (const_i64 8)))))))
+
+; Get token value at index
+(fn token_value_at
+  (params (tokens ptr) (index i64))
+  (returns i64)
+  (do
+    (let values ptr (load_ptr (ptr_add (param_get tokens) (const_i64 24))))
+    (return (load_i64 (ptr_add (local_get values) (mul_i64 (param_get index) (const_i64 8)))))))
+
+; Get token count
+(fn token_count
+  (params (tokens ptr))
+  (returns i64)
+  (do
+    (return (load_i64 (ptr_add (param_get tokens) (const_i64 32))))))
+
+; =============================================================================
+; Parser implementation
+; =============================================================================
+
+; Parse a single S-expression (list or atom)
+; Updates token_index_ptr to point to next token
+; Returns: node_index, or -1 on error
+(fn parse_sexpr
+  (params (tokens ptr) (tree ptr) (token_index_ptr ptr))
+  (returns i64)
+  (do
+    (let token_index i64 (load_i64 (param_get token_index_ptr)))
+    (let kind i32 (call_i32 token_kind_at (param_get tokens) (local_get token_index)))
+
+    ; Check for EOF
+    (if
+      (condition (eq_i32 (local_get kind) (call_i32 token_eof)))
+      (then (do (return (const_i64 -1))))
+      (else (do)))
+
+    ; Check for left paren (list)
+    (if
+      (condition (eq_i32 (local_get kind) (call_i32 token_lparen)))
+      (then (do
+        (return (call_i64 parse_list
+          (param_get tokens)
+          (param_get tree)
+          (param_get token_index_ptr)))))
+      (else (do)))
+
+    ; Otherwise, parse as atom
+    (return (call_i64 parse_atom
+      (param_get tokens)
+      (param_get tree)
+      (param_get token_index_ptr)))))
+
+; Parse an atom (ident, string, or int)
+; Updates token_index_ptr to point to next token
+; Returns: node_index
+(fn parse_atom
+  (params (tokens ptr) (tree ptr) (token_index_ptr ptr))
+  (returns i64)
+  (do
+    (let token_index i64 (load_i64 (param_get token_index_ptr)))
+    (let kind i32 (call_i32 token_kind_at (param_get tokens) (local_get token_index)))
+    (let start i64 (call_i64 token_start_at (param_get tokens) (local_get token_index)))
+    (let length i64 (call_i64 token_length_at (param_get tokens) (local_get token_index)))
+    (let value i64 (call_i64 token_value_at (param_get tokens) (local_get token_index)))
+
+    (let node_kind i32 (const_i32 0))
+
+    ; Determine node kind
+    (if
+      (condition (eq_i32 (local_get kind) (call_i32 token_ident)))
+      (then (do (set node_kind (call_i32 node_ident))))
+      (else (do)))
+
+    (if
+      (condition (eq_i32 (local_get kind) (call_i32 token_string)))
+      (then (do (set node_kind (call_i32 node_string))))
+      (else (do)))
+
+    (if
+      (condition (eq_i32 (local_get kind) (call_i32 token_int)))
+      (then (do (set node_kind (call_i32 node_int))))
+      (else (do)))
+
+    ; Create node
+    (let node_index i64
+      (call_i64 tree_append_node
+        (param_get tree)
+        (local_get node_kind)
+        (local_get start)
+        (local_get length)
+        (const_i64 -1)  ; no children
+        (const_i64 -1)  ; no sibling
+        (local_get value)))
+
+    ; Advance token index
+    (store_i64 (param_get token_index_ptr) (add_i64 (local_get token_index) (const_i64 1)))
+
+    (return (local_get node_index))))
+
+; Parse a list: LPAREN sexpr* RPAREN
+; Updates token_index_ptr to point to next token after closing paren
+; Returns: node_index
+(fn parse_list
+  (params (tokens ptr) (tree ptr) (token_index_ptr ptr))
+  (returns i64)
+  (do
+    (let token_index i64 (load_i64 (param_get token_index_ptr)))
+
+    ; Create list node (we'll update first_child later)
+    (let list_start i64 (call_i64 token_start_at (param_get tokens) (local_get token_index)))
+    (let list_node i64
+      (call_i64 tree_append_node
+        (param_get tree)
+        (call_i32 node_list)
+        (local_get list_start)
+        (const_i64 1)  ; length of '('
+        (const_i64 -1)  ; first_child (updated below)
+        (const_i64 -1)  ; next_sibling
+        (const_i64 0)))
+
+    ; Skip opening paren
+    (store_i64 (param_get token_index_ptr) (add_i64 (local_get token_index) (const_i64 1)))
+
+    (let first_child i64 (const_i64 -1))
+    (let prev_child i64 (const_i64 -1))
+
+    ; Parse children until we hit rparen or EOF
+    (while
+      (condition (lt_i64 (load_i64 (param_get token_index_ptr)) (call_i64 token_count (param_get tokens))))
+      (do
+        (let index i64 (load_i64 (param_get token_index_ptr)))
+        (let kind i32 (call_i32 token_kind_at (param_get tokens) (local_get index)))
+
+        ; Check for EOF
+        (if
+          (condition (eq_i32 (local_get kind) (call_i32 token_eof)))
+          (then (do (return (const_i64 -1))))
+          (else (do)))
+
+        ; Check for closing paren
+        (if
+          (condition (eq_i32 (local_get kind) (call_i32 token_rparen)))
+          (then (do
+            ; Update list node's first_child
+            (if
+              (condition (ne_i64 (local_get first_child) (const_i64 -1)))
+              (then (do
+                (call_void node_set_first_child
+                  (param_get tree)
+                  (local_get list_node)
+                  (local_get first_child))))
+              (else (do)))
+
+            ; Skip closing paren
+            (store_i64 (param_get token_index_ptr) (add_i64 (local_get index) (const_i64 1)))
+
+            ; Return list node
+            (return (local_get list_node))))
+          (else (do)))
+
+        ; Parse child sexpr
+        (let child_node i64
+          (call_i64 parse_sexpr
+            (param_get tokens)
+            (param_get tree)
+            (param_get token_index_ptr)))
+
+        ; Check for error
+        (if
+          (condition (eq_i64 (local_get child_node) (const_i64 -1)))
+          (then (do (return (const_i64 -1))))
+          (else (do)))
+
+        ; Link child
+        (if
+          (condition (eq_i64 (local_get first_child) (const_i64 -1)))
+          (then (do
+            (set first_child (local_get child_node))))
+          (else (do
+            (call_void node_set_next_sibling
+              (param_get tree)
+              (local_get prev_child)
+              (local_get child_node)))))
+
+        (set prev_child (local_get child_node))))
+
+    ; Error: unclosed list
+    (return (const_i64 -1))))
+
+
+; =============================================================================
+; Main parse entry point
+; =============================================================================
+
+; Parse tokens into tree
+; Returns tree with root node at index 0, or null on error
+(fn parse
+  (params (tokens ptr))
+  (returns ptr)
+  (do
+    (let tree ptr (call_ptr tree_new))
+    (if
+      (condition (eq_ptr (local_get tree) (const_null)))
+      (then (do (return (const_null))))
+      (else (do)))
+
+    ; Allocate token index variable
+    (let token_index_ptr ptr (call_ptr malloc (const_i64 8)))
+    (store_i64 (local_get token_index_ptr) (const_i64 0))
+
+    ; Parse the root S-expression
+    (let result i64
+      (call_i64 parse_sexpr
+        (param_get tokens)
+        (local_get tree)
+        (local_get token_index_ptr)))
+
+    ; Free token index
+    (call_void free (local_get token_index_ptr))
+
+    ; Check for error
+    (if
+      (condition (eq_i64 (local_get result) (const_i64 -1)))
+      (then (do (return (const_null))))
+      (else (do)))
+
+    (return (local_get tree))))
+)

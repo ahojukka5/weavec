@@ -1,0 +1,536 @@
+; SPDX-License-Identifier: Apache-2.0
+; parser/lexer.weave
+;
+; Generic S-expression lexer.
+; Converts source bytes into tokens.
+;
+; Supports:
+;   - Parentheses: ( )
+;   - Identifiers: alphanumeric + underscore + dash
+;   - Strings: "..." with escape sequences
+;   - Integers: digits, optional minus sign
+;   - Comments: ; to end of line
+
+(program
+  (name "parser.lexer")
+  (version "0.1")
+
+
+; =============================================================================
+; Token storage (parallel arrays)
+; =============================================================================
+
+; Token storage layout (32 bytes):
+;   offset 0:  ptr - kinds array (i32 per token)
+;   offset 8:  ptr - starts array (i64 per token)
+;   offset 16: ptr - lengths array (i64 per token)
+;   offset 24: ptr - values array (i64 per token - for integers)
+;   offset 32: i64 - count
+;   offset 40: i64 - capacity
+
+(fn tokens_container_size
+  (params)
+  (returns i64)
+  (do (return (const_i64 48))))
+
+(fn tokens_initial_capacity
+  (params)
+  (returns i64)
+  (do (return (const_i64 512))))
+
+; Create new token storage
+(fn tokens_new
+  (params)
+  (returns ptr)
+  (do
+    (let tokens ptr (call_ptr malloc (call_i64 tokens_container_size)))
+    (if
+      (condition (eq_ptr (local_get tokens) (const_null)))
+      (then (do (return (const_null))))
+      (else (do)))
+
+    (let capacity i64 (call_i64 tokens_initial_capacity))
+
+    ; Allocate arrays
+    (let kinds ptr (call_ptr malloc (mul_i64 (local_get capacity) (const_i64 4))))
+    (let starts ptr (call_ptr malloc (mul_i64 (local_get capacity) (const_i64 8))))
+    (let lengths ptr (call_ptr malloc (mul_i64 (local_get capacity) (const_i64 8))))
+    (let values ptr (call_ptr malloc (mul_i64 (local_get capacity) (const_i64 8))))
+
+    ; Initialize container
+    (store_ptr (local_get tokens) (local_get kinds))
+    (store_ptr (ptr_add (local_get tokens) (const_i64 8)) (local_get starts))
+    (store_ptr (ptr_add (local_get tokens) (const_i64 16)) (local_get lengths))
+    (store_ptr (ptr_add (local_get tokens) (const_i64 24)) (local_get values))
+    (store_i64 (ptr_add (local_get tokens) (const_i64 32)) (const_i64 0))
+    (store_i64 (ptr_add (local_get tokens) (const_i64 40)) (local_get capacity))
+
+    (return (local_get tokens))))
+
+; Append a token
+(fn tokens_push
+  (params (tokens ptr) (kind i32) (start i64) (length i64) (value i64))
+  (returns bool)
+  (do
+    (let count i64 (load_i64 (ptr_add (param_get tokens) (const_i64 32))))
+    (let capacity i64 (load_i64 (ptr_add (param_get tokens) (const_i64 40))))
+
+    ; Grow arrays if needed (double capacity)
+    (if
+      (condition (eq_i64 (local_get count) (local_get capacity)))
+      (then (do
+        (let new_cap i64 (mul_i64 (local_get capacity) (const_i64 2)))
+        (let new_kinds ptr (call_ptr realloc
+          (load_ptr (param_get tokens))
+          (mul_i64 (local_get new_cap) (const_i64 4))))
+        (let new_starts ptr (call_ptr realloc
+          (load_ptr (ptr_add (param_get tokens) (const_i64 8)))
+          (mul_i64 (local_get new_cap) (const_i64 8))))
+        (let new_lengths ptr (call_ptr realloc
+          (load_ptr (ptr_add (param_get tokens) (const_i64 16)))
+          (mul_i64 (local_get new_cap) (const_i64 8))))
+        (let new_values ptr (call_ptr realloc
+          (load_ptr (ptr_add (param_get tokens) (const_i64 24)))
+          (mul_i64 (local_get new_cap) (const_i64 8))))
+        (store_ptr (param_get tokens) (local_get new_kinds))
+        (store_ptr (ptr_add (param_get tokens) (const_i64 8)) (local_get new_starts))
+        (store_ptr (ptr_add (param_get tokens) (const_i64 16)) (local_get new_lengths))
+        (store_ptr (ptr_add (param_get tokens) (const_i64 24)) (local_get new_values))
+        (store_i64 (ptr_add (param_get tokens) (const_i64 40)) (local_get new_cap))))
+      (else (do)))
+
+    ; Get array pointers
+    (let kinds ptr (load_ptr (param_get tokens)))
+    (let starts ptr (load_ptr (ptr_add (param_get tokens) (const_i64 8))))
+    (let lengths ptr (load_ptr (ptr_add (param_get tokens) (const_i64 16))))
+    (let values ptr (load_ptr (ptr_add (param_get tokens) (const_i64 24))))
+
+    ; Store token data
+    (store_i32 (ptr_add (local_get kinds) (mul_i64 (local_get count) (const_i64 4))) (param_get kind))
+    (store_i64 (ptr_add (local_get starts) (mul_i64 (local_get count) (const_i64 8))) (param_get start))
+    (store_i64 (ptr_add (local_get lengths) (mul_i64 (local_get count) (const_i64 8))) (param_get length))
+    (store_i64 (ptr_add (local_get values) (mul_i64 (local_get count) (const_i64 8))) (param_get value))
+
+    ; Increment count
+    (store_i64 (ptr_add (param_get tokens) (const_i64 32)) (add_i64 (local_get count) (const_i64 1)))
+
+    (return (const_bool false))))
+
+; =============================================================================
+; Character classification
+; =============================================================================
+
+(fn is_whitespace
+  (params (ch i32))
+  (returns bool)
+  (do
+    (return
+      (or_bool
+        (or_bool
+          (eq_i32 (param_get ch) (const_i32 32))   ; space
+          (eq_i32 (param_get ch) (const_i32 9)))   ; tab
+        (or_bool
+          (eq_i32 (param_get ch) (const_i32 10))   ; newline
+          (eq_i32 (param_get ch) (const_i32 13)))  ; carriage return
+      )
+    )
+  )
+)
+
+(fn is_digit
+  (params (ch i32))
+  (returns bool)
+  (do
+    (return
+      (and_bool
+        (ge_i32 (param_get ch) (const_i32 48))   ; '0'
+        (le_i32 (param_get ch) (const_i32 57))) ; '9'
+    )
+  )
+)
+
+(fn is_alpha
+  (params (ch i32))
+  (returns bool)
+  (do
+    (return
+      (or_bool
+        (and_bool
+          (ge_i32 (param_get ch) (const_i32 97))   ; 'a'
+          (le_i32 (param_get ch) (const_i32 122))) ; 'z'
+        (and_bool
+          (ge_i32 (param_get ch) (const_i32 65))   ; 'A'
+          (le_i32 (param_get ch) (const_i32 90)))  ; 'Z'
+      )
+    )
+  )
+)
+
+(fn is_ident_start
+  (params (ch i32))
+  (returns bool)
+  (do
+    (return
+      (or_bool
+        (call_bool is_alpha (param_get ch))
+        (eq_i32 (param_get ch) (const_i32 95)))  ; '_'
+    )
+  )
+)
+
+(fn is_ident_continue
+  (params (ch i32))
+  (returns bool)
+  (do
+    (return
+      (or_bool
+        (or_bool
+          (call_bool is_alpha (param_get ch))
+          (call_bool is_digit (param_get ch)))
+        (or_bool
+          (eq_i32 (param_get ch) (const_i32 95))  ; '_'
+          (eq_i32 (param_get ch) (const_i32 45))) ; '-'
+      )
+    )
+  )
+)
+
+; =============================================================================
+; Integer parsing helpers
+; =============================================================================
+
+; Parse integer from source text (start..start+len)
+; Returns the parsed i64 value
+(fn parse_integer
+  (params (source ptr) (start i64) (len i64))
+  (returns i64)
+  (do
+    (let result i64 (const_i64 0))
+    (let index i64 (param_get start))
+    (let end i64 (add_i64 (param_get start) (param_get len)))
+    (let negative i32 (const_i32 0))
+
+    ; Check for minus sign
+    (if
+      (condition
+        (and_bool
+          (lt_i64 (local_get index) (local_get end))
+          (eq_i32
+            (load_u8 (ptr_add (param_get source) (local_get index)))
+            (const_i32 45))))  ; '-'
+      (then (do
+        (set negative (const_i32 1))
+        (set index (add_i64 (local_get index) (const_i64 1)))))
+      (else (do)))
+
+    ; Parse digits
+    (while
+      (condition (lt_i64 (local_get index) (local_get end)))
+      (do
+        (let ch i32 (load_u8 (ptr_add (param_get source) (local_get index))))
+        (if
+          (condition
+            (and_bool
+              (ge_i32 (local_get ch) (const_i32 48))  ; '0'
+              (le_i32 (local_get ch) (const_i32 57)))) ; '9'
+          (then (do
+            ; Convert char to digit value (0-9)
+            (let digit_char i32 (sub_i32 (local_get ch) (const_i32 48)))
+            (let digit_i64 i64 (cast_i32_to_i64 (local_get digit_char)))
+            ; result = result * 10 + digit
+            (set result (add_i64
+              (mul_i64 (local_get result) (const_i64 10))
+              (local_get digit_i64)))))
+          (else (do)))
+        (set index (add_i64 (local_get index) (const_i64 1)))))
+
+    ; Apply sign
+    (if
+      (condition (ne_i32 (local_get negative) (const_i32 0)))
+      (then (do (set result (sub_i64 (const_i64 0) (local_get result)))))
+      (else (do)))
+
+    (return (local_get result))))
+
+; =============================================================================
+; Token-specific lexing
+; =============================================================================
+
+; Lex an identifier
+(fn lex_identifier
+  (params (source ptr) (length i64) (tokens ptr) (start i64))
+  (returns i64)
+  (do
+    (let index i64 (param_get start))
+
+    ; Scan while ident continue
+    (while
+      (condition
+        (and_bool
+          (lt_i64 (local_get index) (param_get length))
+          (call_bool is_ident_continue
+            (load_u8 (ptr_add (param_get source) (local_get index))))))
+      (do
+        (set index (add_i64 (local_get index) (const_i64 1)))))
+
+    (let token_len i64 (sub_i64 (local_get index) (param_get start)))
+
+    ; Push token
+    (call_i32 tokens_push
+      (param_get tokens)
+      (const_i32 3)  ; token_ident
+      (param_get start)
+      (local_get token_len)
+      (const_i64 0))
+
+    (return (local_get index))))
+
+; Lex an integer
+(fn lex_integer
+  (params (source ptr) (length i64) (tokens ptr) (start i64))
+  (returns i64)
+  (do
+    (let index i64 (param_get start))
+
+    ; Handle optional minus sign
+    (if
+      (condition
+        (and_bool
+          (lt_i64 (local_get index) (param_get length))
+          (eq_i32
+            (load_u8 (ptr_add (param_get source) (local_get index)))
+            (const_i32 45))))  ; '-'
+      (then (do
+        (set index (add_i64 (local_get index) (const_i64 1)))))
+      (else (do)))
+
+    ; Scan digits
+    (while
+      (condition
+        (and_bool
+          (lt_i64 (local_get index) (param_get length))
+          (call_bool is_digit
+            (load_u8 (ptr_add (param_get source) (local_get index))))))
+      (do
+        (set index (add_i64 (local_get index) (const_i64 1)))))
+
+    (let token_len i64 (sub_i64 (local_get index) (param_get start)))
+
+    ; Parse the integer value from source text
+    (let int_value i64 (call_i64 parse_integer
+      (param_get source)
+      (param_get start)
+      (local_get token_len)))
+
+    (call_i32 tokens_push
+      (param_get tokens)
+      (const_i32 5)  ; token_int
+      (param_get start)
+      (local_get token_len)
+      (local_get int_value))
+
+    (return (local_get index))))
+
+; Lex a string
+(fn lex_string
+  (params (source ptr) (length i64) (tokens ptr) (start i64))
+  (returns i64)
+  (do
+    ; Skip opening quote
+    (let content_start i64 (add_i64 (param_get start) (const_i64 1)))
+    (let index i64 (local_get content_start))
+    (let escaped i32 (const_i32 0))
+
+    ; Scan until closing quote
+    (while
+      (condition (lt_i64 (local_get index) (param_get length)))
+      (do
+        (let ch i32 (load_u8 (ptr_add (param_get source) (local_get index))))
+
+        (if
+          (condition (ne_i32 (local_get escaped) (const_i32 0)))
+          (then (do
+            (set escaped (const_i32 0))
+            (set index (add_i64 (local_get index) (const_i64 1)))))
+          (else (do
+            (if
+              (condition (eq_i32 (local_get ch) (const_i32 34)))  ; '"'
+              (then (do
+                ; Found closing quote
+                (let content_len i64 (sub_i64 (local_get index) (local_get content_start)))
+
+                (call_i32 tokens_push
+                  (param_get tokens)
+                  (const_i32 4)  ; token_string
+                  (local_get content_start)
+                  (local_get content_len)
+                  (const_i64 0))
+
+                ; Return index after closing quote
+                (return (add_i64 (local_get index) (const_i64 1)))))
+              (else (do)))
+
+            (if
+              (condition (eq_i32 (local_get ch) (const_i32 92)))  ; '\\'
+              (then (do (set escaped (const_i32 1))))
+              (else (do)))
+
+            (set index (add_i64 (local_get index) (const_i64 1))))))))
+
+    ; Error: unterminated string
+    (return (const_i64 -1))))
+
+; =============================================================================
+; Main lexer
+; =============================================================================
+
+; Lex source into tokens
+(fn lex
+  (params (source ptr) (length i64))
+  (returns ptr)
+  (do
+    (let tokens ptr (call_ptr tokens_new))
+    (if
+      (condition (eq_ptr (local_get tokens) (const_null)))
+      (then (do (return (const_null))))
+      (else (do)))
+
+    (let index i64 (const_i64 0))
+
+    (while
+      (condition (lt_i64 (local_get index) (param_get length)))
+      (do
+        (let ch i32 (load_u8 (ptr_add (param_get source) (local_get index))))
+        (let handled i32 (const_i32 0))
+
+        ; Skip whitespace
+        (if
+          (condition (call_bool is_whitespace (local_get ch)))
+          (then (do
+            (set index (add_i64 (local_get index) (const_i64 1)))
+            (set handled (const_i32 1))))
+          (else (do)))
+
+        ; Skip comments
+        (if
+          (condition
+            (and_bool
+              (eq_i32 (local_get handled) (const_i32 0))
+              (eq_i32 (local_get ch) (const_i32 59))))  ; ';'
+          (then (do
+            (while
+              (condition
+                (and_bool
+                  (lt_i64 (local_get index) (param_get length))
+                  (ne_i32
+                    (load_u8 (ptr_add (param_get source) (local_get index)))
+                    (const_i32 10))))  ; '\n'
+              (do
+                (set index (add_i64 (local_get index) (const_i64 1)))))
+            (set handled (const_i32 1))))
+          (else (do)))
+
+        ; Left paren
+        (if
+          (condition
+            (and_bool
+              (eq_i32 (local_get handled) (const_i32 0))
+              (eq_i32 (local_get ch) (const_i32 40))))  ; '('
+          (then (do
+            (call_i32 tokens_push
+              (local_get tokens)
+              (const_i32 1)
+              (local_get index)
+              (const_i64 1)
+              (const_i64 0))
+            (set index (add_i64 (local_get index) (const_i64 1)))
+            (set handled (const_i32 1))))
+          (else (do)))
+
+        ; Right paren
+        (if
+          (condition
+            (and_bool
+              (eq_i32 (local_get handled) (const_i32 0))
+              (eq_i32 (local_get ch) (const_i32 41))))  ; ')'
+          (then (do
+            (call_i32 tokens_push
+              (local_get tokens)
+              (const_i32 2)
+              (local_get index)
+              (const_i64 1)
+              (const_i64 0))
+            (set index (add_i64 (local_get index) (const_i64 1)))
+            (set handled (const_i32 1))))
+          (else (do)))
+
+        ; String
+        (if
+          (condition
+            (and_bool
+              (eq_i32 (local_get handled) (const_i32 0))
+              (eq_i32 (local_get ch) (const_i32 34))))  ; '"'
+          (then (do
+            (set index (call_i64 lex_string
+              (param_get source)
+              (param_get length)
+              (local_get tokens)
+              (local_get index)))
+            (set handled (const_i32 1))))
+          (else (do)))
+
+        ; Integer
+        (if
+          (condition
+            (and_bool
+              (eq_i32 (local_get handled) (const_i32 0))
+              (or_bool
+                (call_bool is_digit (local_get ch))
+                (and_bool
+                  (eq_i32 (local_get ch) (const_i32 45))
+                  (and_bool
+                    (lt_i64 (add_i64 (local_get index) (const_i64 1)) (param_get length))
+                    (call_bool is_digit
+                      (load_u8 (ptr_add (param_get source)
+                        (add_i64 (local_get index) (const_i64 1))))))))))
+          (then (do
+            (set index (call_i64 lex_integer
+              (param_get source)
+              (param_get length)
+              (local_get tokens)
+              (local_get index)))
+            (set handled (const_i32 1))))
+          (else (do)))
+
+        ; Identifier
+        (if
+          (condition
+            (and_bool
+              (eq_i32 (local_get handled) (const_i32 0))
+              (call_bool is_ident_start (local_get ch))))
+          (then (do
+            (set index (call_i64 lex_identifier
+              (param_get source)
+              (param_get length)
+              (local_get tokens)
+              (local_get index)))
+            (set handled (const_i32 1))))
+          (else (do)))
+
+        ; Unknown character - skip
+        (if
+          (condition (eq_i32 (local_get handled) (const_i32 0)))
+          (then (do
+            (set index (add_i64 (local_get index) (const_i64 1)))))
+          (else (do)))))
+
+    ; Append EOF token
+    (call_i32 tokens_push
+      (local_get tokens)
+      (const_i32 0)
+      (param_get length)
+      (const_i64 0)
+      (const_i64 0))
+
+    (return (local_get tokens))))
+)

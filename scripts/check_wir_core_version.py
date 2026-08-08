@@ -61,7 +61,6 @@ INVALID_VERSION_FIXTURES = {
 }
 
 AUDIT_ROOTS = (
-    ROOT / "src/runtime-wir",
     ROOT / "test/correctness",
     ROOT / "test/performance",
     ROOT / "test/quantum",
