@@ -23,6 +23,8 @@ cp "$ROOT/build.sh" "$CHECKOUT/build.sh"
 chmod +x "$CHECKOUT/build.sh"
 
 cp "$ROOT/scripts/compiler-sources.sh" "$CHECKOUT/scripts/compiler-sources.sh"
+cp "$ROOT/scripts/validate-compiler-source.py" \
+  "$CHECKOUT/scripts/validate-compiler-source.py"
 ln -s "$ROOT/compiler" "$CHECKOUT/compiler"
 ln -s "$ROOT/src" "$CHECKOUT/src"
 

@@ -1,0 +1,370 @@
+; SPDX-License-Identifier: Apache-2.0
+; Weave-owned project facts embedded as the final `project` field of public
+; compiler protocols for project-mode builds.
+
+(program
+  (name "project-protocol")
+  (version "0.1")
+
+  (fn project_protocol_write_empty_fields
+    (params (pr_empty_writer ptr))
+    (returns void)
+    (do
+      (call_void protocol_json_null (param_get pr_empty_writer))
+      (call_void protocol_json_key_null
+        (param_get pr_empty_writer) (const_string_ptr "kind"))
+      (call_void protocol_json_key_null
+        (param_get pr_empty_writer) (const_string_ptr "manifest"))
+      (call_void protocol_json_key_null
+        (param_get pr_empty_writer) (const_string_ptr "root"))
+      (call_i32 weave_host_json_key
+        (param_get pr_empty_writer) (const_string_ptr "source_roots"))
+      (call_i32 weave_host_json_array_begin (param_get pr_empty_writer))
+      (call_i32 weave_host_json_array_end (param_get pr_empty_writer))
+      (call_i32 weave_host_json_key
+        (param_get pr_empty_writer) (const_string_ptr "test_roots"))
+      (call_i32 weave_host_json_array_begin (param_get pr_empty_writer))
+      (call_i32 weave_host_json_array_end (param_get pr_empty_writer))
+      (call_void protocol_json_key_null
+        (param_get pr_empty_writer) (const_string_ptr "entry_module"))
+      (call_void protocol_json_key_null
+        (param_get pr_empty_writer) (const_string_ptr "output"))
+      (call_void protocol_json_key_null
+        (param_get pr_empty_writer) (const_string_ptr "resolved_output"))
+      (call_i32 weave_host_json_key
+        (param_get pr_empty_writer) (const_string_ptr "sources"))
+      (call_i32 weave_host_json_array_begin (param_get pr_empty_writer))
+      (call_i32 weave_host_json_array_end (param_get pr_empty_writer))
+      (call_i32 weave_host_json_key
+        (param_get pr_empty_writer) (const_string_ptr "module_order"))
+      (call_i32 weave_host_json_array_begin (param_get pr_empty_writer))
+      (call_i32 weave_host_json_array_end (param_get pr_empty_writer))
+      (call_i32 weave_host_json_key
+        (param_get pr_empty_writer) (const_string_ptr "module_graph"))
+      (call_i32 weave_host_json_array_begin (param_get pr_empty_writer))
+      (call_i32 weave_host_json_array_end (param_get pr_empty_writer))
+      (return_void)))
+
+  (fn project_protocol_write_source_roots
+    (params (pr_sr_writer ptr) (pr_sr_context ptr))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_key
+        (param_get pr_sr_writer) (const_string_ptr "source_roots"))
+      (call_i32 weave_host_json_array_begin (param_get pr_sr_writer))
+      (let pr_sr_index i64 (const_i64 0))
+      (let pr_sr_count i64
+        (call_i64 weave_host_project_source_root_count (param_get pr_sr_context)))
+      (while
+        (condition (lt_i64 (local_get pr_sr_index) (local_get pr_sr_count)))
+        (do
+          (call_void protocol_json_string
+            (param_get pr_sr_writer)
+            (call_ptr weave_host_project_source_root_at
+              (param_get pr_sr_context) (local_get pr_sr_index)))
+          (set pr_sr_index (add_i64 (local_get pr_sr_index) (const_i64 1)))))
+      (call_i32 weave_host_json_array_end (param_get pr_sr_writer))
+      (return_void)))
+
+  (fn project_protocol_write_test_roots
+    (params (pr_tr_writer ptr) (pr_tr_context ptr))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_key
+        (param_get pr_tr_writer) (const_string_ptr "test_roots"))
+      (call_i32 weave_host_json_array_begin (param_get pr_tr_writer))
+      (let pr_tr_index i64 (const_i64 0))
+      (let pr_tr_count i64
+        (call_i64 weave_host_project_test_root_count (param_get pr_tr_context)))
+      (while
+        (condition (lt_i64 (local_get pr_tr_index) (local_get pr_tr_count)))
+        (do
+          (call_void protocol_json_string
+            (param_get pr_tr_writer)
+            (call_ptr weave_host_project_test_root_at
+              (param_get pr_tr_context) (local_get pr_tr_index)))
+          (set pr_tr_index (add_i64 (local_get pr_tr_index) (const_i64 1)))))
+      (call_i32 weave_host_json_array_end (param_get pr_tr_writer))
+      (return_void)))
+
+  (fn project_protocol_write_sources
+    (params (pr_sources_writer ptr) (pr_sources_context ptr))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_key
+        (param_get pr_sources_writer) (const_string_ptr "sources"))
+      (call_i32 weave_host_json_array_begin (param_get pr_sources_writer))
+      (if
+        (condition
+          (ne_i32
+            (call_i32 weave_host_project_sources_loaded
+              (param_get pr_sources_context))
+            (const_i32 0)))
+        (then (do
+          (let pr_sources_index i64 (const_i64 0))
+          (let pr_sources_count i64
+            (call_i64 weave_host_project_source_count (param_get pr_sources_context)))
+          (while
+            (condition
+              (lt_i64 (local_get pr_sources_index) (local_get pr_sources_count)))
+            (do
+              (call_i32 weave_host_json_object_begin (param_get pr_sources_writer))
+              (call_void protocol_json_key_string
+                (param_get pr_sources_writer) (const_string_ptr "module")
+                (call_ptr weave_host_project_source_module
+                  (param_get pr_sources_context) (local_get pr_sources_index)))
+              (call_void protocol_json_key_string
+                (param_get pr_sources_writer) (const_string_ptr "logical_path")
+                (call_ptr weave_host_project_source_logical_path
+                  (param_get pr_sources_context) (local_get pr_sources_index)))
+              (call_void protocol_json_key_string
+                (param_get pr_sources_writer) (const_string_ptr "physical_path")
+                (call_ptr weave_host_project_source_physical_path
+                  (param_get pr_sources_context) (local_get pr_sources_index)))
+              (call_i32 weave_host_json_object_end (param_get pr_sources_writer))
+              (set pr_sources_index
+                (add_i64 (local_get pr_sources_index) (const_i64 1)))))))
+        (else (do)))
+      (call_i32 weave_host_json_array_end (param_get pr_sources_writer))
+      (return_void)))
+
+  (fn project_protocol_write_module_order
+    (params (pr_order_writer ptr) (pr_order_context ptr))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_key
+        (param_get pr_order_writer) (const_string_ptr "module_order"))
+      (call_i32 weave_host_json_array_begin (param_get pr_order_writer))
+      (if
+        (condition
+          (ne_i32
+            (call_i32 weave_host_project_graph_loaded (param_get pr_order_context))
+            (const_i32 0)))
+        (then (do
+          (let pr_order_index i64 (const_i64 0))
+          (let pr_order_count i64
+            (call_i64 weave_host_project_graph_order_count (param_get pr_order_context)))
+          (while
+            (condition (lt_i64 (local_get pr_order_index) (local_get pr_order_count)))
+            (do
+              (let pr_order_source_index i64
+                (call_i64 weave_host_project_graph_order_source_index
+                  (param_get pr_order_context) (local_get pr_order_index)))
+              (call_void protocol_json_string
+                (param_get pr_order_writer)
+                (call_ptr weave_host_project_source_module
+                  (param_get pr_order_context) (local_get pr_order_source_index)))
+              (set pr_order_index
+                (add_i64 (local_get pr_order_index) (const_i64 1)))))))
+        (else (do)))
+      (call_i32 weave_host_json_array_end (param_get pr_order_writer))
+      (return_void)))
+
+  (fn project_protocol_write_imports
+    (params
+      (pr_import_writer ptr) (pr_import_context ptr)
+      (pr_import_source_index i64))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_key
+        (param_get pr_import_writer) (const_string_ptr "imports"))
+      (call_i32 weave_host_json_array_begin (param_get pr_import_writer))
+      (let pr_import_edge i64 (const_i64 0))
+      (let pr_import_count i64
+        (call_i64 weave_host_project_graph_edge_count
+          (param_get pr_import_context) (param_get pr_import_source_index)))
+      (while
+        (condition (lt_i64 (local_get pr_import_edge) (local_get pr_import_count)))
+        (do
+          (let pr_import_target i64
+            (call_i64 weave_host_project_graph_edge_target_source_index
+              (param_get pr_import_context)
+              (param_get pr_import_source_index)
+              (local_get pr_import_edge)))
+          (call_void protocol_json_string
+            (param_get pr_import_writer)
+            (call_ptr weave_host_project_source_module
+              (param_get pr_import_context) (local_get pr_import_target)))
+          (set pr_import_edge
+            (add_i64 (local_get pr_import_edge) (const_i64 1)))))
+      (call_i32 weave_host_json_array_end (param_get pr_import_writer))
+      (return_void)))
+
+  (fn project_protocol_write_module_graph
+    (params (pr_graph_writer ptr) (pr_graph_context ptr))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_key
+        (param_get pr_graph_writer) (const_string_ptr "module_graph"))
+      (call_i32 weave_host_json_array_begin (param_get pr_graph_writer))
+      (if
+        (condition
+          (ne_i32
+            (call_i32 weave_host_project_graph_loaded (param_get pr_graph_context))
+            (const_i32 0)))
+        (then (do
+          (let pr_graph_index i64 (const_i64 0))
+          (let pr_graph_count i64
+            (call_i64 weave_host_project_graph_order_count (param_get pr_graph_context)))
+          (while
+            (condition (lt_i64 (local_get pr_graph_index) (local_get pr_graph_count)))
+            (do
+              (let pr_graph_source_index i64
+                (call_i64 weave_host_project_graph_order_source_index
+                  (param_get pr_graph_context) (local_get pr_graph_index)))
+              (call_i32 weave_host_json_object_begin (param_get pr_graph_writer))
+              (call_void protocol_json_key_string
+                (param_get pr_graph_writer) (const_string_ptr "module")
+                (call_ptr weave_host_project_source_module
+                  (param_get pr_graph_context) (local_get pr_graph_source_index)))
+              (call_void protocol_json_key_string
+                (param_get pr_graph_writer) (const_string_ptr "source")
+                (call_ptr weave_host_project_source_logical_path
+                  (param_get pr_graph_context) (local_get pr_graph_source_index)))
+              (call_void project_protocol_write_imports
+                (param_get pr_graph_writer)
+                (param_get pr_graph_context)
+                (local_get pr_graph_source_index))
+              (call_i32 weave_host_json_object_end (param_get pr_graph_writer))
+              (set pr_graph_index
+                (add_i64 (local_get pr_graph_index) (const_i64 1)))))))
+        (else (do)))
+      (call_i32 weave_host_json_array_end (param_get pr_graph_writer))
+      (return_void)))
+
+  (fn project_protocol_write_manifest_fields
+    (params (pr_manifest_writer ptr) (pr_manifest_context ptr))
+    (returns void)
+    (do
+      (let pr_manifest_kind ptr
+        (call_ptr weave_host_project_manifest_kind (param_get pr_manifest_context)))
+      (call_void protocol_json_string
+        (param_get pr_manifest_writer)
+        (call_ptr weave_host_project_manifest_name (param_get pr_manifest_context)))
+      (call_void protocol_json_key_string
+        (param_get pr_manifest_writer) (const_string_ptr "kind")
+        (local_get pr_manifest_kind))
+
+      (call_i32 weave_host_json_key
+        (param_get pr_manifest_writer) (const_string_ptr "manifest"))
+      (call_i32 weave_host_json_object_begin (param_get pr_manifest_writer))
+      (call_void protocol_json_key_string
+        (param_get pr_manifest_writer) (const_string_ptr "logical_path")
+        (const_string_ptr "weave.project"))
+      (call_void protocol_json_key_string
+        (param_get pr_manifest_writer) (const_string_ptr "physical_path")
+        (call_ptr weave_host_project_manifest_path (param_get pr_manifest_context)))
+      (call_i32 weave_host_json_object_end (param_get pr_manifest_writer))
+
+      (call_i32 weave_host_json_key
+        (param_get pr_manifest_writer) (const_string_ptr "root"))
+      (call_i32 weave_host_json_object_begin (param_get pr_manifest_writer))
+      (call_void protocol_json_key_string
+        (param_get pr_manifest_writer) (const_string_ptr "physical_path")
+        (call_ptr weave_host_project_manifest_directory
+          (param_get pr_manifest_context)))
+      (call_i32 weave_host_json_object_end (param_get pr_manifest_writer))
+
+      (call_void project_protocol_write_source_roots
+        (param_get pr_manifest_writer) (param_get pr_manifest_context))
+      (call_void project_protocol_write_test_roots
+        (param_get pr_manifest_writer) (param_get pr_manifest_context))
+
+      (call_i32 weave_host_json_key
+        (param_get pr_manifest_writer) (const_string_ptr "entry_module"))
+      (if
+        (condition
+          (eq_i32
+            (call_i32 strcmp
+              (local_get pr_manifest_kind) (const_string_ptr "executable"))
+            (const_i32 0)))
+        (then (do
+          (call_void protocol_json_string
+            (param_get pr_manifest_writer)
+            (call_ptr weave_host_project_manifest_entry
+              (param_get pr_manifest_context)))))
+        (else (do (call_void protocol_json_null (param_get pr_manifest_writer)))))
+
+      (call_void protocol_json_key_string
+        (param_get pr_manifest_writer) (const_string_ptr "output")
+        (call_ptr weave_host_project_manifest_output (param_get pr_manifest_context)))
+      (call_i32 weave_host_json_key
+        (param_get pr_manifest_writer) (const_string_ptr "resolved_output"))
+      (if
+        (condition
+          (ne_i32
+            (call_i32 weave_host_project_output_resolved
+              (param_get pr_manifest_context))
+            (const_i32 0)))
+        (then (do
+          (call_void protocol_json_string
+            (param_get pr_manifest_writer)
+            (call_ptr weave_host_project_resolved_output
+              (param_get pr_manifest_context)))))
+        (else (do (call_void protocol_json_null (param_get pr_manifest_writer)))))
+
+      (call_void project_protocol_write_sources
+        (param_get pr_manifest_writer) (param_get pr_manifest_context))
+      (call_void project_protocol_write_module_order
+        (param_get pr_manifest_writer) (param_get pr_manifest_context))
+      (call_void project_protocol_write_module_graph
+        (param_get pr_manifest_writer) (param_get pr_manifest_context))
+      (return_void)))
+
+  (fn protocol_write_active_project
+    (params (pr_writer ptr))
+    (returns void)
+    (do
+      (let pr_context ptr (call_ptr weave_host_project_protocol_active))
+      (if
+        (condition (eq_ptr (local_get pr_context) (const_null)))
+        (then (do (return_void)))
+        (else (do)))
+
+      (let pr_phase ptr
+        (call_ptr weave_host_project_resolution_phase (local_get pr_context)))
+      (if
+        (condition (eq_ptr (local_get pr_phase) (const_null)))
+        (then (do (set pr_phase (const_string_ptr "project-manifest"))))
+        (else (do)))
+      (let pr_complete i32 (const_i32 0))
+      (if
+        (condition
+          (eq_i32
+            (call_i32 strcmp (local_get pr_phase) (const_string_ptr "complete"))
+            (const_i32 0)))
+        (then (do (set pr_complete (const_i32 1))))
+        (else (do)))
+
+      (call_i32 weave_host_json_key
+        (param_get pr_writer) (const_string_ptr "project"))
+      (call_i32 weave_host_json_object_begin (param_get pr_writer))
+      (call_void protocol_json_key_string
+        (param_get pr_writer) (const_string_ptr "format")
+        (const_string_ptr "weavec-project-facts-v1"))
+      (call_void protocol_json_key_bool
+        (param_get pr_writer) (const_string_ptr "complete") (local_get pr_complete))
+      (call_void protocol_json_key_string
+        (param_get pr_writer) (const_string_ptr "resolution_phase") (local_get pr_phase))
+      (call_void protocol_json_key_nullable_string
+        (param_get pr_writer) (const_string_ptr "selection")
+        (call_ptr weave_host_project_selection (local_get pr_context)))
+      (call_i32 weave_host_json_key
+        (param_get pr_writer) (const_string_ptr "name"))
+
+      (if
+        (condition
+          (eq_i32
+            (call_i32 weave_host_project_manifest_loaded (local_get pr_context))
+            (const_i32 0)))
+        (then (do
+          (call_void project_protocol_write_empty_fields (param_get pr_writer))
+          (call_i32 weave_host_json_object_end (param_get pr_writer))
+          (return_void)))
+        (else (do)))
+
+      (call_void project_protocol_write_manifest_fields
+        (param_get pr_writer) (local_get pr_context))
+      (call_i32 weave_host_json_object_end (param_get pr_writer))
+      (return_void)))
+)

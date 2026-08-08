@@ -1,16 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// Compiler-owned typed serializer for weavec-capabilities-v1.
+// Native entry point for Weave-owned compiler capabilities. Schema, registry,
+// field ordering, and compatibility policy live in src/protocol/*.weave.
 
 #ifndef WEAVEC_CAPABILITIES_JSON_C
 #define WEAVEC_CAPABILITIES_JSON_C
 
-#define WEAVE_CAP_ARRAY_LEN(values) (sizeof(values) / sizeof((values)[0]))
+#include "json_writer_bridge.c"
 
-#include "capabilities_json_types.inc"
-#include "capabilities_json_registry.inc"
-#include "capabilities_json_emit.inc"
-#include "capabilities_json_document.inc"
+extern int weave_protocol_capabilities_serialize(void *writer);
 
-#undef WEAVE_CAP_ARRAY_LEN
+int weave_rt_print_capabilities(void) {
+    weave_json_writer writer;
+    weave_json_writer_init(&writer, stdout);
+    if (weave_protocol_capabilities_serialize(&writer) != 0 ||
+        !weave_json_writer_finish(&writer) ||
+        fflush(stdout) != 0) {
+        return 1;
+    }
+    return 0;
+}
+
 #endif

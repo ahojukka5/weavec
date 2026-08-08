@@ -1,0 +1,206 @@
+; SPDX-License-Identifier: Apache-2.0
+; capabilities.weave — Weave-owned weavec-capabilities-v1 serializer
+;
+; All compiler capability policy, schema names, field ordering, and registry
+; facts live here or in sibling protocol modules. Host C only provides checked
+; byte-level JSON mechanics and platform-derived strings.
+
+(program
+  (name "capabilities")
+  (version "0.1")
+
+  (fn capabilities_write_targets
+    (params (cap_writer ptr))
+    (returns void)
+    (do
+      (let cap_target ptr (call_ptr weave_host_default_target))
+      (call_i32 weave_host_json_object_begin (param_get cap_writer))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "default") (local_get cap_target))
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "installed"))
+      (call_i32 weave_host_json_array_begin (param_get cap_writer))
+      (call_i32 weave_host_json_object_begin (param_get cap_writer))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "triple") (local_get cap_target))
+      (call_void protocol_json_key_bool
+        (param_get cap_writer) (const_string_ptr "native") (const_i32 1))
+      (call_void protocol_json_key_bool
+        (param_get cap_writer) (const_string_ptr "cross_compilation") (const_i32 0))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "runtime")
+        (const_string_ptr "static-private-target-archive"))
+      (call_i32 weave_host_json_key
+        (param_get cap_writer) (const_string_ptr "optimization_levels"))
+      (call_i32 weave_host_json_array_begin (param_get cap_writer))
+      (call_void protocol_json_string (param_get cap_writer) (const_string_ptr "O0"))
+      (call_void protocol_json_string (param_get cap_writer) (const_string_ptr "O1"))
+      (call_void protocol_json_string (param_get cap_writer) (const_string_ptr "O2"))
+      (call_void protocol_json_string (param_get cap_writer) (const_string_ptr "O3"))
+      (call_void protocol_json_string (param_get cap_writer) (const_string_ptr "Os"))
+      (call_void protocol_json_string (param_get cap_writer) (const_string_ptr "Oz"))
+      (call_i32 weave_host_json_array_end (param_get cap_writer))
+      (call_i32 weave_host_json_key
+        (param_get cap_writer) (const_string_ptr "cpu_selection"))
+      (call_i32 weave_host_json_array_begin (param_get cap_writer))
+      (call_void protocol_json_string (param_get cap_writer) (const_string_ptr "native"))
+      (call_void protocol_json_string (param_get cap_writer) (const_string_ptr "cpu"))
+      (call_void protocol_json_string (param_get cap_writer) (const_string_ptr "tune-cpu"))
+      (call_i32 weave_host_json_array_end (param_get cap_writer))
+      (call_i32 weave_host_json_object_end (param_get cap_writer))
+      (call_i32 weave_host_json_array_end (param_get cap_writer))
+      (call_i32 weave_host_json_object_end (param_get cap_writer))
+      (return_void)))
+
+  (fn capabilities_write_project_mode
+    (params (cap_writer ptr))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_object_begin (param_get cap_writer))
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "feature"))
+      (call_i32 weave_host_json_object_begin (param_get cap_writer))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "id") (const_string_ptr "project-builds"))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "status") (const_string_ptr "experimental"))
+      (call_void protocol_json_key_i64
+        (param_get cap_writer) (const_string_ptr "issue") (const_i64 123))
+      (call_i32 weave_host_json_object_end (param_get cap_writer))
+
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "protocol"))
+      (call_i32 weave_host_json_object_begin (param_get cap_writer))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "id")
+        (const_string_ptr "weavec-project-facts-v1"))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "field") (const_string_ptr "project"))
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "extends"))
+      (call_i32 weave_host_json_array_begin (param_get cap_writer))
+      (call_void protocol_json_string
+        (param_get cap_writer) (const_string_ptr "weavec-build-manifest-v1"))
+      (call_void protocol_json_string
+        (param_get cap_writer) (const_string_ptr "weavec-diagnostics-v1"))
+      (call_void protocol_json_string
+        (param_get cap_writer) (const_string_ptr "weavec-compilation-trace-v1"))
+      (call_void protocol_json_string
+        (param_get cap_writer) (const_string_ptr "weavec-semantic-index-v1"))
+      (call_i32 weave_host_json_array_end (param_get cap_writer))
+      (call_i32 weave_host_json_object_end (param_get cap_writer))
+
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "commands"))
+      (call_i32 weave_host_json_array_begin (param_get cap_writer))
+      (call_void protocol_json_string
+        (param_get cap_writer)
+        (const_string_ptr "build [--project <directory-or-manifest>]"))
+      (call_void protocol_json_string
+        (param_get cap_writer)
+        (const_string_ptr "analyze [--project <directory-or-manifest>] --semantic-index-json <path>"))
+      (call_i32 weave_host_json_array_end (param_get cap_writer))
+
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "manifest"))
+      (call_i32 weave_host_json_object_begin (param_get cap_writer))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "name") (const_string_ptr "weave.project"))
+      (call_void protocol_json_key_i64
+        (param_get cap_writer) (const_string_ptr "version") (const_i64 1))
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "kinds"))
+      (call_i32 weave_host_json_array_begin (param_get cap_writer))
+      (call_void protocol_json_string (param_get cap_writer) (const_string_ptr "executable"))
+      (call_void protocol_json_string (param_get cap_writer) (const_string_ptr "library"))
+      (call_i32 weave_host_json_array_end (param_get cap_writer))
+      (call_i32 weave_host_json_object_end (param_get cap_writer))
+
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "path_policy"))
+      (call_i32 weave_host_json_object_begin (param_get cap_writer))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "logical_project_paths")
+        (const_string_ptr "relocation-stable"))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "physical_paths")
+        (const_string_ptr "observational"))
+      (call_i32 weave_host_json_object_end (param_get cap_writer))
+      (call_i32 weave_host_json_object_end (param_get cap_writer))
+      (return_void)))
+
+  (fn weave_protocol_capabilities_serialize
+    (params (cap_writer ptr))
+    (returns i32)
+    (do
+      (call_i32 weave_host_json_object_begin (param_get cap_writer))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "format")
+        (const_string_ptr "weavec-capabilities-v1"))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "schema_id")
+        (const_string_ptr "urn:weavec:schema:capabilities:v1"))
+      (call_void protocol_json_key_i64
+        (param_get cap_writer) (const_string_ptr "schema_version") (const_i64 1))
+
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "compiler"))
+      (call_i32 weave_host_json_object_begin (param_get cap_writer))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "name") (const_string_ptr "weavec"))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "version")
+        (call_ptr weave_host_compiler_version))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "public_variant") (const_string_ptr "final"))
+      (call_i32 weave_host_json_object_end (param_get cap_writer))
+
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "language"))
+      (call_i32 weave_host_json_object_begin (param_get cap_writer))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "name") (const_string_ptr "Weave"))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "surface_version")
+        (const_string_ptr "weave-surface-v1"))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "grammar_id")
+        (const_string_ptr "weave-surface-grammar-v1"))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "syntax") (const_string_ptr "s-expression"))
+      (call_void protocol_json_key_bool
+        (param_get cap_writer) (const_string_ptr "case_sensitive") (const_i32 1))
+      (call_void protocol_json_key_i64
+        (param_get cap_writer) (const_string_ptr "wir_core_version") (const_i64 2))
+      (call_i32 weave_host_json_object_end (param_get cap_writer))
+
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "protocols"))
+      (call_void capabilities_write_protocols (param_get cap_writer))
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "commands"))
+      (call_void capabilities_write_commands (param_get cap_writer))
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "targets"))
+      (call_void capabilities_write_targets (param_get cap_writer))
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "features"))
+      (call_void capabilities_write_features (param_get cap_writer))
+
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "surface"))
+      (call_i32 weave_host_json_object_begin (param_get cap_writer))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "grammar_document")
+        (const_string_ptr "docs/language-reference.md"))
+      (call_void protocol_json_key_string
+        (param_get cap_writer) (const_string_ptr "canonical_document")
+        (const_string_ptr "docs/canonical-surface.md"))
+      (call_void protocol_json_key_bool
+        (param_get cap_writer) (const_string_ptr "child_count_excludes_head") (const_i32 1))
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "types"))
+      (call_void cap_write_string_primitive_types (param_get cap_writer))
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "operators"))
+      (call_void capabilities_write_operators (param_get cap_writer))
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "casts"))
+      (call_void capabilities_write_casts (param_get cap_writer))
+      (call_i32 weave_host_json_key
+        (param_get cap_writer) (const_string_ptr "contextual_literals"))
+      (call_void capabilities_write_literals (param_get cap_writer))
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "forms"))
+      (call_void capabilities_write_forms (param_get cap_writer))
+      (call_i32 weave_host_json_key
+        (param_get cap_writer) (const_string_ptr "compatibility_families"))
+      (call_void capabilities_write_families (param_get cap_writer))
+      (call_i32 weave_host_json_object_end (param_get cap_writer))
+
+      (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "project_mode"))
+      (call_void capabilities_write_project_mode (param_get cap_writer))
+      (call_i32 weave_host_json_object_end (param_get cap_writer))
+      (return (const_i32 0))))
+)

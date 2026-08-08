@@ -1,0 +1,89 @@
+; SPDX-License-Identifier: Apache-2.0
+; Project-mode phase normalization previously performed by the C postprocessor.
+
+(program
+  (name "project-protocol-phase")
+  (version "0.1")
+
+  (fn project_protocol_phase_for_code
+    (params (pp_code ptr) (pp_fallback ptr))
+    (returns ptr)
+    (do
+      (if
+        (condition (eq_ptr (param_get pp_code) (const_null)))
+        (then (do (return (param_get pp_fallback))))
+        (else (do)))
+      (if
+        (condition
+          (or_bool
+            (eq_i32
+              (call_i32 strncmp
+                (param_get pp_code) (const_string_ptr "project.manifest.") (const_i64 17))
+              (const_i32 0))
+            (eq_i32
+              (call_i32 strcmp
+                (param_get pp_code)
+                (const_string_ptr "driver.output-aliases-project-manifest"))
+              (const_i32 0))))
+        (then (do (return (const_string_ptr "project-manifest"))))
+        (else (do)))
+      (if
+        (condition
+          (or_bool
+            (eq_i32
+              (call_i32 strncmp
+                (param_get pp_code) (const_string_ptr "project.source.") (const_i64 15))
+              (const_i32 0))
+            (eq_i32
+              (call_i32 strcmp
+                (param_get pp_code)
+                (const_string_ptr "driver.output-aliases-project-source"))
+              (const_i32 0))))
+        (then (do (return (const_string_ptr "project-sources"))))
+        (else (do)))
+      (if
+        (condition
+          (or_bool
+            (eq_i32
+              (call_i32 strncmp
+                (param_get pp_code) (const_string_ptr "project.graph.") (const_i64 14))
+              (const_i32 0))
+            (or_bool
+              (eq_i32
+                (call_i32 strncmp
+                  (param_get pp_code) (const_string_ptr "project.entry.") (const_i64 14))
+                (const_i32 0))
+              (eq_i32
+                (call_i32 strncmp
+                  (param_get pp_code) (const_string_ptr "project.library.") (const_i64 16))
+                (const_i32 0)))))
+        (then (do (return (const_string_ptr "project-graph"))))
+        (else (do)))
+      (return (param_get pp_fallback))))
+
+  (fn project_protocol_effective_diagnostic_phase
+    (params (pp_current ptr) (pp_code ptr))
+    (returns ptr)
+    (do
+      (let pp_context ptr (call_ptr weave_host_project_protocol_active))
+      (if
+        (condition (eq_ptr (local_get pp_context) (const_null)))
+        (then (do (return (param_get pp_current))))
+        (else (do)))
+      (if
+        (condition
+          (ne_i32
+            (call_i32 strcmp (param_get pp_current) (const_string_ptr "driver"))
+            (const_i32 0)))
+        (then (do (return (param_get pp_current))))
+        (else (do)))
+      (let pp_fallback ptr
+        (call_ptr weave_host_project_resolution_phase (local_get pp_context)))
+      (if
+        (condition (eq_ptr (local_get pp_fallback) (const_null)))
+        (then (do (set pp_fallback (const_string_ptr "project-manifest"))))
+        (else (do)))
+      (return
+        (call_ptr project_protocol_phase_for_code
+          (param_get pp_code) (local_get pp_fallback)))))
+)

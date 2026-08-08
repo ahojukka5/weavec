@@ -137,12 +137,19 @@ A consumer should combine:
 
 ## Implementation boundary
 
-The registry is represented as typed compiler-owned records in
-`runtime/capabilities_json.c` and serialized through the same checked JSON writer
-used by the other public protocols. It is not an embedded raw JSON string and it
-does not assemble JSON through ad hoc `printf` fragments.
+The capability registry and its deterministic serialization are owned by surface
+Weave modules under `src/protocol/`. Protocol modules own the schema identifier,
+field ordering, command/feature registry, surface forms, compatibility families,
+and target representation.
 
-Surface grammar changes must update the typed records, schema, and normalized
-regression fixture in the same pull request. The capability test verifies
-determinism, uniqueness, status invariants, canonical replacements, target
-normalization, schema identity, and the absence of bootstrap products.
+The native runtime exposes only checked JSON byte mechanics and platform-derived
+facts such as the embedded compiler version and installed default target. It does
+not contain a second copy of the capability registry or decide public protocol
+fields. This follows the repository-wide rule that C is a platform boundary, not
+a compiler implementation language; see
+[`protocol-boundary.md`](protocol-boundary.md).
+
+Surface grammar changes must update the Weave-owned registry, schema, and
+normalized regression fixture in the same pull request. The capability test
+verifies determinism, uniqueness, status invariants, canonical replacements,
+target normalization, schema identity, and the absence of bootstrap products.

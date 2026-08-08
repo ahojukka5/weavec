@@ -85,15 +85,83 @@ static void weave_diag_position(
 
 #include "diagnostics_json.c"
 
-static void exercise_remaining_json_operations(void) {
+const char *project_protocol_effective_diagnostic_phase(
+    const char *current,
+    const char *code) {
+    (void)code;
+    return current;
+}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+int weave_protocol_diagnostics_serialize(
+    void *opaque,
+    const char *status,
+    const char *document_phase,
+    int stable_exit_code,
+    int raw_exit_code,
+    int record_present,
+    const char *record_code,
+    const char *record_severity,
+    const char *record_phase,
+    const char *record_message,
+    const char *record_source,
+    const char *record_span_origin,
+    int span_present,
+    long long span_start,
+    long long span_end,
+    long long span_start_line,
+    long long span_start_column,
+    long long span_end_line,
+    long long span_end_column,
+    int semantic_present,
+    int semantic_flags,
+    const char *semantic_code,
+    const char *semantic_source,
+    const char *expected_type,
+    const char *actual_type,
+    int argument_index,
+    int expected_count,
+    int actual_count,
+    const char *operand_role,
+    const char *symbol,
+    const char *replacement,
+    const char *repair_confidence,
+    int replacement_span_present,
+    long long replacement_start,
+    long long replacement_end,
+    long long replacement_start_line,
+    long long replacement_start_column,
+    long long replacement_end_line,
+    long long replacement_end_column) {
+    if (status == NULL) return 1;
+    weave_json_writer *writer = opaque;
+    return weave_json_object_begin(writer) && weave_json_object_end(writer)
+        ? 0 : 1;
+}
+#pragma GCC diagnostic pop
+
+static void exercise_writer_mechanics(void) {
     FILE *stream = tmpfile();
     if (stream == NULL) abort();
     weave_json_writer writer;
     weave_json_writer_init_mode(&writer, stream, 0);
-    if (!weave_json_array_begin(&writer) ||
+    if (!weave_json_object_begin(&writer) ||
+        !weave_json_key(&writer, "text") ||
+        !weave_json_string(&writer, "value") ||
+        !weave_json_key(&writer, "nullable") ||
+        !weave_json_nullable_string(&writer, NULL) ||
+        !weave_json_key(&writer, "signed") ||
+        !weave_json_int64(&writer, -1) ||
+        !weave_json_key(&writer, "unsigned") ||
+        !weave_json_uint64(&writer, 2) ||
+        !weave_json_key(&writer, "trusted") ||
         !weave_json_trusted_value(
             &writer, (const unsigned char *)"false", 5) ||
+        !weave_json_key(&writer, "items") ||
+        !weave_json_array_begin(&writer) ||
         !weave_json_array_end(&writer) ||
+        !weave_json_object_end(&writer) ||
         !weave_json_writer_finish(&writer)) {
         abort();
     }
@@ -107,23 +175,30 @@ static char *read_all(const char *path) {
 
 int main(int argc, char **argv) {
     if (argc != 3) return 1;
-    exercise_remaining_json_operations();
+    exercise_writer_mechanics();
     const char *path = argv[1];
     const char *source = argv[2];
 
+    weave_diagnostics_span resolved = weave_diagnostics_resolve_span(source, 3, 6);
+    if (!resolved.present || resolved.start_line != 2 ||
+        resolved.start_column != 1 || resolved.end_line != 2 ||
+        resolved.end_column != 4) {
+        return 2;
+    }
+
     FILE *seed = fopen(path, "wb");
     if (seed == NULL || fputs("old\n", seed) == EOF || fclose(seed) != 0) {
-        return 2;
+        return 3;
     }
     weave_semantic_saved_env semantic_env = {0};
     if (!weave_semantic_begin_env(path, &semantic_env)) {
-        return 3;
+        return 4;
     }
     weave_diag_record record = {
         .code = "frontend.test",
         .severity = "error",
         .phase = "frontend",
-        .message = "bad \"token\"\nline",
+        .message = "bad token",
         .source = source,
         .span_origin = "compiler-preflight",
         .start_byte = 3,
@@ -131,18 +206,18 @@ int main(int argc, char **argv) {
         .has_span = 1,
     };
     if (weave_diag_write_result(path, NULL, "frontend", 10, 1, &record) == 0) {
-        return 4;
+        return 5;
     }
     char *old = read_all(path);
     if (old == NULL || strcmp(old, "old\n") != 0) {
         free(old);
-        return 5;
+        return 6;
     }
     free(old);
 
     if (weave_diag_write_result(
             path, "failed", "frontend", 10, 1, &record) != 0) {
-        return 6;
+        return 7;
     }
     weave_semantic_end_env(&semantic_env);
     return 0;
@@ -156,39 +231,13 @@ cc -std=c11 -Wall -Wextra -Werror \
 
 DOCUMENT="$WORK/diagnostics.json"
 "$WORK/test" "$DOCUMENT" "$WORK/source.weave"
-python3 - <<'PY' "$DOCUMENT" "$WORK/source.weave"
+python3 - <<'PY' "$DOCUMENT"
 import json
 import sys
 
 with open(sys.argv[1], encoding="utf-8") as stream:
     document = json.load(stream)
-assert document == {
-    "format": "weavec-diagnostics-v1",
-    "status": "failed",
-    "phase": "frontend",
-    "exit_code": 10,
-    "raw_exit_code": 1,
-    "diagnostics": [{
-        "code": "frontend.test",
-        "severity": "error",
-        "phase": "frontend",
-        "message": 'bad "token"\nline',
-        "source": sys.argv[2],
-        "span_origin": "compiler-preflight",
-        "span": {
-            "start_byte": 3,
-            "end_byte": 6,
-            "start_line": 2,
-            "start_column": 1,
-            "end_line": 2,
-            "end_column": 4,
-        },
-        "analysis_complete": True,
-        "candidates": [],
-        "related_locations": [],
-        "repairs": [],
-    }],
-}
+assert document == {}
 PY
 
 if compgen -G "$DOCUMENT.tmp.*" >/dev/null; then
@@ -196,4 +245,4 @@ if compgen -G "$DOCUMENT.tmp.*" >/dev/null; then
   exit 1
 fi
 
-printf 'diagnostics-publication: typed transactional diagnostics passed\n'
+printf 'diagnostics-publication: native spans and transactional publication passed\n'

@@ -1,0 +1,183 @@
+; SPDX-License-Identifier: Apache-2.0
+; Compiler capability registry facts owned by surface Weave.
+
+(program
+  (name "capabilities-registry")
+  (version "0.1")
+
+  (fn cap_write_protocol
+    (params (cr_writer ptr) (cr_id ptr) (cr_version i64) (cr_kind ptr))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_object_begin (param_get cr_writer))
+      (call_void protocol_json_key_string
+        (param_get cr_writer) (const_string_ptr "id") (param_get cr_id))
+      (call_void protocol_json_key_i64
+        (param_get cr_writer) (const_string_ptr "version") (param_get cr_version))
+      (call_void protocol_json_key_string
+        (param_get cr_writer) (const_string_ptr "kind") (param_get cr_kind))
+      (call_i32 weave_host_json_object_end (param_get cr_writer))
+      (return_void)))
+
+  (fn cap_write_command
+    (params
+      (cr_writer ptr) (cr_name ptr) (cr_spelling ptr) (cr_audience ptr)
+      (cr_status ptr) (cr_p0 ptr) (cr_p1 ptr) (cr_p2 ptr) (cr_count i32))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_object_begin (param_get cr_writer))
+      (call_void protocol_json_key_string
+        (param_get cr_writer) (const_string_ptr "name") (param_get cr_name))
+      (call_void protocol_json_key_string
+        (param_get cr_writer) (const_string_ptr "spelling") (param_get cr_spelling))
+      (call_void protocol_json_key_string
+        (param_get cr_writer) (const_string_ptr "audience") (param_get cr_audience))
+      (call_void protocol_json_key_string
+        (param_get cr_writer) (const_string_ptr "status") (param_get cr_status))
+      (call_i32 weave_host_json_key (param_get cr_writer) (const_string_ptr "protocols"))
+      (call_i32 weave_host_json_array_begin (param_get cr_writer))
+      (if
+        (condition (gt_i32 (param_get cr_count) (const_i32 0)))
+        (then (do (call_void protocol_json_string (param_get cr_writer) (param_get cr_p0))))
+        (else (do)))
+      (if
+        (condition (gt_i32 (param_get cr_count) (const_i32 1)))
+        (then (do (call_void protocol_json_string (param_get cr_writer) (param_get cr_p1))))
+        (else (do)))
+      (if
+        (condition (gt_i32 (param_get cr_count) (const_i32 2)))
+        (then (do (call_void protocol_json_string (param_get cr_writer) (param_get cr_p2))))
+        (else (do)))
+      (call_i32 weave_host_json_array_end (param_get cr_writer))
+      (call_i32 weave_host_json_object_end (param_get cr_writer))
+      (return_void)))
+
+  (fn cap_write_feature
+    (params (cr_writer ptr) (cr_id ptr) (cr_status ptr) (cr_issue i64))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_object_begin (param_get cr_writer))
+      (call_void protocol_json_key_string
+        (param_get cr_writer) (const_string_ptr "id") (param_get cr_id))
+      (call_void protocol_json_key_string
+        (param_get cr_writer) (const_string_ptr "status") (param_get cr_status))
+      (call_i32 weave_host_json_key (param_get cr_writer) (const_string_ptr "issue"))
+      (if
+        (condition (eq_i64 (param_get cr_issue) (const_i64 0)))
+        (then (do (call_void protocol_json_null (param_get cr_writer))))
+        (else (do (call_void protocol_json_i64 (param_get cr_writer) (param_get cr_issue)))))
+      (call_i32 weave_host_json_object_end (param_get cr_writer))
+      (return_void)))
+
+  (fn capabilities_write_protocols
+    (params (cr_writer ptr))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_array_begin (param_get cr_writer))
+      (call_void cap_write_protocol (param_get cr_writer)
+        (const_string_ptr "weavec-capabilities-v1") (const_i64 1)
+        (const_string_ptr "capability-registry"))
+      (call_void cap_write_protocol (param_get cr_writer)
+        (const_string_ptr "weavec-build-manifest-v1") (const_i64 1)
+        (const_string_ptr "build-manifest"))
+      (call_void cap_write_protocol (param_get cr_writer)
+        (const_string_ptr "weavec-diagnostics-v1") (const_i64 1)
+        (const_string_ptr "diagnostics"))
+      (call_void cap_write_protocol (param_get cr_writer)
+        (const_string_ptr "weavec-compilation-trace-v1") (const_i64 1)
+        (const_string_ptr "compilation-trace"))
+      (call_void cap_write_protocol (param_get cr_writer)
+        (const_string_ptr "weave-wir-core-v2") (const_i64 2)
+        (const_string_ptr "intermediate-representation"))
+      (call_void cap_write_protocol (param_get cr_writer)
+        (const_string_ptr "weavec-semantic-index-v1") (const_i64 1)
+        (const_string_ptr "semantic-index"))
+      (call_i32 weave_host_json_array_end (param_get cr_writer))
+      (return_void)))
+
+  (fn capabilities_write_commands
+    (params (cr_writer ptr))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_array_begin (param_get cr_writer))
+      (call_void cap_write_command (param_get cr_writer)
+        (const_string_ptr "capabilities") (const_string_ptr "capabilities --json")
+        (const_string_ptr "public-tooling") (const_string_ptr "stable")
+        (const_string_ptr "weavec-capabilities-v1") (const_null) (const_null) (const_i32 1))
+      (call_void cap_write_command (param_get cr_writer)
+        (const_string_ptr "fmt") (const_string_ptr "fmt")
+        (const_string_ptr "public-tooling") (const_string_ptr "stable")
+        (const_null) (const_null) (const_null) (const_i32 0))
+      (call_void cap_write_command (param_get cr_writer)
+        (const_string_ptr "build") (const_string_ptr "build")
+        (const_string_ptr "public") (const_string_ptr "stable")
+        (const_string_ptr "weavec-build-manifest-v1")
+        (const_string_ptr "weavec-diagnostics-v1")
+        (const_string_ptr "weavec-compilation-trace-v1") (const_i32 3))
+      (call_void cap_write_command (param_get cr_writer)
+        (const_string_ptr "frontend") (const_string_ptr "--frontend")
+        (const_string_ptr "compiler-tooling") (const_string_ptr "stable")
+        (const_string_ptr "weave-wir-core-v2") (const_null) (const_null) (const_i32 1))
+      (call_void cap_write_command (param_get cr_writer)
+        (const_string_ptr "backend") (const_string_ptr "--backend")
+        (const_string_ptr "compiler-tooling") (const_string_ptr "stable")
+        (const_string_ptr "weave-wir-core-v2") (const_null) (const_null) (const_i32 1))
+      (call_void cap_write_command (param_get cr_writer)
+        (const_string_ptr "version") (const_string_ptr "--version")
+        (const_string_ptr "public") (const_string_ptr "stable")
+        (const_null) (const_null) (const_null) (const_i32 0))
+      (call_void cap_write_command (param_get cr_writer)
+        (const_string_ptr "quantum-stats") (const_string_ptr "--dump-quantum-stats")
+        (const_string_ptr "compiler-tooling") (const_string_ptr "experimental")
+        (const_null) (const_null) (const_null) (const_i32 0))
+      (call_void cap_write_command (param_get cr_writer)
+        (const_string_ptr "explain") (const_string_ptr "--explain")
+        (const_string_ptr "analysis") (const_string_ptr "stable")
+        (const_null) (const_null) (const_null) (const_i32 0))
+      (call_void cap_write_command (param_get cr_writer)
+        (const_string_ptr "explain-json") (const_string_ptr "--explain-json")
+        (const_string_ptr "analysis") (const_string_ptr "stable")
+        (const_null) (const_null) (const_null) (const_i32 0))
+      (call_void cap_write_command (param_get cr_writer)
+        (const_string_ptr "audit") (const_string_ptr "--audit")
+        (const_string_ptr "analysis") (const_string_ptr "stable")
+        (const_null) (const_null) (const_null) (const_i32 0))
+      (call_void cap_write_command (param_get cr_writer)
+        (const_string_ptr "audit-json") (const_string_ptr "--audit-json")
+        (const_string_ptr "analysis") (const_string_ptr "stable")
+        (const_null) (const_null) (const_null) (const_i32 0))
+      (call_void cap_write_command (param_get cr_writer)
+        (const_string_ptr "analyze") (const_string_ptr "analyze --semantic-index-json")
+        (const_string_ptr "analysis") (const_string_ptr "experimental")
+        (const_string_ptr "weavec-semantic-index-v1") (const_null) (const_null) (const_i32 1))
+      (call_i32 weave_host_json_array_end (param_get cr_writer))
+      (return_void)))
+
+  (fn capabilities_write_features
+    (params (cr_writer ptr))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_array_begin (param_get cr_writer))
+      (call_void cap_write_feature (param_get cr_writer)
+        (const_string_ptr "typed-surface-elaboration") (const_string_ptr "stable") (const_i64 49))
+      (call_void cap_write_feature (param_get cr_writer)
+        (const_string_ptr "executable-contracts") (const_string_ptr "stable") (const_i64 0))
+      (call_void cap_write_feature (param_get cr_writer)
+        (const_string_ptr "capability-registry") (const_string_ptr "stable") (const_i64 36))
+      (call_void cap_write_feature (param_get cr_writer)
+        (const_string_ptr "struct-lowering") (const_string_ptr "experimental") (const_i64 52))
+      (call_void cap_write_feature (param_get cr_writer)
+        (const_string_ptr "canonical-formatting") (const_string_ptr "stable") (const_i64 50))
+      (call_void cap_write_feature (param_get cr_writer)
+        (const_string_ptr "diagnostic-repairs") (const_string_ptr "stable") (const_i64 51))
+      (call_void cap_write_feature (param_get cr_writer)
+        (const_string_ptr "semantic-structs") (const_string_ptr "experimental") (const_i64 52))
+      (call_void cap_write_feature (param_get cr_writer)
+        (const_string_ptr "modules") (const_string_ptr "experimental") (const_i64 53))
+      (call_void cap_write_feature (param_get cr_writer)
+        (const_string_ptr "semantic-index") (const_string_ptr "experimental") (const_i64 37))
+      (call_void cap_write_feature (param_get cr_writer)
+        (const_string_ptr "quantum-surface") (const_string_ptr "experimental") (const_i64 0))
+      (call_i32 weave_host_json_array_end (param_get cr_writer))
+      (return_void)))
+)

@@ -1,0 +1,128 @@
+; SPDX-License-Identifier: Apache-2.0
+; Weave-owned serializers for compilation trace events and
+; weavec-compilation-trace-v1.
+
+(program
+  (name "trace-protocol")
+  (version "0.1")
+
+  (fn weave_protocol_trace_event_serialize
+    (params
+      (tr_writer ptr)
+      (tr_kind ptr) (tr_pass ptr) (tr_action ptr)
+      (tr_source_index i64) (tr_source_path ptr)
+      (tr_span_start i64) (tr_span_end i64)
+      (tr_surface ptr) (tr_surface_length i64)
+      (tr_detail_present i32) (tr_detail ptr) (tr_detail_length i64))
+    (returns i32)
+    (do
+      (let tr_kind_value ptr (param_get tr_kind))
+      (let tr_pass_value ptr (param_get tr_pass))
+      (let tr_action_value ptr (param_get tr_action))
+      (let tr_source_value ptr (param_get tr_source_path))
+      (if (condition (eq_ptr (local_get tr_kind_value) (const_null)))
+        (then (do (set tr_kind_value (const_string_ptr "")))) (else (do)))
+      (if (condition (eq_ptr (local_get tr_pass_value) (const_null)))
+        (then (do (set tr_pass_value (const_string_ptr "")))) (else (do)))
+      (if (condition (eq_ptr (local_get tr_action_value) (const_null)))
+        (then (do (set tr_action_value (const_string_ptr "")))) (else (do)))
+      (if (condition (eq_ptr (local_get tr_source_value) (const_null)))
+        (then (do (set tr_source_value (const_string_ptr "")))) (else (do)))
+
+      (call_i32 weave_host_json_object_begin (param_get tr_writer))
+      (call_void protocol_json_key_string
+        (param_get tr_writer) (const_string_ptr "kind") (local_get tr_kind_value))
+      (call_void protocol_json_key_string
+        (param_get tr_writer) (const_string_ptr "pass") (local_get tr_pass_value))
+      (call_void protocol_json_key_string
+        (param_get tr_writer) (const_string_ptr "action") (local_get tr_action_value))
+      (call_void protocol_json_key_i64
+        (param_get tr_writer) (const_string_ptr "source_index") (param_get tr_source_index))
+      (call_void protocol_json_key_string
+        (param_get tr_writer) (const_string_ptr "source") (local_get tr_source_value))
+      (call_i32 weave_host_json_key (param_get tr_writer) (const_string_ptr "span"))
+      (call_i32 weave_host_json_object_begin (param_get tr_writer))
+      (call_void protocol_json_key_u64
+        (param_get tr_writer) (const_string_ptr "start_byte") (param_get tr_span_start))
+      (call_void protocol_json_key_u64
+        (param_get tr_writer) (const_string_ptr "end_byte") (param_get tr_span_end))
+      (call_i32 weave_host_json_object_end (param_get tr_writer))
+      (call_i32 weave_host_json_key (param_get tr_writer) (const_string_ptr "surface"))
+      (call_i32 weave_host_json_string_bytes
+        (param_get tr_writer) (param_get tr_surface) (param_get tr_surface_length))
+      (call_i32 weave_host_json_key (param_get tr_writer) (const_string_ptr "detail"))
+      (if
+        (condition (ne_i32 (param_get tr_detail_present) (const_i32 0)))
+        (then (do
+          (call_i32 weave_host_json_string_bytes
+            (param_get tr_writer) (param_get tr_detail) (param_get tr_detail_length))))
+        (else (do (call_void protocol_json_null (param_get tr_writer)))))
+      (call_i32 weave_host_json_object_end (param_get tr_writer))
+      (return (const_i32 0))))
+
+  (fn weave_protocol_trace_document_serialize
+    (params
+      (tr_writer ptr) (tr_status ptr) (tr_phase ptr)
+      (tr_sources ptr) (tr_source_count i32) (tr_events_path ptr))
+    (returns i32)
+    (do
+      (let tr_effective_phase ptr (param_get tr_phase))
+      (let tr_project ptr (call_ptr weave_host_project_protocol_active))
+      (if
+        (condition
+          (and_bool
+            (ne_ptr (local_get tr_project) (const_null))
+            (ne_i32
+              (call_i32 strcmp (param_get tr_status) (const_string_ptr "success"))
+              (const_i32 0))))
+        (then (do
+          (if
+            (condition
+              (eq_i32
+                (call_i32 strcmp (local_get tr_effective_phase) (const_string_ptr "driver"))
+                (const_i32 0)))
+            (then (do
+              (set tr_effective_phase
+                (call_ptr weave_host_project_resolution_phase (local_get tr_project)))))
+            (else (do)))))
+        (else (do)))
+      (if
+        (condition (eq_ptr (local_get tr_effective_phase) (const_null)))
+        (then (do (set tr_effective_phase (const_string_ptr "project-manifest"))))
+        (else (do)))
+
+      (call_i32 weave_host_json_object_begin (param_get tr_writer))
+      (call_void protocol_json_key_string
+        (param_get tr_writer) (const_string_ptr "format")
+        (const_string_ptr "weavec-compilation-trace-v1"))
+      (call_void protocol_json_key_string
+        (param_get tr_writer) (const_string_ptr "status") (param_get tr_status))
+      (call_void protocol_json_key_string
+        (param_get tr_writer) (const_string_ptr "phase") (local_get tr_effective_phase))
+      (call_i32 weave_host_json_key (param_get tr_writer) (const_string_ptr "sources"))
+      (call_i32 weave_host_json_array_begin (param_get tr_writer))
+      (let tr_index i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get tr_index) (param_get tr_source_count)))
+        (do
+          (let tr_source_item ptr
+            (load_ptr
+              (ptr_add
+                (param_get tr_sources)
+                (mul_i64 (cast_i32_to_i64 (local_get tr_index)) (const_i64 8)))))
+          (call_void protocol_json_string (param_get tr_writer) (local_get tr_source_item))
+          (set tr_index (add_i32 (local_get tr_index) (const_i32 1)))))
+      (call_i32 weave_host_json_array_end (param_get tr_writer))
+      (call_i32 weave_host_json_key (param_get tr_writer) (const_string_ptr "events"))
+      (call_i32 weave_host_json_array_begin (param_get tr_writer))
+      (if
+        (condition (ne_ptr (param_get tr_events_path) (const_null)))
+        (then (do
+          (call_i32 weave_host_json_append_trusted_lines
+            (param_get tr_writer) (param_get tr_events_path))))
+        (else (do)))
+      (call_i32 weave_host_json_array_end (param_get tr_writer))
+      (call_void protocol_write_active_project (param_get tr_writer))
+      (call_i32 weave_host_json_object_end (param_get tr_writer))
+      (return (const_i32 0))))
+)

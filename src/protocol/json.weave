@@ -1,0 +1,80 @@
+; SPDX-License-Identifier: Apache-2.0
+; protocol/json.weave — Weave-owned deterministic protocol serialization API
+;
+; The host owns only checked byte-level JSON mechanics until surface Weave has
+; safe owned String/Bytes. Protocol schemas and field ordering live in Weave.
+
+(program
+  (name "protocol-json")
+  (version "0.1")
+
+  (fn protocol_json_key_string
+    (params (pj_writer ptr) (pj_key ptr) (pj_value ptr))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_key (param_get pj_writer) (param_get pj_key))
+      (call_i32 weave_host_json_string (param_get pj_writer) (param_get pj_value))
+      (return_void)))
+
+  (fn protocol_json_key_nullable_string
+    (params (pj_writer ptr) (pj_key ptr) (pj_value ptr))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_key (param_get pj_writer) (param_get pj_key))
+      (call_i32 weave_host_json_nullable_string
+        (param_get pj_writer) (param_get pj_value))
+      (return_void)))
+
+  (fn protocol_json_key_i64
+    (params (pj_writer ptr) (pj_key ptr) (pj_value i64))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_key (param_get pj_writer) (param_get pj_key))
+      (call_i32 weave_host_json_i64 (param_get pj_writer) (param_get pj_value))
+      (return_void)))
+
+  (fn protocol_json_key_u64
+    (params (pj_writer ptr) (pj_key ptr) (pj_value i64))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_key (param_get pj_writer) (param_get pj_key))
+      (call_i32 weave_host_json_u64 (param_get pj_writer) (param_get pj_value))
+      (return_void)))
+
+  (fn protocol_json_key_bool
+    (params (pj_writer ptr) (pj_key ptr) (pj_value i32))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_key (param_get pj_writer) (param_get pj_key))
+      (call_i32 weave_host_json_bool (param_get pj_writer) (param_get pj_value))
+      (return_void)))
+
+  (fn protocol_json_key_null
+    (params (pj_writer ptr) (pj_key ptr))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_key (param_get pj_writer) (param_get pj_key))
+      (call_i32 weave_host_json_null (param_get pj_writer))
+      (return_void)))
+
+  (fn protocol_json_string
+    (params (pj_writer ptr) (pj_value ptr))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_string (param_get pj_writer) (param_get pj_value))
+      (return_void)))
+
+  (fn protocol_json_i64
+    (params (pj_writer ptr) (pj_value i64))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_i64 (param_get pj_writer) (param_get pj_value))
+      (return_void)))
+
+  (fn protocol_json_null
+    (params (pj_writer ptr))
+    (returns void)
+    (do
+      (call_i32 weave_host_json_null (param_get pj_writer))
+      (return_void)))
+)
