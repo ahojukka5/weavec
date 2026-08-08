@@ -62,6 +62,14 @@ run_case() {
   }
 }
 
+assert_wir_contains() {
+  local needle="$1"
+  if ! grep -Fq "$needle" "$WIR"; then
+    printf 'pythagoras: emitted WIR is missing: %s\n' "$needle" >&2
+    exit 1
+  fi
+}
+
 run_case integer 0 $'5.0\n' '' 3 4
 run_case decimal 0 $'2.5\n' '' 1.5 2.0
 run_case zero 2 '' $'error: side lengths must be positive\n' 0 4
@@ -85,11 +93,11 @@ if grep -Fq 'weave_rt_sqrt' "$ROOT/runtime/program.c" "$ROOT/stdlib/math.weave";
   printf 'pythagoras: square-root semantics leaked into the C runtime\n' >&2
   exit 1
 fi
-grep -Fq '(params (argc i32) (argv ptr))' "$WIR"
-grep -Fq '(call_void weave_rt_process_capture' "$WIR"
-grep -Fq '(fn program_main' "$WIR"
-grep -Fq '(fn args_count' "$WIR"
-grep -Fq '(fn parse_f64' "$WIR"
-grep -Fq '(fn sqrt_f64' "$WIR"
+assert_wir_contains '(params (argc i32) (argv ptr))'
+assert_wir_contains '(call_void weave_rt_process_capture'
+assert_wir_contains '(fn program_main'
+assert_wir_contains '(fn args_count'
+assert_wir_contains '(fn parse_f64'
+assert_wir_contains '(fn sqrt_f64'
 
 printf 'pythagoras: passed\n'
