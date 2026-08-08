@@ -10,6 +10,8 @@ surface-language contract stabilises.
 
 ### Added
 
+- Minimal command-line argument access, deterministic Weave-owned `f64` parsing,
+  and a reusable square-root module demonstrated by the Pythagorean example.
 - Decimal `f64` literals, canonical `add`/`sub`/`mul`/`div`/`mod` arithmetic,
   and a Weave-owned floating-point output library demonstrated by an executable
   exact-output example.

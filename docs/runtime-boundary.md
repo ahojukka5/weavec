@@ -38,3 +38,17 @@ unchanged.
 This division is intentional: the host moves bytes, while Weave decides what a
 floating-point program means and how its portable textual representation is
 constructed.
+
+## Process arguments and basic math
+
+CLI programs opt into `stdlib/process.weave`, whose native entry wrapper receives
+the platform `argc`/`argv` pair and captures it into a mechanical host store before
+calling the application's high-level `program_main` function. The module owns the
+user convention that the executable name is hidden and arguments are zero-indexed.
+`stdlib/parse.weave` performs deterministic ASCII-to-`f64` parsing entirely in
+Weave.
+
+`stdlib/math.weave` implements the reusable `sqrt_f64` function directly in Weave
+with a fixed Newton iteration. The C runtime therefore contributes no numeric
+algorithm and no libm dependency; for this feature it only stores and returns the
+platform-provided raw argument values mechanically.
