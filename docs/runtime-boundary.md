@@ -1,0 +1,40 @@
+# Runtime implementation boundary
+
+Weave application semantics should be implemented in Weave whenever the language
+can express them. C is a narrow host boundary, not a second standard library or
+compiler implementation language.
+
+## Policy
+
+- Formatting, parsing, numeric algorithms, collection logic, and other portable
+  language behavior belong in Weave code.
+- C may expose operating-system or platform ABI operations that Weave cannot yet
+  express directly and safely.
+- A missing Weave feature is a reason to add the smallest useful language feature,
+  not a default reason to grow the C runtime.
+- A C helper must remain mechanical: it must not choose language semantics,
+  duplicate a portable algorithm, or become the only implementation of user-level
+  behavior.
+- New C runtime code requires a concrete executable example and an explanation of
+  why the same behavior cannot yet be implemented in Weave.
+- When the required Weave capability becomes available, the corresponding C helper
+  should be removed in the same change.
+- WIR is an intermediate representation and fixture format, not a production
+  implementation language used to bypass the surface-Weave ownership rule.
+
+## Floating-point example
+
+`src/parser/lexer.weave` recognizes decimal numeric atoms and preserves their exact
+source spelling. The self-hosted frontend assigns decimal literals their surface
+floating type and lowers them to ordinary WIR core version 2 `const_f32` or
+`const_f64` forms. The self-hosted LLVM layer emits those constants without a C
+parser or semantic override.
+
+`stdlib/io.weave` owns decimal rounding, digit generation, fixed-width fractional
+output, and trailing-zero removal. Its only host dependencies are the platform
+`write` and `strlen` ABI functions. The application runtime C source remains
+unchanged.
+
+This division is intentional: the host moves bytes, while Weave decides what a
+floating-point program means and how its portable textual representation is
+constructed.

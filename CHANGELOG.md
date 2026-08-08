@@ -10,6 +10,9 @@ surface-language contract stabilises.
 
 ### Added
 
+- Decimal `f64` literals, canonical `add`/`sub`/`mul`/`div`/`mod` arithmetic,
+  and a Weave-owned floating-point output library demonstrated by an executable
+  exact-output example.
 - A canonical lowercase documentation index and complete final-compiler
   architecture document.
 - Dedicated references for the public command line, implemented surface

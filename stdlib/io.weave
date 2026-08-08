@@ -1,0 +1,199 @@
+; SPDX-License-Identifier: Apache-2.0
+; Small standard output helpers implemented in Weave.
+;
+; The host boundary is limited to libc byte output and string length. Numeric
+; formatting, rounding, digit selection, and trailing-zero removal live here.
+
+(program
+  (name "std.io")
+  (version "0.1")
+
+  (extern strlen
+    (params (text ptr))
+    (returns i64))
+  (extern write
+    (params (fd i32) (buffer ptr) (count i64))
+    (returns i64))
+
+  (fn write_stdout_bytes
+    (params (text ptr) (count i64))
+    (returns void)
+    (do
+      (call_i64 write
+        (const_i32 1)
+        (param_get text)
+        (param_get count))
+      (return_void)))
+
+  (fn write_stdout
+    (params (text ptr))
+    (returns void)
+    (do
+      (call_void write_stdout_bytes
+        (param_get text)
+        (call_i64 strlen (param_get text)))
+      (return_void)))
+
+  (fn write_digit
+    (params (digit i32))
+    (returns void)
+    (do
+      (if
+        (condition (eq_i32 (param_get digit) (const_i32 0)))
+        (then (do
+          (call_void write_stdout_bytes (const_string_ptr "0") (const_i64 1))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get digit) (const_i32 1)))
+        (then (do
+          (call_void write_stdout_bytes (const_string_ptr "1") (const_i64 1))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get digit) (const_i32 2)))
+        (then (do
+          (call_void write_stdout_bytes (const_string_ptr "2") (const_i64 1))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get digit) (const_i32 3)))
+        (then (do
+          (call_void write_stdout_bytes (const_string_ptr "3") (const_i64 1))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get digit) (const_i32 4)))
+        (then (do
+          (call_void write_stdout_bytes (const_string_ptr "4") (const_i64 1))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get digit) (const_i32 5)))
+        (then (do
+          (call_void write_stdout_bytes (const_string_ptr "5") (const_i64 1))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get digit) (const_i32 6)))
+        (then (do
+          (call_void write_stdout_bytes (const_string_ptr "6") (const_i64 1))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get digit) (const_i32 7)))
+        (then (do
+          (call_void write_stdout_bytes (const_string_ptr "7") (const_i64 1))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get digit) (const_i32 8)))
+        (then (do
+          (call_void write_stdout_bytes (const_string_ptr "8") (const_i64 1))
+          (return_void)))
+        (else (do)))
+      (call_void write_stdout_bytes (const_string_ptr "9") (const_i64 1))
+      (return_void)))
+
+  (fn write_u32_decimal
+    (params (value i32))
+    (returns void)
+    (do
+      (if
+        (condition (ge_i32 (param_get value) (const_i32 10)))
+        (then (do
+          (call_void write_u32_decimal
+            (div_i32 (param_get value) (const_i32 10)))))
+        (else (do)))
+      (call_void write_digit
+        (mod_i32 (param_get value) (const_i32 10)))
+      (return_void)))
+
+  (fn write_fixed_u32
+    (params (value i32) (width i32))
+    (returns void)
+    (do
+      (let divisor i32 (const_i32 1))
+      (let place i32 (const_i32 1))
+      (while
+        (condition (lt_i32 (local_get place) (param_get width)))
+        (do
+          (set divisor (mul_i32 (local_get divisor) (const_i32 10)))
+          (set place (add_i32 (local_get place) (const_i32 1)))))
+      (let remaining i32 (param_get value))
+      (while
+        (condition (gt_i32 (local_get divisor) (const_i32 0)))
+        (do
+          (call_void write_digit
+            (div_i32 (local_get remaining) (local_get divisor)))
+          (set remaining
+            (mod_i32 (local_get remaining) (local_get divisor)))
+          (set divisor
+            (div_i32 (local_get divisor) (const_i32 10)))))
+      (return_void)))
+
+  (fn write_fraction6
+    (params (scaled i32))
+    (returns void)
+    (do
+      (let digits i32 (param_get scaled))
+      (let width i32 (const_i32 6))
+      (while
+        (condition (and_bool
+          (gt_i32 (local_get width) (const_i32 1))
+          (eq_i32
+            (mod_i32 (local_get digits) (const_i32 10))
+            (const_i32 0))))
+        (do
+          (set digits (div_i32 (local_get digits) (const_i32 10)))
+          (set width (sub_i32 (local_get width) (const_i32 1)))))
+      (call_void write_fixed_u32
+        (local_get digits)
+        (local_get width))
+      (return_void)))
+
+  (fn print_f64
+    (params (label ptr) (value f64))
+    (returns void)
+    (do
+      (call_void write_stdout (param_get label))
+      (let magnitude f64 (param_get value))
+      (let negative i32 (const_i32 0))
+      (if
+        (condition (lt_f64 (local_get magnitude) (const_f64 0.0)))
+        (then (do
+          (set negative (const_i32 1))
+          (set magnitude
+            (sub_f64 (const_f64 0.0) (local_get magnitude)))))
+        (else (do)))
+      (let whole i32 (cast_f64_to_i32 (local_get magnitude)))
+      (let fraction f64
+        (sub_f64
+          (local_get magnitude)
+          (cast_i32_to_f64 (local_get whole))))
+      (let scaled i32
+        (cast_f64_to_i32
+          (add_f64
+            (mul_f64 (local_get fraction) (const_f64 1000000.0))
+            (const_f64 0.5))))
+      (if
+        (condition (ge_i32 (local_get scaled) (const_i32 1000000)))
+        (then (do
+          (set whole (add_i32 (local_get whole) (const_i32 1)))
+          (set scaled (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (local_get negative) (const_i32 0)))
+        (then (do
+          (call_void write_stdout_bytes (const_string_ptr "-") (const_i64 1))))
+        (else (do)))
+      (call_void write_u32_decimal (local_get whole))
+      (call_void write_stdout_bytes (const_string_ptr ".") (const_i64 1))
+      (if
+        (condition (eq_i32 (local_get scaled) (const_i32 0)))
+        (then (do
+          (call_void write_stdout_bytes (const_string_ptr "0") (const_i64 1))))
+        (else (do
+          (call_void write_fraction6 (local_get scaled)))))
+      (call_void write_stdout_bytes (const_string_ptr "\n") (const_i64 1))
+      (return_void))))

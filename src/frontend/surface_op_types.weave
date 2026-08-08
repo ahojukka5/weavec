@@ -7,16 +7,51 @@
   (name "surface_op_types")
   (version "0.1")
 
+  (fn sop_node_is_decimal_literal
+    (params (sop_tree ptr) (sop_source ptr) (sop_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get sop_tree) (param_get sop_node)) (call_i32 node_int)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sop_start i64 (call_i64 node_text_start
+        (param_get sop_tree) (param_get sop_node)))
+      (let sop_len i64 (call_i64 node_text_len
+        (param_get sop_tree) (param_get sop_node)))
+      (let sop_offset i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get sop_offset) (local_get sop_len)))
+        (do
+          (if
+            (condition (eq_i32
+              (load_u8 (ptr_add (param_get sop_source)
+                (add_i64 (local_get sop_start) (local_get sop_offset))))
+              (const_i32 46)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (set sop_offset (add_i64 (local_get sop_offset) (const_i64 1)))))
+      (return (const_i32 0))))
+
   (fn sop_expr_seed_type
     (params (sop_tree ptr) (sop_source ptr) (sop_node i64))
     (returns i32)
     (do
-      ; Integer tokens remain contextual while an operator examines both sides.
-      ; When neither side supplies a type, the operator defaults them to i32.
+      ; Decimal atoms carry their f64 meaning in their exact source span.
+      ; Integer atoms remain contextual; when both operands are integers the
+      ; arithmetic rule below continues to default them to i32.
       (if
         (condition (eq_i32 (call_i32 node_kind
           (param_get sop_tree) (param_get sop_node)) (call_i32 node_int)))
-        (then (do (return (call_i32 surface_type_unknown))))
+        (then (do
+          (if
+            (condition (ne_i32 (call_i32 sop_node_is_decimal_literal
+              (param_get sop_tree) (param_get sop_source) (param_get sop_node))
+              (const_i32 0)))
+            (then (do (return (call_i32 surface_type_f64))))
+            (else (do)))
+          (return (call_i32 surface_type_unknown))))
         (else (do)))
       (return (call_i32 sop_expr_type
         (param_get sop_tree) (param_get sop_source) (param_get sop_node)
