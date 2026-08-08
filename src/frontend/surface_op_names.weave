@@ -56,20 +56,20 @@
               (const_string_ptr "add") (const_i64 3)) (const_i32 0))
             (ne_i32 (call_i32 sop_name_is
               (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
-              (const_string_ptr "subtract") (const_i64 8)) (const_i32 0)))
+              (const_string_ptr "sub") (const_i64 3)) (const_i32 0)))
           (or_bool
             (ne_i32 (call_i32 sop_name_is
               (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
-              (const_string_ptr "multiply") (const_i64 8)) (const_i32 0))
+              (const_string_ptr "mul") (const_i64 3)) (const_i32 0))
             (ne_i32 (call_i32 sop_name_is
               (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
-              (const_string_ptr "divide") (const_i64 6)) (const_i32 0)))))
+              (const_string_ptr "div") (const_i64 3)) (const_i32 0)))))
         (then (do (return (const_i32 1))))
         (else (do)))
       (if
         (condition (ne_i32 (call_i32 sop_name_is
           (param_get sop_tree) (param_get sop_source) (param_get sop_name_node)
-          (const_string_ptr "remainder") (const_i64 9)) (const_i32 0)))
+          (const_string_ptr "mod") (const_i64 3)) (const_i32 0)))
         (then (do (return (const_i32 1))))
         (else (do)))
       (return (const_i32 0))))

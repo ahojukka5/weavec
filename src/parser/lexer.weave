@@ -8,7 +8,7 @@
 ;   - Parentheses: ( )
 ;   - Identifiers: alphanumeric + underscore + dash
 ;   - Strings: "..." with escape sequences
-;   - Integers: digits, optional minus sign
+;   - Numbers: integer or decimal digits, optional minus sign
 ;   - Comments: ; to end of line
 
 (program
@@ -285,8 +285,9 @@
 
     (return (local_get index))))
 
-; Lex an integer
-(fn lex_integer
+; Lex a numeric atom. Decimal atoms retain their exact source span; their
+; semantic floating value is derived later by the self-hosted frontend.
+(fn lex_number
   (params (source ptr) (length i64) (tokens ptr) (start i64))
   (returns i64)
   (do
@@ -304,7 +305,7 @@
         (set index (add_i64 (local_get index) (const_i64 1)))))
       (else (do)))
 
-    ; Scan digits
+    ; Scan the whole-number part.
     (while
       (condition
         (and_bool
@@ -314,13 +315,57 @@
       (do
         (set index (add_i64 (local_get index) (const_i64 1)))))
 
+    ; Accept a fractional part only when '.' is followed by at least one
+    ; digit. Nested guards avoid reading one byte past end-of-input.
+    (let is_decimal i32 (const_i32 0))
+    (if
+      (condition (lt_i64 (local_get index) (param_get length)))
+      (then (do
+        (if
+          (condition (eq_i32
+            (load_u8 (ptr_add (param_get source) (local_get index)))
+            (const_i32 46)))
+          (then (do
+            (let fraction_start i64
+              (add_i64 (local_get index) (const_i64 1)))
+            (if
+              (condition (lt_i64 (local_get fraction_start) (param_get length)))
+              (then (do
+                (if
+                  (condition (call_bool is_digit
+                    (load_u8 (ptr_add
+                      (param_get source) (local_get fraction_start)))))
+                  (then (do
+                    (set is_decimal (const_i32 1))
+                    (set index (local_get fraction_start))
+                    (while
+                      (condition
+                        (and_bool
+                          (lt_i64 (local_get index) (param_get length))
+                          (call_bool is_digit
+                            (load_u8 (ptr_add
+                              (param_get source) (local_get index))))))
+                      (do
+                        (set index
+                          (add_i64 (local_get index) (const_i64 1)))))))
+                  (else (do)))))
+              (else (do)))))
+          (else (do)))))
+      (else (do)))
+
     (let token_len i64 (sub_i64 (local_get index) (param_get start)))
 
-    ; Parse the integer value from source text
-    (let int_value i64 (call_i64 parse_integer
-      (param_get source)
-      (param_get start)
-      (local_get token_len)))
+    ; Integer nodes keep their parsed value for existing WIR users. Decimal
+    ; nodes use the exact source span as the authoritative spelling.
+    (let int_value i64 (const_i64 0))
+    (if
+      (condition (eq_i32 (local_get is_decimal) (const_i32 0)))
+      (then (do
+        (set int_value (call_i64 parse_integer
+          (param_get source)
+          (param_get start)
+          (local_get token_len)))))
+      (else (do)))
 
     (call_i32 tokens_push
       (param_get tokens)
@@ -494,7 +539,7 @@
                       (load_u8 (ptr_add (param_get source)
                         (add_i64 (local_get index) (const_i64 1))))))))))
           (then (do
-            (set index (call_i64 lex_integer
+            (set index (call_i64 lex_number
               (param_get source)
               (param_get length)
               (local_get tokens)

@@ -126,6 +126,9 @@ bash "$ROOT/test/backend-call-validation/test.sh"
 log 'surface elaboration'
 bash "$ROOT/test/surface-elaboration/test.sh"
 
+log 'floating-point arithmetic'
+bash "$ROOT/test/float-arithmetic/test.sh"
+
 log 'contract result diagnostics'
 bash "$ROOT/test/contract-result-requires/test.sh"
 

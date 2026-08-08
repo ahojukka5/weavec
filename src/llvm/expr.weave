@@ -346,17 +346,52 @@
       (call_void write_byte (local_get fd) (const_i32 10))
       (return (local_get t))))
 
-  ; Emit const_f32 / const_f64 from integer literal token (WIR has no decimal lexer yet).
+  (fn llvm_node_is_decimal_literal
+    (params (source ptr) (tree ptr) (node i64))
+    (returns i32)
+    (do
+      (let start i64 (call_i64 node_text_start (param_get tree) (param_get node)))
+      (let len i64 (call_i64 node_text_len (param_get tree) (param_get node)))
+      (let offset i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get offset) (local_get len)))
+        (do
+          (if
+            (condition (eq_i32
+              (load_u8 (ptr_add (param_get source)
+                (add_i64 (local_get start) (local_get offset))))
+              (const_i32 46)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (set offset (add_i64 (local_get offset) (const_i64 1)))))
+      (return (const_i32 0))))
+
+  ; Emit const_f32 / const_f64 from the exact WIR literal spelling.
   (fn emit_const_float
     (params (ctx ptr) (node i64) (dst_type_id i32))
     (returns i64)
     (do
       (let fd i32 (call_i32 ctx_get_fd (param_get ctx)))
       (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
       (let val_node i64 (call_i64 nth_child (local_get tree) (param_get node) (const_i64 1)))
       (let t i64 (call_i64 ctx_alloc_temp (param_get ctx)))
       (call_void write_cstr (local_get fd) (const_string_ptr "  %t"))
       (call_void write_i64_dec (local_get fd) (local_get t))
+      (if
+        (condition (ne_i32 (call_i32 llvm_node_is_decimal_literal
+          (local_get source) (local_get tree) (local_get val_node)) (const_i32 0)))
+        (then (do
+          ; LLVM has no standalone floating constant instruction. Adding
+          ; zero materializes a typed SSA value without changing the number.
+          (call_void write_cstr (local_get fd) (const_string_ptr " = fadd "))
+          (call_void emit_type (local_get fd) (param_get dst_type_id))
+          (call_void write_cstr (local_get fd) (const_string_ptr " 0.0, "))
+          (call_void emit_node_text
+            (local_get fd) (local_get source) (local_get tree) (local_get val_node))
+          (call_void write_byte (local_get fd) (const_i32 10))
+          (return (local_get t))))
+        (else (do)))
       (call_void write_cstr (local_get fd) (const_string_ptr " = sitofp i32 "))
       (call_void write_i64_dec (local_get fd) (call_i64 node_value (local_get tree) (local_get val_node)))
       (call_void write_cstr (local_get fd) (const_string_ptr " to "))

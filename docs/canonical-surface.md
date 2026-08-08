@@ -45,12 +45,16 @@ selects the admitted typed WIR operator from the operand types:
 
 The canonical names are:
 
-- arithmetic: `add`, `subtract`, `multiply`, `divide`, and `remainder`;
+- arithmetic: `add`, `sub`, `mul`, `div`, and `mod`;
 - integer bit operations: `bit-and`, `bit-or`, `bit-xor`, `shift-left`, and
   `shift-right`;
 - comparisons: `equal`, `not-equal`, `less-than`, `less-or-equal`,
   `greater-than`, and `greater-or-equal`;
 - Boolean operations: `and`, `or`, and `not`.
+
+The short arithmetic names deliberately match the established WIR and common
+programming-language vocabulary. The former long surface spellings `subtract`,
+`multiply`, `divide`, and `remainder` are not canonical forms.
 
 Arithmetic supports `i32`, `i64`, `f32`, and `f64`. Bit operations support
 `i32` and `i64`. Ordered comparisons support numeric operands, while pointer
@@ -62,6 +66,11 @@ Two otherwise unconstrained integer literals use the canonical `i32` default.
 When one operand has a known type, an integer literal on the other side uses that
 same numeric type. Mixed known operand types are rejected; the compiler never
 inserts a numeric conversion.
+
+A decimal atom with digits on both sides of the decimal point, such as `1.5` or
+`7.0`, has intrinsic `f64` type when no stronger context exists. An authoritative
+`f32` context may lower the same spelling to `const_f32`; there is still no
+implicit promotion between already-typed numeric expressions.
 
 ## Canonical casts
 
@@ -136,17 +145,19 @@ Examples:
 
 ```weave
 (let count i64 0)
+(let gain f64 1.5)
 (set count 1)
 (return 42)
 (call choose true 40 2)
 (call consume-pointer null)
 (call consume-string "weave")
 (op add count 1)
+(op add 1.5 2.25)
 (new Record (count 42) (flag true))
 ```
 
-The compiler emits explicit WIR constructors such as `const_i64`, `const_bool`,
-`const_null`, and `const_string_ptr`.
+The compiler emits explicit WIR constructors such as `const_i64`, `const_f64`,
+`const_bool`, `const_null`, and `const_string_ptr`.
 
 Context does not introduce numeric promotion. An explicit `i32` expression passed
 to an `i64` parameter remains a type error. Use `(cast i64 expression)` when an
