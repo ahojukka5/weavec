@@ -1,0 +1,129 @@
+; SPDX-License-Identifier: Apache-2.0
+; Test-only libc declarations and builders for the self-hosted type graph.
+
+(program
+  (name "semantic_type_graph_fixture")
+  (version "0.1")
+
+  (extern malloc (params (size i64)) (returns ptr))
+  (extern free (params (p ptr)) (returns void))
+  (extern realloc (params (p ptr) (size i64)) (returns ptr))
+  (extern strlen (params (s ptr)) (returns i64))
+
+(fn graph_test_strings_equal
+    (params (actual ptr) (expected ptr))
+    (returns i32)
+    (do
+      (return
+        (call_i32 type_cstr_equal
+          (param_get actual) (param_get expected)))))
+
+(fn graph_test_build
+    (params (graph ptr) (reverse i32) (out ptr))
+    (returns i32)
+    (do
+      (let i32_type i32
+        (call_i32 type_graph_primitive
+          (param_get graph) (const_string_ptr "i32")))
+      (let i64_type i32
+        (call_i32 type_graph_primitive
+          (param_get graph) (const_string_ptr "i64")))
+      (let bool_type i32
+        (call_i32 type_graph_primitive
+          (param_get graph) (const_string_ptr "bool")))
+      (if
+        (condition (or_bool
+          (eq_i32 (local_get i32_type) (const_i32 0))
+          (or_bool
+            (eq_i32 (local_get i64_type) (const_i32 0))
+            (eq_i32 (local_get bool_type) (const_i32 0)))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+
+      (let vector i32 (const_i32 0))
+      (let result i32 (const_i32 0))
+      (if
+        (condition (ne_i32 (param_get reverse) (const_i32 0)))
+        (then (do
+          (set result
+            (call_i32 type_graph_nominal
+              (param_get graph)
+              (const_string_ptr "core")
+              (const_string_ptr "Result")))
+          (set vector
+            (call_i32 type_graph_nominal
+              (param_get graph)
+              (const_string_ptr "collections")
+              (const_string_ptr "Vector")))))
+        (else (do
+          (set vector
+            (call_i32 type_graph_nominal
+              (param_get graph)
+              (const_string_ptr "collections")
+              (const_string_ptr "Vector")))
+          (set result
+            (call_i32 type_graph_nominal
+              (param_get graph)
+              (const_string_ptr "core")
+              (const_string_ptr "Result"))))))
+
+      (let one_arg ptr (call_ptr malloc (const_i64 4)))
+      (if
+        (condition (eq_ptr (local_get one_arg) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (store_i32 (local_get one_arg) (local_get i32_type))
+      (let vector_i32 i32
+        (call_i32 type_graph_application
+          (param_get graph) (local_get vector) (local_get one_arg)
+          (const_i64 1)))
+
+      (let params ptr (call_ptr malloc (const_i64 8)))
+      (if
+        (condition (eq_ptr (local_get params) (const_null)))
+        (then (do
+          (call_void free (local_get one_arg))
+          (return (const_i32 0))))
+        (else (do)))
+      (store_i32 (local_get params) (local_get vector_i32))
+      (store_i32 (ptr_add (local_get params) (const_i64 4)) (local_get bool_type))
+      (let function_type i32
+        (call_i32 type_graph_function
+          (param_get graph) (local_get params) (const_i64 2)
+          (local_get i64_type)))
+
+      (let result_args ptr (call_ptr malloc (const_i64 8)))
+      (if
+        (condition (eq_ptr (local_get result_args) (const_null)))
+        (then (do
+          (call_void free (local_get params))
+          (call_void free (local_get one_arg))
+          (return (const_i32 0))))
+        (else (do)))
+      (store_i32 (local_get result_args) (local_get i32_type))
+      (store_i32
+        (ptr_add (local_get result_args) (const_i64 4))
+        (local_get bool_type))
+      (let result_type i32
+        (call_i32 type_graph_application
+          (param_get graph) (local_get result) (local_get result_args)
+          (const_i64 2)))
+      (store_i32 (local_get one_arg) (local_get i32_type))
+      (let ok_variant i32
+        (call_i32 type_graph_variant
+          (param_get graph) (local_get result_type) (const_string_ptr "Ok")
+          (local_get one_arg) (const_i64 1)))
+
+      (store_i32 (param_get out) (local_get vector_i32))
+      (store_i32
+        (ptr_add (param_get out) (const_i64 4))
+        (local_get function_type))
+      (store_i32
+        (ptr_add (param_get out) (const_i64 8))
+        (local_get ok_variant))
+
+      (call_void free (local_get result_args))
+      (call_void free (local_get params))
+      (call_void free (local_get one_arg))
+      (return (const_i32 1))))
+)

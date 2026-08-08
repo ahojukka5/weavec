@@ -1,0 +1,322 @@
+; SPDX-License-Identifier: Apache-2.0
+; graph_identity.weave — primitive, nominal, and generic identities
+;
+; Part of the self-hosted structured semantic type graph. This is compiler
+; logic, not host runtime logic.
+
+(program
+  (name "graph_identity")
+  (version "0.1")
+
+(fn type_graph_primitive
+    (params (graph ptr) (type_name ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get graph) (const_null))
+          (eq_ptr (param_get type_name) (const_null))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i64 (call_i64 strlen (param_get type_name)) (const_i64 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let identity_buffer ptr (call_ptr type_buffer_new))
+      (let display_buffer ptr (call_ptr type_buffer_new))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get identity_buffer) (const_null))
+          (eq_ptr (local_get display_buffer) (const_null))))
+        (then (do
+          (call_void type_buffer_dispose (local_get identity_buffer))
+          (call_void type_buffer_dispose (local_get display_buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (let ok i32 (const_i32 1))
+      (if
+        (condition (eq_i32
+          (call_i32 type_buffer_append
+            (local_get identity_buffer) (const_string_ptr "primitive"))
+          (const_i32 0)))
+        (then (do (set ok (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32
+            (call_i32 type_buffer_append_field
+              (local_get identity_buffer) (param_get type_name))
+            (const_i32 0))))
+        (then (do (set ok (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32
+            (call_i32 type_buffer_append
+              (local_get display_buffer) (param_get type_name))
+            (const_i32 0))))
+        (then (do (set ok (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get ok) (const_i32 0)))
+        (then (do
+          (call_void type_buffer_dispose (local_get identity_buffer))
+          (call_void type_buffer_dispose (local_get display_buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (let reference i32
+        (call_i32 type_graph_intern
+          (param_get graph)
+          (call_i32 type_kind_primitive)
+          (call_ptr type_buffer_take (local_get identity_buffer))
+          (call_ptr type_buffer_take (local_get display_buffer))
+          (const_null)
+          (const_i64 0)))
+      (if
+        (condition (eq_i32 (local_get reference) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 type_graph_bind_metadata
+            (param_get graph) (local_get reference)
+            (const_null) (param_get type_name) (const_i32 0))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (local_get reference))))
+
+(fn type_graph_nominal
+    (params (graph ptr) (owner ptr) (type_name ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (or_bool
+            (eq_ptr (param_get graph) (const_null))
+            (eq_ptr (param_get owner) (const_null)))
+          (eq_ptr (param_get type_name) (const_null))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i64 (call_i64 strlen (param_get owner)) (const_i64 0))
+          (eq_i64 (call_i64 strlen (param_get type_name)) (const_i64 0))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let identity_buffer ptr (call_ptr type_buffer_new))
+      (let display_buffer ptr (call_ptr type_buffer_new))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get identity_buffer) (const_null))
+          (eq_ptr (local_get display_buffer) (const_null))))
+        (then (do
+          (call_void type_buffer_dispose (local_get identity_buffer))
+          (call_void type_buffer_dispose (local_get display_buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (let ok i32 (const_i32 1))
+      (if (condition (eq_i32 (call_i32 type_buffer_append
+          (local_get identity_buffer) (const_string_ptr "nominal")) (const_i32 0)))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append_field
+            (local_get identity_buffer) (param_get owner)) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append_field
+            (local_get identity_buffer) (param_get type_name)) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append
+            (local_get display_buffer) (param_get owner)) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append
+            (local_get display_buffer) (const_string_ptr "::")) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append
+            (local_get display_buffer) (param_get type_name)) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if
+        (condition (eq_i32 (local_get ok) (const_i32 0)))
+        (then (do
+          (call_void type_buffer_dispose (local_get identity_buffer))
+          (call_void type_buffer_dispose (local_get display_buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (let reference i32
+        (call_i32 type_graph_intern
+          (param_get graph)
+          (call_i32 type_kind_nominal)
+          (call_ptr type_buffer_take (local_get identity_buffer))
+          (call_ptr type_buffer_take (local_get display_buffer))
+          (const_null)
+          (const_i64 0)))
+      (if
+        (condition (eq_i32 (local_get reference) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 type_graph_bind_metadata
+            (param_get graph) (local_get reference)
+            (param_get owner) (param_get type_name) (const_i32 0))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (local_get reference))))
+
+(fn type_graph_generic_parameter
+    (params (graph ptr) (owner ptr) (ordinal i32) (parameter_name ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (or_bool
+            (eq_ptr (param_get graph) (const_null))
+            (eq_ptr (param_get owner) (const_null)))
+          (eq_ptr (param_get parameter_name) (const_null))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let identity_buffer ptr (call_ptr type_buffer_new))
+      (let display_buffer ptr (call_ptr type_buffer_new))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get identity_buffer) (const_null))
+          (eq_ptr (local_get display_buffer) (const_null))))
+        (then (do
+          (call_void type_buffer_dispose (local_get identity_buffer))
+          (call_void type_buffer_dispose (local_get display_buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (let ok i32 (const_i32 1))
+      (if (condition (eq_i32 (call_i32 type_buffer_append
+          (local_get identity_buffer) (const_string_ptr "generic-parameter")) (const_i32 0)))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append_field
+            (local_get identity_buffer) (param_get owner)) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append
+            (local_get identity_buffer) (const_string_ptr "|")) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append_i64
+            (local_get identity_buffer) (cast_i32_to_i64 (param_get ordinal))) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append_field
+            (local_get identity_buffer) (param_get parameter_name)) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append
+            (local_get display_buffer) (param_get parameter_name)) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if
+        (condition (eq_i32 (local_get ok) (const_i32 0)))
+        (then (do
+          (call_void type_buffer_dispose (local_get identity_buffer))
+          (call_void type_buffer_dispose (local_get display_buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (let reference i32
+        (call_i32 type_graph_intern
+          (param_get graph)
+          (call_i32 type_kind_generic_parameter)
+          (call_ptr type_buffer_take (local_get identity_buffer))
+          (call_ptr type_buffer_take (local_get display_buffer))
+          (const_null)
+          (const_i64 0)))
+      (if
+        (condition (eq_i32 (local_get reference) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 type_graph_bind_metadata
+            (param_get graph) (local_get reference)
+            (param_get owner) (param_get parameter_name) (param_get ordinal))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (local_get reference))))
+
+(fn type_graph_append_identity_children
+    (params (buffer ptr) (graph ptr) (children ptr) (child_count i64))
+    (returns i32)
+    (do
+      (if (condition (eq_i32 (call_i32 type_buffer_append_field
+          (param_get buffer) (const_string_ptr "children")) (const_i32 0)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (if (condition (eq_i32 (call_i32 type_buffer_append
+          (param_get buffer) (const_string_ptr "|")) (const_i32 0)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (if (condition (eq_i32 (call_i32 type_buffer_append_i64
+          (param_get buffer) (param_get child_count)) (const_i32 0)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (let index i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get index) (param_get child_count)))
+        (do
+          (let child_ref i32 (load_i32 (ptr_add
+            (param_get children) (mul_i64 (local_get index) (const_i64 4)))))
+          (let node ptr (call_ptr type_graph_node (param_get graph) (local_get child_ref)))
+          (if
+            (condition (eq_ptr (local_get node) (const_null)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (if
+            (condition (eq_i32
+              (call_i32 type_buffer_append_field
+                (param_get buffer)
+                (load_ptr (ptr_add (local_get node) (const_i64 16))))
+              (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set index (add_i64 (local_get index) (const_i64 1)))))
+      (return (const_i32 1))))
+
+(fn type_graph_append_display_children
+    (params
+      (buffer ptr) (graph ptr) (children ptr) (child_count i64)
+      (separator ptr))
+    (returns i32)
+    (do
+      (let index i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get index) (param_get child_count)))
+        (do
+          (if
+            (condition (gt_i64 (local_get index) (const_i64 0)))
+            (then (do
+              (if
+                (condition (eq_i32
+                  (call_i32 type_buffer_append
+                    (param_get buffer) (param_get separator))
+                  (const_i32 0)))
+                (then (do (return (const_i32 0))))
+                (else (do)))))
+            (else (do)))
+          (let child_ref i32 (load_i32 (ptr_add
+            (param_get children) (mul_i64 (local_get index) (const_i64 4)))))
+          (let node ptr (call_ptr type_graph_node (param_get graph) (local_get child_ref)))
+          (if
+            (condition (eq_ptr (local_get node) (const_null)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (if
+            (condition (eq_i32
+              (call_i32 type_buffer_append
+                (param_get buffer)
+                (load_ptr (ptr_add (local_get node) (const_i64 24))))
+              (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set index (add_i64 (local_get index) (const_i64 1)))))
+      (return (const_i32 1))))
+)

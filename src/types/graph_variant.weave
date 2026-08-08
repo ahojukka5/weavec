@@ -1,0 +1,132 @@
+; SPDX-License-Identifier: Apache-2.0
+; graph_variant.weave — variant payload types
+;
+; Part of the self-hosted structured semantic type graph. This is compiler
+; logic, not host runtime logic.
+
+(program
+  (name "graph_variant")
+  (version "0.1")
+
+(fn type_graph_variant
+    (params
+      (graph ptr) (owner i32) (variant_name ptr)
+      (payloads ptr) (payload_count i64))
+    (returns i32)
+    (do
+      (let owner_node ptr
+        (call_ptr type_graph_node (param_get graph) (param_get owner)))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get owner_node) (const_null))
+          (or_bool
+            (eq_ptr (param_get variant_name) (const_null))
+            (eq_i32 (call_i32 type_graph_children_valid
+              (param_get graph) (param_get payloads) (param_get payload_count))
+              (const_i32 0)))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let child_count i64 (add_i64 (param_get payload_count) (const_i64 1)))
+      (let children ptr
+        (call_ptr malloc (mul_i64 (local_get child_count) (const_i64 4))))
+      (if (condition (eq_ptr (local_get children) (const_null)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (store_i32 (local_get children) (param_get owner))
+      (let index i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get index) (param_get payload_count)))
+        (do
+          (store_i32
+            (ptr_add (local_get children)
+              (mul_i64 (add_i64 (local_get index) (const_i64 1)) (const_i64 4)))
+            (load_i32
+              (ptr_add (param_get payloads)
+                (mul_i64 (local_get index) (const_i64 4)))))
+          (set index (add_i64 (local_get index) (const_i64 1)))))
+      (let identity_buffer ptr (call_ptr type_buffer_new))
+      (let display_buffer ptr (call_ptr type_buffer_new))
+      (let ok i32 (const_i32 1))
+      (if (condition (or_bool
+          (eq_ptr (local_get identity_buffer) (const_null))
+          (eq_ptr (local_get display_buffer) (const_null))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append
+            (local_get identity_buffer) (const_string_ptr "variant")) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append_field
+            (local_get identity_buffer)
+            (load_ptr (ptr_add (local_get owner_node) (const_i64 16)))) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append_field
+            (local_get identity_buffer) (param_get variant_name)) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_graph_append_identity_children
+            (local_get identity_buffer) (param_get graph)
+            (param_get payloads) (param_get payload_count)) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append
+            (local_get display_buffer)
+            (load_ptr (ptr_add (local_get owner_node) (const_i64 24)))) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append
+            (local_get display_buffer) (const_string_ptr "::")) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append
+            (local_get display_buffer) (param_get variant_name)) (const_i32 0))))
+        (then (do (set ok (const_i32 0)))) (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get ok) (const_i32 0))
+          (gt_i64 (param_get payload_count) (const_i64 0))))
+        (then (do
+          (if (condition (eq_i32 (call_i32 type_buffer_append
+              (local_get display_buffer) (const_string_ptr "(")) (const_i32 0)))
+            (then (do (set ok (const_i32 0)))) (else (do)))
+          (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+              (eq_i32 (call_i32 type_graph_append_display_children
+                (local_get display_buffer) (param_get graph)
+                (param_get payloads) (param_get payload_count)
+                (const_string_ptr ", ")) (const_i32 0))))
+            (then (do (set ok (const_i32 0)))) (else (do)))
+          (if (condition (and_bool (ne_i32 (local_get ok) (const_i32 0))
+              (eq_i32 (call_i32 type_buffer_append
+                (local_get display_buffer) (const_string_ptr ")")) (const_i32 0))))
+            (then (do (set ok (const_i32 0)))) (else (do)))))
+        (else (do)))
+      (let reference i32 (const_i32 0))
+      (if
+        (condition (ne_i32 (local_get ok) (const_i32 0)))
+        (then (do
+          (set reference
+            (call_i32 type_graph_intern
+              (param_get graph)
+              (call_i32 type_kind_variant)
+              (call_ptr type_buffer_take (local_get identity_buffer))
+              (call_ptr type_buffer_take (local_get display_buffer))
+              (local_get children) (local_get child_count)))))
+        (else (do
+          (call_void type_buffer_dispose (local_get identity_buffer))
+          (call_void type_buffer_dispose (local_get display_buffer)))))
+      (call_void free (local_get children))
+      (if
+        (condition (eq_i32 (local_get reference) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 type_graph_bind_metadata
+            (param_get graph) (local_get reference)
+            (load_ptr (ptr_add (local_get owner_node) (const_i64 16)))
+            (param_get variant_name) (const_i32 0))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (local_get reference))))
+)

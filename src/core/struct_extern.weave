@@ -1,44 +1,49 @@
 ; SPDX-License-Identifier: Apache-2.0
-; struct_extern.weave — host storage for nominal surface struct facts
+; struct_extern.weave — raw host storage boundary for nominal struct facts
+;
+; These APIs expose only storage keys, copied names, fields, and module ownership.
+; The 1024 + slot keys are private to src/types/semantic_state.weave and are never
+; semantic type identities.
 
 (program
   (name "struct_extern")
   (version "0.1")
 
-  (extern weave_surface_struct_type_or_declare
+  (extern weave_surface_struct_type_or_declare_flat
     (params (source ptr) (start i64) (length i64))
     (returns i32))
-  (extern weave_surface_struct_define
+  (extern weave_surface_struct_define_flat
     (params (source ptr) (start i64) (length i64))
     (returns i32))
-  (extern weave_surface_struct_add_field
+  (extern weave_surface_struct_add_field_storage
     (params
-      (struct_type i32) (source ptr) (start i64) (length i64)
+      (flat_type i32) (source ptr) (start i64) (length i64)
       (field_type i32))
     (returns i32))
-  (extern weave_surface_struct_is_type
-    (params (type i32))
+  (extern weave_surface_struct_is_defined_storage
+    (params (flat_type i32))
     (returns i32))
-  (extern weave_surface_struct_is_defined
-    (params (type i32))
-    (returns i32))
-  (extern weave_surface_struct_name
-    (params (type i32))
+  (extern weave_surface_struct_name_flat
+    (params (flat_type i32))
     (returns ptr))
-  (extern weave_surface_struct_wir_name
-    (params (type i32))
+  (extern weave_surface_struct_wir_name_flat
+    (params (flat_type i32))
     (returns ptr))
-  (extern weave_surface_struct_field_count
-    (params (type i32))
+  (extern weave_surface_struct_field_count_storage
+    (params (flat_type i32))
     (returns i32))
-  (extern weave_surface_struct_field_type
-    (params (type i32) (field_index i32))
+  (extern weave_surface_struct_field_type_storage
+    (params (flat_type i32) (field_index i32))
     (returns i32))
-  (extern weave_surface_struct_field_name
-    (params (type i32) (field_index i32))
+  (extern weave_surface_struct_field_name_storage
+    (params (flat_type i32) (field_index i32))
     (returns ptr))
-  (extern weave_surface_struct_find_field
+  (extern weave_surface_struct_find_field_storage
     (params
-      (type i32) (source ptr) (start i64) (length i64))
+      (flat_type i32) (source ptr) (start i64) (length i64))
     (returns i32))
+  (extern weave_surface_struct_owner_flat
+    (params
+      (source ptr) (start i64) (length i64) (flat_type i32))
+    (returns ptr))
 )

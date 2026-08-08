@@ -1,0 +1,114 @@
+; SPDX-License-Identifier: Apache-2.0
+; semantic_policy.weave — type display, WIR lowering, and compatibility
+;
+; Language-level type meaning belongs to self-hosted Weave.  Host C supplies
+; only raw storage/module facts and one opaque mutable process-state pointer.
+
+(program
+  (name "semantic_policy")
+  (version "0.1")
+
+(fn weave_semantic_type_display
+    (params (type i32))
+    (returns ptr)
+    (do
+      (if
+        (condition (eq_i32 (param_get type) (const_i32 0)))
+        (then (do (return (const_string_ptr "unknown"))))
+        (else (do)))
+      (let sem_display_flat_type i32 (call_i32 semantic_flat_type (param_get type)))
+      (if
+        (condition (gt_i32 (local_get sem_display_flat_type) (const_i32 0)))
+        (then (do
+          (let sem_display_name ptr
+            (call_ptr weave_surface_struct_name_flat (local_get sem_display_flat_type)))
+          (if
+            (condition (ne_ptr (local_get sem_display_name) (const_null)))
+            (then (do (return (local_get sem_display_name))))
+            (else (do (return (const_string_ptr "unknown")))))))
+        (else (do)))
+      (let sem_display_graph ptr (call_ptr semantic_graph))
+      (if
+        (condition (eq_ptr (local_get sem_display_graph) (const_null)))
+        (then (do (return (const_string_ptr "unknown"))))
+        (else (do)))
+      (let sem_display_text ptr
+        (call_ptr type_graph_display (local_get sem_display_graph) (param_get type)))
+      (if
+        (condition (eq_ptr (local_get sem_display_text) (const_null)))
+        (then (do (return (const_string_ptr "unknown"))))
+        (else (do (return (local_get sem_display_text)))))))
+
+(fn weave_semantic_type_wir
+    (params (type i32))
+    (returns ptr)
+    (do
+      (if
+        (condition (gt_i32
+          (call_i32 semantic_flat_type (param_get type))
+          (const_i32 0)))
+        (then (do (return (const_string_ptr "ptr"))))
+        (else (do)))
+      (let sem_wir_graph ptr (call_ptr semantic_graph))
+      (if
+        (condition (eq_ptr (local_get sem_wir_graph) (const_null)))
+        (then (do (return (const_string_ptr "unknown"))))
+        (else (do)))
+      (let sem_wir_kind i32
+        (call_i32 type_graph_kind (local_get sem_wir_graph) (param_get type)))
+      (if
+        (condition (eq_i32 (local_get sem_wir_kind) (call_i32 type_kind_primitive)))
+        (then (do
+          (let sem_wir_name ptr
+            (call_ptr type_graph_name (local_get sem_wir_graph) (param_get type)))
+          (if
+            (condition (eq_ptr (local_get sem_wir_name) (const_null)))
+            (then (do (return (const_string_ptr "unknown"))))
+            (else (do (return (local_get sem_wir_name)))))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get sem_wir_kind) (call_i32 type_kind_pointer)))
+        (then (do (return (const_string_ptr "ptr"))))
+        (else (do)))
+      (return (const_string_ptr "unknown"))))
+
+(fn weave_semantic_types_compatible
+    (params (expected i32) (actual i32))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32 (param_get expected) (param_get actual)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (le_i32 (param_get expected) (const_i32 0))
+          (le_i32 (param_get actual) (const_i32 0))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sem_compat_graph ptr (call_ptr semantic_graph))
+      (if
+        (condition (eq_ptr (local_get sem_compat_graph) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32
+          (call_i32 type_graph_equal
+            (local_get sem_compat_graph) (param_get expected)
+            (local_get sem_compat_graph) (param_get actual))
+          (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let sem_compat_pointer i32
+        (call_i32 type_graph_primitive
+          (local_get sem_compat_graph) (const_string_ptr "ptr")))
+      (if
+        (condition (and_bool
+          (eq_i32 (param_get expected) (local_get sem_compat_pointer))
+          (gt_i32
+            (call_i32 semantic_flat_type (param_get actual))
+            (const_i32 0))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+)

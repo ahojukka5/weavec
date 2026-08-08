@@ -1,0 +1,96 @@
+; SPDX-License-Identifier: Apache-2.0
+; graph_metadata.weave — optional semantic metadata for interned type nodes
+;
+; Structural identity is interned first. Owner/type-name/ordinal metadata is
+; attached separately so bootstrap-facing graph storage stays small and clear.
+
+(program
+  (name "graph_metadata")
+  (version "0.1")
+
+(fn type_graph_bind_metadata
+    (params
+      (graph ptr) (reference i32)
+      (owner ptr) (node_name ptr) (ordinal i32))
+    (returns i32)
+    (do
+      (let node ptr
+        (call_ptr type_graph_node (param_get graph) (param_get reference)))
+      (if
+        (condition (eq_ptr (local_get node) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let current_owner ptr
+        (load_ptr (ptr_add (local_get node) (const_i64 32))))
+      (let current_name ptr
+        (load_ptr (ptr_add (local_get node) (const_i64 40))))
+      (if
+        (condition (and_bool
+          (ne_ptr (local_get current_owner) (const_null))
+          (or_bool
+            (eq_ptr (param_get owner) (const_null))
+            (eq_i32
+              (call_i32 type_cstr_equal
+                (local_get current_owner) (param_get owner))
+              (const_i32 0)))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_ptr (local_get current_name) (const_null))
+          (or_bool
+            (eq_ptr (param_get node_name) (const_null))
+            (eq_i32
+              (call_i32 type_cstr_equal
+                (local_get current_name) (param_get node_name))
+              (const_i32 0)))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let owner_copy ptr (const_null))
+      (if
+        (condition (and_bool
+          (eq_ptr (local_get current_owner) (const_null))
+          (ne_ptr (param_get owner) (const_null))))
+        (then (do
+          (set owner_copy (call_ptr type_cstr_copy (param_get owner)))
+          (if
+            (condition (eq_ptr (local_get owner_copy) (const_null)))
+            (then (do (return (const_i32 0))))
+            (else (do)))))
+        (else (do)))
+      (let name_copy ptr (const_null))
+      (if
+        (condition (and_bool
+          (eq_ptr (local_get current_name) (const_null))
+          (ne_ptr (param_get node_name) (const_null))))
+        (then (do
+          (set name_copy (call_ptr type_cstr_copy (param_get node_name)))
+          (if
+            (condition (eq_ptr (local_get name_copy) (const_null)))
+            (then (do
+              (if
+                (condition (ne_ptr (local_get owner_copy) (const_null)))
+                (then (do (call_void free (local_get owner_copy))))
+                (else (do)))
+              (return (const_i32 0))))
+            (else (do)))))
+        (else (do)))
+      (if
+        (condition (ne_ptr (local_get owner_copy) (const_null)))
+        (then (do
+          (store_ptr
+            (ptr_add (local_get node) (const_i64 32))
+            (local_get owner_copy))))
+        (else (do)))
+      (if
+        (condition (ne_ptr (local_get name_copy) (const_null)))
+        (then (do
+          (store_ptr
+            (ptr_add (local_get node) (const_i64 40))
+            (local_get name_copy))))
+        (else (do)))
+      (store_i32
+        (ptr_add (local_get node) (const_i64 48))
+        (param_get ordinal))
+      (return (const_i32 1))))
+)

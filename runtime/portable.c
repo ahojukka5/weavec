@@ -121,12 +121,23 @@ static char *weave_rt_mkdtemp(char *path_template) {
 #define WEAVEC_LLVM_PROVENANCE_ENV "WEAVEC_INTERNAL_LLVM_PROVENANCE"
 #endif
 
+#include "semantic_type_graph.c"
+
+// Keep the historical flat struct keys private to host storage. Production
+// semantic callers see the graph-backed facade included below instead.
 #define weave_surface_symbols_reset weave_surface_symbols_reset_storage
 #define weave_surface_symbol_begin weave_surface_symbol_begin_storage
 #define weave_surface_struct_type_or_declare \
     weave_surface_struct_type_or_declare_storage
 #define weave_surface_struct_define weave_surface_struct_define_storage
+#define weave_surface_struct_add_field weave_surface_struct_add_field_storage
+#define weave_surface_struct_is_type weave_surface_struct_is_type_storage
+#define weave_surface_struct_is_defined weave_surface_struct_is_defined_storage
 #define weave_surface_struct_name weave_surface_struct_name_storage
+#define weave_surface_struct_field_count weave_surface_struct_field_count_storage
+#define weave_surface_struct_field_type weave_surface_struct_field_type_storage
+#define weave_surface_struct_field_name weave_surface_struct_field_name_storage
+#define weave_surface_struct_find_field weave_surface_struct_find_field_storage
 #define weave_surface_module_export_status \
     weave_surface_module_export_status_storage
 #define weave_surface_module_import_status \
@@ -134,15 +145,41 @@ static char *weave_rt_mkdtemp(char *path_template) {
 #include "surface_symbols.c"
 #undef weave_surface_module_import_status
 #undef weave_surface_module_export_status
+#undef weave_surface_struct_find_field
+#undef weave_surface_struct_field_name
+#undef weave_surface_struct_field_type
+#undef weave_surface_struct_field_count
 #undef weave_surface_struct_name
+#undef weave_surface_struct_is_defined
+#undef weave_surface_struct_is_type
+#undef weave_surface_struct_add_field
 #undef weave_surface_struct_define
 #undef weave_surface_struct_type_or_declare
 #undef weave_surface_symbol_begin
 #undef weave_surface_symbols_reset
+
 #define weave_surface_symbols_reset weave_surface_symbols_reset_symbol_names
 #include "module_wir_names.c"
 #undef weave_surface_symbols_reset
+
+// module_struct_names.c still owns module/import lookup and deterministic helper
+// names, but its flat type values are now an implementation detail of the
+// semantic facade.
+#define weave_surface_symbols_reset weave_surface_symbols_reset_flat
+#define weave_surface_struct_type_or_declare weave_surface_struct_type_or_declare_flat
+#define weave_surface_struct_define weave_surface_struct_define_flat
+#define weave_surface_struct_name weave_surface_struct_name_flat
+#define weave_surface_struct_wir_name weave_surface_struct_wir_name_flat
+#define weave_surface_struct_is_defined weave_surface_struct_is_defined_storage
 #include "module_struct_names.c"
+#undef weave_surface_struct_is_defined
+#undef weave_surface_struct_wir_name
+#undef weave_surface_struct_name
+#undef weave_surface_struct_define
+#undef weave_surface_struct_type_or_declare
+#undef weave_surface_symbols_reset
+
+#include "semantic_surface_types.c"
 #include "json_writer.c"
 #include "document_publish.c"
 #define weave_rt_semantic_index_main \

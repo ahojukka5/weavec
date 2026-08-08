@@ -9,14 +9,16 @@
   (name "elaborate")
   (version "0.1")
 
+  ; Zero remains the absence/unknown sentinel. Every resolved primitive is an
+  ; opaque reference interned in the compiler-owned semantic type graph.
   (fn surface_type_unknown (params) (returns i32) (do (return (const_i32 0))))
-  (fn surface_type_void    (params) (returns i32) (do (return (const_i32 1))))
-  (fn surface_type_i32     (params) (returns i32) (do (return (const_i32 2))))
-  (fn surface_type_i64     (params) (returns i32) (do (return (const_i32 3))))
-  (fn surface_type_f32     (params) (returns i32) (do (return (const_i32 4))))
-  (fn surface_type_f64     (params) (returns i32) (do (return (const_i32 5))))
-  (fn surface_type_bool    (params) (returns i32) (do (return (const_i32 6))))
-  (fn surface_type_ptr     (params) (returns i32) (do (return (const_i32 7))))
+  (fn surface_type_void    (params) (returns i32) (do (return (call_i32 weave_semantic_type_primitive (const_string_ptr "void")))))
+  (fn surface_type_i32     (params) (returns i32) (do (return (call_i32 weave_semantic_type_primitive (const_string_ptr "i32")))))
+  (fn surface_type_i64     (params) (returns i32) (do (return (call_i32 weave_semantic_type_primitive (const_string_ptr "i64")))))
+  (fn surface_type_f32     (params) (returns i32) (do (return (call_i32 weave_semantic_type_primitive (const_string_ptr "f32")))))
+  (fn surface_type_f64     (params) (returns i32) (do (return (call_i32 weave_semantic_type_primitive (const_string_ptr "f64")))))
+  (fn surface_type_bool    (params) (returns i32) (do (return (call_i32 weave_semantic_type_primitive (const_string_ptr "bool")))))
+  (fn surface_type_ptr     (params) (returns i32) (do (return (call_i32 weave_semantic_type_primitive (const_string_ptr "ptr")))))
 
   (fn surface_type_code
     (params (tree ptr) (source ptr) (type_node i64))
@@ -70,28 +72,8 @@
     (params (fd i32) (type i32))
     (returns void)
     (do
-      (if (condition (eq_i32 (param_get type) (call_i32 surface_type_void)))
-        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "void")) (return_void)))
-        (else (do)))
-      (if (condition (eq_i32 (param_get type) (call_i32 surface_type_i32)))
-        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "i32")) (return_void)))
-        (else (do)))
-      (if (condition (eq_i32 (param_get type) (call_i32 surface_type_i64)))
-        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "i64")) (return_void)))
-        (else (do)))
-      (if (condition (eq_i32 (param_get type) (call_i32 surface_type_f32)))
-        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "f32")) (return_void)))
-        (else (do)))
-      (if (condition (eq_i32 (param_get type) (call_i32 surface_type_f64)))
-        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "f64")) (return_void)))
-        (else (do)))
-      (if (condition (eq_i32 (param_get type) (call_i32 surface_type_bool)))
-        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "bool")) (return_void)))
-        (else (do)))
-      (if (condition (eq_i32 (param_get type) (call_i32 surface_type_ptr)))
-        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "ptr")) (return_void)))
-        (else (do)))
-      (call_void write_cstr (param_get fd) (const_string_ptr "unknown"))
+      (call_void write_cstr
+        (param_get fd) (call_ptr weave_semantic_type_display (param_get type)))
       (return_void)))
 
   (fn surface_error_prefix
