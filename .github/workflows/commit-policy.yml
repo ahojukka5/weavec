@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   validate:
-    name: validate commit messages
+    name: "lint: validate commit messages"
     runs-on: self-hosted
     steps:
       - name: Checkout trusted policy
