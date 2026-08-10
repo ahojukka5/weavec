@@ -30,12 +30,29 @@ require_tool() {
   command -v "$1" >/dev/null 2>&1 || fail "missing required tool: $1"
 }
 
+ensure_recursive_stack() {
+  local target_kib=32768
+  local current_kib
+  current_kib="$(ulimit -S -s)"
+  if [[ "$current_kib" == unlimited ]]; then
+    return 0
+  fi
+  if [[ "$current_kib" =~ ^[0-9]+$ ]] && (( current_kib < target_kib )); then
+    ulimit -S -s "$target_kib" || \
+      fail "cannot raise stack limit to ${target_kib} KiB for self-host compiler"
+  fi
+}
+
 [[ -x "$SEED" ]] || \
   fail "seed compiler not found at $SEED; run scripts/build.sh first"
 require_tool llvm-link
 require_tool llvm-as
 require_tool llvm-nm
 require_tool clang
+
+# Each self-host generation recursively traverses the full compiler program.
+# Match the established large-WIR stack allowance used by bootstrap builds.
+ensure_recursive_stack
 
 chmod -R u+rw "$BUILD_DIR" 2>/dev/null || true
 mkdir -p "$BUILD_DIR"

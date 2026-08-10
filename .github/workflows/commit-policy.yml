@@ -11,7 +11,7 @@ permissions:
 jobs:
   validate:
     name: validate commit messages
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout trusted policy
         uses: actions/checkout@v4
