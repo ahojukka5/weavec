@@ -1,0 +1,55 @@
+; SPDX-License-Identifier: Apache-2.0
+; Minimal command-line argument access for ordinary Weave programs.
+;
+; This module owns the native CLI entry wrapper as well as the user-facing
+; convention that argv[0] is the executable name and is not counted as a program
+; argument. Application source defines `program_main` and never sees raw pointers.
+
+(program
+  (name "std.process")
+  (version "0.1")
+
+  (extern weave_rt_process_capture
+    (params (argc i32) (argv ptr))
+    (returns void))
+  (extern weave_rt_process_raw_argc
+    (params)
+    (returns i32))
+  (extern weave_rt_process_raw_arg
+    (params (index i32))
+    (returns ptr))
+
+  (entry main
+    (params (argc i32) (argv ptr))
+    (returns i32)
+    (do
+      (call_void weave_rt_process_capture
+        (param_get argc)
+        (param_get argv))
+      (return (call_i32 program_main))))
+
+  (fn args_count
+    (params)
+    (returns i32)
+    (do
+      (let raw_count i32 (call_i32 weave_rt_process_raw_argc))
+      (if
+        (condition (le_i32 (local_get raw_count) (const_i32 1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (sub_i32 (local_get raw_count) (const_i32 1)))))
+
+  (fn arg
+    (params (index i32))
+    (returns ptr)
+    (do
+      (if
+        (condition (lt_i32 (param_get index) (const_i32 0)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (if
+        (condition (ge_i32 (param_get index) (call_i32 args_count)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (return (call_ptr weave_rt_process_raw_arg
+        (add_i32 (param_get index) (const_i32 1)))))))
