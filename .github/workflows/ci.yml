@@ -18,21 +18,17 @@ concurrency:
 jobs:
   test:
     name: build & test (${{ matrix.name }})
-    runs-on: ${{ matrix.os }}
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: self-hosted
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: linux-glibc-sdks
-            os: ubuntu-latest
             libc: glibc
           - name: linux-musl-sdks
-            os: ubuntu-latest
             libc: musl
-          - name: macos-sdk
-            os: macos-latest
-            libc: glibc
 
     env:
       WEAVEC1_VERSION: v0.3.2
@@ -44,39 +40,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install LLVM toolchain (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            binutils \
-            clang \
-            curl \
-            file \
-            llvm \
-            musl-tools \
-            python3
-
-      - name: Verify toolchain (Linux)
-        if: runner.os == 'Linux'
+      - name: Verify toolchain
         run: |
           clang --version
           llvm-as --version
           llvm-link --version
-          python3 --version
-
-      - name: Install LLVM toolchain (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install llvm
-          echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
-
-      - name: Verify toolchain (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          clang --version
-          llvm-as --version
-          llvm-link --version
+          musl-gcc --version
           python3 --version
 
       - name: Build compiler and run full ladder
@@ -102,7 +71,8 @@ jobs:
   deep-selfhost:
     name: deep self-host ladder
     needs: test
-    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: self-hosted
     timeout-minutes: 60
     env:
       WEAVEC1_VERSION: v0.3.2
@@ -113,18 +83,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install self-host toolchain
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            binutils \
-            clang \
-            curl \
-            file \
-            llvm \
-            musl-tools \
-            python3
 
       - name: Select self-host scratch storage
         shell: bash
@@ -162,6 +120,7 @@ jobs:
           clang --version
           llvm-as --version
           llvm-link --version
+          musl-gcc --version
           python3 --version
 
       - name: Build seed compiler
