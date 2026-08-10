@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   build-linux:
-    name: Linux x86-64 (${{ matrix.libc }})
+    name: "build: linux x86-64 (${{ matrix.libc }})"
     runs-on: self-hosted
     timeout-minutes: 35
     strategy:
@@ -89,7 +89,7 @@ jobs:
           retention-days: 7
 
   verify-archives:
-    name: Verify extracted release archives
+    name: "test: verify extracted release archives"
     needs: build-linux
     runs-on: self-hosted
     timeout-minutes: 30
@@ -265,7 +265,7 @@ jobs:
           retention-days: 14
 
   publish-release:
-    name: Publish GitHub Release
+    name: "release: publish GitHub release"
     if: >-
       startsWith(github.ref, 'refs/tags/v') ||
       (github.event_name == 'push' && github.ref == 'refs/heads/master')
