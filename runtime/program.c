@@ -5,6 +5,8 @@
 
 #include <unistd.h>
 
+#include "process_args.inc"
+
 void weave_rt_contract_fail(const char *msg) {
     const char nl = '\n';
     const char *p = msg;
