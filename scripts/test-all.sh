@@ -129,6 +129,21 @@ bash "$ROOT/test/surface-elaboration/test.sh"
 log 'floating-point arithmetic'
 bash "$ROOT/test/float-arithmetic/test.sh"
 
+log 'process arguments'
+bash "$ROOT/test/process-arguments/test.sh"
+
+log 'floating-point text parsing'
+bash "$ROOT/test/parse-f64/test.sh"
+
+log 'floating-point square root'
+bash "$ROOT/test/sqrt-f64/test.sh"
+
+log 'standard error output'
+bash "$ROOT/test/io-stderr/test.sh"
+
+log 'Pythagorean command-line program'
+bash "$ROOT/test/pythagoras/test.sh"
+
 log 'contract result diagnostics'
 bash "$ROOT/test/contract-result-requires/test.sh"
 
