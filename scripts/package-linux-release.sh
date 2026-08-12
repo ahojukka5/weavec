@@ -604,6 +604,35 @@ cmp "$EXTRACTED_GEOMETRY_EXPECTED" "$EXTRACTED_GEOMETRY_OUT" || {
   printf 'extracted vector geometry stdout mismatch\n' >&2
   exit 1
 }
+
+EXTRACTED_MATRIX_BIN="$EXTRACTED_SMOKE/matrix-vector"
+EXTRACTED_MATRIX_OUT="$EXTRACTED_SMOKE/matrix-vector.stdout"
+EXTRACTED_MATRIX_ERR="$EXTRACTED_SMOKE/matrix-vector.stderr"
+EXTRACTED_MATRIX_EXPECTED="$EXTRACTED_SMOKE/matrix-vector.expected"
+printf 'result = [14.0, 32.0, 50.0]\n' > "$EXTRACTED_MATRIX_EXPECTED"
+"$EXTRACTED_PACKAGE/bin/weavec" build \
+  "$EXTRACTED_PACKAGE/stdlib/process.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/parse.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/io.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/vector.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/matrix.weave" \
+  "$EXTRACTED_PACKAGE/examples/matrix-vector/main.weave" \
+  -o "$EXTRACTED_MATRIX_BIN"
+set +e
+LC_ALL=C "$EXTRACTED_MATRIX_BIN" \
+  >"$EXTRACTED_MATRIX_OUT" 2>"$EXTRACTED_MATRIX_ERR"
+extracted_matrix_status="$?"
+set -e
+if [[ "$extracted_matrix_status" -ne 0 || -s "$EXTRACTED_MATRIX_ERR" ]]; then
+  printf 'extracted matrix-vector failed (status=%s)\n' \
+    "$extracted_matrix_status" >&2
+  cat "$EXTRACTED_MATRIX_ERR" >&2
+  exit 1
+fi
+cmp "$EXTRACTED_MATRIX_EXPECTED" "$EXTRACTED_MATRIX_OUT" || {
+  printf 'extracted matrix-vector stdout mismatch\n' >&2
+  exit 1
+}
 rm -rf "$EXTRACTED_SMOKE"
 
 printf '%s\n' "$ARCHIVE"

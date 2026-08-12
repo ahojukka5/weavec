@@ -10,6 +10,9 @@ surface-language contract stabilises.
 
 ### Added
 
+- A fixed `Mat3` standard module whose matrix-vector product reuses the existing
+  dot product, plus `write_f64_trimmed`, demonstrated by the matrix-vector
+  example.
 - Deterministic `acos_f64`, `radians_to_degrees`, and `f64_abs`, demonstrated by
   the vector-geometry example that reports vector lengths and their angle.
 - A nominal `Vec3` standard module with a three-dimensional dot product,

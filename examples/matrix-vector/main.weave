@@ -1,0 +1,96 @@
+; SPDX-License-Identifier: Apache-2.0
+
+(program
+  (name "matrix-vector")
+  (version "0.1")
+
+  ; Write a vector as "[x, y, z]" through the existing trimmed field writer.
+  (fn write_vector
+    (params (value Vec3))
+    (returns void)
+    (do
+      (call write_stdout "[")
+      (call write_f64_trimmed (field-get value x))
+      (call write_stdout ", ")
+      (call write_f64_trimmed (field-get value y))
+      (call write_stdout ", ")
+      (call write_f64_trimmed (field-get value z))
+      (call write_stdout "]")
+      (return_void)))
+
+  ; The documented demonstration matrix and vector used when no arguments are
+  ; supplied.
+  (fn demonstration_matrix
+    (params)
+    (returns Mat3)
+    (do
+      (return
+        (new Mat3
+          (m00 1.0) (m01 2.0) (m02 3.0)
+          (m10 4.0) (m11 5.0) (m12 6.0)
+          (m20 7.0) (m21 8.0) (m22 9.0)))))
+
+  (fn demonstration_vector
+    (params)
+    (returns Vec3)
+    (do
+      (return (new Vec3 (x 1.0) (y 2.0) (z 3.0)))))
+
+  ; std.process owns the native entry wrapper and calls this high-level function.
+  (fn program_main
+    (params)
+    (returns i32)
+    (do
+      (let supplied i32 (call args_count))
+      (if
+        (condition (op and
+          (op not-equal supplied 0)
+          (op not-equal supplied 12)))
+        (then (do
+          (call write_stderr
+            "usage: matrix-vector [m00..m22 vx vy vz]\n")
+          (return 2)))
+        (else (do)))
+      (let index i32 0)
+      (while
+        (condition (op less-than index supplied))
+        (do
+          (if
+            (condition (op not (call parse_f64_valid (call arg index))))
+            (then (do
+              (call write_stderr "error: components must be numbers\n")
+              (return 2)))
+            (else (do)))
+          (set index (op add index 1))))
+      (let matrix Mat3 (call demonstration_matrix))
+      (let vector Vec3 (call demonstration_vector))
+      (if
+        (condition (op equal supplied 12))
+        (then (do
+          (call mat3_release matrix)
+          (call vec3_release vector)
+          (set matrix
+            (new Mat3
+              (m00 (call parse_f64 (call arg 0)))
+              (m01 (call parse_f64 (call arg 1)))
+              (m02 (call parse_f64 (call arg 2)))
+              (m10 (call parse_f64 (call arg 3)))
+              (m11 (call parse_f64 (call arg 4)))
+              (m12 (call parse_f64 (call arg 5)))
+              (m20 (call parse_f64 (call arg 6)))
+              (m21 (call parse_f64 (call arg 7)))
+              (m22 (call parse_f64 (call arg 8)))))
+          (set vector
+            (new Vec3
+              (x (call parse_f64 (call arg 9)))
+              (y (call parse_f64 (call arg 10)))
+              (z (call parse_f64 (call arg 11)))))))
+        (else (do)))
+      (let result Vec3 (call mat3_apply matrix vector))
+      (call write_stdout "result = ")
+      (call write_vector result)
+      (call write_stdout "\n")
+      (call vec3_release result)
+      (call vec3_release vector)
+      (call mat3_release matrix)
+      (return 0))))
