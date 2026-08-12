@@ -1,0 +1,44 @@
+; SPDX-License-Identifier: Apache-2.0
+; A fixed three-component floating-point vector.
+;
+; Vec3 is a nominal struct type, so two vectors are distinct values rather than
+; interchangeable pointers, and application source never sees the allocation or
+; field layout. This module deliberately describes exactly three components; it
+; is not the beginning of a generic collection or linear-algebra hierarchy.
+
+(program
+  (name "std.vector")
+  (version "0.1")
+
+  (extern malloc
+    (params (size i64))
+    (returns ptr))
+  (extern free
+    (params (value ptr))
+    (returns void))
+
+  (struct Vec3
+    (field x f64)
+    (field y f64)
+    (field z f64))
+
+  ; Sum of componentwise products.
+  (fn vec3_dot
+    (params (a Vec3) (b Vec3))
+    (returns f64)
+    (do
+      (return
+        (op add
+          (op add
+            (op mul (field-get a x) (field-get b x))
+            (op mul (field-get a y) (field-get b y)))
+          (op mul (field-get a z) (field-get b z))))))
+
+  ; Release a vector. Ownership is explicit because Weave has no automatic
+  ; lifetime management yet; see the ownership epic.
+  (fn vec3_release
+    (params (value Vec3))
+    (returns void)
+    (do
+      (call free value)
+      (return_void))))
