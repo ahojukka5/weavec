@@ -162,42 +162,106 @@
         (local_get width))
       (return_void)))
 
+  ; Absolute value. Sign handling stays separate from digit selection so both
+  ; f64 writers below decide the sign once and share the magnitude arithmetic.
+  (fn f64_magnitude
+    (params (value f64))
+    (returns f64)
+    (do
+      (if
+        (condition (lt_f64 (param_get value) (const_f64 0.0)))
+        (then (do
+          (return (sub_f64 (const_f64 0.0) (param_get value)))))
+        (else (do)))
+      (return (param_get value))))
+
+  ; Round the fractional part of a non-negative magnitude to six places. The
+  ; result is 0..1000000 inclusive; the upper bound means the rounding carried
+  ; into the whole part, which the two accessors below resolve consistently.
+  (fn f64_scaled_fraction6
+    (params (magnitude f64))
+    (returns i32)
+    (do
+      (let whole i32 (cast_f64_to_i32 (param_get magnitude)))
+      (let fraction f64
+        (sub_f64
+          (param_get magnitude)
+          (cast_i32_to_f64 (local_get whole))))
+      (return
+        (cast_f64_to_i32
+          (add_f64
+            (mul_f64 (local_get fraction) (const_f64 1000000.0))
+            (const_f64 0.5))))))
+
+  ; Whole part of a non-negative magnitude after six-place rounding carries.
+  (fn f64_fixed6_whole
+    (params (magnitude f64))
+    (returns i32)
+    (do
+      (let whole i32 (cast_f64_to_i32 (param_get magnitude)))
+      (if
+        (condition (ge_i32
+          (call_i32 f64_scaled_fraction6 (param_get magnitude))
+          (const_i32 1000000)))
+        (then (do
+          (set whole (add_i32 (local_get whole) (const_i32 1)))))
+        (else (do)))
+      (return (local_get whole))))
+
+  ; Six-place fractional digits of a non-negative magnitude, 0..999999.
+  (fn f64_fixed6_fraction
+    (params (magnitude f64))
+    (returns i32)
+    (do
+      (let scaled i32
+        (call_i32 f64_scaled_fraction6 (param_get magnitude)))
+      (if
+        (condition (ge_i32 (local_get scaled) (const_i32 1000000)))
+        (then (do (set scaled (const_i32 0))))
+        (else (do)))
+      (return (local_get scaled))))
+
+  ; Write a minus sign when the value is negative. Negative zero compares equal
+  ; to zero, so it prints without a sign.
+  (fn write_f64_sign
+    (params (value f64))
+    (returns void)
+    (do
+      (if
+        (condition (lt_f64 (param_get value) (const_f64 0.0)))
+        (then (do
+          (call_void write_stdout_bytes (const_string_ptr "-") (const_i64 1))))
+        (else (do)))
+      (return_void)))
+
+  ; Emit one f64 with exactly six digits after the decimal point. This is a
+  ; composable field writer: it emits no label and no trailing newline.
+  (fn write_f64_fixed6
+    (params (value f64))
+    (returns void)
+    (do
+      (let magnitude f64 (call_f64 f64_magnitude (param_get value)))
+      (call_void write_f64_sign (param_get value))
+      (call_void write_u32_decimal
+        (call_i32 f64_fixed6_whole (local_get magnitude)))
+      (call_void write_stdout_bytes (const_string_ptr ".") (const_i64 1))
+      (call_void write_fixed_u32
+        (call_i32 f64_fixed6_fraction (local_get magnitude))
+        (const_i32 6))
+      (return_void)))
+
+  ; Write a labelled f64 line with trailing fractional zeros removed.
   (fn print_f64
     (params (label ptr) (value f64))
     (returns void)
     (do
       (call_void write_stdout (param_get label))
-      (let magnitude f64 (param_get value))
-      (let negative i32 (const_i32 0))
-      (if
-        (condition (lt_f64 (local_get magnitude) (const_f64 0.0)))
-        (then (do
-          (set negative (const_i32 1))
-          (set magnitude
-            (sub_f64 (const_f64 0.0) (local_get magnitude)))))
-        (else (do)))
-      (let whole i32 (cast_f64_to_i32 (local_get magnitude)))
-      (let fraction f64
-        (sub_f64
-          (local_get magnitude)
-          (cast_i32_to_f64 (local_get whole))))
+      (let magnitude f64 (call_f64 f64_magnitude (param_get value)))
       (let scaled i32
-        (cast_f64_to_i32
-          (add_f64
-            (mul_f64 (local_get fraction) (const_f64 1000000.0))
-            (const_f64 0.5))))
-      (if
-        (condition (ge_i32 (local_get scaled) (const_i32 1000000)))
-        (then (do
-          (set whole (add_i32 (local_get whole) (const_i32 1)))
-          (set scaled (const_i32 0))))
-        (else (do)))
-      (if
-        (condition (ne_i32 (local_get negative) (const_i32 0)))
-        (then (do
-          (call_void write_stdout_bytes (const_string_ptr "-") (const_i64 1))))
-        (else (do)))
-      (call_void write_u32_decimal (local_get whole))
+        (call_i32 f64_fixed6_fraction (local_get magnitude)))
+      (call_void write_f64_sign (param_get value))
+      (call_void write_u32_decimal
+        (call_i32 f64_fixed6_whole (local_get magnitude)))
       (call_void write_stdout_bytes (const_string_ptr ".") (const_i64 1))
       (if
         (condition (eq_i32 (local_get scaled) (const_i32 0)))

@@ -141,6 +141,9 @@ bash "$ROOT/test/sqrt-f64/test.sh"
 log 'trigonometric math'
 bash "$ROOT/test/trigonometry-math/test.sh"
 
+log 'fixed-six floating output'
+bash "$ROOT/test/fixed-f64-output/test.sh"
+
 log 'standard error output'
 bash "$ROOT/test/io-stderr/test.sh"
 
