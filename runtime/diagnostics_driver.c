@@ -523,6 +523,47 @@ static int weave_diag_option_takes_value(const char *arg) {
            strcmp(arg, "--tune-cpu") == 0 || strcmp(arg, "--mtune") == 0;
 }
 
+// Collect the positional source arguments of a build invocation. Options and
+// their values are skipped so the caller sees only compilable inputs.
+static int weave_diag_collect_sources(
+    char **filtered,
+    int filtered_argc,
+    char **sources) {
+    int source_count = 0;
+    for (int i = 2; i < filtered_argc; ++i) {
+        if (strcmp(filtered[i], "--keep-temporaries") == 0) {
+            continue;
+        }
+        if (filtered[i][0] == '-') {
+            if (weave_diag_option_takes_value(filtered[i]) && i + 1 < filtered_argc) {
+                ++i;
+            }
+            continue;
+        }
+        sources[source_count++] = filtered[i];
+    }
+    return source_count;
+}
+
+// Write one preflight diagnostic to stderr, resolving its span to a line and
+// column when the source is still readable.
+static void weave_diag_report_record(
+    const char *source,
+    const weave_diag_record *record) {
+    size_t length = 0;
+    unsigned char *data = weave_diag_read_file(source, &length);
+    size_t line = 0, column = 0;
+    if (data != NULL && record->has_span) {
+        weave_diag_position(data, length, record->start_byte, &line, &column);
+        fprintf(
+            stderr, "weavec: error: %s:%zu:%zu: %s\n",
+            source, line, column, record->message);
+    } else {
+        fprintf(stderr, "weavec: error: %s: %s\n", source, record->message);
+    }
+    free(data);
+}
+
 int weave_rt_build_main(int argc, char **argv) {
     const char *diagnostics_path = NULL;
     const char *manifest_path = NULL;
@@ -590,6 +631,22 @@ int weave_rt_build_main(int argc, char **argv) {
     filtered[filtered_argc] = NULL;
 
     if (diagnostics_path == NULL) {
+        // Human-readable parse diagnostics are baseline build behavior. Without
+        // this preflight the legacy path reports a malformed source only as a
+        // non-zero exit status with empty stderr.
+        int source_count =
+            weave_diag_collect_sources(filtered, filtered_argc, sources);
+        weave_diag_record record = {0};
+        for (int i = 0; i < source_count; ++i) {
+            if (weave_diag_preflight_source(sources[i], &record)) {
+                weave_diag_report_record(sources[i], &record);
+                weave_diag_record_clear(&record);
+                free(filtered);
+                free(sources);
+                // Stable public phase exits stay tied to --diagnostics-json.
+                return 1;
+            }
+        }
         int result = weave_rt_build_main_legacy(filtered_argc, filtered);
         free(filtered);
         free(sources);
@@ -625,37 +682,13 @@ int weave_rt_build_main(int argc, char **argv) {
         return 2;
     }
 
-    int source_count = 0;
-    for (int i = 2; i < filtered_argc; ++i) {
-        if (strcmp(filtered[i], "--keep-temporaries") == 0) {
-            continue;
-        }
-        if (filtered[i][0] == '-') {
-            if (weave_diag_option_takes_value(filtered[i]) && i + 1 < filtered_argc) {
-                ++i;
-            }
-            continue;
-        }
-        sources[source_count++] = filtered[i];
-    }
+    int source_count =
+        weave_diag_collect_sources(filtered, filtered_argc, sources);
 
     weave_diag_record record = {0};
     for (int i = 0; i < source_count; ++i) {
         if (weave_diag_preflight_source(sources[i], &record)) {
-            size_t length = 0;
-            unsigned char *data = weave_diag_read_file(sources[i], &length);
-            size_t line = 0, column = 0;
-            if (data != NULL && record.has_span) {
-                weave_diag_position(data, length, record.start_byte, &line, &column);
-            }
-            if (record.has_span && data != NULL) {
-                fprintf(
-                    stderr, "weavec: error: %s:%zu:%zu: %s\n",
-                    sources[i], line, column, record.message);
-            } else {
-                fprintf(stderr, "weavec: error: %s: %s\n", sources[i], record.message);
-            }
-            free(data);
+            weave_diag_report_record(sources[i], &record);
             int exit_code = strcmp(record.phase, "driver") == 0
                 ? WEAVEC_EXIT_DRIVER : WEAVEC_EXIT_FRONTEND;
             weave_diag_write_result(

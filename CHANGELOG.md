@@ -113,6 +113,9 @@ surface-language contract stabilises.
 
 ### Fixed
 
+- Reported malformed sources on stderr from an ordinary `weavec build`, which
+  previously failed with a non-zero exit status and no message unless
+  `--diagnostics-json` was also requested.
 - Replaced fallback-packed struct fields with validated natural alignment and
   explicit bool, integer, floating-point, pointer, and Qubit memory operations.
 - Rejected malformed, duplicate, and unsupported struct fields before publishing

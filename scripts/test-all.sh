@@ -165,6 +165,9 @@ bash "$ROOT/test/module-structs/test.sh"
 log 'module symbol names'
 bash "$ROOT/test/module-symbols/test.sh"
 
+log 'parse diagnostics'
+bash "$ROOT/test/parse-diagnostics/test.sh"
+
 log 'diagnostics'
 bash "$ROOT/test/diagnostics/test-build-diagnostics.sh"
 
