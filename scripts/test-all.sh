@@ -162,6 +162,9 @@ bash "$ROOT/test/vector-geometry/test.sh"
 log '3x3 matrix-vector multiplication'
 bash "$ROOT/test/matrix-vector/test.sh"
 
+log 'descriptive statistics'
+bash "$ROOT/test/statistics/test.sh"
+
 log 'contract result diagnostics'
 bash "$ROOT/test/contract-result-requires/test.sh"
 
