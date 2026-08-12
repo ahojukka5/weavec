@@ -10,6 +10,8 @@ surface-language contract stabilises.
 
 ### Added
 
+- A nominal `Vec3` standard module with a three-dimensional dot product,
+  demonstrated by the command-line vector-dot example.
 - Reusable `f64` sine, cosine, tangent, degree conversion, and fixed-six output
   demonstrated by the deterministic trigonometric function table.
 - Minimal command-line argument access, deterministic Weave-owned `f64` parsing,
