@@ -156,6 +156,9 @@ bash "$ROOT/test/pythagoras/test.sh"
 log 'three-dimensional vector dot product'
 bash "$ROOT/test/vector-dot/test.sh"
 
+log 'vector lengths and angle'
+bash "$ROOT/test/vector-geometry/test.sh"
+
 log 'contract result diagnostics'
 bash "$ROOT/test/contract-result-requires/test.sh"
 

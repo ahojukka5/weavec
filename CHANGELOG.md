@@ -10,6 +10,8 @@ surface-language contract stabilises.
 
 ### Added
 
+- Deterministic `acos_f64`, `radians_to_degrees`, and `f64_abs`, demonstrated by
+  the vector-geometry example that reports vector lengths and their angle.
 - A nominal `Vec3` standard module with a three-dimensional dot product,
   demonstrated by the command-line vector-dot example.
 - Reusable `f64` sine, cosine, tangent, degree conversion, and fixed-six output
@@ -66,6 +68,10 @@ surface-language contract stabilises.
 
 ### Changed
 
+- Evaluated the sine and cosine series only on a quarter turn after range
+  reduction and extended them to ten terms, replacing a truncation error that
+  reached `1e-4` near half a turn with one near binary64 precision across the
+  whole interval.
 - Moved the production S-expression token store, tree, lexer, and parser from
   hand-written WIR into the ordinary self-hosted surface-Weave compiler source
   set; seed and deep-self-host links no longer inherit lower-stage parser

@@ -571,6 +571,39 @@ cmp "$EXTRACTED_DOT_EXPECTED" "$EXTRACTED_DOT_OUT" || {
   printf 'extracted vector dot product stdout mismatch\n' >&2
   exit 1
 }
+
+EXTRACTED_GEOMETRY_BIN="$EXTRACTED_SMOKE/vector-geometry"
+EXTRACTED_GEOMETRY_OUT="$EXTRACTED_SMOKE/vector-geometry.stdout"
+EXTRACTED_GEOMETRY_ERR="$EXTRACTED_SMOKE/vector-geometry.stderr"
+EXTRACTED_GEOMETRY_EXPECTED="$EXTRACTED_SMOKE/vector-geometry.expected"
+cat > "$EXTRACTED_GEOMETRY_EXPECTED" <<'EOF_GEOMETRY'
+length-a = 1.0
+length-b = 1.0
+angle-degrees = 90.0
+EOF_GEOMETRY
+"$EXTRACTED_PACKAGE/bin/weavec" build \
+  "$EXTRACTED_PACKAGE/stdlib/process.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/parse.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/math.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/io.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/vector.weave" \
+  "$EXTRACTED_PACKAGE/examples/vector-geometry/main.weave" \
+  -o "$EXTRACTED_GEOMETRY_BIN"
+set +e
+LC_ALL=C "$EXTRACTED_GEOMETRY_BIN" 1 0 0 0 1 0 \
+  >"$EXTRACTED_GEOMETRY_OUT" 2>"$EXTRACTED_GEOMETRY_ERR"
+extracted_geometry_status="$?"
+set -e
+if [[ "$extracted_geometry_status" -ne 0 || -s "$EXTRACTED_GEOMETRY_ERR" ]]; then
+  printf 'extracted vector geometry failed (status=%s)\n' \
+    "$extracted_geometry_status" >&2
+  cat "$EXTRACTED_GEOMETRY_ERR" >&2
+  exit 1
+fi
+cmp "$EXTRACTED_GEOMETRY_EXPECTED" "$EXTRACTED_GEOMETRY_OUT" || {
+  printf 'extracted vector geometry stdout mismatch\n' >&2
+  exit 1
+}
 rm -rf "$EXTRACTED_SMOKE"
 
 printf '%s\n' "$ARCHIVE"
