@@ -138,6 +138,9 @@ bash "$ROOT/test/parse-f64/test.sh"
 log 'floating-point square root'
 bash "$ROOT/test/sqrt-f64/test.sh"
 
+log 'trigonometric math'
+bash "$ROOT/test/trigonometry-math/test.sh"
+
 log 'standard error output'
 bash "$ROOT/test/io-stderr/test.sh"
 

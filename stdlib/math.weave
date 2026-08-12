@@ -1,13 +1,17 @@
 ; SPDX-License-Identifier: Apache-2.0
 ; Small reusable numerical helpers implemented in Weave.
 ;
-; Square root uses a fixed-count Newton iteration. Keeping it here avoids a
-; process-wide libm dependency and keeps the numerical algorithm in the language
-; implementation rather than the C host boundary.
+; Square root uses a fixed-count Newton iteration. Trigonometric functions use
+; deterministic range reduction and fixed-count Taylor recurrences. Keeping the
+; algorithms here avoids a process-wide libm dependency and keeps numerical
+; semantics in Weave rather than the C host boundary.
 
 (program
   (name "std.math")
   (version "0.1")
+
+  ; IEEE-754 binary64 has enough precision to retain this spelling faithfully.
+  (const PI_F64 f64 3.141592653589793)
 
   (fn sqrt_f64
     (params (value f64))
@@ -33,4 +37,109 @@
                 (local_get guess)
                 (div_f64 (param_get value) (local_get guess)))))
           (set iteration (add_i32 (local_get iteration) (const_i32 1)))))
-      (return (local_get guess)))))
+      (return (local_get guess))))
+
+  ; Convert degrees to radians with the shared PI_F64 constant.
+  (fn degrees_to_radians
+    (params (degrees f64))
+    (returns f64)
+    (do
+      (return
+        (mul_f64
+          (param_get degrees)
+          (div_f64 (call_f64 PI_F64) (const_f64 180.0))))))
+
+  ; Reduce an angle to [-pi, pi]. Two ordinary top-level loops keep control flow
+  ; within the same simple surface model used by the rest of the stdlib.
+  (fn normalize_radians
+    (params (value f64))
+    (returns f64)
+    (do
+      (let angle f64 (param_get value))
+      (let pi f64 (call_f64 PI_F64))
+      (let two_pi f64 (mul_f64 (const_f64 2.0) (local_get pi)))
+      (while
+        (condition (gt_f64 (local_get angle) (local_get pi)))
+        (do
+          (set angle (sub_f64 (local_get angle) (local_get two_pi)))))
+      (while
+        (condition (lt_f64 (local_get angle)
+          (sub_f64 (const_f64 0.0) (local_get pi))))
+        (do
+          (set angle (add_f64 (local_get angle) (local_get two_pi)))))
+      (return (local_get angle))))
+
+  ; Seven Taylor terms after range reduction are sufficient for stable six-place
+  ; output across the small-program examples while remaining deterministic.
+  (fn sin_f64
+    (params (value f64))
+    (returns f64)
+    (do
+      (let x f64 (call_f64 normalize_radians (param_get value)))
+      (let x2 f64 (mul_f64 (local_get x) (local_get x)))
+      (let term f64 (local_get x))
+      (let sum f64 (local_get x))
+      (let n i32 (const_i32 1))
+      (let left i32 (const_i32 0))
+      (let right i32 (const_i32 0))
+      (let denominator f64 (const_f64 1.0))
+      (while
+        (condition (lt_i32 (local_get n) (const_i32 7)))
+        (do
+          (set left (mul_i32 (const_i32 2) (local_get n)))
+          (set right (add_i32 (local_get left) (const_i32 1)))
+          (set denominator
+            (mul_f64
+              (cast_i32_to_f64 (local_get left))
+              (cast_i32_to_f64 (local_get right))))
+          (set term
+            (div_f64
+              (mul_f64
+                (sub_f64 (const_f64 0.0) (local_get term))
+                (local_get x2))
+              (local_get denominator)))
+          (set sum (add_f64 (local_get sum) (local_get term)))
+          (set n (add_i32 (local_get n) (const_i32 1)))))
+      (return (local_get sum))))
+
+  (fn cos_f64
+    (params (value f64))
+    (returns f64)
+    (do
+      (let x f64 (call_f64 normalize_radians (param_get value)))
+      (let x2 f64 (mul_f64 (local_get x) (local_get x)))
+      (let term f64 (const_f64 1.0))
+      (let sum f64 (const_f64 1.0))
+      (let n i32 (const_i32 1))
+      (let left i32 (const_i32 0))
+      (let right i32 (const_i32 0))
+      (let denominator f64 (const_f64 1.0))
+      (while
+        (condition (lt_i32 (local_get n) (const_i32 7)))
+        (do
+          (set right (mul_i32 (const_i32 2) (local_get n)))
+          (set left (sub_i32 (local_get right) (const_i32 1)))
+          (set denominator
+            (mul_f64
+              (cast_i32_to_f64 (local_get left))
+              (cast_i32_to_f64 (local_get right))))
+          (set term
+            (div_f64
+              (mul_f64
+                (sub_f64 (const_f64 0.0) (local_get term))
+                (local_get x2))
+              (local_get denominator)))
+          (set sum (add_f64 (local_get sum) (local_get term)))
+          (set n (add_i32 (local_get n) (const_i32 1)))))
+      (return (local_get sum))))
+
+  ; Callers are responsible for avoiding cosine zeros where tangent is singular.
+  (fn tan_f64
+    (params (value f64))
+    (returns f64)
+    (do
+      (return
+        (div_f64
+          (call_f64 sin_f64 (param_get value))
+          (call_f64 cos_f64 (param_get value))))))
+)
