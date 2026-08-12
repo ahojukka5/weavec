@@ -504,6 +504,7 @@ static char *weave_diag_read_text(const char *path) {
 
 static int weave_diag_option_takes_value(const char *arg) {
     return strcmp(arg, "-o") == 0 || strcmp(arg, "--output") == 0 ||
+           strcmp(arg, "--project") == 0 ||
            strcmp(arg, "--target") == 0 || strcmp(arg, "--runtime") == 0 ||
            strcmp(arg, "--optimizer") == 0 ||
            strcmp(arg, "--codegen") == 0 ||
