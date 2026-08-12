@@ -90,4 +90,38 @@ run_case cosine-179 \
   '(call_f64 cos_f64 (call_f64 degrees_to_radians (const_f64 179.0)))' \
   -0.9998478 -0.9998476
 
+run_case degrees-pi \
+  '(call_f64 radians_to_degrees (call_f64 PI_F64))' \
+  179.9999999 180.0000001
+
+# Inverse cosine, including the exact endpoints and the documented clamp.
+run_case acos-zero \
+  '(call_f64 radians_to_degrees (call_f64 acos_f64 (const_f64 0.0)))' \
+  89.9999999 90.0000001
+run_case acos-one \
+  '(call_f64 acos_f64 (const_f64 1.0))' \
+  -0.0000001 0.0000001
+run_case acos-minus-one \
+  '(call_f64 radians_to_degrees (call_f64 acos_f64 (const_f64 -1.0)))' \
+  179.9999999 180.0000001
+run_case acos-half \
+  '(call_f64 radians_to_degrees (call_f64 acos_f64 (const_f64 0.5)))' \
+  59.9999999 60.0000001
+run_case acos-minus-half \
+  '(call_f64 radians_to_degrees (call_f64 acos_f64 (const_f64 -0.5)))' \
+  119.9999999 120.0000001
+run_case acos-clamp-above \
+  '(call_f64 acos_f64 (const_f64 1.5))' \
+  -0.0000001 0.0000001
+run_case acos-clamp-below \
+  '(call_f64 radians_to_degrees (call_f64 acos_f64 (const_f64 -1.5)))' \
+  179.9999999 180.0000001
+
+# acos inverts cos across the whole interval, not only at convenient angles.
+run_case acos-roundtrip \
+  '(call_f64 radians_to_degrees
+     (call_f64 acos_f64
+       (call_f64 cos_f64 (call_f64 degrees_to_radians (const_f64 145.0)))))' \
+  144.9999999 145.0000001
+
 printf 'trigonometry-math: passed\n'
