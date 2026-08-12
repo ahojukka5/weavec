@@ -165,6 +165,9 @@ bash "$ROOT/test/matrix-vector/test.sh"
 log 'descriptive statistics'
 bash "$ROOT/test/statistics/test.sh"
 
+log 'quadratic equation solver'
+bash "$ROOT/test/quadratic/test.sh"
+
 log 'contract result diagnostics'
 bash "$ROOT/test/contract-result-requires/test.sh"
 
