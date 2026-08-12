@@ -72,4 +72,22 @@ run_case sine-390 \
   '(call_f64 sin_f64 (call_f64 degrees_to_radians (const_f64 390.0)))' \
   0.4999999 0.5000001
 
+# Beyond a quarter turn the series is evaluated on the folded argument, so the
+# sign must be reapplied and accuracy must not decay toward half a turn.
+run_case cosine-135 \
+  '(call_f64 cos_f64 (call_f64 degrees_to_radians (const_f64 135.0)))' \
+  -0.7071069 -0.7071067
+run_case sine-135 \
+  '(call_f64 sin_f64 (call_f64 degrees_to_radians (const_f64 135.0)))' \
+  0.7071067 0.7071069
+run_case cosine-180 \
+  '(call_f64 cos_f64 (call_f64 PI_F64))' \
+  -1.0000001 -0.9999999
+run_case sine-180 \
+  '(call_f64 sin_f64 (call_f64 PI_F64))' \
+  -0.0000001 0.0000001
+run_case cosine-179 \
+  '(call_f64 cos_f64 (call_f64 degrees_to_radians (const_f64 179.0)))' \
+  -0.9998478 -0.9998476
+
 printf 'trigonometry-math: passed\n'
