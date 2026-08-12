@@ -10,6 +10,8 @@ surface-language contract stabilises.
 
 ### Added
 
+- A quadratic equation solver distinguishing two roots, one repeated root, no
+  real roots, and a rejected zero leading coefficient.
 - A descriptive-statistics example reporting count, mean, population variance,
   and population standard deviation over any number of command-line values.
 - A fixed `Mat3` standard module whose matrix-vector product reuses the existing

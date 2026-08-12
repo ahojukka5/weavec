@@ -1,0 +1,81 @@
+; SPDX-License-Identifier: Apache-2.0
+
+(program
+  (name "quadratic")
+  (version "0.1")
+
+  ; std.process owns the native entry wrapper and calls this high-level function.
+  (fn program_main
+    (params)
+    (returns i32)
+    (do
+      (if
+        (condition (op not-equal (call args_count) 3))
+        (then (do
+          (call write_stderr "usage: quadratic <a> <b> <c>\n")
+          (return 2)))
+        (else (do)))
+      (let index i32 0)
+      (while
+        (condition (op less-than index 3))
+        (do
+          (if
+            (condition (op not (call parse_f64_valid (call arg index))))
+            (then (do
+              (call write_stderr "error: not a number: ")
+              (call write_stderr (call arg index))
+              (call write_stderr "\n")
+              (return 2)))
+            (else (do)))
+          (set index (op add index 1))))
+      (let a f64 (call parse_f64 (call arg 0)))
+      (let b f64 (call parse_f64 (call arg 1)))
+      (let c f64 (call parse_f64 (call arg 2)))
+      (if
+        (condition (op equal a 0.0))
+        (then (do
+          (call write_stderr
+            "error: the coefficient a must not be zero\n")
+          (return 2)))
+        (else (do)))
+      ; discriminant = b^2 - 4ac
+      (let discriminant f64
+        (op sub
+          (op mul b b)
+          (op mul 4.0 (op mul a c))))
+      (if
+        (condition (op less-than discriminant 0.0))
+        (then (do
+          (call write_stdout "no real roots\n")
+          (return 0)))
+        (else (do)))
+      (if
+        (condition (op equal discriminant 0.0))
+        (then (do
+          ; A zero discriminant has one root of multiplicity two, -b / 2a.
+          (call print_f64 "root = " (op div (op sub 0.0 b) (op mul 2.0 a)))
+          (return 0)))
+        (else (do)))
+      ; Two distinct real roots, (-b +/- sqrt(discriminant)) / 2a.
+      (let root_of_discriminant f64 (call sqrt_f64 discriminant))
+      (let denominator f64 (op mul 2.0 a))
+      (let first f64
+        (op div (op add (op sub 0.0 b) root_of_discriminant) denominator))
+      (let second f64
+        (op div (op sub (op sub 0.0 b) root_of_discriminant) denominator))
+      ; Output is ordered ascending. Which formula yields the smaller root
+      ; depends on the sign of a, so the order is chosen rather than assumed.
+      (let smaller f64 first)
+      (let larger f64 second)
+      (if
+        (condition (op greater-than first second))
+        (then (do
+          (set smaller second)
+          (set larger first)))
+        (else (do)))
+      (call write_stdout "roots = ")
+      (call write_f64_trimmed smaller)
+      (call write_stdout ", ")
+      (call write_f64_trimmed larger)
+      (call write_stdout "\n")
+      (return 0))))

@@ -666,6 +666,34 @@ cmp "$EXTRACTED_STATS_EXPECTED" "$EXTRACTED_STATS_OUT" || {
   printf 'extracted statistics stdout mismatch\n' >&2
   exit 1
 }
+
+EXTRACTED_QUADRATIC_BIN="$EXTRACTED_SMOKE/quadratic"
+EXTRACTED_QUADRATIC_OUT="$EXTRACTED_SMOKE/quadratic.stdout"
+EXTRACTED_QUADRATIC_ERR="$EXTRACTED_SMOKE/quadratic.stderr"
+EXTRACTED_QUADRATIC_EXPECTED="$EXTRACTED_SMOKE/quadratic.expected"
+printf 'roots = 1.0, 2.0\n' > "$EXTRACTED_QUADRATIC_EXPECTED"
+"$EXTRACTED_PACKAGE/bin/weavec" build \
+  "$EXTRACTED_PACKAGE/stdlib/process.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/parse.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/math.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/io.weave" \
+  "$EXTRACTED_PACKAGE/examples/quadratic/main.weave" \
+  -o "$EXTRACTED_QUADRATIC_BIN"
+set +e
+LC_ALL=C "$EXTRACTED_QUADRATIC_BIN" 1 -3 2 \
+  >"$EXTRACTED_QUADRATIC_OUT" 2>"$EXTRACTED_QUADRATIC_ERR"
+extracted_quadratic_status="$?"
+set -e
+if [[ "$extracted_quadratic_status" -ne 0 || -s "$EXTRACTED_QUADRATIC_ERR" ]]; then
+  printf 'extracted quadratic failed (status=%s)\n' \
+    "$extracted_quadratic_status" >&2
+  cat "$EXTRACTED_QUADRATIC_ERR" >&2
+  exit 1
+fi
+cmp "$EXTRACTED_QUADRATIC_EXPECTED" "$EXTRACTED_QUADRATIC_OUT" || {
+  printf 'extracted quadratic stdout mismatch\n' >&2
+  exit 1
+}
 rm -rf "$EXTRACTED_SMOKE"
 
 printf '%s\n' "$ARCHIVE"
