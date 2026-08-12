@@ -159,6 +159,9 @@ bash "$ROOT/test/vector-dot/test.sh"
 log 'vector lengths and angle'
 bash "$ROOT/test/vector-geometry/test.sh"
 
+log '3x3 matrix-vector multiplication'
+bash "$ROOT/test/matrix-vector/test.sh"
+
 log 'contract result diagnostics'
 bash "$ROOT/test/contract-result-requires/test.sh"
 
