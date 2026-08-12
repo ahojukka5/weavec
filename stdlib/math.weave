@@ -39,6 +39,18 @@
           (set iteration (add_i32 (local_get iteration) (const_i32 1)))))
       (return (local_get guess))))
 
+  ; Absolute value.
+  (fn f64_abs
+    (params (value f64))
+    (returns f64)
+    (do
+      (if
+        (condition (lt_f64 (param_get value) (const_f64 0.0)))
+        (then (do
+          (return (sub_f64 (const_f64 0.0) (param_get value)))))
+        (else (do)))
+      (return (param_get value))))
+
   ; Convert degrees to radians with the shared PI_F64 constant.
   (fn degrees_to_radians
     (params (degrees f64))
@@ -69,13 +81,39 @@
           (set angle (add_f64 (local_get angle) (local_get two_pi)))))
       (return (local_get angle))))
 
-  ; Seven Taylor terms after range reduction are sufficient for stable six-place
-  ; output across the small-program examples while remaining deterministic.
+  ; Fold a value already reduced to [-pi, pi] onto [0, pi/2] using the shared
+  ; symmetry of sine and cosine about pi/2. Both series below are evaluated only
+  ; on that quarter turn, where ten Taylor terms reach binary64 precision. The
+  ; sign each caller must reapply differs, so the callers own it.
+  (fn fold_quarter_turn
+    (params (value f64))
+    (returns f64)
+    (do
+      (let x f64 (param_get value))
+      (if
+        (condition (lt_f64 (local_get x) (const_f64 0.0)))
+        (then (do (set x (sub_f64 (const_f64 0.0) (local_get x)))))
+        (else (do)))
+      (let half_pi f64 (div_f64 (call_f64 PI_F64) (const_f64 2.0)))
+      (if
+        (condition (gt_f64 (local_get x) (local_get half_pi)))
+        (then (do (set x (sub_f64 (call_f64 PI_F64) (local_get x)))))
+        (else (do)))
+      (return (local_get x))))
+
+  ; Ten Taylor terms on [0, pi/2] leave a truncation error near 1e-17, so the
+  ; series no longer limits six-place output or the inverse below.
   (fn sin_f64
     (params (value f64))
     (returns f64)
     (do
-      (let x f64 (call_f64 normalize_radians (param_get value)))
+      (let reduced f64 (call_f64 normalize_radians (param_get value)))
+      (let sign f64 (const_f64 1.0))
+      (if
+        (condition (lt_f64 (local_get reduced) (const_f64 0.0)))
+        (then (do (set sign (const_f64 -1.0))))
+        (else (do)))
+      (let x f64 (call_f64 fold_quarter_turn (local_get reduced)))
       (let x2 f64 (mul_f64 (local_get x) (local_get x)))
       (let term f64 (local_get x))
       (let sum f64 (local_get x))
@@ -84,7 +122,7 @@
       (let right i32 (const_i32 0))
       (let denominator f64 (const_f64 1.0))
       (while
-        (condition (lt_i32 (local_get n) (const_i32 7)))
+        (condition (lt_i32 (local_get n) (const_i32 11)))
         (do
           (set left (mul_i32 (const_i32 2) (local_get n)))
           (set right (add_i32 (local_get left) (const_i32 1)))
@@ -100,13 +138,23 @@
               (local_get denominator)))
           (set sum (add_f64 (local_get sum) (local_get term)))
           (set n (add_i32 (local_get n) (const_i32 1)))))
-      (return (local_get sum))))
+      (return (mul_f64 (local_get sign) (local_get sum)))))
 
   (fn cos_f64
     (params (value f64))
     (returns f64)
     (do
-      (let x f64 (call_f64 normalize_radians (param_get value)))
+      (let reduced f64 (call_f64 normalize_radians (param_get value)))
+      ; Cosine is even, so only the distance past pi/2 changes the sign.
+      (let magnitude f64 (call_f64 f64_abs (local_get reduced)))
+      (let sign f64 (const_f64 1.0))
+      (if
+        (condition (gt_f64
+          (local_get magnitude)
+          (div_f64 (call_f64 PI_F64) (const_f64 2.0))))
+        (then (do (set sign (const_f64 -1.0))))
+        (else (do)))
+      (let x f64 (call_f64 fold_quarter_turn (local_get reduced)))
       (let x2 f64 (mul_f64 (local_get x) (local_get x)))
       (let term f64 (const_f64 1.0))
       (let sum f64 (const_f64 1.0))
@@ -115,7 +163,7 @@
       (let right i32 (const_i32 0))
       (let denominator f64 (const_f64 1.0))
       (while
-        (condition (lt_i32 (local_get n) (const_i32 7)))
+        (condition (lt_i32 (local_get n) (const_i32 11)))
         (do
           (set right (mul_i32 (const_i32 2) (local_get n)))
           (set left (sub_i32 (local_get right) (const_i32 1)))
@@ -131,7 +179,7 @@
               (local_get denominator)))
           (set sum (add_f64 (local_get sum) (local_get term)))
           (set n (add_i32 (local_get n) (const_i32 1)))))
-      (return (local_get sum))))
+      (return (mul_f64 (local_get sign) (local_get sum)))))
 
   ; Callers are responsible for avoiding cosine zeros where tangent is singular.
   (fn tan_f64
