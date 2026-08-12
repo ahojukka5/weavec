@@ -1,0 +1,45 @@
+; SPDX-License-Identifier: Apache-2.0
+
+(program
+  (name "trigonometry-table")
+  (version "0.1")
+
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (call write_stdout "angle  sin       cos       tan\n")
+
+      (call write_stdout "0      ")
+      (call write_f64_fixed6 (call sin_f64 (call degrees_to_radians 0.0)))
+      (call write_stdout "  ")
+      (call write_f64_fixed6 (call cos_f64 (call degrees_to_radians 0.0)))
+      (call write_stdout "  ")
+      (call write_f64_fixed6 (call tan_f64 (call degrees_to_radians 0.0)))
+      (call write_stdout "\n")
+
+      (call write_stdout "30     ")
+      (call write_f64_fixed6 (call sin_f64 (call degrees_to_radians 30.0)))
+      (call write_stdout "  ")
+      (call write_f64_fixed6 (call cos_f64 (call degrees_to_radians 30.0)))
+      (call write_stdout "  ")
+      (call write_f64_fixed6 (call tan_f64 (call degrees_to_radians 30.0)))
+      (call write_stdout "\n")
+
+      (call write_stdout "45     ")
+      (call write_f64_fixed6 (call sin_f64 (call degrees_to_radians 45.0)))
+      (call write_stdout "  ")
+      (call write_f64_fixed6 (call cos_f64 (call degrees_to_radians 45.0)))
+      (call write_stdout "  ")
+      (call write_f64_fixed6 (call tan_f64 (call degrees_to_radians 45.0)))
+      (call write_stdout "\n")
+
+      (call write_stdout "60     ")
+      (call write_f64_fixed6 (call sin_f64 (call degrees_to_radians 60.0)))
+      (call write_stdout "  ")
+      (call write_f64_fixed6 (call cos_f64 (call degrees_to_radians 60.0)))
+      (call write_stdout "  ")
+      (call write_f64_fixed6 (call tan_f64 (call degrees_to_radians 60.0)))
+      (call write_stdout "\n")
+
+      (return 0))))

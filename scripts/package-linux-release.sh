@@ -512,6 +512,37 @@ cmp "$EXTRACTED_SMOKE/pythagoras.expected" "$EXTRACTED_PYTHAGORAS_OUT" || {
   printf 'extracted Pythagoras example stdout mismatch\n' >&2
   exit 1
 }
+
+EXTRACTED_TRIG_BIN="$EXTRACTED_SMOKE/trigonometry-table"
+EXTRACTED_TRIG_OUT="$EXTRACTED_SMOKE/trigonometry-table.stdout"
+EXTRACTED_TRIG_ERR="$EXTRACTED_SMOKE/trigonometry-table.stderr"
+EXTRACTED_TRIG_EXPECTED="$EXTRACTED_SMOKE/trigonometry-table.expected"
+cat > "$EXTRACTED_TRIG_EXPECTED" <<'EOF_TRIG'
+angle  sin       cos       tan
+0      0.000000  1.000000  0.000000
+30     0.500000  0.866025  0.577350
+45     0.707107  0.707107  1.000000
+60     0.866025  0.500000  1.732051
+EOF_TRIG
+"$EXTRACTED_PACKAGE/bin/weavec" build \
+  "$EXTRACTED_PACKAGE/stdlib/math.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/io.weave" \
+  "$EXTRACTED_PACKAGE/examples/trigonometry-table/main.weave" \
+  -o "$EXTRACTED_TRIG_BIN"
+set +e
+LC_ALL=C "$EXTRACTED_TRIG_BIN" >"$EXTRACTED_TRIG_OUT" 2>"$EXTRACTED_TRIG_ERR"
+extracted_trig_status="$?"
+set -e
+if [[ "$extracted_trig_status" -ne 0 || -s "$EXTRACTED_TRIG_ERR" ]]; then
+  printf 'extracted trigonometry table failed (status=%s)\n' \
+    "$extracted_trig_status" >&2
+  cat "$EXTRACTED_TRIG_ERR" >&2
+  exit 1
+fi
+cmp "$EXTRACTED_TRIG_EXPECTED" "$EXTRACTED_TRIG_OUT" || {
+  printf 'extracted trigonometry table stdout mismatch\n' >&2
+  exit 1
+}
 rm -rf "$EXTRACTED_SMOKE"
 
 printf '%s\n' "$ARCHIVE"

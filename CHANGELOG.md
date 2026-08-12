@@ -10,6 +10,8 @@ surface-language contract stabilises.
 
 ### Added
 
+- Reusable `f64` sine, cosine, tangent, degree conversion, and fixed-six output
+  demonstrated by the deterministic trigonometric function table.
 - Minimal command-line argument access, deterministic Weave-owned `f64` parsing,
   and a reusable square-root module demonstrated by the Pythagorean example.
 - Decimal `f64` literals, canonical `add`/`sub`/`mul`/`div`/`mod` arithmetic,
