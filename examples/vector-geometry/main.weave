@@ -1,0 +1,74 @@
+; SPDX-License-Identifier: Apache-2.0
+
+(program
+  (name "vector-geometry")
+  (version "0.1")
+
+  ; Length is the square root of a vector's dot product with itself, so no
+  ; second magnitude implementation is introduced.
+  (fn vector_length
+    (params (value Vec3))
+    (returns f64)
+    (do
+      (return (call sqrt_f64 (call vec3_dot value value)))))
+
+  ; std.process owns the native entry wrapper and calls this high-level function.
+  (fn program_main
+    (params)
+    (returns i32)
+    (do
+      (if
+        (condition (op not-equal (call args_count) 6))
+        (then (do
+          (call write_stderr
+            "usage: vector-geometry <ax> <ay> <az> <bx> <by> <bz>\n")
+          (return 2)))
+        (else (do)))
+      (let index i32 0)
+      (while
+        (condition (op less-than index 6))
+        (do
+          (if
+            (condition (op not (call parse_f64_valid (call arg index))))
+            (then (do
+              (call write_stderr "error: components must be numbers\n")
+              (return 2)))
+            (else (do)))
+          (set index (op add index 1))))
+      (let a Vec3
+        (new Vec3
+          (x (call parse_f64 (call arg 0)))
+          (y (call parse_f64 (call arg 1)))
+          (z (call parse_f64 (call arg 2)))))
+      (let b Vec3
+        (new Vec3
+          (x (call parse_f64 (call arg 3)))
+          (y (call parse_f64 (call arg 4)))
+          (z (call parse_f64 (call arg 5)))))
+      (let length_a f64 (call vector_length a))
+      (let length_b f64 (call vector_length b))
+      (if
+        (condition (op or
+          (op equal length_a 0.0)
+          (op equal length_b 0.0)))
+        (then (do
+          (call vec3_release a)
+          (call vec3_release b)
+          (call write_stderr
+            "error: the angle of a zero-length vector is undefined\n")
+          (return 2)))
+        (else (do)))
+      ; Roundoff in the quotient can leave the valid cosine domain; acos_f64
+      ; clamps at exactly that boundary and nowhere else.
+      (let cosine f64
+        (op div
+          (call vec3_dot a b)
+          (op mul length_a length_b)))
+      (let degrees f64
+        (call radians_to_degrees (call acos_f64 cosine)))
+      (call vec3_release a)
+      (call vec3_release b)
+      (call print_f64 "length-a = " length_a)
+      (call print_f64 "length-b = " length_b)
+      (call print_f64 "angle-degrees = " degrees)
+      (return 0))))
