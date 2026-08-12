@@ -250,12 +250,14 @@
         (const_i32 6))
       (return_void)))
 
-  ; Write a labelled f64 line with trailing fractional zeros removed.
-  (fn print_f64
-    (params (label ptr) (value f64))
+  ; Emit one f64 with trailing fractional zeros removed, keeping at least one
+  ; fractional digit. Like write_f64_fixed6 this is a composable field writer:
+  ; it emits no label and no trailing newline, so callers can place values
+  ; inside surrounding punctuation.
+  (fn write_f64_trimmed
+    (params (value f64))
     (returns void)
     (do
-      (call_void write_stdout (param_get label))
       (let magnitude f64 (call_f64 f64_magnitude (param_get value)))
       (let scaled i32
         (call_i32 f64_fixed6_fraction (local_get magnitude)))
@@ -269,5 +271,14 @@
           (call_void write_stdout_bytes (const_string_ptr "0") (const_i64 1))))
         (else (do
           (call_void write_fraction6 (local_get scaled)))))
+      (return_void)))
+
+  ; Write a labelled f64 line with trailing fractional zeros removed.
+  (fn print_f64
+    (params (label ptr) (value f64))
+    (returns void)
+    (do
+      (call_void write_stdout (param_get label))
+      (call_void write_f64_trimmed (param_get value))
       (call_void write_stdout_bytes (const_string_ptr "\n") (const_i64 1))
       (return_void))))
