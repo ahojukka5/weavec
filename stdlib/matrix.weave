@@ -1,0 +1,89 @@
+; SPDX-License-Identifier: Apache-2.0
+; A fixed 3x3 floating-point matrix.
+;
+; Mat3 names its nine components directly. Weave has no arrays yet, and
+; introducing a generic collection or index arithmetic merely to avoid writing
+; nine fields would add far more machinery than it removes. Application source
+; sees ordinary named fields and never an allocation or a computed offset.
+;
+; Multiplication reuses the Vec3 dot product rather than repeating the sum of
+; products three times, so std.vector must be built before this module. The
+; host allocation declarations come from that module too, so exactly one
+; standard module declares them.
+
+(program
+  (name "std.matrix")
+  (version "0.1")
+
+  (struct Mat3
+    (field m00 f64)
+    (field m01 f64)
+    (field m02 f64)
+    (field m10 f64)
+    (field m11 f64)
+    (field m12 f64)
+    (field m20 f64)
+    (field m21 f64)
+    (field m22 f64))
+
+  ; Each row of the matrix as a vector, so a row times a vector is exactly the
+  ; existing dot product.
+  (fn mat3_row0
+    (params (value Mat3))
+    (returns Vec3)
+    (do
+      (return
+        (new Vec3
+          (x (field-get value m00))
+          (y (field-get value m01))
+          (z (field-get value m02))))))
+
+  (fn mat3_row1
+    (params (value Mat3))
+    (returns Vec3)
+    (do
+      (return
+        (new Vec3
+          (x (field-get value m10))
+          (y (field-get value m11))
+          (z (field-get value m12))))))
+
+  (fn mat3_row2
+    (params (value Mat3))
+    (returns Vec3)
+    (do
+      (return
+        (new Vec3
+          (x (field-get value m20))
+          (y (field-get value m21))
+          (z (field-get value m22))))))
+
+  ; Multiply a matrix by a vector. The temporary row vectors are released here
+  ; so callers own only the result.
+  (fn mat3_apply
+    (params (matrix Mat3) (value Vec3))
+    (returns Vec3)
+    (do
+      (let row0 Vec3 (call mat3_row0 matrix))
+      (let row1 Vec3 (call mat3_row1 matrix))
+      (let row2 Vec3 (call mat3_row2 matrix))
+      (let first f64 (call vec3_dot row0 value))
+      (let second f64 (call vec3_dot row1 value))
+      (let third f64 (call vec3_dot row2 value))
+      (call vec3_release row0)
+      (call vec3_release row1)
+      (call vec3_release row2)
+      (return
+        (new Vec3
+          (x first)
+          (y second)
+          (z third)))))
+
+  ; Release a matrix. Ownership is explicit because Weave has no automatic
+  ; lifetime management yet; see the ownership epic.
+  (fn mat3_release
+    (params (value Mat3))
+    (returns void)
+    (do
+      (call free value)
+      (return_void))))
