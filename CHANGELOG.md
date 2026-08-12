@@ -10,6 +10,8 @@ surface-language contract stabilises.
 
 ### Added
 
+- A descriptive-statistics example reporting count, mean, population variance,
+  and population standard deviation over any number of command-line values.
 - A fixed `Mat3` standard module whose matrix-vector product reuses the existing
   dot product, plus `write_f64_trimmed`, demonstrated by the matrix-vector
   example.

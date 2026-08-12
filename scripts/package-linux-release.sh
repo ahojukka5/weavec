@@ -633,6 +633,39 @@ cmp "$EXTRACTED_MATRIX_EXPECTED" "$EXTRACTED_MATRIX_OUT" || {
   printf 'extracted matrix-vector stdout mismatch\n' >&2
   exit 1
 }
+
+EXTRACTED_STATS_BIN="$EXTRACTED_SMOKE/statistics"
+EXTRACTED_STATS_OUT="$EXTRACTED_SMOKE/statistics.stdout"
+EXTRACTED_STATS_ERR="$EXTRACTED_SMOKE/statistics.stderr"
+EXTRACTED_STATS_EXPECTED="$EXTRACTED_SMOKE/statistics.expected"
+cat > "$EXTRACTED_STATS_EXPECTED" <<'EOF_STATS'
+count = 4
+mean = 2.5
+variance = 1.25
+stddev = 1.118034
+EOF_STATS
+"$EXTRACTED_PACKAGE/bin/weavec" build \
+  "$EXTRACTED_PACKAGE/stdlib/process.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/parse.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/math.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/io.weave" \
+  "$EXTRACTED_PACKAGE/examples/statistics/main.weave" \
+  -o "$EXTRACTED_STATS_BIN"
+set +e
+LC_ALL=C "$EXTRACTED_STATS_BIN" 1 2 3 4 \
+  >"$EXTRACTED_STATS_OUT" 2>"$EXTRACTED_STATS_ERR"
+extracted_stats_status="$?"
+set -e
+if [[ "$extracted_stats_status" -ne 0 || -s "$EXTRACTED_STATS_ERR" ]]; then
+  printf 'extracted statistics failed (status=%s)\n' \
+    "$extracted_stats_status" >&2
+  cat "$EXTRACTED_STATS_ERR" >&2
+  exit 1
+fi
+cmp "$EXTRACTED_STATS_EXPECTED" "$EXTRACTED_STATS_OUT" || {
+  printf 'extracted statistics stdout mismatch\n' >&2
+  exit 1
+}
 rm -rf "$EXTRACTED_SMOKE"
 
 printf '%s\n' "$ARCHIVE"
