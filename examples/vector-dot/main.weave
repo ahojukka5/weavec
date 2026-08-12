@@ -1,0 +1,44 @@
+; SPDX-License-Identifier: Apache-2.0
+
+(program
+  (name "vector-dot")
+  (version "0.1")
+
+  ; std.process owns the native entry wrapper and calls this high-level function.
+  (fn program_main
+    (params)
+    (returns i32)
+    (do
+      (if
+        (condition (op not-equal (call args_count) 6))
+        (then (do
+          (call write_stderr
+            "usage: vector-dot <ax> <ay> <az> <bx> <by> <bz>\n")
+          (return 2)))
+        (else (do)))
+      (let index i32 0)
+      (while
+        (condition (op less-than index 6))
+        (do
+          (if
+            (condition (op not (call parse_f64_valid (call arg index))))
+            (then (do
+              (call write_stderr "error: components must be numbers\n")
+              (return 2)))
+            (else (do)))
+          (set index (op add index 1))))
+      (let a Vec3
+        (new Vec3
+          (x (call parse_f64 (call arg 0)))
+          (y (call parse_f64 (call arg 1)))
+          (z (call parse_f64 (call arg 2)))))
+      (let b Vec3
+        (new Vec3
+          (x (call parse_f64 (call arg 3)))
+          (y (call parse_f64 (call arg 4)))
+          (z (call parse_f64 (call arg 5)))))
+      (let product f64 (call vec3_dot a b))
+      (call vec3_release a)
+      (call vec3_release b)
+      (call print_f64 "" product)
+      (return 0))))

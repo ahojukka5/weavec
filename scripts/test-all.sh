@@ -153,6 +153,9 @@ bash "$ROOT/test/io-stderr/test.sh"
 log 'Pythagorean command-line program'
 bash "$ROOT/test/pythagoras/test.sh"
 
+log 'three-dimensional vector dot product'
+bash "$ROOT/test/vector-dot/test.sh"
+
 log 'contract result diagnostics'
 bash "$ROOT/test/contract-result-requires/test.sh"
 

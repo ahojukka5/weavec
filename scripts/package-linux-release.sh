@@ -543,6 +543,34 @@ cmp "$EXTRACTED_TRIG_EXPECTED" "$EXTRACTED_TRIG_OUT" || {
   printf 'extracted trigonometry table stdout mismatch\n' >&2
   exit 1
 }
+
+EXTRACTED_DOT_BIN="$EXTRACTED_SMOKE/vector-dot"
+EXTRACTED_DOT_OUT="$EXTRACTED_SMOKE/vector-dot.stdout"
+EXTRACTED_DOT_ERR="$EXTRACTED_SMOKE/vector-dot.stderr"
+EXTRACTED_DOT_EXPECTED="$EXTRACTED_SMOKE/vector-dot.expected"
+printf '32.0\n' > "$EXTRACTED_DOT_EXPECTED"
+"$EXTRACTED_PACKAGE/bin/weavec" build \
+  "$EXTRACTED_PACKAGE/stdlib/process.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/parse.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/io.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/vector.weave" \
+  "$EXTRACTED_PACKAGE/examples/vector-dot/main.weave" \
+  -o "$EXTRACTED_DOT_BIN"
+set +e
+LC_ALL=C "$EXTRACTED_DOT_BIN" 1 2 3 4 5 6 \
+  >"$EXTRACTED_DOT_OUT" 2>"$EXTRACTED_DOT_ERR"
+extracted_dot_status="$?"
+set -e
+if [[ "$extracted_dot_status" -ne 0 || -s "$EXTRACTED_DOT_ERR" ]]; then
+  printf 'extracted vector dot product failed (status=%s)\n' \
+    "$extracted_dot_status" >&2
+  cat "$EXTRACTED_DOT_ERR" >&2
+  exit 1
+fi
+cmp "$EXTRACTED_DOT_EXPECTED" "$EXTRACTED_DOT_OUT" || {
+  printf 'extracted vector dot product stdout mismatch\n' >&2
+  exit 1
+}
 rm -rf "$EXTRACTED_SMOKE"
 
 printf '%s\n' "$ARCHIVE"
