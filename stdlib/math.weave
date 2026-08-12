@@ -190,4 +190,58 @@
         (div_f64
           (call_f64 sin_f64 (param_get value))
           (call_f64 cos_f64 (param_get value))))))
+
+  ; Convert radians to degrees with the shared PI_F64 constant.
+  (fn radians_to_degrees
+    (params (radians f64))
+    (returns f64)
+    (do
+      (return
+        (mul_f64
+          (param_get radians)
+          (div_f64 (const_f64 180.0) (call_f64 PI_F64))))))
+
+  ; Inverse cosine on [-1, 1], returning [0, pi].
+  ;
+  ; Cosine decreases monotonically across [0, pi], so a fixed-count bisection
+  ; inverts it without a second numerical implementation and without a division
+  ; that could be singular. Sixty halvings exhaust binary64 precision on that
+  ; interval. Inputs outside [-1, 1] are clamped, which is the documented
+  ; boundary where a caller's own roundoff can leave the valid domain; the exact
+  ; endpoints return their exact angles rather than a converged approximation.
+  (fn acos_f64
+    (params (value f64))
+    (returns f64)
+    (do
+      (let x f64 (param_get value))
+      (if
+        (condition (ge_f64 (local_get x) (const_f64 1.0)))
+        (then (do (return (const_f64 0.0))))
+        (else (do)))
+      (if
+        (condition (le_f64 (local_get x) (const_f64 -1.0)))
+        (then (do (return (call_f64 PI_F64))))
+        (else (do)))
+      (let low f64 (const_f64 0.0))
+      (let high f64 (call_f64 PI_F64))
+      (let iteration i32 (const_i32 0))
+      (let middle f64 (const_f64 0.0))
+      (while
+        (condition (lt_i32 (local_get iteration) (const_i32 60)))
+        (do
+          (set middle
+            (mul_f64
+              (const_f64 0.5)
+              (add_f64 (local_get low) (local_get high))))
+          (if
+            (condition (gt_f64
+              (call_f64 cos_f64 (local_get middle))
+              (local_get x)))
+            (then (do (set low (local_get middle))))
+            (else (do (set high (local_get middle)))))
+          (set iteration (add_i32 (local_get iteration) (const_i32 1)))))
+      (return
+        (mul_f64
+          (const_f64 0.5)
+          (add_f64 (local_get low) (local_get high))))))
 )
