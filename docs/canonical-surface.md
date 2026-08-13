@@ -148,6 +148,7 @@ Examples:
 (let gain f64 1.5)
 (set count 1)
 (return 42)
+(return)
 (call choose true 40 2)
 (call consume-pointer null)
 (call consume-string "weave")
@@ -155,6 +156,32 @@ Examples:
 (op add 1.5 2.25)
 (new Record (count 42) (flag true))
 ```
+
+## Returning
+
+Every function body must transfer control out on every path. A body that can
+reach its end without returning is rejected by the frontend, naming the
+function; there is no implicit return, for a value or for `void`.
+
+The check is not "the last statement is a return". A `do` block returns when its
+last statement does, and an `if` returns only when both branches do, so a body
+ending in a fully returning `if` is accepted:
+
+```weave
+(fn pick
+  (params (flag bool))
+  (returns i32)
+  (do
+    (if (condition flag)
+      (then (do (return 7)))
+      (else (do (return 9))))))
+```
+
+A loop never satisfies the rule on its own, because a `while` may run zero times.
+
+In a function returning `void`, a bare `(return)` is the void return and means
+exactly `(return_void)`. In a function returning a value it is an error, because
+there is nothing to return.
 
 The compiler emits explicit WIR constructors such as `const_i64`, `const_f64`,
 `const_bool`, `const_null`, and `const_string_ptr`.
