@@ -281,4 +281,15 @@
       (call_void write_stdout (param_get label))
       (call_void write_f64_trimmed (param_get value))
       (call_void write_stdout_bytes (const_string_ptr "\n") (const_i64 1))
+      (return_void)))
+
+  ; Write a labelled f64 line keeping all six fractional digits. Use this when
+  ; a column of results should stay aligned rather than lose trailing zeros.
+  (fn print_f64_fixed6
+    (params (label ptr) (value f64))
+    (returns void)
+    (do
+      (call_void write_stdout (param_get label))
+      (call_void write_f64_fixed6 (param_get value))
+      (call_void write_stdout_bytes (const_string_ptr "\n") (const_i64 1))
       (return_void))))
