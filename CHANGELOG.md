@@ -10,6 +10,8 @@ surface-language contract stabilises.
 
 ### Added
 
+- An `if` without an else, normalized to the explicit form so both spellings
+  lower to the same WIR.
 - A bare `(return)` as the void return spelling, meaning exactly
   `(return_void)`.
 - A user-facing index of the example programs, listing all eleven with their

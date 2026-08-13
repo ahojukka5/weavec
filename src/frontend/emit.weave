@@ -137,6 +137,32 @@
                 (param_get fd) (param_get source) (param_get tree) (param_get node))
               (return_void)))
             (else (do)))
+          ; An `if` without an else is written far more often than one with an
+          ; empty else, so accept the short form and normalize it here. The WIR
+          ; contract keeps both branches, so nothing downstream changes.
+          (if
+            (condition (and_bool
+              (ne_i32 (call_i32 head_equals
+                (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "if") (const_i64 2)) (const_i32 0))
+              (eq_i64 (call_i64 count_children
+                (param_get tree) (param_get node)) (const_i64 3))))
+            (then (do
+              (call_void write_byte (param_get fd) (const_i32 40))
+              (call_void write_cstr (param_get fd) (const_string_ptr "if"))
+              (let if_child i64 (call_i64 node_first_child (param_get tree) (param_get node)))
+              (set if_child (call_i64 node_next_sibling (param_get tree) (local_get if_child)))
+              (while
+                (condition (ne_i64 (local_get if_child) (const_i64 -1)))
+                (do
+                  (call_void write_byte (param_get fd) (const_i32 32))
+                  (call_void emit_node
+                    (param_get fd) (param_get source) (param_get tree) (local_get if_child))
+                  (set if_child (call_i64 node_next_sibling (param_get tree) (local_get if_child)))))
+              (call_void write_cstr (param_get fd) (const_string_ptr " (else (do))"))
+              (call_void write_byte (param_get fd) (const_i32 41))
+              (return_void)))
+            (else (do)))
           (if
             (condition (ne_i32 (call_i32 head_equals
               (param_get tree) (param_get source) (param_get node)
