@@ -10,6 +10,8 @@ surface-language contract stabilises.
 
 ### Added
 
+- A Newton square-root example with an explicit convergence test, named
+  tolerance and iteration limit, and a deterministic non-convergence exit.
 - A projectile-motion calculator reporting flight time, maximum height, and
   range for a documented gravity constant, plus `print_f64_fixed6`.
 - A quadratic equation solver distinguishing two roots, one repeated root, no
