@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-name: commit-policy
+name: Commit policy
 
 on:
   pull_request_target:
