@@ -186,6 +186,9 @@ bash "$ROOT/test/function-terminators/test.sh"
 log 'optional else'
 bash "$ROOT/test/optional-else/test.sh"
 
+log 'struct cost'
+bash "$ROOT/test/struct-cost/test.sh"
+
 log 'contract result diagnostics'
 bash "$ROOT/test/contract-result-requires/test.sh"
 
