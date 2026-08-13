@@ -1,0 +1,68 @@
+; SPDX-License-Identifier: Apache-2.0
+
+(program
+  (name "file-statistics")
+  (version "0.1")
+
+  ; std.process owns the native entry wrapper and calls this high-level function.
+  (fn program_main
+    (params)
+    (returns i32)
+    (do
+      (if
+        (condition (op not-equal (call args_count) 1))
+        (then (do
+          (call write_stderr "usage: file-statistics <path>\n")
+          (return 2)))
+        (else (do)))
+      (let file TextFile (call file_open_text (call arg 0)))
+      (if
+        (condition (op not (call text_file_is_open file)))
+        (then (do
+          (call write_stderr "error: cannot read file: ")
+          (call write_stderr (call arg 0))
+          (call write_stderr "\n")
+          (call text_file_close file)
+          (return 2)))
+        (else (do)))
+      (let lines i32 (call text_file_line_count file))
+      (if
+        (condition (op equal lines 0))
+        (then (do
+          (call write_stderr "error: file contains no values\n")
+          (call text_file_close file)
+          (return 2)))
+        (else (do)))
+      ; The line count is known before parsing, so the sample block is sized
+      ; exactly once and never grows.
+      (let samples Samples (call samples_new lines))
+      (let index i32 0)
+      (while
+        (condition (op less-than index lines))
+        (do
+          (if
+            (condition (op not
+              (call parse_f64_valid (call text_file_line file index))))
+            (then (do
+              (call write_stderr "error: line ")
+              (call write_stderr_u32_decimal (op add index 1))
+              (call write_stderr ": not a number: ")
+              (call write_stderr (call text_file_line file index))
+              (call write_stderr "\n")
+              (call samples_release samples)
+              (call text_file_close file)
+              (return 2)))
+            (else (do)))
+          (call samples_add samples
+            (call parse_f64 (call text_file_line file index)))
+          (set index (op add index 1))))
+      (let variance f64 (call samples_population_variance samples))
+      (call write_stdout "count = ")
+      (call write_u32_decimal (call samples_count samples))
+      (call write_stdout "\n")
+      (call print_f64 "mean = " (call samples_mean samples))
+      (call print_f64 "variance = " variance)
+      (call print_f64 "stddev = " (call sqrt_f64 variance))
+      (call samples_release samples)
+      (call text_file_close file)
+      (return 0))))
