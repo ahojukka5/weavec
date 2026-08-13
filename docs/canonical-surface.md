@@ -157,6 +157,20 @@ Examples:
 (new Record (count 42) (flag true))
 ```
 
+## Conditionals
+
+An `if` may omit its else:
+
+```weave
+(if (condition (op less-than value 0))
+  (then (do (return 0))))
+(return value)
+```
+
+The short form is normalized to the explicit one, so both spellings lower to the
+same WIR and the explicit form remains valid. An `if` without an else can fall
+through, so it never satisfies the returning rule below.
+
 ## Returning
 
 Every function body must transfer control out on every path. A body that can
