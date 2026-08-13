@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   publish:
-    name: Publish push workflow status
+    name: "stage: publish push workflow status"
     if: github.event.workflow_run.event == 'push'
     runs-on: self-hosted
 
