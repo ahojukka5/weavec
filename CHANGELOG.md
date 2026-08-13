@@ -10,6 +10,8 @@ surface-language contract stabilises.
 
 ### Added
 
+- A bare `(return)` as the void return spelling, meaning exactly
+  `(return_void)`.
 - A user-facing index of the example programs, listing all eleven with their
   standard-module dependencies.
 - A file-based numeric summary example, with `std.file` for reading a small
@@ -140,6 +142,9 @@ surface-language contract stabilises.
 
 ### Fixed
 
+- Rejected function bodies that can reach their end without returning, naming
+  the function, instead of emitting a basic block with no terminator and
+  failing as an LLVM parse error against generated text.
 - Reported malformed sources on stderr from an ordinary `weavec build`, which
   previously failed with a non-zero exit status and no message unless
   `--diagnostics-json` was also requested.

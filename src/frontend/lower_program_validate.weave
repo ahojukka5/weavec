@@ -135,6 +135,108 @@
       (return (call_i32 parse_surface_type
         (param_get tree) (param_get source) (local_get type_node)))))
 
+  ; Last child of a list, or -1 when it has none.
+  (fn last_child
+    (params (tree ptr) (node i64))
+    (returns i64)
+    (do
+      (let child i64 (call_i64 node_first_child (param_get tree) (param_get node)))
+      (let previous i64 (const_i64 -1))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (set previous (local_get child))
+          (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
+      (return (local_get previous))))
+
+  ; Whether a statement transfers control out of the enclosing function on every
+  ; path through it. A `do` block terminates when its last statement does, and an
+  ; `if` terminates only when both branches do, so a body ending in a fully
+  ; returning `if` is accepted while one with a fall-through branch is not.
+  ; Loops never count: a `while` may run zero times.
+  (fn stmt_terminates
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (param_get node) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 node_kind (param_get tree) (param_get node))
+          (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source)
+          (param_get node) (const_string_ptr "return") (const_i64 6)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source)
+          (param_get node) (const_string_ptr "return_void") (const_i64 11)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source)
+          (param_get node) (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
+        (then (do
+          (return (call_i32 stmt_terminates (param_get tree) (param_get source)
+            (call_i64 last_child (param_get tree) (param_get node))))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source)
+          (param_get node) (const_string_ptr "if") (const_i64 2)) (const_i32 0)))
+        (then (do
+          (let then_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 2)))
+          (let else_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 3)))
+          (if
+            (condition (or_bool
+              (eq_i64 (local_get then_node) (const_i64 -1))
+              (eq_i64 (local_get else_node) (const_i64 -1))))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (if
+            (condition (eq_i32 (call_i32 stmt_terminates (param_get tree) (param_get source)
+              (call_i64 nth_child (param_get tree) (local_get then_node) (const_i64 1)))
+              (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (return (call_i32 stmt_terminates (param_get tree) (param_get source)
+            (call_i64 nth_child (param_get tree) (local_get else_node) (const_i64 1))))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  ; A function body must transfer control out on every path. Without this the
+  ; backend emits a basic block with no terminator and the failure surfaces as an
+  ; LLVM parse error against generated text rather than against this source.
+  (fn validate_fn_terminates
+    (params (tree ptr) (source ptr) (node i64) (label ptr))
+    (returns i32)
+    (do
+      (let body i64 (call_i64 last_child (param_get tree) (param_get node)))
+      (if
+        (condition (eq_i64 (local_get body) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 head_equals (param_get tree) (param_get source)
+          (local_get body) (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 stmt_terminates
+          (param_get tree) (param_get source) (local_get body)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (call_void surface_error_prefix (param_get label))
+      (let name_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
+      (call_void emit_node_text (const_i32 2) (param_get source) (param_get tree) (local_get name_node))
+      (call_void write_cstr (const_i32 2)
+        (const_string_ptr " can reach the end of its body without returning; every path must end in (return VALUE) or (return_void)"))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (return (const_i32 1))))
+
   (fn validate_children
     (params (tree ptr) (source ptr) (node i64) (last_type i32))
     (returns i32)
@@ -176,6 +278,28 @@
                 (return (call_i32 validate_children
                   (param_get tree) (param_get source) (param_get node)
                   (call_i32 parse_surface_type (param_get tree) (param_get source) (local_get type_node))))))
+              (else (do)))
+            (if
+              (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "fn") (const_i64 2)) (const_i32 0)))
+              (then (do
+                (if
+                  (condition (ne_i32 (call_i32 validate_fn_terminates
+                    (param_get tree) (param_get source) (param_get node)
+                    (const_string_ptr "function")) (const_i32 0)))
+                  (then (do (return (const_i32 1))))
+                  (else (do)))))
+              (else (do)))
+            (if
+              (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "entry") (const_i64 5)) (const_i32 0)))
+              (then (do
+                (if
+                  (condition (ne_i32 (call_i32 validate_fn_terminates
+                    (param_get tree) (param_get source) (param_get node)
+                    (const_string_ptr "entry")) (const_i32 0)))
+                  (then (do (return (const_i32 1))))
+                  (else (do)))))
               (else (do)))
             (if
               (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
