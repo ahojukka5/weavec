@@ -10,6 +10,8 @@ surface-language contract stabilises.
 
 ### Added
 
+- A user-facing index of the example programs, listing all eleven with their
+  standard-module dependencies.
 - A file-based numeric summary example, with `std.file` for reading a small
   text file as lines, `std.statistics` sharing one mean and variance
   implementation with the command-line example, and `std.memory` owning the

@@ -177,6 +177,9 @@ bash "$ROOT/test/newton-root/test.sh"
 log 'file-based numeric summary'
 bash "$ROOT/test/file-statistics/test.sh"
 
+log 'examples index'
+bash "$ROOT/test/examples-index/test.sh"
+
 log 'contract result diagnostics'
 bash "$ROOT/test/contract-result-requires/test.sh"
 
