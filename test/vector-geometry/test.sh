@@ -20,6 +20,7 @@ WIR="$TMP/vector-geometry.wir"
   "$ROOT/stdlib/parse.weave" \
   "$ROOT/stdlib/math.weave" \
   "$ROOT/stdlib/io.weave" \
+  "$ROOT/stdlib/memory.weave" \
   "$ROOT/stdlib/vector.weave" \
   "$ROOT/examples/vector-geometry/main.weave" \
   -o "$BIN" \

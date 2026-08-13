@@ -5,17 +5,12 @@
 ; interchangeable pointers, and application source never sees the allocation or
 ; field layout. This module deliberately describes exactly three components; it
 ; is not the beginning of a generic collection or linear-algebra hierarchy.
+;
+; Allocation comes from std.memory, which must be earlier in the build.
 
 (program
   (name "std.vector")
   (version "0.1")
-
-  (extern malloc
-    (params (size i64))
-    (returns ptr))
-  (extern free
-    (params (value ptr))
-    (returns void))
 
   (struct Vec3
     (field x f64)

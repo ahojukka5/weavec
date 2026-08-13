@@ -19,6 +19,7 @@ WIR="$TMP/vector-dot.wir"
   "$ROOT/stdlib/process.weave" \
   "$ROOT/stdlib/parse.weave" \
   "$ROOT/stdlib/io.weave" \
+  "$ROOT/stdlib/memory.weave" \
   "$ROOT/stdlib/vector.weave" \
   "$ROOT/examples/vector-dot/main.weave" \
   -o "$BIN" \
@@ -97,6 +98,7 @@ cat > "$TMP/alias.weave" <<'EOF'
 EOF
 set +e
 "$WEAVEC" build \
+  "$ROOT/stdlib/memory.weave" \
   "$ROOT/stdlib/vector.weave" \
   "$TMP/alias.weave" \
   -o "$TMP/alias" 2>"$TMP/alias.stderr"

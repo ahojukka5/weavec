@@ -1,0 +1,21 @@
+; SPDX-License-Identifier: Apache-2.0
+; The host allocation boundary.
+;
+; Exactly one standard module declares malloc and free, because a Weave build
+; links its inputs into one program and a repeated extern is a duplicate symbol.
+; Every module that allocates — std.vector, std.matrix, std.statistics,
+; std.file — expects this one to be earlier in the build.
+;
+; Nothing else belongs here. This is the allocation boundary, not a memory
+; utility library.
+
+(program
+  (name "std.memory")
+  (version "0.1")
+
+  (extern malloc
+    (params (size i64))
+    (returns ptr))
+  (extern free
+    (params (value ptr))
+    (returns void)))
