@@ -15,11 +15,23 @@
     (params (fd i32) (buffer ptr) (count i64))
     (returns i64))
 
+  ; Write raw bytes to a file descriptor. Every writer below funnels through
+  ; this one so descriptor handling has a single implementation.
+  (fn write_bytes
+    (params (fd i32) (text ptr) (count i64))
+    (returns void)
+    (do
+      (call_i64 write
+        (param_get fd)
+        (param_get text)
+        (param_get count))
+      (return_void)))
+
   (fn write_stdout_bytes
     (params (text ptr) (count i64))
     (returns void)
     (do
-      (call_i64 write
+      (call_void write_bytes
         (const_i32 1)
         (param_get text)
         (param_get count))
@@ -44,79 +56,104 @@
         (call_i64 strlen (param_get text)))
       (return_void)))
 
-  (fn write_digit
-    (params (digit i32))
+  (fn write_digit_fd
+    (params (fd i32) (digit i32))
     (returns void)
     (do
       (if
         (condition (eq_i32 (param_get digit) (const_i32 0)))
         (then (do
-          (call_void write_stdout_bytes (const_string_ptr "0") (const_i64 1))
+          (call_void write_bytes (param_get fd) (const_string_ptr "0") (const_i64 1))
           (return_void)))
         (else (do)))
       (if
         (condition (eq_i32 (param_get digit) (const_i32 1)))
         (then (do
-          (call_void write_stdout_bytes (const_string_ptr "1") (const_i64 1))
+          (call_void write_bytes (param_get fd) (const_string_ptr "1") (const_i64 1))
           (return_void)))
         (else (do)))
       (if
         (condition (eq_i32 (param_get digit) (const_i32 2)))
         (then (do
-          (call_void write_stdout_bytes (const_string_ptr "2") (const_i64 1))
+          (call_void write_bytes (param_get fd) (const_string_ptr "2") (const_i64 1))
           (return_void)))
         (else (do)))
       (if
         (condition (eq_i32 (param_get digit) (const_i32 3)))
         (then (do
-          (call_void write_stdout_bytes (const_string_ptr "3") (const_i64 1))
+          (call_void write_bytes (param_get fd) (const_string_ptr "3") (const_i64 1))
           (return_void)))
         (else (do)))
       (if
         (condition (eq_i32 (param_get digit) (const_i32 4)))
         (then (do
-          (call_void write_stdout_bytes (const_string_ptr "4") (const_i64 1))
+          (call_void write_bytes (param_get fd) (const_string_ptr "4") (const_i64 1))
           (return_void)))
         (else (do)))
       (if
         (condition (eq_i32 (param_get digit) (const_i32 5)))
         (then (do
-          (call_void write_stdout_bytes (const_string_ptr "5") (const_i64 1))
+          (call_void write_bytes (param_get fd) (const_string_ptr "5") (const_i64 1))
           (return_void)))
         (else (do)))
       (if
         (condition (eq_i32 (param_get digit) (const_i32 6)))
         (then (do
-          (call_void write_stdout_bytes (const_string_ptr "6") (const_i64 1))
+          (call_void write_bytes (param_get fd) (const_string_ptr "6") (const_i64 1))
           (return_void)))
         (else (do)))
       (if
         (condition (eq_i32 (param_get digit) (const_i32 7)))
         (then (do
-          (call_void write_stdout_bytes (const_string_ptr "7") (const_i64 1))
+          (call_void write_bytes (param_get fd) (const_string_ptr "7") (const_i64 1))
           (return_void)))
         (else (do)))
       (if
         (condition (eq_i32 (param_get digit) (const_i32 8)))
         (then (do
-          (call_void write_stdout_bytes (const_string_ptr "8") (const_i64 1))
+          (call_void write_bytes (param_get fd) (const_string_ptr "8") (const_i64 1))
           (return_void)))
         (else (do)))
-      (call_void write_stdout_bytes (const_string_ptr "9") (const_i64 1))
+      (call_void write_bytes (param_get fd) (const_string_ptr "9") (const_i64 1))
+      (return_void)))
+
+  (fn write_digit
+    (params (digit i32))
+    (returns void)
+    (do
+      (call_void write_digit_fd (const_i32 1) (param_get digit))
+      (return_void)))
+
+  (fn write_u32_decimal_fd
+    (params (fd i32) (value i32))
+    (returns void)
+    (do
+      (if
+        (condition (ge_i32 (param_get value) (const_i32 10)))
+        (then (do
+          (call_void write_u32_decimal_fd
+            (param_get fd)
+            (div_i32 (param_get value) (const_i32 10)))))
+        (else (do)))
+      (call_void write_digit_fd
+        (param_get fd)
+        (mod_i32 (param_get value) (const_i32 10)))
       (return_void)))
 
   (fn write_u32_decimal
     (params (value i32))
     (returns void)
     (do
-      (if
-        (condition (ge_i32 (param_get value) (const_i32 10)))
-        (then (do
-          (call_void write_u32_decimal
-            (div_i32 (param_get value) (const_i32 10)))))
-        (else (do)))
-      (call_void write_digit
-        (mod_i32 (param_get value) (const_i32 10)))
+      (call_void write_u32_decimal_fd (const_i32 1) (param_get value))
+      (return_void)))
+
+  ; Non-negative decimal on standard error, for diagnostics that name a
+  ; position such as a line number.
+  (fn write_stderr_u32_decimal
+    (params (value i32))
+    (returns void)
+    (do
+      (call_void write_u32_decimal_fd (const_i32 2) (param_get value))
       (return_void)))
 
   (fn write_fixed_u32
