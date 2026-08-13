@@ -7,9 +7,8 @@
 ; sees ordinary named fields and never an allocation or a computed offset.
 ;
 ; Multiplication reuses the Vec3 dot product rather than repeating the sum of
-; products three times, so std.vector must be built before this module. The
-; host allocation declarations come from that module too, so exactly one
-; standard module declares them.
+; products three times, so std.vector must be built before this module.
+; Allocation comes from std.memory, which must be earlier still.
 
 (program
   (name "std.matrix")

@@ -19,6 +19,7 @@ WIR="$TMP/matrix-vector.wir"
   "$ROOT/stdlib/process.weave" \
   "$ROOT/stdlib/parse.weave" \
   "$ROOT/stdlib/io.weave" \
+  "$ROOT/stdlib/memory.weave" \
   "$ROOT/stdlib/vector.weave" \
   "$ROOT/stdlib/matrix.weave" \
   "$ROOT/examples/matrix-vector/main.weave" \

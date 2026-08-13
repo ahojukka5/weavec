@@ -11,6 +11,7 @@ weavec build \
   stdlib/parse.weave \
   stdlib/math.weave \
   stdlib/io.weave \
+  stdlib/memory.weave \
   stdlib/vector.weave \
   examples/vector-geometry/main.weave \
   -o vector-geometry

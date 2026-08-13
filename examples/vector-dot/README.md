@@ -10,6 +10,7 @@ weavec build \
   stdlib/process.weave \
   stdlib/parse.weave \
   stdlib/io.weave \
+  stdlib/memory.weave \
   stdlib/vector.weave \
   examples/vector-dot/main.weave \
   -o vector-dot

@@ -9,6 +9,7 @@ weavec build \
   stdlib/process.weave \
   stdlib/parse.weave \
   stdlib/io.weave \
+  stdlib/memory.weave \
   stdlib/vector.weave \
   stdlib/matrix.weave \
   examples/matrix-vector/main.weave \
