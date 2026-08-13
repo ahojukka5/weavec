@@ -1,0 +1,83 @@
+; SPDX-License-Identifier: Apache-2.0
+
+(program
+  (name "newton-root")
+  (version "0.1")
+
+  ; Stop once two successive approximations agree to within this absolute
+  ; difference. See the README for why an absolute test is adequate here.
+  (const TOLERANCE_F64 f64 0.000000001)
+
+  ; A converging Newton square-root iteration doubles its correct digits each
+  ; pass, so this ceiling is far above any input that converges at all. It exists
+  ; to fail deterministically rather than spin.
+  (const ITERATION_LIMIT_I32 i32 100)
+
+  ; std.process owns the native entry wrapper and calls this high-level function.
+  (fn program_main
+    (params)
+    (returns i32)
+    (do
+      (if
+        (condition (op not-equal (call args_count) 1))
+        (then (do
+          (call write_stderr "usage: newton-root <value>\n")
+          (return 2)))
+        (else (do)))
+      (if
+        (condition (op not (call parse_f64_valid (call arg 0))))
+        (then (do
+          (call write_stderr "error: not a number: ")
+          (call write_stderr (call arg 0))
+          (call write_stderr "\n")
+          (return 2)))
+        (else (do)))
+      (let value f64 (call parse_f64 (call arg 0)))
+      (if
+        (condition (op less-than value 0.0))
+        (then (do
+          (call write_stderr
+            "error: cannot take the square root of a negative value\n")
+          (return 2)))
+        (else (do)))
+      ; Zero is the one input with no iteration to perform: the root is exact
+      ; and dividing by the first guess would be division by zero.
+      (if
+        (condition (op equal value 0.0))
+        (then (do
+          (call print_f64_fixed6 "root = " 0.0)
+          (call write_stdout "iterations = 0\n")
+          (return 0)))
+        (else (do)))
+      ; Newton's method for f(x) = x^2 - value reduces to averaging a guess
+      ; with the value divided by that guess.
+      (let approximation f64 value)
+      (let iterations i32 0)
+      (let converged i32 0)
+      (while
+        (condition (op and
+          (op less-than iterations (call ITERATION_LIMIT_I32))
+          (op equal converged 0)))
+        (do
+          (let next f64
+            (op mul 0.5 (op add approximation (op div value approximation))))
+          (set iterations (op add iterations 1))
+          (if
+            (condition (op less-or-equal
+              (call f64_abs (op sub next approximation))
+              (call TOLERANCE_F64)))
+            (then (do (set converged 1)))
+            (else (do)))
+          (set approximation next)))
+      (if
+        (condition (op equal converged 0))
+        (then (do
+          (call write_stderr
+            "error: no convergence within the iteration limit\n")
+          (return 1)))
+        (else (do)))
+      (call print_f64_fixed6 "root = " approximation)
+      (call write_stdout "iterations = ")
+      (call write_u32_decimal iterations)
+      (call write_stdout "\n")
+      (return 0))))

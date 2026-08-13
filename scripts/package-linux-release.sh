@@ -726,6 +726,37 @@ cmp "$EXTRACTED_PROJECTILE_EXPECTED" "$EXTRACTED_PROJECTILE_OUT" || {
   printf 'extracted projectile motion stdout mismatch\n' >&2
   exit 1
 }
+
+EXTRACTED_NEWTON_BIN="$EXTRACTED_SMOKE/newton-root"
+EXTRACTED_NEWTON_OUT="$EXTRACTED_SMOKE/newton-root.stdout"
+EXTRACTED_NEWTON_ERR="$EXTRACTED_SMOKE/newton-root.stderr"
+EXTRACTED_NEWTON_EXPECTED="$EXTRACTED_SMOKE/newton-root.expected"
+cat > "$EXTRACTED_NEWTON_EXPECTED" <<'EOF_NEWTON'
+root = 1.414214
+iterations = 5
+EOF_NEWTON
+"$EXTRACTED_PACKAGE/bin/weavec" build \
+  "$EXTRACTED_PACKAGE/stdlib/process.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/parse.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/math.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/io.weave" \
+  "$EXTRACTED_PACKAGE/examples/newton-root/main.weave" \
+  -o "$EXTRACTED_NEWTON_BIN"
+set +e
+LC_ALL=C "$EXTRACTED_NEWTON_BIN" 2 \
+  >"$EXTRACTED_NEWTON_OUT" 2>"$EXTRACTED_NEWTON_ERR"
+extracted_newton_status="$?"
+set -e
+if [[ "$extracted_newton_status" -ne 0 || -s "$EXTRACTED_NEWTON_ERR" ]]; then
+  printf 'extracted newton root failed (status=%s)\n' \
+    "$extracted_newton_status" >&2
+  cat "$EXTRACTED_NEWTON_ERR" >&2
+  exit 1
+fi
+cmp "$EXTRACTED_NEWTON_EXPECTED" "$EXTRACTED_NEWTON_OUT" || {
+  printf 'extracted newton root stdout mismatch\n' >&2
+  exit 1
+}
 rm -rf "$EXTRACTED_SMOKE"
 
 printf '%s\n' "$ARCHIVE"
