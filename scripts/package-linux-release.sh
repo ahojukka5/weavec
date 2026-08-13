@@ -694,6 +694,38 @@ cmp "$EXTRACTED_QUADRATIC_EXPECTED" "$EXTRACTED_QUADRATIC_OUT" || {
   printf 'extracted quadratic stdout mismatch\n' >&2
   exit 1
 }
+
+EXTRACTED_PROJECTILE_BIN="$EXTRACTED_SMOKE/projectile-motion"
+EXTRACTED_PROJECTILE_OUT="$EXTRACTED_SMOKE/projectile-motion.stdout"
+EXTRACTED_PROJECTILE_ERR="$EXTRACTED_SMOKE/projectile-motion.stderr"
+EXTRACTED_PROJECTILE_EXPECTED="$EXTRACTED_SMOKE/projectile-motion.expected"
+cat > "$EXTRACTED_PROJECTILE_EXPECTED" <<'EOF_PROJECTILE'
+flight-time = 2.883208
+max-height = 10.193680
+range = 40.774720
+EOF_PROJECTILE
+"$EXTRACTED_PACKAGE/bin/weavec" build \
+  "$EXTRACTED_PACKAGE/stdlib/process.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/parse.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/math.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/io.weave" \
+  "$EXTRACTED_PACKAGE/examples/projectile-motion/main.weave" \
+  -o "$EXTRACTED_PROJECTILE_BIN"
+set +e
+LC_ALL=C "$EXTRACTED_PROJECTILE_BIN" 20 45 \
+  >"$EXTRACTED_PROJECTILE_OUT" 2>"$EXTRACTED_PROJECTILE_ERR"
+extracted_projectile_status="$?"
+set -e
+if [[ "$extracted_projectile_status" -ne 0 || -s "$EXTRACTED_PROJECTILE_ERR" ]]; then
+  printf 'extracted projectile motion failed (status=%s)\n' \
+    "$extracted_projectile_status" >&2
+  cat "$EXTRACTED_PROJECTILE_ERR" >&2
+  exit 1
+fi
+cmp "$EXTRACTED_PROJECTILE_EXPECTED" "$EXTRACTED_PROJECTILE_OUT" || {
+  printf 'extracted projectile motion stdout mismatch\n' >&2
+  exit 1
+}
 rm -rf "$EXTRACTED_SMOKE"
 
 printf '%s\n' "$ARCHIVE"

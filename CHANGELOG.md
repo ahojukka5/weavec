@@ -10,6 +10,8 @@ surface-language contract stabilises.
 
 ### Added
 
+- A projectile-motion calculator reporting flight time, maximum height, and
+  range for a documented gravity constant, plus `print_f64_fixed6`.
 - A quadratic equation solver distinguishing two roots, one repeated root, no
   real roots, and a rejected zero leading coefficient.
 - A descriptive-statistics example reporting count, mean, population variance,

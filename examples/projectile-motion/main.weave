@@ -1,0 +1,69 @@
+; SPDX-License-Identifier: Apache-2.0
+
+(program
+  (name "projectile-motion")
+  (version "0.1")
+
+  ; Standard gravity in metres per second squared. Speeds are metres per second,
+  ; angles are degrees, results are seconds and metres.
+  (const GRAVITY_F64 f64 9.81)
+
+  ; std.process owns the native entry wrapper and calls this high-level function.
+  (fn program_main
+    (params)
+    (returns i32)
+    (do
+      (if
+        (condition (op not-equal (call args_count) 2))
+        (then (do
+          (call write_stderr "usage: projectile-motion <speed> <angle>\n")
+          (return 2)))
+        (else (do)))
+      (let index i32 0)
+      (while
+        (condition (op less-than index 2))
+        (do
+          (if
+            (condition (op not (call parse_f64_valid (call arg index))))
+            (then (do
+              (call write_stderr "error: not a number: ")
+              (call write_stderr (call arg index))
+              (call write_stderr "\n")
+              (return 2)))
+            (else (do)))
+          (set index (op add index 1))))
+      (let speed f64 (call parse_f64 (call arg 0)))
+      (let degrees f64 (call parse_f64 (call arg 1)))
+      (if
+        (condition (op less-than speed 0.0))
+        (then (do
+          (call write_stderr "error: speed must not be negative\n")
+          (return 2)))
+        (else (do)))
+      ; Angles outside a quarter turn describe a launch into the ground or
+      ; backwards, which this calculator does not model.
+      (if
+        (condition (op or
+          (op less-than degrees 0.0)
+          (op greater-than degrees 90.0)))
+        (then (do
+          (call write_stderr
+            "error: angle must be between 0 and 90 degrees\n")
+          (return 2)))
+        (else (do)))
+      (let radians f64 (call degrees_to_radians degrees))
+      (let vertical_speed f64 (op mul speed (call sin_f64 radians)))
+      (let horizontal_speed f64 (op mul speed (call cos_f64 radians)))
+      ; The projectile rises until gravity cancels the vertical speed, then
+      ; falls back over the same interval.
+      (let flight_time f64
+        (op div (op mul 2.0 vertical_speed) (call GRAVITY_F64)))
+      (let max_height f64
+        (op div
+          (op mul vertical_speed vertical_speed)
+          (op mul 2.0 (call GRAVITY_F64))))
+      (let horizontal_range f64 (op mul horizontal_speed flight_time))
+      (call print_f64_fixed6 "flight-time = " flight_time)
+      (call print_f64_fixed6 "max-height = " max_height)
+      (call print_f64_fixed6 "range = " horizontal_range)
+      (return 0))))

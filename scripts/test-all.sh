@@ -168,6 +168,9 @@ bash "$ROOT/test/statistics/test.sh"
 log 'quadratic equation solver'
 bash "$ROOT/test/quadratic/test.sh"
 
+log 'projectile motion'
+bash "$ROOT/test/projectile-motion/test.sh"
+
 log 'contract result diagnostics'
 bash "$ROOT/test/contract-result-requires/test.sh"
 
