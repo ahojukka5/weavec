@@ -7,10 +7,12 @@ From the repository root or an extracted release package:
 
 ```sh
 weavec build \
+  stdlib/memory.weave \
   stdlib/process.weave \
   stdlib/parse.weave \
   stdlib/math.weave \
   stdlib/io.weave \
+  stdlib/statistics.weave \
   examples/statistics/main.weave \
   -o statistics
 

@@ -16,10 +16,12 @@ BIN="$TMP/statistics"
 WIR="$TMP/statistics.wir"
 
 "$WEAVEC" build \
+  "$ROOT/stdlib/memory.weave" \
   "$ROOT/stdlib/process.weave" \
   "$ROOT/stdlib/parse.weave" \
   "$ROOT/stdlib/math.weave" \
   "$ROOT/stdlib/io.weave" \
+  "$ROOT/stdlib/statistics.weave" \
   "$ROOT/examples/statistics/main.weave" \
   -o "$BIN" \
   --emit-wir "$WIR"

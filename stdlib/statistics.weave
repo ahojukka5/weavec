@@ -1,0 +1,139 @@
+; SPDX-License-Identifier: Apache-2.0
+; Population statistics over a fixed-capacity sample set.
+;
+; Samples exists so that programs reading values from different places — command
+; line arguments, a text file — share one implementation of mean and variance
+; instead of each repeating the formulas. It is a plain block of f64 values with
+; a known capacity, not a general collection: there is no growth, no removal, no
+; iteration protocol, and no element type other than f64.
+;
+; Allocation comes from std.memory, which must be earlier in the build.
+
+(program
+  (name "std.statistics")
+  (version "0.1")
+
+  (struct Samples
+    (field values ptr)
+    (field count i32)
+    (field capacity i32))
+
+  ; Reserve room for exactly this many values. Callers know the count in advance
+  ; — argument counts and line counts are both known before parsing — so the
+  ; block never has to grow.
+  (fn samples_new
+    (params (capacity i32))
+    (returns Samples)
+    (do
+      (let block ptr
+        (call_ptr malloc
+          (mul_i64 (cast_i32_to_i64 (param_get capacity)) (const_i64 8))))
+      (return
+        (new Samples
+          (values (local_get block))
+          (count (const_i32 0))
+          (capacity (param_get capacity))))))
+
+  ; Append a value. Adding beyond the reserved capacity is ignored rather than
+  ; overwriting memory; samples_count then disagrees with the caller's own tally,
+  ; which is the caller's bug to notice.
+  (fn samples_add
+    (params (samples Samples) (value f64))
+    (returns void)
+    (do
+      (let used i32 (field-get samples count))
+      (if
+        (condition (ge_i32 (local_get used) (field-get samples capacity)))
+        (then (do (return_void)))
+        (else (do)))
+      (store_f64
+        (ptr_add
+          (field-get samples values)
+          (mul_i64 (cast_i32_to_i64 (local_get used)) (const_i64 8)))
+        (param_get value))
+      (field-set samples count (add_i32 (local_get used) (const_i32 1)))
+      (return_void)))
+
+  (fn samples_count
+    (params (samples Samples))
+    (returns i32)
+    (do
+      (return (field-get samples count))))
+
+  (fn samples_get
+    (params (samples Samples) (index i32))
+    (returns f64)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i32 (param_get index) (const_i32 0))
+          (ge_i32 (param_get index) (field-get samples count))))
+        (then (do (return (const_f64 0.0))))
+        (else (do)))
+      (return
+        (load_f64
+          (ptr_add
+            (field-get samples values)
+            (mul_i64 (cast_i32_to_i64 (param_get index)) (const_i64 8)))))))
+
+  ; Arithmetic mean. An empty set has no mean; zero is returned so callers that
+  ; already rejected empty input do not need a second guard.
+  (fn samples_mean
+    (params (samples Samples))
+    (returns f64)
+    (do
+      (let used i32 (field-get samples count))
+      (if
+        (condition (le_i32 (local_get used) (const_i32 0)))
+        (then (do (return (const_f64 0.0))))
+        (else (do)))
+      (let total f64 (const_f64 0.0))
+      (let index i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get index) (local_get used)))
+        (do
+          (set total
+            (add_f64
+              (local_get total)
+              (call_f64 samples_get (param_get samples) (local_get index))))
+          (set index (add_i32 (local_get index) (const_i32 1)))))
+      (return (div_f64 (local_get total) (cast_i32_to_f64 (local_get used))))))
+
+  ; Population variance: the sum of squared deviations divided by the count,
+  ; not by the count minus one. A second pass over the values keeps the
+  ; accumulator well conditioned; the sum-of-squares shortcut loses precision
+  ; when the mean is large relative to the spread.
+  (fn samples_population_variance
+    (params (samples Samples))
+    (returns f64)
+    (do
+      (let used i32 (field-get samples count))
+      (if
+        (condition (le_i32 (local_get used) (const_i32 0)))
+        (then (do (return (const_f64 0.0))))
+        (else (do)))
+      (let mean f64 (call_f64 samples_mean (param_get samples)))
+      (let total_squares f64 (const_f64 0.0))
+      (let index i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get index) (local_get used)))
+        (do
+          (let deviation f64
+            (sub_f64
+              (call_f64 samples_get (param_get samples) (local_get index))
+              (local_get mean)))
+          (set total_squares
+            (add_f64
+              (local_get total_squares)
+              (mul_f64 (local_get deviation) (local_get deviation))))
+          (set index (add_i32 (local_get index) (const_i32 1)))))
+      (return
+        (div_f64 (local_get total_squares) (cast_i32_to_f64 (local_get used))))))
+
+  (fn samples_release
+    (params (samples Samples))
+    (returns void)
+    (do
+      (call free (field-get samples values))
+      (call free samples)
+      (return_void))))

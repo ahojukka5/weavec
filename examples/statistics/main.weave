@@ -4,39 +4,6 @@
   (name "statistics")
   (version "0.1")
 
-  ; Sum of the parsed values.
-  (fn total
-    (params (count i32))
-    (returns f64)
-    (do
-      (let sum f64 0.0)
-      (let index i32 0)
-      (while
-        (condition (op less-than index count))
-        (do
-          (set sum (op add sum (call parse_f64 (call arg index))))
-          (set index (op add index 1))))
-      (return sum)))
-
-  ; Sum of squared deviations from the mean. A second pass over the arguments
-  ; keeps the accumulator well conditioned; the sum-of-squares shortcut loses
-  ; precision when the mean is large relative to the spread.
-  (fn squared_deviation
-    (params (count i32) (mean f64))
-    (returns f64)
-    (do
-      (let total_squares f64 0.0)
-      (let index i32 0)
-      (while
-        (condition (op less-than index count))
-        (do
-          (let deviation f64
-            (op sub (call parse_f64 (call arg index)) mean))
-          (set total_squares
-            (op add total_squares (op mul deviation deviation)))
-          (set index (op add index 1))))
-      (return total_squares)))
-
   ; std.process owns the native entry wrapper and calls this high-level function.
   (fn program_main
     (params)
@@ -49,6 +16,9 @@
           (call write_stderr "usage: statistics <value> [value ...]\n")
           (return 2)))
         (else (do)))
+      ; The argument count is known before parsing, so the sample block is sized
+      ; exactly once and never grows.
+      (let samples Samples (call samples_new count))
       (let index i32 0)
       (while
         (condition (op less-than index count))
@@ -60,20 +30,17 @@
               (call write_stderr "error: not a number: ")
               (call write_stderr (call arg index))
               (call write_stderr "\n")
+              (call samples_release samples)
               (return 2)))
             (else (do)))
+          (call samples_add samples (call parse_f64 (call arg index)))
           (set index (op add index 1))))
-      (let population f64 (cast f64 count))
-      (let mean f64 (op div (call total count) population))
-      ; Population statistics: the arguments are the whole population, so the
-      ; divisor is the count rather than the count minus one.
-      (let variance f64
-        (op div (call squared_deviation count mean) population))
-      (let deviation f64 (call sqrt_f64 variance))
+      (let variance f64 (call samples_population_variance samples))
       (call write_stdout "count = ")
-      (call write_u32_decimal count)
+      (call write_u32_decimal (call samples_count samples))
       (call write_stdout "\n")
-      (call print_f64 "mean = " mean)
+      (call print_f64 "mean = " (call samples_mean samples))
       (call print_f64 "variance = " variance)
-      (call print_f64 "stddev = " deviation)
+      (call print_f64 "stddev = " (call sqrt_f64 variance))
+      (call samples_release samples)
       (return 0))))
