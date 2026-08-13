@@ -553,6 +553,7 @@ printf '32.0\n' > "$EXTRACTED_DOT_EXPECTED"
   "$EXTRACTED_PACKAGE/stdlib/process.weave" \
   "$EXTRACTED_PACKAGE/stdlib/parse.weave" \
   "$EXTRACTED_PACKAGE/stdlib/io.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/memory.weave" \
   "$EXTRACTED_PACKAGE/stdlib/vector.weave" \
   "$EXTRACTED_PACKAGE/examples/vector-dot/main.weave" \
   -o "$EXTRACTED_DOT_BIN"
@@ -586,6 +587,7 @@ EOF_GEOMETRY
   "$EXTRACTED_PACKAGE/stdlib/parse.weave" \
   "$EXTRACTED_PACKAGE/stdlib/math.weave" \
   "$EXTRACTED_PACKAGE/stdlib/io.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/memory.weave" \
   "$EXTRACTED_PACKAGE/stdlib/vector.weave" \
   "$EXTRACTED_PACKAGE/examples/vector-geometry/main.weave" \
   -o "$EXTRACTED_GEOMETRY_BIN"
@@ -614,6 +616,7 @@ printf 'result = [14.0, 32.0, 50.0]\n' > "$EXTRACTED_MATRIX_EXPECTED"
   "$EXTRACTED_PACKAGE/stdlib/process.weave" \
   "$EXTRACTED_PACKAGE/stdlib/parse.weave" \
   "$EXTRACTED_PACKAGE/stdlib/io.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/memory.weave" \
   "$EXTRACTED_PACKAGE/stdlib/vector.weave" \
   "$EXTRACTED_PACKAGE/stdlib/matrix.weave" \
   "$EXTRACTED_PACKAGE/examples/matrix-vector/main.weave" \
@@ -645,10 +648,12 @@ variance = 1.25
 stddev = 1.118034
 EOF_STATS
 "$EXTRACTED_PACKAGE/bin/weavec" build \
+  "$EXTRACTED_PACKAGE/stdlib/memory.weave" \
   "$EXTRACTED_PACKAGE/stdlib/process.weave" \
   "$EXTRACTED_PACKAGE/stdlib/parse.weave" \
   "$EXTRACTED_PACKAGE/stdlib/math.weave" \
   "$EXTRACTED_PACKAGE/stdlib/io.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/statistics.weave" \
   "$EXTRACTED_PACKAGE/examples/statistics/main.weave" \
   -o "$EXTRACTED_STATS_BIN"
 set +e
@@ -755,6 +760,44 @@ if [[ "$extracted_newton_status" -ne 0 || -s "$EXTRACTED_NEWTON_ERR" ]]; then
 fi
 cmp "$EXTRACTED_NEWTON_EXPECTED" "$EXTRACTED_NEWTON_OUT" || {
   printf 'extracted newton root stdout mismatch\n' >&2
+  exit 1
+}
+
+EXTRACTED_FILESTATS_BIN="$EXTRACTED_SMOKE/file-statistics"
+EXTRACTED_FILESTATS_VALUES="$EXTRACTED_SMOKE/file-statistics.values"
+EXTRACTED_FILESTATS_OUT="$EXTRACTED_SMOKE/file-statistics.stdout"
+EXTRACTED_FILESTATS_ERR="$EXTRACTED_SMOKE/file-statistics.stderr"
+EXTRACTED_FILESTATS_EXPECTED="$EXTRACTED_SMOKE/file-statistics.expected"
+printf '1\n2\n3\n4\n' > "$EXTRACTED_FILESTATS_VALUES"
+cat > "$EXTRACTED_FILESTATS_EXPECTED" <<'EOF_FILESTATS'
+count = 4
+mean = 2.5
+variance = 1.25
+stddev = 1.118034
+EOF_FILESTATS
+"$EXTRACTED_PACKAGE/bin/weavec" build \
+  "$EXTRACTED_PACKAGE/stdlib/memory.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/process.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/parse.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/math.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/io.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/statistics.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/file.weave" \
+  "$EXTRACTED_PACKAGE/examples/file-statistics/main.weave" \
+  -o "$EXTRACTED_FILESTATS_BIN"
+set +e
+LC_ALL=C "$EXTRACTED_FILESTATS_BIN" "$EXTRACTED_FILESTATS_VALUES" \
+  >"$EXTRACTED_FILESTATS_OUT" 2>"$EXTRACTED_FILESTATS_ERR"
+extracted_filestats_status="$?"
+set -e
+if [[ "$extracted_filestats_status" -ne 0 || -s "$EXTRACTED_FILESTATS_ERR" ]]; then
+  printf 'extracted file statistics failed (status=%s)\n' \
+    "$extracted_filestats_status" >&2
+  cat "$EXTRACTED_FILESTATS_ERR" >&2
+  exit 1
+fi
+cmp "$EXTRACTED_FILESTATS_EXPECTED" "$EXTRACTED_FILESTATS_OUT" || {
+  printf 'extracted file statistics stdout mismatch\n' >&2
   exit 1
 }
 rm -rf "$EXTRACTED_SMOKE"

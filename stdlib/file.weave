@@ -1,0 +1,200 @@
+; SPDX-License-Identifier: Apache-2.0
+; Reading a small text file as lines.
+;
+; This is the minimum a line-oriented program needs: open a file, ask how many
+; lines it has, read one, close it. There is no directory traversal, no writing,
+; no seeking, no streaming, and no path handling. A TextFile is a nominal struct,
+; so application source holds a value of that type rather than a descriptor or a
+; buffer address.
+;
+; The whole file is read into memory at open time. That suits the small inputs
+; these examples work with and keeps line access a pointer walk rather than a
+; second pass over the host.
+;
+; Allocation comes from std.memory, which must be earlier in the build.
+
+(program
+  (name "std.file")
+  (version "0.1")
+
+  (extern fopen
+    (params (path ptr) (mode ptr))
+    (returns ptr))
+  (extern fclose
+    (params (stream ptr))
+    (returns i32))
+  (extern fseek
+    (params (stream ptr) (offset i64) (whence i32))
+    (returns i32))
+  (extern ftell
+    (params (stream ptr))
+    (returns i64))
+  (extern fread
+    (params (buffer ptr) (size i64) (count i64) (stream ptr))
+    (returns i64))
+
+  ; content holds the file with every newline replaced by a NUL, so each line is
+  ; an ordinary terminated string in place. length excludes the final NUL.
+  (struct TextFile
+    (field content ptr)
+    (field length i64)
+    (field line_count i32))
+
+  ; Count the lines in already-terminated content. A trailing newline ends the
+  ; last line rather than starting an empty one; a file with no trailing newline
+  ; still counts its final line.
+  (fn text_content_line_count
+    (params (content ptr) (length i64))
+    (returns i32)
+    (do
+      (let count i32 (const_i32 0))
+      (let position i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get position) (param_get length)))
+        (do
+          (set count (add_i32 (local_get count) (const_i32 1)))
+          (while
+            (condition (and_bool
+              (lt_i64 (local_get position) (param_get length))
+              (ne_i32
+                (load_u8 (ptr_add (param_get content) (local_get position)))
+                (const_i32 0))))
+            (do
+              (set position (add_i64 (local_get position) (const_i64 1)))))
+          (set position (add_i64 (local_get position) (const_i64 1)))))
+      (return (local_get count))))
+
+  ; Open a text file and read it whole. A TextFile whose content is null means
+  ; the file could not be opened or read; callers check text_file_is_open.
+  (fn file_open_text
+    (params (path ptr))
+    (returns TextFile)
+    (do
+      (let stream ptr
+        (call_ptr fopen (param_get path) (const_string_ptr "rb")))
+      (if
+        (condition (eq_ptr (local_get stream) (const_null)))
+        (then (do
+          (return
+            (new TextFile
+              (content (const_null))
+              (length (const_i64 0))
+              (line_count (const_i32 0))))))
+        (else (do)))
+      (call_i32 fseek (local_get stream) (const_i64 0) (const_i32 2))
+      (let length i64 (call_i64 ftell (local_get stream)))
+      (call_i32 fseek (local_get stream) (const_i64 0) (const_i32 0))
+      (if
+        (condition (lt_i64 (local_get length) (const_i64 0)))
+        (then (do
+          (call_i32 fclose (local_get stream))
+          (return
+            (new TextFile
+              (content (const_null))
+              (length (const_i64 0))
+              (line_count (const_i32 0))))))
+        (else (do)))
+      (let content ptr
+        (call_ptr malloc (add_i64 (local_get length) (const_i64 1))))
+      (let read i64 (const_i64 0))
+      (if
+        (condition (gt_i64 (local_get length) (const_i64 0)))
+        (then (do
+          (set read
+            (call_i64 fread
+              (local_get content)
+              (const_i64 1)
+              (local_get length)
+              (local_get stream)))))
+        (else (do)))
+      (call_i32 fclose (local_get stream))
+      (if
+        (condition (ne_i64 (local_get read) (local_get length)))
+        (then (do
+          (call free (local_get content))
+          (return
+            (new TextFile
+              (content (const_null))
+              (length (const_i64 0))
+              (line_count (const_i32 0))))))
+        (else (do)))
+      (store_i8
+        (ptr_add (local_get content) (local_get length))
+        (const_i32 0))
+      ; Terminate each line in place.
+      (let position i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get position) (local_get length)))
+        (do
+          (if
+            (condition (eq_i32
+              (load_u8 (ptr_add (local_get content) (local_get position)))
+              (const_i32 10)))
+            (then (do
+              (store_i8
+                (ptr_add (local_get content) (local_get position))
+                (const_i32 0))))
+            (else (do)))
+          (set position (add_i64 (local_get position) (const_i64 1)))))
+      (return
+        (new TextFile
+          (content (local_get content))
+          (length (local_get length))
+          (line_count
+            (call_i32 text_content_line_count
+              (local_get content)
+              (local_get length)))))))
+
+  (fn text_file_is_open
+    (params (file TextFile))
+    (returns bool)
+    (do
+      (return (ne_ptr (field-get file content) (const_null)))))
+
+  (fn text_file_line_count
+    (params (file TextFile))
+    (returns i32)
+    (do
+      (return (field-get file line_count))))
+
+  ; The text of one line, without its terminator. Out-of-range indices and a
+  ; file that failed to open both yield null, which parse_f64_valid rejects.
+  (fn text_file_line
+    (params (file TextFile) (index i32))
+    (returns ptr)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i32 (param_get index) (const_i32 0))
+          (ge_i32 (param_get index) (field-get file line_count))))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let content ptr (field-get file content))
+      (let length i64 (field-get file length))
+      (let remaining i32 (param_get index))
+      (let position i64 (const_i64 0))
+      (while
+        (condition (gt_i32 (local_get remaining) (const_i32 0)))
+        (do
+          (while
+            (condition (and_bool
+              (lt_i64 (local_get position) (local_get length))
+              (ne_i32
+                (load_u8 (ptr_add (local_get content) (local_get position)))
+                (const_i32 0))))
+            (do
+              (set position (add_i64 (local_get position) (const_i64 1)))))
+          (set position (add_i64 (local_get position) (const_i64 1)))
+          (set remaining (sub_i32 (local_get remaining) (const_i32 1)))))
+      (return (ptr_add (local_get content) (local_get position)))))
+
+  (fn text_file_close
+    (params (file TextFile))
+    (returns void)
+    (do
+      (if
+        (condition (ne_ptr (field-get file content) (const_null)))
+        (then (do (call free (field-get file content))))
+        (else (do)))
+      (call free file)
+      (return_void))))

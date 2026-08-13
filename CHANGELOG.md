@@ -10,6 +10,10 @@ surface-language contract stabilises.
 
 ### Added
 
+- A file-based numeric summary example, with `std.file` for reading a small
+  text file as lines, `std.statistics` sharing one mean and variance
+  implementation with the command-line example, and `std.memory` owning the
+  host allocation boundary.
 - A Newton square-root example with an explicit convergence test, named
   tolerance and iteration limit, and a deterministic non-convergence exit.
 - A projectile-motion calculator reporting flight time, maximum height, and
