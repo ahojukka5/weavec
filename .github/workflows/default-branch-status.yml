@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-name: default-branch-status
+name: Default branch status
 
 on:
   workflow_run:
