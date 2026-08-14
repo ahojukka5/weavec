@@ -120,3 +120,11 @@ reorders fields into declaration order:
 Both paths use the same validated layout and generated WIR-v2 implementation.
 The compatibility ABI may be removed only through an explicit future surface
 compatibility policy; WIR core version 2 is unchanged by semantic structs.
+
+## Where these rules should live
+
+The layout on this page is resolved in the frontend, so WIR carries the result
+of a target-shaped decision rather than the declaration it came from. Moving the
+decision to the backend, and giving WIR a layout-free struct declaration and
+typed field operations, is proposed for the next coordinated core-version
+revision in [Next-version WIR struct fields](wir-next-struct-fields.md).

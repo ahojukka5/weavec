@@ -10,6 +10,10 @@ surface-language contract stabilises.
 
 ### Added
 
+- A design contract for layout-free struct declarations and typed field
+  operations in the next coordinated WIR core-version revision, resolving
+  layout in the backend rather than the frontend, with the consumer survey it
+  was decided from.
 - An `if` without an else, normalized to the explicit form so both spellings
   lower to the same WIR.
 - A bare `(return)` as the void return spelling, meaning exactly
