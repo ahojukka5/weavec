@@ -78,6 +78,13 @@ Changing admitted WIR forms or semantics requires an explicit coordinated
 version transition. New surface features should lower through existing WIR v2
 forms whenever possible.
 
+Two capabilities are collected for the next coordinated transition rather than
+lowered through existing forms, because each needs the parser, validator,
+frontend, backend, fixtures, bootstrap, and self-host to change together:
+[first-class source locations](wir-next-source-locations.md) and
+[layout-free struct fields](wir-next-struct-fields.md). Neither justifies a
+version change alone.
+
 ## Diagnostic and LLVM source maps
 
 `weavec build --diagnostics-json` enables a private, comment-only source map in
@@ -134,5 +141,6 @@ Each negative backend case must return failure without leaving an output file.
 - [Command reference](command-reference.md)
 - [Language reference](language-reference.md)
 - [Next-version WIR source locations](wir-next-source-locations.md)
+- [Next-version WIR struct fields](wir-next-struct-fields.md)
 - [Source and fixture style](source-style.md)
 - [Performance demonstrations](performance-demonstrations.md)
