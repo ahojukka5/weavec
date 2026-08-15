@@ -1,6 +1,17 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-"""Audit the self-hosted compiler and repository corpus for WIR core version 2."""
+"""Audit the self-hosted compiler and repository corpus for the current WIR core
+version.
+
+Exactly one core version is live at a time: the compiler emits it, accepts it,
+and rejects every other. This audit is driven by `CURRENT_CORE_VERSION` and
+`SUPERSEDED_CORE_VERSIONS` below, so a coordinated version transition edits those
+two constants here rather than the version literals scattered through the checks.
+
+Superseding a version *adds* a rejection case rather than replacing one: every
+version the compiler once accepted must still be refused by name afterwards, so
+a stale toolchain fails loudly instead of producing wrong code.
+"""
 
 from __future__ import annotations
 
@@ -9,15 +20,36 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-INVALID_VERSION_FIXTURES = {
-    ROOT / "test/correctness/wir/67_core_version_1_rejected.wir": """(core-module
-  (core-version 1)
+# The one version the compiler emits and accepts.
+CURRENT_CORE_VERSION = 2
+
+# Every version the compiler once accepted and must now reject, mapped to the
+# fixture that proves it. Superseding a version means adding an entry here with
+# the next free fixture number -- a deliberate act, not a generated name.
+SUPERSEDED_CORE_VERSION_FIXTURES = {
+    1: "test/correctness/wir/67_core_version_1_rejected.wir",
+}
+
+SUPERSEDED_CORE_VERSIONS = tuple(sorted(SUPERSEDED_CORE_VERSION_FIXTURES))
+
+DECLARED = f"(core-version {CURRENT_CORE_VERSION})"
+LLVM_HEADER = f"; core-version: {CURRENT_CORE_VERSION}"
+
+_REJECTED_MODULE = """(core-module
+  (core-version {version})
   (decls
     (fn main
       (params)
       (returns i32)
       (do (return (const_i32 42))))))
-""",
+"""
+
+INVALID_VERSION_FIXTURES = {
+    ROOT / path: _REJECTED_MODULE.format(version=version)
+    for version, path in sorted(SUPERSEDED_CORE_VERSION_FIXTURES.items())
+}
+
+INVALID_VERSION_FIXTURES |= {
     ROOT / "test/correctness/wir/68_core_version_missing.wir": """(core-module
   (decls
     (fn main
@@ -25,17 +57,17 @@ INVALID_VERSION_FIXTURES = {
       (returns i32)
       (do (return (const_i32 42))))))
 """,
-    ROOT / "test/correctness/wir/69_core_version_duplicate.wir": """(core-module
-  (core-version 2)
-  (core-version 2)
+    ROOT / "test/correctness/wir/69_core_version_duplicate.wir": f"""(core-module
+  {DECLARED}
+  {DECLARED}
   (decls
     (fn main
       (params)
       (returns i32)
       (do (return (const_i32 42))))))
 """,
-    ROOT / "test/correctness/wir/70_wrong_root.wir": """(program
-  (core-version 2)
+    ROOT / "test/correctness/wir/70_wrong_root.wir": f"""(program
+  {DECLARED}
   (decls
     (fn main
       (params)
@@ -50,8 +82,8 @@ INVALID_VERSION_FIXTURES = {
       (returns i32)
       (do (return (const_i32 42))))))
 """,
-    ROOT / "test/correctness/wir/72_core_version_string_rejected.wir": """(core-module
-  (core-version "2")
+    ROOT / "test/correctness/wir/72_core_version_string_rejected.wir": f"""(core-module
+  (core-version "{CURRENT_CORE_VERSION}")
   (decls
     (fn main
       (params)
@@ -78,12 +110,15 @@ CURRENT_DOCS = (
     ROOT / "docs/source-style.md",
 )
 
-STALE_DOC_TERMS = (
-    "(core-version 1)",
-    "core version 1",
-    "core-version-1",
-    "version split",
-)
+STALE_DOC_TERMS = tuple(
+    term
+    for version in SUPERSEDED_CORE_VERSIONS
+    for term in (
+        f"(core-version {version})",
+        f"core version {version}",
+        f"core-version-{version}",
+    )
+) + ("version split",)
 
 SENTINEL_REGRESSION = ROOT / "test/correctness/surface/74_call_ptr_missing_callee.weave"
 
@@ -95,25 +130,32 @@ def relative(path: Path) -> str:
 def audit() -> list[str]:
     errors: list[str] = []
 
-    lower_text = (ROOT / "src/frontend/lower.weave").read_text(encoding="utf-8")
-    if '(const_string_ptr "  (core-version 2)")' not in lower_text:
-        errors.append("src/frontend/lower.weave does not emit core version 2")
-    if "core-version 1" in lower_text:
-        errors.append("src/frontend/lower.weave still references core version 1")
+    for emitter in ("src/frontend/lower.weave", "src/frontend/lower_program_emit.weave"):
+        emitter_text = (ROOT / emitter).read_text(encoding="utf-8")
+        if f'(const_string_ptr "  {DECLARED}")' not in emitter_text:
+            errors.append(
+                f"{emitter} does not emit core version {CURRENT_CORE_VERSION}"
+            )
+        for version in SUPERSEDED_CORE_VERSIONS:
+            if f"core-version {version}" in emitter_text:
+                errors.append(f"{emitter} still references core version {version}")
 
     module_text = (ROOT / "src/llvm/module.weave").read_text(encoding="utf-8")
     for required in (
-        "(fn validate_core_module_v2",
-        "expected exactly one (core-version 2)",
+        "(fn validate_core_module",
+        f"expected exactly one {DECLARED}",
         "expected WIR core-module root",
         "missing version value",
         "(call_i32 node_int)",
-        "; core-version: 2",
+        LLVM_HEADER,
     ):
         if required not in module_text:
             errors.append(f"src/llvm/module.weave missing {required!r}")
-    if "core-version 1" in module_text:
-        errors.append("src/llvm/module.weave still references core version 1")
+    for version in SUPERSEDED_CORE_VERSIONS:
+        if f"core-version {version}" in module_text:
+            errors.append(
+                f"src/llvm/module.weave still references core version {version}"
+            )
 
     extern_text = (ROOT / "src/core/extern.weave").read_text(encoding="utf-8")
     if "(extern unlink (params (path ptr)) (returns i32))" not in extern_text:
@@ -129,8 +171,10 @@ def audit() -> list[str]:
             errors.append(f"src/core/util.weave missing sentinel guard {required!r}")
 
     main_text = (ROOT / "src/main.weave").read_text(encoding="utf-8")
-    if "(call_i32 validate_core_module_v2" not in main_text:
-        errors.append("src/main.weave does not validate WIR v2 before output creation")
+    if "(call_i32 validate_core_module" not in main_text:
+        errors.append(
+            "src/main.weave does not validate the WIR envelope before output creation"
+        )
     if "(call_i32 unlink (param_get output_path))" not in main_text:
         errors.append("src/main.weave does not remove failed backend output")
 
@@ -140,17 +184,26 @@ def audit() -> list[str]:
                 continue
             text = path.read_text(encoding="utf-8")
             if path.suffix == ".wir":
-                if text.count("(core-version 2)") != 1:
+                if text.count(DECLARED) != 1:
                     errors.append(
-                        f"{relative(path)} must contain exactly one (core-version 2)"
+                        f"{relative(path)} must contain exactly one {DECLARED}"
                     )
-                if "(core-version 1)" in text:
-                    errors.append(f"{relative(path)} still declares core version 1")
+                for version in SUPERSEDED_CORE_VERSIONS:
+                    if f"(core-version {version})" in text:
+                        errors.append(
+                            f"{relative(path)} still declares core version {version}"
+                        )
             elif path.suffix == ".ll":
-                if "; core-version: 1" in text:
-                    errors.append(f"{relative(path)} still records core version 1")
-                if "; generated by weavec" in text and "; core-version: 2" not in text:
-                    errors.append(f"{relative(path)} lacks the core-version-2 header")
+                for version in SUPERSEDED_CORE_VERSIONS:
+                    if f"; core-version: {version}" in text:
+                        errors.append(
+                            f"{relative(path)} still records core version {version}"
+                        )
+                if "; generated by weavec" in text and LLVM_HEADER not in text:
+                    errors.append(
+                        f"{relative(path)} lacks the core-version-{CURRENT_CORE_VERSION}"
+                        " header"
+                    )
 
     for path, expected in INVALID_VERSION_FIXTURES.items():
         if not path.exists():
@@ -184,8 +237,8 @@ def audit() -> list[str]:
             if term in text:
                 errors.append(f"{relative(path)} contains stale WIR text {term!r}")
     index_text = (ROOT / "docs/index.md").read_text(encoding="utf-8")
-    if "[WIR core version 2](wir.md)" not in index_text:
-        errors.append("docs/index.md does not link the WIR v2 contract")
+    if f"[WIR core version {CURRENT_CORE_VERSION}](wir.md)" not in index_text:
+        errors.append("docs/index.md does not link the current WIR contract")
 
     return errors
 
