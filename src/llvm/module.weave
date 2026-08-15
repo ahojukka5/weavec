@@ -58,8 +58,10 @@
       (call_void write_byte (const_i32 2) (const_i32 10))
       (return_void)))
 
-  ; Accept only the stabilized WIR v2 module envelope.
-  (fn validate_core_module_v2
+  ; Accept only the one live WIR core version. Exactly one version is accepted
+  ; at a time: a superseded version is rejected by name rather than tolerated,
+  ; so a stale toolchain fails loudly instead of producing wrong code.
+  (fn validate_core_module
     (params (ctx ptr) (module_node i64))
     (returns i32)
     (do
@@ -308,7 +310,7 @@
       ; We look for the (core-module ...) node — it's node 0 (the root).
       (let root i64 (const_i64 0))
       (if
-        (condition (ne_i32 (call_i32 validate_core_module_v2
+        (condition (ne_i32 (call_i32 validate_core_module
           (param_get ctx) (local_get root)) (const_i32 0)))
         (then (do (return (const_i32 1))))
         (else (do)))

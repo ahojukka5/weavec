@@ -247,7 +247,7 @@
           (return (const_i32 1))))
         (else (do)))
       (if
-        (condition (ne_i32 (call_i32 validate_core_module_v2
+        (condition (ne_i32 (call_i32 validate_core_module
           (local_get validation_ctx) (const_i64 0)) (const_i32 0)))
         (then (do
           (call_void ctx_free (local_get validation_ctx))
