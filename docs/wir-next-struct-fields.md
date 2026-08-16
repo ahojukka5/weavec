@@ -1,8 +1,13 @@
 # Next-version WIR struct fields
 
-This document proposes first-class struct declarations and field access for the
-next coordinated WIR core-version revision. It is a design contract, not an
-extension to frozen WIR core version 2.
+This document specifies first-class struct declarations and field access for WIR
+core version 3.
+
+Core version 3 is open: the self-hosted frontend and backend moved to it as part
+of this coordinated revision, and core version 2 is now a frozen bootstrap-stage
+version that the current compiler rejects. The forms below are one of the two
+payloads that revision exists to carry; they are not yet emitted, and the
+section on where layout is resolved today still describes shipped behaviour.
 
 It is a sibling of
 [Next-version WIR source locations](wir-next-source-locations.md). Both are
@@ -53,7 +58,7 @@ Resolving layout in the frontend has three consequences:
 
 The cheapest change is to drop the generated accessors and emit `ptr_add` plus a
 typed load directly at each use site. It needs no version change, because
-`ptr_add` and typed loads are already core version 2 forms.
+`ptr_add` and typed loads are already admitted forms.
 
 It is rejected because it makes every consequence above worse rather than
 better. It does not introduce the target-shaped assumption, but it multiplies
@@ -252,7 +257,7 @@ than replacing one: version 1 and version 2 must both be rejected afterwards.
   updated deliberately, and gain a case rejecting the superseded version.
 - Loupe gains dual-version support before the compiler emits the new version,
   since its two pins are hard failures.
-- [WIR core version 2](wir.md) and
+- [WIR core version 3](wir.md) and
   [Struct layout and compatibility ABI](struct-layout.md) are revised together:
   the layout tables move from a frontend description to a backend one.
 
@@ -281,7 +286,7 @@ Removing them remains subject to the explicit surface compatibility policy in
 
 ## Related documents
 
-- [WIR core version 2](wir.md)
+- [WIR core version 3](wir.md)
 - [Semantic structs](semantic-structs.md)
 - [Struct layout and compatibility ABI](struct-layout.md)
 - [Next-version WIR source locations](wir-next-source-locations.md)
