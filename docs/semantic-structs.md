@@ -140,6 +140,38 @@ Nominal struct values participate in pointer equality, including comparison with
 `null`. Arithmetic, ordering, casts, and Boolean use remain invalid unless a
 future language feature defines them explicitly.
 
+## Binding and release, and what is not yet checked
+
+A struct value is a pointer, so binding aliases rather than copying:
+
+```weave
+(let a Counter (new Counter (n 1)))
+(let b Counter a)
+(field-set b n 42)
+(field-get a n)                  ; 42 — one object, two names
+```
+
+The intended model is that a struct is an owned value which binding moves, with
+aliasing requiring an explicit borrow. That is recorded in
+[Struct value semantics](struct-ownership.md) and implemented by the ownership
+work, not yet by this compiler.
+
+Until then the compiler enforces none of it, and three mistakes compile without
+a diagnostic:
+
+- **releasing twice**, directly or through an alias;
+- **using a value after releasing it**;
+- **releasing a value a called function already released.**
+
+Every standard module that allocates exposes an explicit release —
+`vec3_release`, `mat3_release`, `samples_release`, `text_file_close` — and each
+must be called exactly once on each allocation. A struct passed to a function
+that releases it must not be used or released again by the caller.
+
+Note that copying would not remove these. `Samples` and `TextFile` each hold a
+`ptr` field naming storage they own, so a field-wise copy shares that storage
+and releasing both copies frees it twice.
+
 ## Forward and multi-file resolution
 
 Type names are interned deterministically during declaration collection. A
