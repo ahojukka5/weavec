@@ -1,6 +1,16 @@
-# weavec-struct-cost-v1
-# class	malloc	free	alloca	load	store
-local	0	0	0	0	0
-escaped	1	1	0	0	2
-stored	3	3	0	2	6
-loop	0	0	0	11	0
+# weavec-struct-cost-v2
+#
+# raw: before optimization, inside program_main. new_calls is one per
+# struct value requested; stack allocation would remove them.
+# raw	class	new_calls	free	alloca	load	store
+raw	local	2	2	0	0	0
+raw	escaped	1	1	0	0	0
+raw	stored	3	3	0	0	0
+raw	loop	1	1	2	5	4
+#
+# optimized: what actually runs, inside @main after inlining.
+# opt	class	malloc	free	alloca	load	store
+opt	local	0	0	0	0	0
+opt	escaped	1	1	0	0	2
+opt	stored	3	3	0	2	6
+opt	loop	0	0	0	11	0
