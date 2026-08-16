@@ -75,6 +75,7 @@ names used when they were released.
 - [Public nominal type interfaces](public-nominal-types.md)
 - [Semantic structs](semantic-structs.md)
 - [Struct layout and compatibility ABI](struct-layout.md)
+- [Struct value semantics](struct-ownership.md)
 - [Quantum surface support](quantum.md)
 
 ## Backend and performance notes

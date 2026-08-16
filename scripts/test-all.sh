@@ -186,6 +186,9 @@ bash "$ROOT/test/function-terminators/test.sh"
 log 'optional else'
 bash "$ROOT/test/optional-else/test.sh"
 
+log 'struct aliasing (known gap)'
+bash "$ROOT/test/struct-aliasing/test.sh"
+
 log 'type annotations'
 bash "$ROOT/test/type-annotations/test.sh"
 
