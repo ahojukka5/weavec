@@ -130,12 +130,13 @@ expected_backend_error() {
     63_wrong_arity_if_too_few) echo "wrong arity for if: expected 3, got 2" ;;
     64_wrong_arity_fn_too_few) echo "wrong arity for fn: expected 4, got 3" ;;
     65_unknown_statement) echo "unknown expression operator: mystery_stmt" ;;
-    67_core_version_1_rejected) echo "expected exactly one (core-version 2), got 1" ;;
-    68_core_version_missing) echo "expected exactly one (core-version 2), found 0 declarations" ;;
-    69_core_version_duplicate) echo "expected exactly one (core-version 2), found 2 declarations" ;;
+    67_core_version_1_rejected) echo "expected exactly one (core-version 3), got 1" ;;
+    68_core_version_missing) echo "expected exactly one (core-version 3), found 0 declarations" ;;
+    69_core_version_duplicate) echo "expected exactly one (core-version 3), found 2 declarations" ;;
     70_wrong_root) echo "expected WIR core-module root" ;;
-    71_core_version_missing_value) echo "expected exactly one (core-version 2), missing version value" ;;
-    72_core_version_string_rejected) echo "expected exactly one (core-version 2), got" ;;
+    71_core_version_missing_value) echo "expected exactly one (core-version 3), missing version value" ;;
+    72_core_version_string_rejected) echo "expected exactly one (core-version 3), got" ;;
+    78_core_version_2_rejected) echo "expected exactly one (core-version 3), got 2" ;;
     *) return 1 ;;
   esac
 }

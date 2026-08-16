@@ -262,7 +262,7 @@ weavec --frontend [--strict-contracts] <output.wir>
 This mode lowers ordered surface-Weave source files to one WIR v2 module:
 
 ```text
-(core-module (core-version 2) ...)
+(core-module (core-version 3) ...)
 ```
 
 The output uses the same versioned envelope as the frozen lower-stage bootstrap.

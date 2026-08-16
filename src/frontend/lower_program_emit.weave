@@ -8,7 +8,7 @@
 ; are collected before declaration emission and consumed by emit.weave.
 ;
 ; Transformation rules:
-;   program/module root → core-module / core-version 2 / decls wrapper
+;   program/module root → core-module / core-version 3 / decls wrapper
 ;   extern decl         → emitted verbatim in the decls list
 ;   fn decl             → emitted verbatim in the decls list
 ;   entry NAME ...      → fn NAME ... (head renamed from entry to fn)
@@ -31,7 +31,7 @@
       (call_void weave_surface_symbols_reset)
       (call_void write_cstr (param_get fd) (const_string_ptr "(core-module"))
       (call_void write_byte (param_get fd) (const_i32 10))
-      (call_void write_cstr (param_get fd) (const_string_ptr "  (core-version 2)"))
+      (call_void write_cstr (param_get fd) (const_string_ptr "  (core-version 3)"))
       (call_void write_byte (param_get fd) (const_i32 10))
       (call_void write_cstr (param_get fd) (const_string_ptr "  (decls"))
       (call_void write_byte (param_get fd) (const_i32 10))

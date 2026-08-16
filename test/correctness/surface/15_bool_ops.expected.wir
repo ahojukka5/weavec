@@ -1,1 +1,1 @@
-(core-module (core-version 2) (decls (fn main (params) (returns i32) (do (if (condition (and_bool (const_bool true) (or_bool (const_bool false) (const_bool true)))) (then (do (return (const_i32 42)))) (else (do (return (const_i32 0)))))))))
+(core-module (core-version 3) (decls (fn main (params) (returns i32) (do (if (condition (and_bool (const_bool true) (or_bool (const_bool false) (const_bool true)))) (then (do (return (const_i32 42)))) (else (do (return (const_i32 0)))))))))

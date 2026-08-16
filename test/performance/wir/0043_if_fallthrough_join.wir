@@ -9,7 +9,7 @@
 ;   emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Phi missing at join; one arm falls through wrong block.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn main
       (params)

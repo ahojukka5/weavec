@@ -7,7 +7,7 @@
 ; If LLVM regresses: fadd typed as double add; literal parsed as integer; cast
 ;   omitted.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn main
       (params)

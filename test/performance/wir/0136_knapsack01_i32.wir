@@ -8,7 +8,7 @@
 ; If LLVM regresses: DP recurrence uses wrong index; table row stride wrong; max
 ;   path broken.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (extern malloc
       (params

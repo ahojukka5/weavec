@@ -7,7 +7,7 @@
 ;   emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Child index 2i+1/2i+2 wrong; sift stops early.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (extern malloc
       (params

@@ -23,7 +23,7 @@ A source module is a `program` form:
 provide an `entry main` body after all input files are combined.
 
 Multiple source files are accepted by `weavec build` and `weavec --frontend`.
-Their declarations are lowered into one WIR core-version-2 module. Source
+Their declarations are lowered into one WIR core-version-3 module. Source
 argument order is preserved, while the frontend applies deterministic
 main/declaration ordering rules to the combined output.
 

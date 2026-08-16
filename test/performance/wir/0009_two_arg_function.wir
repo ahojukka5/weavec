@@ -10,7 +10,7 @@
 ; If LLVM regresses: Second argument clobbers first or uses wrong
 ;   attribute/sign.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn add
       (params

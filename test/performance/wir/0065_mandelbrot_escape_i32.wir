@@ -8,7 +8,7 @@
 ; If LLVM regresses: Inner loop never exits; escape count wrong due to div
 ;   rounding.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn escape_count
       (params

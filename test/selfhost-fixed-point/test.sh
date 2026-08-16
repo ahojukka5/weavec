@@ -24,7 +24,7 @@ write_stage() {
   local stage="$1"
   cat > "$stage/weavec.wir" <<'WIR'
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls))
 WIR
   cat > "$stage/weavec.ll" <<LLVM

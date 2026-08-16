@@ -7,7 +7,7 @@
 ;   emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Returns mean not median.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn min3
       (params

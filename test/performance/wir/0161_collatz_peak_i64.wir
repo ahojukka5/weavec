@@ -7,7 +7,7 @@
 ;   llvm-as accepts emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Peak uses i32 compare; 3n+1 overflows wrong width.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn collatz_peak
       (params

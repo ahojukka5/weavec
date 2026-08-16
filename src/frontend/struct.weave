@@ -1,5 +1,5 @@
 ; SPDX-License-Identifier: Apache-2.0
-; struct.weave — validated, naturally aligned struct lowering for WIR v2
+; struct.weave — validated, naturally aligned struct lowering
 ;
 ; Legacy struct declarations retain their generated compatibility ABI:
 ;   NAME_new, NAME_get_FIELD, and NAME_set_FIELD.

@@ -29,7 +29,7 @@ cat > "$CHECKOUT/build/weavec" <<'EOF'
 set -euo pipefail
 case "${1:-}" in
   --frontend)
-    printf '%s\n' '(core-module (core-version 2) (decls))' > "$2"
+    printf '%s\n' '(core-module (core-version 3) (decls))' > "$2"
     ;;
   --backend)
     printf '%s\n' '; fake LLVM' > "$3"

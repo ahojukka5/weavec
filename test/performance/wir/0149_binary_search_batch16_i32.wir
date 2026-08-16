@@ -7,7 +7,7 @@
 ;   accepts emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Search returns wrong index; outer sum double-counts.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (extern malloc
       (params

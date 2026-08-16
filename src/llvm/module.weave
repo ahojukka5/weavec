@@ -2,7 +2,7 @@
 ; module.weave — top-level WIR module emission for weavec
 ;
 ; Structure of a WIR module:
-;   (core-module (core-version 2) (decls decl...))
+;   (core-module (core-version 3) (decls decl...))
 ; where each decl is (extern ...) or (fn ...).
 
 (program
@@ -26,7 +26,7 @@
           (call_void write_cstr (local_get fd) (param_get source_path))
           (call_void write_byte (local_get fd) (const_i32 10))))
         (else (do)))
-      (call_void write_cstr (local_get fd) (const_string_ptr "; core-version: 2"))
+      (call_void write_cstr (local_get fd) (const_string_ptr "; core-version: 3"))
       (call_void write_byte (local_get fd) (const_i32 10))
       (call_void write_byte (local_get fd) (const_i32 10))
       (return_void)))
@@ -39,7 +39,7 @@
     (do
       (call_void diag_prefix)
       (call_void write_cstr (const_i32 2)
-        (const_string_ptr "expected exactly one (core-version 2)"))
+        (const_string_ptr "expected exactly one (core-version 3)"))
       (if
         (condition (eq_i64 (param_get version_count) (const_i64 1)))
         (then (do
@@ -127,7 +127,7 @@
             (call_i32 node_int))
           (eq_i32 (call_i32 node_text_equals
             (local_get tree) (local_get source) (local_get version_node)
-            (const_string_ptr "2") (const_i64 1)) (const_i32 0))))
+            (const_string_ptr "3") (const_i64 1)) (const_i32 0))))
         (then (do
           (call_void diag_wir_core_version
             (param_get ctx) (local_get version_node) (local_get version_count))

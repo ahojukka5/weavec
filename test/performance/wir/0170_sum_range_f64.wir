@@ -7,7 +7,7 @@
 ;   -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Double-width accumulator; per-iteration sitofp of index.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn main
       (params)

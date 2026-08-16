@@ -1,5 +1,5 @@
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn choose (params (flag bool) (left i32) (right i32)) (returns i32) (do (if (condition flag) (then (do (return left))) (else (do (return right))))))
     (fn null_bonus (params (value ptr)) (returns i32) (do (if (condition (eq_ptr value (const_null))) (then (do (return (const_i32 2)))) (else (do (return (const_i32 0)))))))

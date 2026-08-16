@@ -19,7 +19,7 @@ automated agent.
 ## WIR rule
 
 The complete chain uses WIR core version 2. The self-hosted frontend must emit
-exactly one `(core-version 2)` declaration, and the self-hosted backend must
+exactly one `(core-version 3)` declaration, and the self-hosted backend must
 reject other envelopes before output creation.
 
 Do not add a private `weavec` WIR dialect. Prefer existing admitted WIR v2 forms;

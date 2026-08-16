@@ -8,7 +8,7 @@
 ; If LLVM regresses: Hash forgets to subtract outgoing term; mod applied once
 ;   not per step.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (extern malloc
       (params

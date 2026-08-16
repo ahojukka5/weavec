@@ -1,7 +1,7 @@
 ;; Test new operators: div_i64, mod_i64, and bitwise operators
 
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
 
     ;; Test div_i64 and mod_i64

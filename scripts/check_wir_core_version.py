@@ -21,13 +21,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 # The one version the compiler emits and accepts.
-CURRENT_CORE_VERSION = 2
+CURRENT_CORE_VERSION = 3
 
 # Every version the compiler once accepted and must now reject, mapped to the
 # fixture that proves it. Superseding a version means adding an entry here with
 # the next free fixture number -- a deliberate act, not a generated name.
 SUPERSEDED_CORE_VERSION_FIXTURES = {
     1: "test/correctness/wir/67_core_version_1_rejected.wir",
+    2: "test/correctness/wir/78_core_version_2_rejected.wir",
 }
 
 SUPERSEDED_CORE_VERSIONS = tuple(sorted(SUPERSEDED_CORE_VERSION_FIXTURES))
@@ -110,12 +111,18 @@ CURRENT_DOCS = (
     ROOT / "docs/source-style.md",
 )
 
+# Terms that assert a superseded version is what the compiler currently emits.
+#
+# The spaced prose form ("core version 2") is deliberately NOT banned. The frozen
+# lower stages really are version-2 artifacts and always will be, so current
+# documentation has to keep naming them accurately -- `weavec1` is a WIR core
+# version 2 to LLVM backend, and no transition changes that. Only the envelope
+# literal and the hyphenated module descriptor are claims about current output.
 STALE_DOC_TERMS = tuple(
     term
     for version in SUPERSEDED_CORE_VERSIONS
     for term in (
         f"(core-version {version})",
-        f"core version {version}",
         f"core-version-{version}",
     )
 ) + ("version split",)

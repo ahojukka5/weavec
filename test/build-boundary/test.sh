@@ -54,7 +54,7 @@ chmod +x "$BOOTSTRAP_SDK/bin/weavec-bootstrap"
 cat > "$BOOTSTRAP_SDK/bin/weavec-bootstrap-cat" <<EOF_BOOTSTRAP_CAT
 #!/usr/bin/env bash
 printf 'bootstrap %s\n' "\$1" >> "$LOG"
-printf '(core-module (core-version 2) (decls))\n' > "\$1"
+printf '(core-module (core-version 3) (decls))\n' > "\$1"
 EOF_BOOTSTRAP_CAT
 chmod +x "$BOOTSTRAP_SDK/bin/weavec-bootstrap-cat"
 
