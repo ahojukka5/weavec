@@ -50,9 +50,15 @@ argument positions internally.
 the same physical representation as `i64`. Quantum validation remains separate
 from this memory-layout rule.
 
-`void`, aggregate fields, undeclared field types, and future handle types are not
-admitted until their complete representation is defined. They produce a frontend
-error instead of receiving fallback storage.
+`void`, undeclared field types, and future handle types are not admitted until
+their complete representation is defined. They produce an error instead of
+receiving fallback storage.
+
+A WIR field type may also name a declared struct, laid out inline: the field
+occupies the nested struct's bytes and takes its alignment. A struct containing
+itself has no finite layout and is refused. The surface language does not yet
+admit an aggregate field, because how such a field is constructed and copied is
+bound up with value semantics.
 
 ## Natural layout
 

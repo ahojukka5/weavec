@@ -153,12 +153,12 @@
               (local_get tree) (local_get source) (local_get child)
               (const_string_ptr "struct") (const_i64 6)) (const_i32 0)))
             (then (do
-              (let declared i64 (call_i64 nth_child
+              (let declared_name i64 (call_i64 nth_child
                 (local_get tree) (local_get child) (const_i64 1)))
               (if
                 (condition (ne_i32 (call_i32 sl_nodes_text_equal
                   (local_get tree) (local_get source)
-                  (local_get declared) (param_get name_node)) (const_i32 0)))
+                  (local_get declared_name) (param_get name_node)) (const_i32 0)))
                 (then (do (return (local_get child))))
                 (else (do)))))
             (else (do)))
@@ -177,9 +177,9 @@
       (return (call_i64 node_next_sibling
         (local_get tree) (local_get name_node)))))
 
-  ; Type ID of one (field NAME TYPE) declaration.
-  ; Type ID of a field's declared type, or -1 when it is not a type a struct
-  ; field may have.
+  ; Type ID of a field's declared type, or -1 when it is not a scalar type a
+  ; struct field may have. A struct-typed field also answers -1: it has no
+  ; scalar type, which is what makes field_get_T on it a mismatch.
   ;
   ; parse_type answers i32 for anything it does not recognise, which is a safe
   ; default for an expression operand but not for a field: an unrecognised type
@@ -243,6 +243,41 @@
   ; output is created. Checking declarations rather than uses catches a struct
   ; that is declared but never accessed, and reports it once instead of once
   ; per use.
+  ; Non-zero when following a struct-typed field never terminates.
+  ;
+  ; Detected by depth rather than by a visited set: a struct nested past
+  ; sl_max_depth levels is either cyclic or beyond what this compiler lays out,
+  ; and both must be refused rather than recursed into.
+  (fn sl_field_is_cyclic
+    (params (ctx ptr) (field_node i64) (depth i64))
+    (returns i32)
+    (do
+      (if
+        (condition (gt_i64 (param_get depth) (call_i64 sl_max_depth)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let nested i64 (call_i64 sl_field_struct_node
+        (param_get ctx) (param_get field_node)))
+      (if
+        (condition (eq_i64 (local_get nested) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let inner i64 (call_i64 sl_first_field
+        (param_get ctx) (local_get nested)))
+      (while
+        (condition (ne_i64 (local_get inner) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 sl_field_is_cyclic
+              (param_get ctx) (local_get inner)
+              (add_i64 (param_get depth) (const_i64 1))) (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (set inner (call_i64 node_next_sibling
+            (local_get tree) (local_get inner)))))
+      (return (const_i32 0))))
+
   (fn sl_validate_structs
     (params (ctx ptr) (decls_node i64))
     (returns i32)
@@ -268,9 +303,16 @@
                 (do
                   (let type_node i64 (call_i64 nth_child
                     (local_get tree) (local_get field) (const_i64 2)))
+                  ; Either a scalar type or the name of a declared struct.
+                  ; Anything else would silently take i32's size and alignment
+                  ; and move every field after it.
                   (if
-                    (condition (eq_i32 (call_i32 sl_parse_field_type
-                      (param_get ctx) (local_get type_node)) (const_i32 -1)))
+                    (condition (and_bool
+                      (eq_i32 (call_i32 sl_parse_field_type
+                        (param_get ctx) (local_get type_node)) (const_i32 -1))
+                      (eq_i64 (call_i64 sl_lookup_struct
+                        (param_get ctx) (local_get type_node))
+                        (const_i64 -1))))
                     (then (do
                       (call_void diag_prefix)
                       (call_void write_cstr (const_i32 2)
@@ -289,6 +331,28 @@
                       (call_void write_byte (const_i32 2) (const_i32 10))
                       (return (const_i32 1))))
                     (else (do)))
+                  ; A struct that contains itself, directly or through other
+                  ; structs, has no finite layout.
+                  (if
+                    (condition (ne_i32 (call_i32 sl_field_is_cyclic
+                      (param_get ctx) (local_get field) (const_i64 0))
+                      (const_i32 0)))
+                    (then (do
+                      (call_void diag_prefix)
+                      (call_void write_cstr (const_i32 2)
+                        (const_string_ptr "struct "))
+                      (call_void diag_node_text
+                        (param_get ctx) (local_get struct_name))
+                      (call_void write_cstr (const_i32 2)
+                        (const_string_ptr " contains itself through field "))
+                      (call_void diag_node_text
+                        (param_get ctx) (call_i64 nth_child
+                          (local_get tree) (local_get field) (const_i64 1)))
+                      (call_void write_cstr (const_i32 2)
+                        (const_string_ptr ", so it has no finite layout"))
+                      (call_void write_byte (const_i32 2) (const_i32 10))
+                      (return (const_i32 1))))
+                    (else (do)))
                   (set field (call_i64 node_next_sibling
                     (local_get tree) (local_get field)))))))
             (else (do)))
@@ -297,6 +361,101 @@
       (return (const_i32 0))))
 
   ; Byte offset of the field named by name_node, or -1 when it is not declared.
+  ; The struct a field's type names, or -1 when the field is a scalar.
+  ;
+  ; A struct-typed field is laid out inline: it occupies the nested struct's
+  ; bytes directly rather than a pointer to them. field_addr on such a field
+  ; therefore yields an interior address, which is the receiver of the next
+  ; field operation, so nested access composes without a path form.
+  (fn sl_field_struct_node
+    (params (ctx ptr) (field_node i64))
+    (returns i64)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let type_node i64 (call_i64 nth_child
+        (local_get tree) (param_get field_node) (const_i64 2)))
+      (if
+        (condition (ne_i32 (call_i32 sl_parse_field_type
+          (param_get ctx) (local_get type_node)) (const_i32 -1)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 sl_lookup_struct
+        (param_get ctx) (local_get type_node)))))
+
+  ; Nesting bound. A struct that reaches this depth is treated as cyclic:
+  ; sl_validate_structs reports it and refuses the module, so the layout walks
+  ; below never recurse without end.
+  (fn sl_max_depth
+    (params)
+    (returns i64)
+    (do
+      (return (const_i64 64))))
+
+  ; Size in bytes of one declared field, following a struct-typed field into
+  ; the struct it names.
+  (fn sl_field_size
+    (params (ctx ptr) (field_node i64) (depth i64))
+    (returns i64)
+    (do
+      (if
+        (condition (gt_i64 (param_get depth) (call_i64 sl_max_depth)))
+        (then (do (return (const_i64 0))))
+        (else (do)))
+      (let nested i64 (call_i64 sl_field_struct_node
+        (param_get ctx) (param_get field_node)))
+      (if
+        (condition (ne_i64 (local_get nested) (const_i64 -1)))
+        (then (do (return (call_i64 sl_total_size_depth
+          (param_get ctx) (local_get nested)
+          (add_i64 (param_get depth) (const_i64 1))))))
+        (else (do)))
+      (return (call_i64 sl_type_size (call_i32 sl_declared_field_type
+        (param_get ctx) (param_get field_node))))))
+
+  ; Alignment of one declared field. A struct-typed field inherits the largest
+  ; alignment among the fields of the struct it names.
+  (fn sl_field_alignment
+    (params (ctx ptr) (field_node i64) (depth i64))
+    (returns i64)
+    (do
+      (if
+        (condition (gt_i64 (param_get depth) (call_i64 sl_max_depth)))
+        (then (do (return (const_i64 1))))
+        (else (do)))
+      (let nested i64 (call_i64 sl_field_struct_node
+        (param_get ctx) (param_get field_node)))
+      (if
+        (condition (ne_i64 (local_get nested) (const_i64 -1)))
+        (then (do (return (call_i64 sl_struct_alignment
+          (param_get ctx) (local_get nested)
+          (add_i64 (param_get depth) (const_i64 1))))))
+        (else (do)))
+      (return (call_i64 sl_type_alignment (call_i32 sl_declared_field_type
+        (param_get ctx) (param_get field_node))))))
+
+  ; Largest alignment among a struct's fields, which is the struct's own.
+  (fn sl_struct_alignment
+    (params (ctx ptr) (struct_node i64) (depth i64))
+    (returns i64)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let max_alignment i64 (const_i64 1))
+      (let field i64 (call_i64 sl_first_field
+        (param_get ctx) (param_get struct_node)))
+      (while
+        (condition (ne_i64 (local_get field) (const_i64 -1)))
+        (do
+          (let field_alignment i64 (call_i64 sl_field_alignment
+            (param_get ctx) (local_get field) (param_get depth)))
+          (if
+            (condition (gt_i64
+              (local_get field_alignment) (local_get max_alignment)))
+            (then (do (set max_alignment (local_get field_alignment))))
+            (else (do)))
+          (set field (call_i64 node_next_sibling
+            (local_get tree) (local_get field)))))
+      (return (local_get max_alignment))))
+
   (fn sl_field_offset
     (params (ctx ptr) (struct_node i64) (name_node i64))
     (returns i64)
@@ -309,11 +468,10 @@
       (while
         (condition (ne_i64 (local_get field) (const_i64 -1)))
         (do
-          (let field_type i32 (call_i32 sl_declared_field_type
-            (param_get ctx) (local_get field)))
           (set offset (call_i64 sl_align_up
             (local_get offset)
-            (call_i64 sl_type_alignment (local_get field_type))))
+            (call_i64 sl_field_alignment
+              (param_get ctx) (local_get field) (const_i64 0))))
           (let field_name i64 (call_i64 nth_child
             (local_get tree) (local_get field) (const_i64 1)))
           (if
@@ -324,7 +482,34 @@
             (else (do)))
           (set offset (add_i64
             (local_get offset)
-            (call_i64 sl_type_size (local_get field_type))))
+            (call_i64 sl_field_size
+              (param_get ctx) (local_get field) (const_i64 0))))
+          (set field (call_i64 node_next_sibling
+            (local_get tree) (local_get field)))))
+      (return (const_i64 -1))))
+
+  ; The (field ...) node named by name_node, or -1 when it is not declared.
+  ; Distinct from sl_field_type, which cannot tell an undeclared field from a
+  ; struct-typed one because both have no scalar type ID.
+  (fn sl_find_field
+    (params (ctx ptr) (struct_node i64) (name_node i64))
+    (returns i64)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
+      (let field i64 (call_i64 sl_first_field
+        (param_get ctx) (param_get struct_node)))
+      (while
+        (condition (ne_i64 (local_get field) (const_i64 -1)))
+        (do
+          (let field_name i64 (call_i64 nth_child
+            (local_get tree) (local_get field) (const_i64 1)))
+          (if
+            (condition (ne_i32 (call_i32 sl_nodes_text_equal
+              (local_get tree) (local_get source)
+              (local_get field_name) (param_get name_node)) (const_i32 0)))
+            (then (do (return (local_get field))))
+            (else (do)))
           (set field (call_i64 node_next_sibling
             (local_get tree) (local_get field)))))
       (return (const_i64 -1))))
@@ -359,6 +544,19 @@
     (params (ctx ptr) (struct_node i64))
     (returns i64)
     (do
+      (return (call_i64 sl_total_size_depth
+        (param_get ctx) (param_get struct_node) (const_i64 0)))))
+
+  ; Total allocation size, carrying the nesting depth so a struct-typed field
+  ; can be followed into the struct it names.
+  (fn sl_total_size_depth
+    (params (ctx ptr) (struct_node i64) (depth i64))
+    (returns i64)
+    (do
+      (if
+        (condition (gt_i64 (param_get depth) (call_i64 sl_max_depth)))
+        (then (do (return (const_i64 0))))
+        (else (do)))
       (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
       (let total i64 (const_i64 0))
       (let max_alignment i64 (const_i64 1))
@@ -367,15 +565,14 @@
       (while
         (condition (ne_i64 (local_get field) (const_i64 -1)))
         (do
-          (let field_type i32 (call_i32 sl_declared_field_type
-            (param_get ctx) (local_get field)))
-          (let field_alignment i64 (call_i64 sl_type_alignment
-            (local_get field_type)))
+          (let field_alignment i64 (call_i64 sl_field_alignment
+            (param_get ctx) (local_get field) (param_get depth)))
           (set total (call_i64 sl_align_up
             (local_get total) (local_get field_alignment)))
           (set total (add_i64
             (local_get total)
-            (call_i64 sl_type_size (local_get field_type))))
+            (call_i64 sl_field_size
+              (param_get ctx) (local_get field) (param_get depth))))
           (if
             (condition (gt_i64
               (local_get field_alignment) (local_get max_alignment)))
