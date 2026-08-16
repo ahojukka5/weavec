@@ -7,54 +7,58 @@ Core version 3 is open: the self-hosted frontend and backend moved to it as part
 of this coordinated revision, and core version 2 is now a frozen bootstrap-stage
 version that the current compiler rejects.
 
-The backend implements the forms below and resolves their layout, covered by
-`test/struct-forms`. The frontend does not emit them yet: it still generates
-the accessor functions described in the next section, so the account of where
-layout is resolved today stays accurate for anything the compiler produces.
+This is implemented. The frontend emits these forms and computes no offsets;
+the backend resolves layout in `src/llvm/struct_layout.weave`.
+`test/struct-forms` asserts the derived offsets against emitted LLVM, and
+`test/struct-layout` asserts that no layout number survives into WIR.
 
 It is a sibling of
 [Next-version WIR source locations](wir-next-source-locations.md). Both are
 collection items for the same coordinated version change, and neither justifies
 a version bump on its own.
 
-## What WIR says about structs today
+## What WIR said about structs before this
 
-A surface `(struct ...)` declaration does not appear in WIR at all. The frontend
-lowers it to generated functions and lowers every field operation to a call:
+Recorded because it is the reasoning the decision rests on, not because it still
+describes the compiler.
+
+A surface `(struct ...)` declaration did not appear in WIR at all. The frontend
+lowered it to generated functions and lowered every field operation to a call:
 
 ```text
 (call_f64 Point_get_x (local_get p))
 ```
 
-`Point_get_x` is a generated WIR function whose body computes a byte offset:
+`Point_get_x` was a generated WIR function whose body computed a byte offset:
 
 ```text
 (load_f64 (ptr_add (param_get self) (const_i64 8)))
 ```
 
-The offset comes from `stl_field_offset` in `src/frontend/struct.weave`, which
-walks the declared fields applying the sizes and alignments recorded in
-[Struct layout and compatibility ABI](struct-layout.md).
+The offset came from `stl_field_offset` in `src/frontend/struct.weave`, which
+walked the declared fields applying the sizes and alignments recorded in
+[Struct layout and compatibility ABI](struct-layout.md). That function and its
+helpers no longer exist.
 
-So the frontend already chooses a physical layout. WIR does not describe a
-struct; it describes the consequences of one layout decision that has already
-been made, spread across one generated function per field.
+So the frontend chose a physical layout. WIR did not describe a struct; it
+described the consequences of one layout decision already made, spread across
+one generated function per field.
 
-## Why the current placement is wrong
+## Why that placement was wrong
 
 Layout is a property of the target. Size, alignment, padding, and field order
 are the things a target ABI gets to decide, and they are the things a backend is
 positioned to decide because it is the component that knows the target.
 
-Resolving layout in the frontend has three consequences:
+Resolving layout in the frontend had three consequences:
 
-- WIR is target-shaped. The same program produces different WIR for targets that
-  differ in alignment, so WIR cannot be a portable interchange format for any
-  program that uses a struct.
-- Layout cannot change without regenerating WIR. A better packing rule, a
-  target-specific rule, or a debug-vs-release layout are all frontend edits.
-- The struct is not recoverable. Once WIR says `ptr_add self 8`, "field `y` of
-  `Point`" is gone, and every consumer downstream of the frontend sees pointer
+- WIR was target-shaped. The same program produced different WIR for targets
+  differing in alignment, so WIR could not be a portable interchange format for
+  any program using a struct.
+- Layout could not change without regenerating WIR. A better packing rule, a
+  target-specific rule, or a debug-vs-release layout were all frontend edits.
+- The struct was not recoverable. Once WIR said `ptr_add self 8`, "field `y` of
+  `Point`" was gone, and every consumer downstream of the frontend saw pointer
   arithmetic rather than a field access.
 
 ## Rejected: spelling field access as pointer arithmetic
@@ -107,10 +111,14 @@ The admitted field types are the WIR scalar types: `bool`, `i32`, `i64`, `f32`,
 reaches WIR, so no surface-only type appears in a declaration — the
 correspondence is in [Struct layout and compatibility ABI](struct-layout.md).
 
-The grammar additionally admits a struct name as a field type, so that inline
-nested layout does not require another version change. Whether the frontend
-emits such a field is a separate question, tracked as a later step of the struct
-epic.
+A struct name is **not** yet admitted as a field type. The backend refuses one
+by name rather than defaulting it, because an unrecognised type would silently
+take `i32`'s size and alignment and move every field after it.
+
+Admitting struct-typed fields is what gives nested structs inline layout, and it
+is a later step of the struct epic. It needs no further version change: the
+declaration form already carries a type name per field, so admitting more names
+extends what is accepted rather than changing what is written.
 
 ### Size
 
@@ -136,10 +144,11 @@ decision that this form does not prejudge.
 Fixed arity: struct name, field name, receiver expression. The result is `ptr`.
 No load is performed.
 
-This is the composition primitive. A field of struct type yields the address of
-that nested struct, which is the receiver of the next `field_addr` or
-`field_get_*`, so nested access composes without a path form and without a
-grammar change.
+This is the composition primitive. Once a field may have struct type, it yields
+the address of that nested struct, which is the receiver of the next
+`field_addr` or `field_get_*` — so nested access will compose without a path
+form and without a grammar change. Today its use is taking the address of a
+scalar field.
 
 ### Field read and write
 

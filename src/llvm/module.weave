@@ -309,6 +309,12 @@
         (condition (eq_i64 (local_get decls_node) (const_i64 -1)))
         (then (do (return (const_i32 1))))
         (else (do)))
+      ; Reject unresolvable struct declarations before creating any output.
+      (if
+        (condition (ne_i32 (call_i32 sl_validate_structs
+          (param_get ctx) (local_get decls_node)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
       ; Emit module header
       (call_void emit_module_header (param_get ctx) (param_get source_path))
       ; Pass 1: emit extern declarations
