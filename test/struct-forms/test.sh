@@ -129,6 +129,34 @@ cat > "$TMP/unknown-struct.wir" <<'EOF'
 EOF
 expect_rejected unknown-struct 'unknown struct: Missing'
 
+# A field type the layout rules cannot resolve must be refused, not defaulted.
+# Silently treating an unrecognised type as i32 would take i32's size and
+# alignment and move every field after it, so this must fail loudly.
+cat > "$TMP/unsupported-field-type.wir" <<'EOF'
+(core-module
+  (core-version 3)
+  (decls
+    (struct Inner (field a f64) (field b f64))
+    (struct Outer (field tag i32) (field inner Inner) (field n i64))
+    (fn read (params (o ptr)) (returns i64)
+      (do (return (field_get_i64 Outer n (param_get o)))))
+    (fn main (params) (returns i32) (do (return (const_i32 0))))))
+EOF
+expect_rejected unsupported-field-type \
+  'struct Outer field inner has unsupported type Inner'
+
+# The declaration is checked even when nothing accesses it, so a struct that is
+# declared and never used cannot carry an unresolvable layout.
+cat > "$TMP/unused-bad-struct.wir" <<'EOF'
+(core-module
+  (core-version 3)
+  (decls
+    (struct Unused (field thing Whatever))
+    (fn main (params) (returns i32) (do (return (const_i32 0))))))
+EOF
+expect_rejected unused-bad-struct \
+  'struct Unused field thing has unsupported type Whatever'
+
 cat > "$TMP/unknown-field.wir" <<'EOF'
 (core-module
   (core-version 3)

@@ -178,16 +178,123 @@
         (local_get tree) (local_get name_node)))))
 
   ; Type ID of one (field NAME TYPE) declaration.
+  ; Type ID of a field's declared type, or -1 when it is not a type a struct
+  ; field may have.
+  ;
+  ; parse_type answers i32 for anything it does not recognise, which is a safe
+  ; default for an expression operand but not for a field: an unrecognised type
+  ; would silently take i32's size and alignment and move every field after it.
+  ; So this resolves the admitted names explicitly and refuses the rest.
+  (fn sl_parse_field_type
+    (params (ctx ptr) (type_node i64))
+    (returns i32)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals
+          (local_get tree) (local_get source) (param_get type_node)
+          (const_string_ptr "i32") (const_i64 3)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals
+          (local_get tree) (local_get source) (param_get type_node)
+          (const_string_ptr "i64") (const_i64 3)) (const_i32 0)))
+        (then (do (return (const_i32 2))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals
+          (local_get tree) (local_get source) (param_get type_node)
+          (const_string_ptr "bool") (const_i64 4)) (const_i32 0)))
+        (then (do (return (const_i32 3))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals
+          (local_get tree) (local_get source) (param_get type_node)
+          (const_string_ptr "ptr") (const_i64 3)) (const_i32 0)))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals
+          (local_get tree) (local_get source) (param_get type_node)
+          (const_string_ptr "f32") (const_i64 3)) (const_i32 0)))
+        (then (do (return (const_i32 5))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals
+          (local_get tree) (local_get source) (param_get type_node)
+          (const_string_ptr "f64") (const_i64 3)) (const_i32 0)))
+        (then (do (return (const_i32 6))))
+        (else (do)))
+      (return (const_i32 -1))))
+
   (fn sl_declared_field_type
     (params (ctx ptr) (field_node i64))
     (returns i32)
     (do
       (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
-      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
-      (return (call_i32 parse_type
-        (local_get tree) (local_get source)
+      (return (call_i32 sl_parse_field_type
+        (param_get ctx)
         (call_i64 nth_child
           (local_get tree) (param_get field_node) (const_i64 2))))))
+
+  ; Reject every struct declaration the layout rules cannot resolve, before any
+  ; output is created. Checking declarations rather than uses catches a struct
+  ; that is declared but never accessed, and reports it once instead of once
+  ; per use.
+  (fn sl_validate_structs
+    (params (ctx ptr) (decls_node i64))
+    (returns i32)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
+      (let child i64 (call_i64 node_first_child
+        (local_get tree) (param_get decls_node)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 list_head_ne
+              (local_get tree) (local_get source) (local_get child)
+              (const_string_ptr "struct") (const_i64 6)) (const_i32 0)))
+            (then (do
+              (let struct_name i64 (call_i64 nth_child
+                (local_get tree) (local_get child) (const_i64 1)))
+              (let field i64 (call_i64 sl_first_field
+                (param_get ctx) (local_get child)))
+              (while
+                (condition (ne_i64 (local_get field) (const_i64 -1)))
+                (do
+                  (let type_node i64 (call_i64 nth_child
+                    (local_get tree) (local_get field) (const_i64 2)))
+                  (if
+                    (condition (eq_i32 (call_i32 sl_parse_field_type
+                      (param_get ctx) (local_get type_node)) (const_i32 -1)))
+                    (then (do
+                      (call_void diag_prefix)
+                      (call_void write_cstr (const_i32 2)
+                        (const_string_ptr "struct "))
+                      (call_void diag_node_text
+                        (param_get ctx) (local_get struct_name))
+                      (call_void write_cstr (const_i32 2)
+                        (const_string_ptr " field "))
+                      (call_void diag_node_text
+                        (param_get ctx) (call_i64 nth_child
+                          (local_get tree) (local_get field) (const_i64 1)))
+                      (call_void write_cstr (const_i32 2)
+                        (const_string_ptr " has unsupported type "))
+                      (call_void diag_node_text
+                        (param_get ctx) (local_get type_node))
+                      (call_void write_byte (const_i32 2) (const_i32 10))
+                      (return (const_i32 1))))
+                    (else (do)))
+                  (set field (call_i64 node_next_sibling
+                    (local_get tree) (local_get field)))))))
+            (else (do)))
+          (set child (call_i64 node_next_sibling
+            (local_get tree) (local_get child)))))
+      (return (const_i32 0))))
 
   ; Byte offset of the field named by name_node, or -1 when it is not declared.
   (fn sl_field_offset
