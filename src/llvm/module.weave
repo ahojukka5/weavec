@@ -141,19 +141,8 @@
     (params (ctx ptr) (module_node i64))
     (returns i64)
     (do
-      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
-      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
-      (let child i64 (call_i64 node_first_child (local_get tree) (param_get module_node)))
-      (while
-        (condition (ne_i64 (local_get child) (const_i64 -1)))
-        (do
-          (if
-            (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (local_get child)
-              (const_string_ptr "decls") (const_i64 5)) (const_i32 0)))
-            (then (do (return (local_get child))))
-            (else (do)))
-          (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
-      (return (const_i64 -1))))
+      (return (call_i64 sl_find_decls
+        (param_get ctx) (param_get module_node)))))
 
   ; Return non-zero when the decls list has an explicit extern with name.
   (fn decls_has_extern

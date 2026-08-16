@@ -1,0 +1,297 @@
+; SPDX-License-Identifier: Apache-2.0
+; struct_layout.weave — struct layout resolution for the self-hosted backend
+;
+; WIR declares a struct without a layout:
+;
+;   (struct Point (field x f64) (field y f64))
+;
+; No offset, size, alignment, or packing directive appears in WIR. This module
+; derives them, because layout is a property of the target and the backend is
+; the component that knows the target. See docs/wir-next-struct-fields.md.
+;
+; Field representation, matching docs/struct-layout.md:
+;   bool     size 1, alignment 1
+;   i32/f32  size 4, alignment 4
+;   i64/f64  size 8, alignment 8
+;   ptr      size 8, alignment 8
+;
+; Every field starts at its natural alignment, in declaration order. The
+; allocation size is rounded up to the largest field alignment.
+;
+; Type IDs are the backend's own: 0=void 1=i32 2=i64 3=bool 4=ptr 5=f32 6=f64.
+; A surface Qubit has already lowered to i64 before it reaches WIR, so no
+; surface-only type appears here.
+
+(program
+  (name "struct_layout")
+  (version "0.1")
+
+  ; Size in bytes of one scalar field type.
+  (fn sl_type_size
+    (params (type_id i32))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_i32 (param_get type_id) (const_i32 3)))
+        (then (do (return (const_i64 1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (param_get type_id) (const_i32 1))
+          (eq_i32 (param_get type_id) (const_i32 5))))
+        (then (do (return (const_i64 4))))
+        (else (do)))
+      (return (const_i64 8))))
+
+  ; Natural alignment of one scalar field type. Equal to its size for every
+  ; type admitted in a struct field.
+  (fn sl_type_alignment
+    (params (type_id i32))
+    (returns i64)
+    (do
+      (return (call_i64 sl_type_size (param_get type_id)))))
+
+  ; Round value up to the next multiple of alignment.
+  (fn sl_align_up
+    (params (value i64) (alignment i64))
+    (returns i64)
+    (do
+      (if
+        (condition (le_i64 (param_get alignment) (const_i64 1)))
+        (then (do (return (param_get value))))
+        (else (do)))
+      (return
+        (and_i64
+          (add_i64 (param_get value)
+            (sub_i64 (param_get alignment) (const_i64 1)))
+          (sub_i64 (const_i64 0) (param_get alignment))))))
+
+  ; Compare the source text of two tree nodes.
+  (fn sl_nodes_text_equal
+    (params (tree ptr) (source ptr) (left i64) (right i64))
+    (returns i32)
+    (do
+      (let left_start i64 (call_i64 node_text_start
+        (param_get tree) (param_get left)))
+      (let left_len i64 (call_i64 node_text_len
+        (param_get tree) (param_get left)))
+      (let right_start i64 (call_i64 node_text_start
+        (param_get tree) (param_get right)))
+      (let right_len i64 (call_i64 node_text_len
+        (param_get tree) (param_get right)))
+      (if
+        (condition (ne_i64 (local_get left_len) (local_get right_len)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let index i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get index) (local_get left_len)))
+        (do
+          (let left_byte i32 (load_u8 (ptr_add (param_get source)
+            (add_i64 (local_get left_start) (local_get index)))))
+          (let right_byte i32 (load_u8 (ptr_add (param_get source)
+            (add_i64 (local_get right_start) (local_get index)))))
+          (if
+            (condition (ne_i32 (local_get left_byte) (local_get right_byte)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set index (add_i64 (local_get index) (const_i64 1)))))
+      (return (const_i32 1))))
+
+  ; Find the (decls ...) child of a (core-module ...) node, or -1.
+  ; Defined here rather than in module.weave because struct resolution runs
+  ; during expression emission, which is ordered before that module.
+  (fn sl_find_decls
+    (params (ctx ptr) (module_node i64))
+    (returns i64)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
+      (let child i64 (call_i64 node_first_child
+        (local_get tree) (param_get module_node)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 list_head_ne
+              (local_get tree) (local_get source) (local_get child)
+              (const_string_ptr "decls") (const_i64 5)) (const_i32 0)))
+            (then (do (return (local_get child))))
+            (else (do)))
+          (set child (call_i64 node_next_sibling
+            (local_get tree) (local_get child)))))
+      (return (const_i64 -1))))
+
+  ; Resolve a struct by name from the module root. The root is node 0.
+  (fn sl_lookup_struct
+    (params (ctx ptr) (name_node i64))
+    (returns i64)
+    (do
+      (let decls_node i64 (call_i64 sl_find_decls
+        (param_get ctx) (const_i64 0)))
+      (if
+        (condition (eq_i64 (local_get decls_node) (const_i64 -1)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 sl_find_struct
+        (param_get ctx) (local_get decls_node) (param_get name_node)))))
+
+  ; Find (struct NAME ...) in decls whose name matches name_node, or -1.
+  (fn sl_find_struct
+    (params (ctx ptr) (decls_node i64) (name_node i64))
+    (returns i64)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
+      (let child i64 (call_i64 node_first_child
+        (local_get tree) (param_get decls_node)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 list_head_ne
+              (local_get tree) (local_get source) (local_get child)
+              (const_string_ptr "struct") (const_i64 6)) (const_i32 0)))
+            (then (do
+              (let declared i64 (call_i64 nth_child
+                (local_get tree) (local_get child) (const_i64 1)))
+              (if
+                (condition (ne_i32 (call_i32 sl_nodes_text_equal
+                  (local_get tree) (local_get source)
+                  (local_get declared) (param_get name_node)) (const_i32 0)))
+                (then (do (return (local_get child))))
+                (else (do)))))
+            (else (do)))
+          (set child (call_i64 node_next_sibling
+            (local_get tree) (local_get child)))))
+      (return (const_i64 -1))))
+
+  ; First (field ...) child of a struct declaration, or -1.
+  (fn sl_first_field
+    (params (ctx ptr) (struct_node i64))
+    (returns i64)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let name_node i64 (call_i64 nth_child
+        (local_get tree) (param_get struct_node) (const_i64 1)))
+      (return (call_i64 node_next_sibling
+        (local_get tree) (local_get name_node)))))
+
+  ; Type ID of one (field NAME TYPE) declaration.
+  (fn sl_declared_field_type
+    (params (ctx ptr) (field_node i64))
+    (returns i32)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
+      (return (call_i32 parse_type
+        (local_get tree) (local_get source)
+        (call_i64 nth_child
+          (local_get tree) (param_get field_node) (const_i64 2))))))
+
+  ; Byte offset of the field named by name_node, or -1 when it is not declared.
+  (fn sl_field_offset
+    (params (ctx ptr) (struct_node i64) (name_node i64))
+    (returns i64)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
+      (let offset i64 (const_i64 0))
+      (let field i64 (call_i64 sl_first_field
+        (param_get ctx) (param_get struct_node)))
+      (while
+        (condition (ne_i64 (local_get field) (const_i64 -1)))
+        (do
+          (let field_type i32 (call_i32 sl_declared_field_type
+            (param_get ctx) (local_get field)))
+          (set offset (call_i64 sl_align_up
+            (local_get offset)
+            (call_i64 sl_type_alignment (local_get field_type))))
+          (let field_name i64 (call_i64 nth_child
+            (local_get tree) (local_get field) (const_i64 1)))
+          (if
+            (condition (ne_i32 (call_i32 sl_nodes_text_equal
+              (local_get tree) (local_get source)
+              (local_get field_name) (param_get name_node)) (const_i32 0)))
+            (then (do (return (local_get offset))))
+            (else (do)))
+          (set offset (add_i64
+            (local_get offset)
+            (call_i64 sl_type_size (local_get field_type))))
+          (set field (call_i64 node_next_sibling
+            (local_get tree) (local_get field)))))
+      (return (const_i64 -1))))
+
+  ; Type ID of the field named by name_node, or -1 when it is not declared.
+  (fn sl_field_type
+    (params (ctx ptr) (struct_node i64) (name_node i64))
+    (returns i32)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
+      (let field i64 (call_i64 sl_first_field
+        (param_get ctx) (param_get struct_node)))
+      (while
+        (condition (ne_i64 (local_get field) (const_i64 -1)))
+        (do
+          (let field_name i64 (call_i64 nth_child
+            (local_get tree) (local_get field) (const_i64 1)))
+          (if
+            (condition (ne_i32 (call_i32 sl_nodes_text_equal
+              (local_get tree) (local_get source)
+              (local_get field_name) (param_get name_node)) (const_i32 0)))
+            (then (do (return (call_i32 sl_declared_field_type
+              (param_get ctx) (local_get field)))))
+            (else (do)))
+          (set field (call_i64 node_next_sibling
+            (local_get tree) (local_get field)))))
+      (return (const_i32 -1))))
+
+  ; Total allocation size of a struct declaration.
+  (fn sl_total_size
+    (params (ctx ptr) (struct_node i64))
+    (returns i64)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let total i64 (const_i64 0))
+      (let max_alignment i64 (const_i64 1))
+      (let field i64 (call_i64 sl_first_field
+        (param_get ctx) (param_get struct_node)))
+      (while
+        (condition (ne_i64 (local_get field) (const_i64 -1)))
+        (do
+          (let field_type i32 (call_i32 sl_declared_field_type
+            (param_get ctx) (local_get field)))
+          (let field_alignment i64 (call_i64 sl_type_alignment
+            (local_get field_type)))
+          (set total (call_i64 sl_align_up
+            (local_get total) (local_get field_alignment)))
+          (set total (add_i64
+            (local_get total)
+            (call_i64 sl_type_size (local_get field_type))))
+          (if
+            (condition (gt_i64
+              (local_get field_alignment) (local_get max_alignment)))
+            (then (do (set max_alignment (local_get field_alignment))))
+            (else (do)))
+          (set field (call_i64 node_next_sibling
+            (local_get tree) (local_get field)))))
+      (return (call_i64 sl_align_up
+        (local_get total) (local_get max_alignment)))))
+
+  ; Count the fields a struct declares.
+  (fn sl_field_count
+    (params (ctx ptr) (struct_node i64))
+    (returns i64)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let count i64 (const_i64 0))
+      (let field i64 (call_i64 sl_first_field
+        (param_get ctx) (param_get struct_node)))
+      (while
+        (condition (ne_i64 (local_get field) (const_i64 -1)))
+        (do
+          (set count (add_i64 (local_get count) (const_i64 1)))
+          (set field (call_i64 node_next_sibling
+            (local_get tree) (local_get field)))))
+      (return (local_get count)))))

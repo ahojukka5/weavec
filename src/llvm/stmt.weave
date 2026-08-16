@@ -146,6 +146,64 @@
       (return_void)))
 
   ; Emit a store statement: store_i32/i64/ptr/i8 ptr_expr val_expr
+  ; Emit (field_set_T STRUCT FIELD RECEIVER VALUE): the field address, then one
+  ; store. Layout is resolved by the backend; no offset appears in WIR.
+  (fn emit_field_set_stmt
+    (params (ctx ptr) (node i64) (type_id i32))
+    (returns i32)
+    (do
+      (let fd i32 (call_i32 ctx_get_fd (param_get ctx)))
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let actual_args i64 (sub_i64
+        (call_i64 count_children (local_get tree) (param_get node)) (const_i64 1)))
+      (if
+        (condition (ne_i64 (local_get actual_args) (const_i64 4)))
+        (then (do
+          (call_void diag_wrong_arity (param_get ctx) (param_get node)
+            (const_i64 4) (local_get actual_args))
+          (return (const_i32 1))))
+        (else (do)))
+      (let val_node i64 (call_i64 nth_child
+        (local_get tree) (param_get node) (const_i64 4)))
+      ; The address is computed from the first three operands, which are shaped
+      ; exactly like field_addr, so the same emitter resolves them.
+      (let address i64 (call_i64 emit_field_address (param_get ctx) (param_get node)))
+      (if
+        (condition (eq_i64 (local_get address) (const_i64 -1)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let vv i64 (call_i64 emit_expr (param_get ctx) (local_get val_node)))
+      (if
+        (condition (eq_i64 (local_get vv) (const_i64 -1)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      ; A bool field occupies one byte, so an i1 value widens before the store.
+      (if
+        (condition (eq_i32 (param_get type_id) (const_i32 3)))
+        (then (do
+          (let byte i64 (call_i64 ctx_alloc_temp (param_get ctx)))
+          (call_void write_cstr (local_get fd) (const_string_ptr "  %t"))
+          (call_void write_i64_dec (local_get fd) (local_get byte))
+          (call_void write_cstr (local_get fd) (const_string_ptr " = zext i1 "))
+          (call_void emit_operand (param_get ctx) (local_get val_node) (local_get vv))
+          (call_void write_cstr (local_get fd) (const_string_ptr " to i8"))
+          (call_void write_byte (local_get fd) (const_i32 10))
+          (call_void write_cstr (local_get fd) (const_string_ptr "  store i8 %t"))
+          (call_void write_i64_dec (local_get fd) (local_get byte))
+          (call_void write_cstr (local_get fd) (const_string_ptr ", ptr %t"))
+          (call_void write_i64_dec (local_get fd) (local_get address))
+          (call_void write_byte (local_get fd) (const_i32 10))
+          (return (const_i32 0))))
+        (else (do)))
+      (call_void write_cstr (local_get fd) (const_string_ptr "  store "))
+      (call_void emit_type (local_get fd) (param_get type_id))
+      (call_void write_byte (local_get fd) (const_i32 32))
+      (call_void emit_operand (param_get ctx) (local_get val_node) (local_get vv))
+      (call_void write_cstr (local_get fd) (const_string_ptr ", ptr %t"))
+      (call_void write_i64_dec (local_get fd) (local_get address))
+      (call_void write_byte (local_get fd) (const_i32 10))
+      (return (const_i32 0))))
+
   (fn emit_store_stmt
     (params (ctx ptr) (node i64))
     (returns i32)
@@ -891,6 +949,37 @@
         (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
           (const_string_ptr "store_i8") (const_i64 8)) (const_i32 0)))
         (then (do (return (call_i32 emit_store_stmt (param_get ctx) (param_get node)))))
+        (else (do)))
+      ; Struct field writes. The suffix names the field type.
+      (if
+        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
+          (const_string_ptr "field_set_i32") (const_i64 13)) (const_i32 0)))
+        (then (do (return (call_i32 emit_field_set_stmt (param_get ctx) (param_get node) (const_i32 1)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
+          (const_string_ptr "field_set_i64") (const_i64 13)) (const_i32 0)))
+        (then (do (return (call_i32 emit_field_set_stmt (param_get ctx) (param_get node) (const_i32 2)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
+          (const_string_ptr "field_set_bool") (const_i64 14)) (const_i32 0)))
+        (then (do (return (call_i32 emit_field_set_stmt (param_get ctx) (param_get node) (const_i32 3)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
+          (const_string_ptr "field_set_ptr") (const_i64 13)) (const_i32 0)))
+        (then (do (return (call_i32 emit_field_set_stmt (param_get ctx) (param_get node) (const_i32 4)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
+          (const_string_ptr "field_set_f32") (const_i64 13)) (const_i32 0)))
+        (then (do (return (call_i32 emit_field_set_stmt (param_get ctx) (param_get node) (const_i32 5)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
+          (const_string_ptr "field_set_f64") (const_i64 13)) (const_i32 0)))
+        (then (do (return (call_i32 emit_field_set_stmt (param_get ctx) (param_get node) (const_i32 6)))))
         (else (do)))
       ; call_void (statement form)
       (if

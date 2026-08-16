@@ -502,6 +502,150 @@
       (call_void write_byte (local_get fd) (const_i32 10))
       (return (local_get t))))
 
+  ; Report a struct name that no (struct ...) declaration in the module defines.
+  (fn diag_unknown_struct
+    (params (ctx ptr) (name_node i64))
+    (returns void)
+    (do
+      (call_void diag_prefix)
+      (call_void write_cstr (const_i32 2)
+        (const_string_ptr "unknown struct: "))
+      (call_void diag_node_text (param_get ctx) (param_get name_node))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (return_void)))
+
+  ; Report a field the named struct does not declare.
+  (fn diag_unknown_field
+    (params (ctx ptr) (struct_name_node i64) (field_name_node i64))
+    (returns void)
+    (do
+      (call_void diag_prefix)
+      (call_void write_cstr (const_i32 2) (const_string_ptr "struct "))
+      (call_void diag_node_text (param_get ctx) (param_get struct_name_node))
+      (call_void write_cstr (const_i32 2)
+        (const_string_ptr " has no field named "))
+      (call_void diag_node_text (param_get ctx) (param_get field_name_node))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (return_void)))
+
+  ; Emit (struct_size NAME) as the layout-derived allocation size.
+  ; The size never appears in WIR; it is derived here, where the target is
+  ; known. See docs/wir-next-struct-fields.md.
+  (fn emit_struct_size
+    (params (ctx ptr) (node i64))
+    (returns i64)
+    (do
+      (let fd i32 (call_i32 ctx_get_fd (param_get ctx)))
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let name_node i64 (call_i64 nth_child
+        (local_get tree) (param_get node) (const_i64 1)))
+      (let struct_node i64 (call_i64 sl_lookup_struct
+        (param_get ctx) (local_get name_node)))
+      (if
+        (condition (eq_i64 (local_get struct_node) (const_i64 -1)))
+        (then (do
+          (call_void diag_unknown_struct (param_get ctx) (local_get name_node))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let size i64 (call_i64 sl_total_size
+        (param_get ctx) (local_get struct_node)))
+      ; Materialize the constant so it can be used as a temp like any operand.
+      (let t i64 (call_i64 ctx_alloc_temp (param_get ctx)))
+      (call_void write_cstr (local_get fd) (const_string_ptr "  %t"))
+      (call_void write_i64_dec (local_get fd) (local_get t))
+      (call_void write_cstr (local_get fd) (const_string_ptr " = add i64 0, "))
+      (call_void write_i64_dec (local_get fd) (local_get size))
+      (call_void write_byte (local_get fd) (const_i32 10))
+      (return (local_get t))))
+
+  ; Emit the address of a field: a getelementptr with a constant byte offset.
+  ; Returns the temp holding the address, or -1 on failure.
+  (fn emit_field_address
+    (params (ctx ptr) (node i64))
+    (returns i64)
+    (do
+      (let fd i32 (call_i32 ctx_get_fd (param_get ctx)))
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let name_node i64 (call_i64 nth_child
+        (local_get tree) (param_get node) (const_i64 1)))
+      (let field_node i64 (call_i64 nth_child
+        (local_get tree) (param_get node) (const_i64 2)))
+      (let recv_node i64 (call_i64 nth_child
+        (local_get tree) (param_get node) (const_i64 3)))
+      (let struct_node i64 (call_i64 sl_lookup_struct
+        (param_get ctx) (local_get name_node)))
+      (if
+        (condition (eq_i64 (local_get struct_node) (const_i64 -1)))
+        (then (do
+          (call_void diag_unknown_struct (param_get ctx) (local_get name_node))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let offset i64 (call_i64 sl_field_offset
+        (param_get ctx) (local_get struct_node) (local_get field_node)))
+      (if
+        (condition (eq_i64 (local_get offset) (const_i64 -1)))
+        (then (do
+          (call_void diag_unknown_field (param_get ctx)
+            (local_get name_node) (local_get field_node))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let rv i64 (call_i64 emit_expr (param_get ctx) (local_get recv_node)))
+      (if
+        (condition (eq_i64 (local_get rv) (const_i64 -1)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let t i64 (call_i64 ctx_alloc_temp (param_get ctx)))
+      (call_void write_cstr (local_get fd) (const_string_ptr "  %t"))
+      (call_void write_i64_dec (local_get fd) (local_get t))
+      (call_void write_cstr (local_get fd)
+        (const_string_ptr " = getelementptr i8, ptr "))
+      (call_void emit_operand (param_get ctx) (local_get recv_node) (local_get rv))
+      (call_void write_cstr (local_get fd) (const_string_ptr ", i64 "))
+      (call_void write_i64_dec (local_get fd) (local_get offset))
+      (call_void write_byte (local_get fd) (const_i32 10))
+      (return (local_get t))))
+
+  ; Emit (field_get_T STRUCT FIELD RECEIVER): the field address, then one load.
+  (fn emit_field_get
+    (params (ctx ptr) (node i64) (type_id i32))
+    (returns i64)
+    (do
+      (let fd i32 (call_i32 ctx_get_fd (param_get ctx)))
+      (let address i64 (call_i64 emit_field_address (param_get ctx) (param_get node)))
+      (if
+        (condition (eq_i64 (local_get address) (const_i64 -1)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      ; A bool field occupies one byte, so it loads as i8 and narrows to i1.
+      ; See the field representation table in docs/struct-layout.md.
+      (if
+        (condition (eq_i32 (param_get type_id) (const_i32 3)))
+        (then (do
+          (let byte i64 (call_i64 ctx_alloc_temp (param_get ctx)))
+          (call_void write_cstr (local_get fd) (const_string_ptr "  %t"))
+          (call_void write_i64_dec (local_get fd) (local_get byte))
+          (call_void write_cstr (local_get fd) (const_string_ptr " = load i8, ptr %t"))
+          (call_void write_i64_dec (local_get fd) (local_get address))
+          (call_void write_byte (local_get fd) (const_i32 10))
+          (let flag i64 (call_i64 ctx_alloc_temp (param_get ctx)))
+          (call_void write_cstr (local_get fd) (const_string_ptr "  %t"))
+          (call_void write_i64_dec (local_get fd) (local_get flag))
+          (call_void write_cstr (local_get fd) (const_string_ptr " = icmp ne i8 %t"))
+          (call_void write_i64_dec (local_get fd) (local_get byte))
+          (call_void write_cstr (local_get fd) (const_string_ptr ", 0"))
+          (call_void write_byte (local_get fd) (const_i32 10))
+          (return (local_get flag))))
+        (else (do)))
+      (let t i64 (call_i64 ctx_alloc_temp (param_get ctx)))
+      (call_void write_cstr (local_get fd) (const_string_ptr "  %t"))
+      (call_void write_i64_dec (local_get fd) (local_get t))
+      (call_void write_cstr (local_get fd) (const_string_ptr " = load "))
+      (call_void emit_type (local_get fd) (param_get type_id))
+      (call_void write_cstr (local_get fd) (const_string_ptr ", ptr %t"))
+      (call_void write_i64_dec (local_get fd) (local_get address))
+      (call_void write_byte (local_get fd) (const_i32 10))
+      (return (local_get t))))
+
   ; Emit typed array address: %tN = getelementptr TYPE, ptr base, i64 index
   (fn emit_array_at
     (params (ctx ptr) (node i64) (elem_type_id i32))
@@ -1185,6 +1329,48 @@
           (const_string_ptr "ptr_add") (const_i64 7)) (const_i32 0)))
         (then (do (return (call_i64 emit_ptr_add (param_get ctx) (param_get node)))))
         (else (do)))
+      ; Struct forms. Layout is resolved here, not in WIR.
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (local_get tree) (local_get source) (local_get op)
+          (const_string_ptr "struct_size") (const_i64 11)) (const_i32 0)))
+        (then (do (return (call_i64 emit_struct_size (param_get ctx) (param_get node)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (local_get tree) (local_get source) (local_get op)
+          (const_string_ptr "field_addr") (const_i64 10)) (const_i32 0)))
+        (then (do (return (call_i64 emit_field_address (param_get ctx) (param_get node)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (local_get tree) (local_get source) (local_get op)
+          (const_string_ptr "field_get_i32") (const_i64 13)) (const_i32 0)))
+        (then (do (return (call_i64 emit_field_get (param_get ctx) (param_get node) (const_i32 1)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (local_get tree) (local_get source) (local_get op)
+          (const_string_ptr "field_get_i64") (const_i64 13)) (const_i32 0)))
+        (then (do (return (call_i64 emit_field_get (param_get ctx) (param_get node) (const_i32 2)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (local_get tree) (local_get source) (local_get op)
+          (const_string_ptr "field_get_bool") (const_i64 14)) (const_i32 0)))
+        (then (do (return (call_i64 emit_field_get (param_get ctx) (param_get node) (const_i32 3)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (local_get tree) (local_get source) (local_get op)
+          (const_string_ptr "field_get_ptr") (const_i64 13)) (const_i32 0)))
+        (then (do (return (call_i64 emit_field_get (param_get ctx) (param_get node) (const_i32 4)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (local_get tree) (local_get source) (local_get op)
+          (const_string_ptr "field_get_f32") (const_i64 13)) (const_i32 0)))
+        (then (do (return (call_i64 emit_field_get (param_get ctx) (param_get node) (const_i32 5)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (local_get tree) (local_get source) (local_get op)
+          (const_string_ptr "field_get_f64") (const_i64 13)) (const_i32 0)))
+        (then (do (return (call_i64 emit_field_get (param_get ctx) (param_get node) (const_i32 6)))))
+        (else (do)))
+
       (if
         (condition (ne_i32 (call_i32 ident_equals (local_get tree) (local_get source) (local_get op)
           (const_string_ptr "array_i32_at") (const_i64 12)) (const_i32 0)))
