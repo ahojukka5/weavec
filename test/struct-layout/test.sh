@@ -58,21 +58,46 @@ WEAVE
 
 "$WEAVEC" --frontend "$TMP/mixed.wir" "$TMP/mixed.weave"
 
-grep -F 'Mixed_new (params (flag bool) (count i64) (ratio f32) (total f64) (data ptr) (qubit i64) (code i32))' \
-  "$TMP/mixed.wir" >/dev/null
-grep -F '(call_ptr malloc (const_i64 56))' "$TMP/mixed.wir" >/dev/null
-grep -F '(ne_i32 (load_u8 (param_get self)) (const_i32 0))' "$TMP/mixed.wir" >/dev/null
-grep -F '(store_i8 (local_get self) (const_i32 1))' "$TMP/mixed.wir" >/dev/null
-grep -F '(load_i64 (ptr_add (param_get self) (const_i64 8)))' "$TMP/mixed.wir" >/dev/null
-grep -F '(load_f32 (ptr_add (param_get self) (const_i64 16)))' "$TMP/mixed.wir" >/dev/null
-grep -F '(load_f64 (ptr_add (param_get self) (const_i64 24)))' "$TMP/mixed.wir" >/dev/null
-grep -F '(load_ptr (ptr_add (param_get self) (const_i64 32)))' "$TMP/mixed.wir" >/dev/null
-grep -F '(load_i64 (ptr_add (param_get self) (const_i64 40)))' "$TMP/mixed.wir" >/dev/null
-grep -F '(load_i32 (ptr_add (param_get self) (const_i64 48)))' "$TMP/mixed.wir" >/dev/null
-grep -F '(store_f32 (ptr_add (local_get self) (const_i64 16)) (param_get ratio))' \
-  "$TMP/mixed.wir" >/dev/null
-grep -F '(store_f64 (ptr_add (local_get self) (const_i64 24)) (param_get total))' \
-  "$TMP/mixed.wir" >/dev/null
+require() {
+  grep -F "$2" "$TMP/mixed.wir" >/dev/null || {
+    printf 'struct-layout: %s\n' "$1" >&2
+    printf 'expected WIR to contain: %s\n' "$2" >&2
+    exit 1
+  }
+}
+
+# The declaration reaches WIR carrying no layout at all. A surface Qubit has
+# already lowered to i64, so no surface-only type appears in it.
+require 'struct declaration missing from WIR' \
+  '(struct Mixed (field flag bool) (field count i64) (field ratio f32) (field total f64) (field data ptr) (field qubit i64) (field code i32))'
+
+# The compatibility ABI keeps its positional signature.
+require 'constructor signature changed' \
+  'Mixed_new (params (flag bool) (count i64) (ratio f32) (total f64) (data ptr) (qubit i64) (code i32))'
+
+# Allocation asks for the struct's size by name rather than computing it.
+require 'allocation size is not layout-free' \
+  '(call_ptr malloc (struct_size Mixed))'
+
+# Every generated accessor names its field instead of addressing a byte.
+require 'bool field read'  '(field_get_bool Mixed flag (param_get self))'
+require 'bool field write' '(field_set_bool Mixed flag (param_get self) (param_get v))'
+require 'i64 field read'   '(field_get_i64 Mixed count (param_get self))'
+require 'f32 field read'   '(field_get_f32 Mixed ratio (param_get self))'
+require 'f64 field read'   '(field_get_f64 Mixed total (param_get self))'
+require 'ptr field read'   '(field_get_ptr Mixed data (param_get self))'
+require 'i32 field read'   '(field_get_i32 Mixed code (param_get self))'
+require 'constructor field store' \
+  '(field_set_f64 Mixed total (local_get self) (param_get total))'
+
+# The point of the whole change: no layout number survives into WIR. The
+# offsets themselves are asserted against emitted LLVM in test/struct-forms,
+# which checks what actually runs rather than an intermediate.
+if grep -Eq 'ptr_add|load_u8|store_i8|const_i64 (16|24|32|40|48|56)\)' "$TMP/mixed.wir"; then
+  printf 'struct-layout: a layout number survived into WIR\n' >&2
+  grep -nE 'ptr_add|load_u8|store_i8|const_i64 (16|24|32|40|48|56)\)' "$TMP/mixed.wir" >&2
+  exit 1
+fi
 
 "$WEAVEC" build "$TMP/mixed.weave" -o "$TMP/mixed"
 set +e
