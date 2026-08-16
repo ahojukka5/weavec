@@ -72,6 +72,7 @@ src/frontend/contract-effects.weave
 src/frontend/audit-report.weave
 src/llvm/ctx.weave
 src/llvm/types.weave
+src/llvm/struct_layout.weave
 src/llvm/locals.weave
 src/llvm/strings.weave
 src/llvm/expr.weave

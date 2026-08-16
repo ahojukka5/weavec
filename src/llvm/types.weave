@@ -554,5 +554,42 @@
           (const_string_ptr "call_ptr") (const_i64 8)) (const_i32 0)))
         (then (do (return (const_i32 4))))
         (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get op_node)
+          (const_string_ptr "field_addr") (const_i64 10)) (const_i32 0)))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get op_node)
+          (const_string_ptr "field_get_ptr") (const_i64 13)) (const_i32 0)))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+      ; Struct field reads and the layout-derived size. The suffix names the
+      ; result type, matching load_* and call_*.
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get op_node)
+          (const_string_ptr "struct_size") (const_i64 11)) (const_i32 0)))
+        (then (do (return (const_i32 2))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get op_node)
+          (const_string_ptr "field_get_i64") (const_i64 13)) (const_i32 0)))
+        (then (do (return (const_i32 2))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get op_node)
+          (const_string_ptr "field_get_bool") (const_i64 14)) (const_i32 0)))
+        (then (do (return (const_i32 3))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get op_node)
+          (const_string_ptr "field_get_f32") (const_i64 13)) (const_i32 0)))
+        (then (do (return (const_i32 5))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get op_node)
+          (const_string_ptr "field_get_f64") (const_i64 13)) (const_i32 0)))
+        (then (do (return (const_i32 6))))
+        (else (do)))
       (return (const_i32 1))))
 )

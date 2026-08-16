@@ -5,9 +5,12 @@ core version 3.
 
 Core version 3 is open: the self-hosted frontend and backend moved to it as part
 of this coordinated revision, and core version 2 is now a frozen bootstrap-stage
-version that the current compiler rejects. The forms below are one of the two
-payloads that revision exists to carry; they are not yet emitted, and the
-section on where layout is resolved today still describes shipped behaviour.
+version that the current compiler rejects.
+
+The backend implements the forms below and resolves their layout, covered by
+`test/struct-forms`. The frontend does not emit them yet: it still generates
+the accessor functions described in the next section, so the account of where
+layout is resolved today stays accurate for anything the compiler produces.
 
 It is a sibling of
 [Next-version WIR source locations](wir-next-source-locations.md). Both are
@@ -99,12 +102,15 @@ The declaration carries no offset, no size, no alignment, and no packing
 directive. Field order is significant, because it is the declared order the
 backend derives a layout from, not a layout in itself.
 
-The admitted field types are those in
-[Struct layout and compatibility ABI](struct-layout.md): `bool`, `i32`, `i64`,
-`f32`, `f64`, `ptr`, and `Qubit`. The grammar additionally admits a struct name
-as a field type, so that inline nested layout does not require another version
-change. Whether the frontend emits such a field is a separate question, tracked
-as a later step of the struct epic.
+The admitted field types are the WIR scalar types: `bool`, `i32`, `i64`, `f32`,
+`f64`, and `ptr`. A surface `Qubit` has already lowered to `i64` before it
+reaches WIR, so no surface-only type appears in a declaration — the
+correspondence is in [Struct layout and compatibility ABI](struct-layout.md).
+
+The grammar additionally admits a struct name as a field type, so that inline
+nested layout does not require another version change. Whether the frontend
+emits such a field is a separate question, tracked as a later step of the struct
+epic.
 
 ### Size
 
@@ -148,9 +154,10 @@ with `call_*`, which spells a result type that is equally derivable from the
 callee declaration. It lets a consumer type an expression tree without resolving
 a symbol table.
 
-The typed suffixes are `bool`, `i32`, `i64`, `f32`, `f64`, and `ptr`. `Qubit`
-fields use the `i64` suffix, following the existing surface-to-WIR lowering
-contract.
+The typed suffixes are `bool`, `i32`, `i64`, `f32`, `f64`, and `ptr`. A `bool`
+field occupies one byte, so `field_get_bool` narrows the loaded byte to `i1` and
+`field_set_bool` widens the stored value, matching the representation table in
+[Struct layout and compatibility ABI](struct-layout.md).
 
 `field_get_T` is equivalent to a `field_addr` followed by `load_T`, and
 `field_set_T` to a `field_addr` followed by the matching store. Both are kept
