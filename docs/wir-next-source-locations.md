@@ -1,8 +1,10 @@
 # Next-version WIR source locations
 
-This document proposes first-class source provenance for the next coordinated
-WIR core-version revision. It is a design contract, not an extension to frozen
-WIR core version 2.
+This document specifies first-class source provenance for WIR core version 3.
+
+Core version 3 is open: the self-hosted frontend and backend moved to it as part
+of this coordinated revision. The model below is one of the two payloads that
+revision exists to carry, and is not yet implemented.
 
 The proposal standardizes three independent pieces:
 
@@ -61,9 +63,9 @@ A source-aware module uses a future core version and may contain `sources` and
             (return (add_i32 (param_get left) (param_get right)))))))))
 ```
 
-The exact future version number is reserved by the coordinated version-change
-process. The examples use `3` to make the boundary explicit; this document does
-not make core version 3 valid input to current compilers.
+The examples use core version 3, which is the version this model lands in. The
+version being open does not make the forms below valid input yet: a compiler
+accepts the forms it implements, and these are not implemented.
 
 ## Source table
 
