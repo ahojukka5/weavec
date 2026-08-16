@@ -44,7 +44,7 @@ names used when they were released.
   forms accepted by the current compiler.
 - [Canonical LLM-facing surface forms](canonical-surface.md) — typed canonical
   calls, contextual literals, compatibility forms, and deterministic elaboration.
-- [WIR core version 2](wir.md) — the unified frontend/backend envelope,
+- [WIR core version 3](wir.md) — the self-hosted frontend/backend envelope,
   compatibility policy, validation, and repository enforcement.
 - [Build manifest](build-manifest.md) — `weavec-build-manifest-v1` and the
   separate release-package `BUILD-MANIFEST`.

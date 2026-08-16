@@ -7,7 +7,7 @@
 ;   llvm-as accepts emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Loses high digits; infinite loop if div wrong.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn digital_sum
       (params

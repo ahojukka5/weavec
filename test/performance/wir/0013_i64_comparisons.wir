@@ -9,7 +9,7 @@
 ;   llvm-as accepts emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Signed vs unsigned icmp wrong; compare operands swapped.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn main
       (params)

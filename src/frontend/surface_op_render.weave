@@ -1,7 +1,7 @@
 ; SPDX-License-Identifier: Apache-2.0
 ; surface_op_render.weave — Canonical operator WIR rendering helpers.
 ;
-; This self-hosted frontend module emits only admitted WIR core-version-2 forms.
+; This self-hosted frontend module emits only admitted WIR core-version-3 forms.
 
 (program
   (name "surface_op_render")

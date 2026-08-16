@@ -7,7 +7,7 @@
 ;   emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Starts at 1; double-counts.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn sum_evens_to
       (params

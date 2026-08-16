@@ -1,1 +1,1 @@
-(core-module (core-version 2) (decls (fn main (params) (returns i32) (do (return (sub_i32 (const_i32 50) (const_i32 8)))))))
+(core-module (core-version 3) (decls (fn main (params) (returns i32) (do (return (sub_i32 (const_i32 50) (const_i32 8)))))))

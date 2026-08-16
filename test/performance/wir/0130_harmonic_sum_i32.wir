@@ -8,7 +8,7 @@
 ;   llvm-as accepts emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Uses fp div; sum uses mul instead of div.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn harmonic_scaled
       (params

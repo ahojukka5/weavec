@@ -7,7 +7,7 @@
 ;   accepts emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: mod uses i32 remainder; swap order wrong.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn gcd_i64
       (params

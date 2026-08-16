@@ -9,7 +9,7 @@
 ;   llvm-as accepts emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Double indirection or string not merged as constant.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (extern puts
       (params

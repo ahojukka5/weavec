@@ -7,7 +7,7 @@
 ; If LLVM regresses: fadd typed as double; sitofp used where f64 literal
 ;   expected.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn main
       (params)

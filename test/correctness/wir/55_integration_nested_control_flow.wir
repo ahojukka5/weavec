@@ -2,7 +2,7 @@
 ; Tests: nested if + while + i64 arithmetic + mutable locals in loops
 
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn main
       (params)

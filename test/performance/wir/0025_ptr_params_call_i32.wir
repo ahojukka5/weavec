@@ -9,7 +9,7 @@
 ;   emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: By-value vs by-pointer confusion for array param.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn same_ptr
       (params

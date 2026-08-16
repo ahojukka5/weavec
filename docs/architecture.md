@@ -21,30 +21,41 @@ weavec0 → weavec1 → weavec-bootstrap → weavec
 The three lower repositories are frozen bootstrap infrastructure. New surface
 language features and compiler-product behavior belong in `weavec`.
 
-## Unified WIR v2 boundary
+## Two WIR boundaries
 
-The complete compiler chain now uses one intermediate-format version:
+The chain uses two intermediate-format versions, one per side of the bootstrap:
 
 ```text
 surface compiler sources
         │ weavec-bootstrap v0.3.1
         ▼
-WIR core version 2
+WIR core version 2                      ← frozen bootstrap boundary
         │ weavec1 v0.3.2
         ▼
 LLVM IR for the seed weavec compiler
         │ self-hosted generations
         ▼
-surface Weave → WIR v2 → LLVM IR
+surface Weave → WIR core version 3 → LLVM IR   ← current boundary
 ```
 
-The frozen lower stages define the stabilized WIR v2 boundary. The self-hosted
-`weavec --frontend` emits the same `(core-module (core-version 2) ...)` envelope,
-and `weavec --backend` validates and consumes it. Core version 1 is rejected.
+The frozen lower stages are version-2 artifacts permanently: `weavec-bootstrap`
+emits core version 2 and `weavec1` consumes it, and no transition changes a
+released stage. They build the seed compiler and are not involved afterwards.
 
-New surface features must lower through admitted WIR v2 forms. Changing WIR
-semantics requires an explicit coordinated version transition rather than a
-private final-compiler dialect. See [WIR core version 2](wir.md).
+The self-hosted `weavec --frontend` emits `(core-module (core-version 3) ...)`
+and `weavec --backend` validates and consumes it. Core versions 1 and 2 are
+rejected.
+
+The two boundaries never meet. Every producer and consumer in the build is
+paired with one of the same generation: `build.sh` pairs the bootstrap frontend
+with the `weavec1` backend, and `scripts/selfhost.sh` and the release packaging
+pipe one `weavec` binary into itself. A mismatched future pair would fail
+immediately on the strict envelope check rather than producing wrong code, which
+is what that check is for.
+
+Changing WIR semantics requires an explicit coordinated version transition
+rather than a private final-compiler dialect. See
+[WIR core version 3](wir.md).
 
 ## Product boundary
 
@@ -61,7 +72,7 @@ surface-Weave source files
         │
         │ self-hosted frontend lowering
         ▼
-WIR core-version-2 module
+WIR core-version-3 module
         │
         │ self-hosted backend
         ▼
@@ -156,7 +167,7 @@ src/frontend/audit-report.weave
 ```
 
 This layer parses and combines ordered source modules, validates and lowers
-surface forms to WIR core version 2, performs implemented quantum rewrites,
+surface forms to WIR core version 3, performs implemented quantum rewrites,
 lowers executable contracts, and implements explain/audit modes.
 
 ### Self-hosted WIR backend
@@ -172,7 +183,7 @@ src/llvm/fn.weave
 src/llvm/module.weave
 ```
 
-This layer validates WIR core version 2 and emits deterministic LLVM IR. It
+This layer validates WIR core version 3 and emits deterministic LLVM IR. It
 owns type spelling, locals, strings, expressions, statements, function/module
 emission, and uniform mutable control-flow lowering. LLVM owns scalar SSA
 promotion in the selected optimization profile. Envelope and call-target validation
@@ -283,7 +294,7 @@ build/selfhost/stage1/weavec
 build/selfhost/stage2/weavec
 ```
 
-Each stage uses the self-hosted frontend to emit WIR core version 2 for the
+Each stage uses the self-hosted frontend to emit WIR core version 3 for the
 complete compiler source set, including `src/parser/`, then uses the self-hosted
 backend to emit LLVM and links the compiler exactly once. Every stage must pass
 version and frontend smoke validation before publication.
@@ -340,7 +351,7 @@ The release workflow additionally:
 ## Stable and evolving contracts
 
 Source inspection can additionally enable comment-only LLVM provenance. The
-frontend carries exact surface file identities and spans through private WIR v2
+frontend carries exact surface file identities and spans through private WIR
 comments; the backend emits corresponding comments before generated function
 and statement groups. This path is opt-in and semantically inert. Structural
 LLVM budgets prevent instruction-count, stack-traffic, naming, and undefined-
@@ -356,7 +367,7 @@ Stable versioned automation contracts are:
 - the explicit `--frontend` and `--backend` command shapes.
 
 The emitted WIR core version is observable compiler behavior. The seed bootstrap
-and self-hosted frontend/backend workflows all use core version 2; documentation,
+and self-hosted frontend/backend workflows all use core version 3; documentation,
 audits, and fixtures enforce that shared boundary.
 
 Surface Weave continues to evolve in this repository. Changes to public syntax,

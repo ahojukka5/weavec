@@ -4,9 +4,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WEAVEC="$ROOT/build/weavec"
-WIR="$ROOT/build/weavec.wir"
+WIR="$ROOT/build/test/selfhost/weavec.wir"
 OUT_LL="$ROOT/build/test/selfhost/weavec.ll"
 OUT_BC="$ROOT/build/test/selfhost/weavec.bc"
+
+# shellcheck source=../../scripts/compiler-sources.sh
+source "$ROOT/scripts/compiler-sources.sh"
 
 log() {
   printf '[weavec-selfhost] %s\n' "$*"
@@ -33,13 +36,27 @@ ensure_recursive_stack() {
 command -v llvm-as >/dev/null 2>&1 || fail 'missing llvm-as'
 
 [[ -x "$WEAVEC" ]] || fail 'build/weavec not found; run ./build.sh first'
-[[ -f "$WIR" ]] || fail 'build/weavec.wir not found; run ./build.sh first'
+
+weavec_load_compiler_sources "$ROOT" || fail 'cannot load the compiler source manifest'
+SOURCES=()
+for source in "${WEAVEC_COMPILER_SOURCES[@]}"; do
+  SOURCES+=("$ROOT/$source")
+done
 
 # The compiler backend recursively traverses the full compiler WIR. Keep the
 # self-host check independent of the runner's often-small default stack limit.
 ensure_recursive_stack
 
 mkdir -p "$(dirname "$OUT_LL")"
+
+# Lower the compiler's own sources with this compiler rather than reusing
+# build/weavec.wir. That file is produced by the frozen weavec-bootstrap SDK,
+# which emits the bootstrap core version; feeding it to this backend would test
+# a pipe the build never makes and that the current core version does not admit.
+# See "Two WIR boundaries" in docs/architecture.md.
+log "frontend $WIR"
+"$WEAVEC" --frontend "$WIR" "${SOURCES[@]}" || \
+  fail 'weavec frontend failed on its own sources'
 
 log "compile $WIR"
 "$WEAVEC" --backend "$WIR" "$OUT_LL" || fail 'weavec failed on self-host WIR'

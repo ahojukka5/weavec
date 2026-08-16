@@ -2,7 +2,7 @@
 ; Tests: malloc, ptr_add, store/load, function call with ptr parameter, free
 
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (extern
       malloc

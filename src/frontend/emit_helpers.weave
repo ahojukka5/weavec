@@ -3,7 +3,7 @@
 ;
 ; Most admitted WIR-shaped forms remain copied recursively. Canonical surface
 ; calls, operators, casts, and contextual literals are elaborated through
-; compiler-owned semantic facts before canonical WIR v2 text is emitted.
+; compiler-owned semantic facts before canonical WIR text is emitted.
 
 (program
   (name "emit_helpers")

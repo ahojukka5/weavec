@@ -8,7 +8,7 @@
 ; If LLVM regresses: Wrong stride on row-major index; inner k bound wrong;
 ;   C[i,j] never written.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (extern malloc
       (params

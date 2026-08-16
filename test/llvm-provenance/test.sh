@@ -152,7 +152,7 @@ cmp <(normalize_wir "$WIR") <(normalize_wir "$PLAIN_DIR/program.wir")
 
 cat > "$TMP/plain.wir" <<'WIR'
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn main (params) (returns i32) (do (return (const_i32 0))))
   )

@@ -10,7 +10,7 @@
 ; If LLVM regresses: Local name maps to wrong SSA name or duplicate alloca for
 ;   one binding.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn main
       (params)

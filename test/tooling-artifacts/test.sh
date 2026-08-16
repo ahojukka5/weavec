@@ -66,7 +66,7 @@ status=$?
 set -e
 [[ "$status" -eq 11 ]]
 grep -q '^(core-module' "$TMP/backend.wir"
-grep -q '^  (core-version 2)' "$TMP/backend.wir"
+grep -q '^  (core-version 3)' "$TMP/backend.wir"
 [[ "$(cat "$TMP/backend.ll")" == 'old-llvm' ]]
 [[ ! -e "$TMP/backend-program" ]]
 
@@ -100,7 +100,7 @@ status=$?
 set -e
 [[ "$status" -eq 12 ]]
 grep -q '^(core-module' "$TMP/codegen.wir"
-grep -q '^  (core-version 2)' "$TMP/codegen.wir"
+grep -q '^  (core-version 3)' "$TMP/codegen.wir"
 grep -q '^define i32 @main()' "$TMP/codegen.ll"
 [[ ! -e "$TMP/codegen-program" ]]
 

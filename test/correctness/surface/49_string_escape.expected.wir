@@ -1,1 +1,1 @@
-(core-module (core-version 2) (decls (fn main (params) (returns i32) (do (print (const_string "hello\nworld")) (print (const_string "quote: \"weave\"")) (print (const_string "backslash: \\")) (return (const_i32 42))))))
+(core-module (core-version 3) (decls (fn main (params) (returns i32) (do (print (const_string "hello\nworld")) (print (const_string "quote: \"weave\"")) (print (const_string "backslash: \\")) (return (const_i32 42))))))

@@ -10,7 +10,7 @@
 ; If LLVM regresses: Uses urem or div without rem; wrong sign on negative
 ;   inputs.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn main
       (params)

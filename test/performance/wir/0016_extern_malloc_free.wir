@@ -10,7 +10,7 @@
 ; If LLVM regresses: Missing declare; wrong signature; call not marked
 ;   correctly.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (extern malloc
       (params

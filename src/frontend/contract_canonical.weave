@@ -3,7 +3,7 @@
 ;
 ; Contract clauses substitute the special `result` identifier with each concrete
 ; return expression. This module preserves that substitution while resolving
-; canonical calls, operators, and casts to admitted WIR core-version-2 forms.
+; canonical calls, operators, and casts to admitted WIR core-version-3 forms.
 
 (program
   (name "contract_canonical")

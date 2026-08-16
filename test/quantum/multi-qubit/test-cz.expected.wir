@@ -1,1 +1,1 @@
-(core-module (core-version 2) (decls (extern qrt_cz (params (q0 i64) (q1 i64)) (returns void)) (fn main (params) (returns i32) (do (let q0 i64 (const_i64 0)) (let q1 i64 (const_i64 1)) (call_void qrt_cz (local_get q0) (local_get q1)) (return (const_i32 42))))))
+(core-module (core-version 3) (decls (extern qrt_cz (params (q0 i64) (q1 i64)) (returns void)) (fn main (params) (returns i32) (do (let q0 i64 (const_i64 0)) (let q1 i64 (const_i64 1)) (call_void qrt_cz (local_get q0) (local_get q1)) (return (const_i32 42))))))

@@ -9,7 +9,7 @@
 ;   emitted IR; opt -passes=mem2reg is an optional extra check.
 ; If LLVM regresses: Register/stack misalignment from third argument onward.
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     (fn add3
       (params
