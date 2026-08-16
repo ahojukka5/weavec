@@ -528,6 +528,87 @@
       (call_void write_byte (const_i32 2) (const_i32 10))
       (return_void)))
 
+  ; Write a field type by its WIR spelling, for diagnostics.
+  (fn write_field_type_name
+    (params (fd i32) (type_id i32))
+    (returns void)
+    (do
+      (if
+        (condition (eq_i32 (param_get type_id) (const_i32 1)))
+        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "i32")) (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type_id) (const_i32 2)))
+        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "i64")) (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type_id) (const_i32 3)))
+        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "bool")) (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type_id) (const_i32 4)))
+        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "ptr")) (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type_id) (const_i32 5)))
+        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "f32")) (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type_id) (const_i32 6)))
+        (then (do (call_void write_cstr (param_get fd) (const_string_ptr "f64")) (return_void)))
+        (else (do)))
+      (call_void write_cstr (param_get fd) (const_string_ptr "a struct"))
+      (return_void)))
+
+  ; Non-zero when a field operation's type suffix disagrees with the declared
+  ; field type. Without this, field_get_i32 on an f64 field would emit a
+  ; four-byte load from an eight-byte field and read half a double as an
+  ; integer. A struct-typed field has no scalar type and so matches no suffix.
+  (fn field_type_mismatch
+    (params (ctx ptr) (node i64) (expected i32))
+    (returns i32)
+    (do
+      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
+      (let name_node i64 (call_i64 nth_child
+        (local_get tree) (param_get node) (const_i64 1)))
+      (let field_node i64 (call_i64 nth_child
+        (local_get tree) (param_get node) (const_i64 2)))
+      (let struct_node i64 (call_i64 sl_lookup_struct
+        (param_get ctx) (local_get name_node)))
+      (if
+        (condition (eq_i64 (local_get struct_node) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      ; An undeclared field is reported by the address emitter, which names the
+      ; struct as well; do not pre-empt it with a type complaint.
+      (let field i64 (call_i64 sl_find_field
+        (param_get ctx) (local_get struct_node) (local_get field_node)))
+      (if
+        (condition (eq_i64 (local_get field) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      ; A struct-typed field resolves to -1 here, matching no scalar suffix,
+      ; which is what makes field_get_T on a nested struct a mismatch rather
+      ; than a load of its first bytes.
+      (let declared_type i32 (call_i32 sl_declared_field_type
+        (param_get ctx) (local_get field)))
+      (if
+        (condition (eq_i32 (local_get declared_type) (param_get expected)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (call_void diag_prefix)
+      (call_void write_cstr (const_i32 2) (const_string_ptr "field "))
+      (call_void diag_node_text (param_get ctx) (local_get name_node))
+      (call_void write_byte (const_i32 2) (const_i32 46))
+      (call_void diag_node_text (param_get ctx) (local_get field_node))
+      (call_void write_cstr (const_i32 2) (const_string_ptr " is declared "))
+      (call_void write_field_type_name (const_i32 2) (local_get declared_type))
+      (call_void write_cstr (const_i32 2)
+        (const_string_ptr ", so it cannot be accessed as "))
+      (call_void write_field_type_name (const_i32 2) (param_get expected))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (return (const_i32 1))))
+
   ; Emit (struct_size NAME) as the layout-derived allocation size.
   ; The size never appears in WIR; it is derived here, where the target is
   ; known. See docs/wir-next-struct-fields.md.
@@ -611,6 +692,11 @@
     (returns i64)
     (do
       (let fd i32 (call_i32 ctx_get_fd (param_get ctx)))
+      (if
+        (condition (ne_i32 (call_i32 field_type_mismatch
+          (param_get ctx) (param_get node) (param_get type_id)) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
       (let address i64 (call_i64 emit_field_address (param_get ctx) (param_get node)))
       (if
         (condition (eq_i64 (local_get address) (const_i64 -1)))

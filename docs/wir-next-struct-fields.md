@@ -111,14 +111,17 @@ The admitted field types are the WIR scalar types: `bool`, `i32`, `i64`, `f32`,
 reaches WIR, so no surface-only type appears in a declaration — the
 correspondence is in [Struct layout and compatibility ABI](struct-layout.md).
 
-A struct name is **not** yet admitted as a field type. The backend refuses one
-by name rather than defaulting it, because an unrecognised type would silently
-take `i32`'s size and alignment and move every field after it.
+A field type may also name a declared struct, which is laid out **inline**: the
+field occupies the nested struct's bytes directly rather than a pointer to them,
+and takes the nested struct's alignment. This needed no version change, because
+the declaration form already carries a type name per field.
 
-Admitting struct-typed fields is what gives nested structs inline layout, and it
-is a later step of the struct epic. It needs no further version change: the
-declaration form already carries a type name per field, so admitting more names
-extends what is accepted rather than changing what is written.
+A type naming neither a scalar nor a declared struct is refused rather than
+defaulted, because an unrecognised type would silently take `i32`'s size and
+alignment and move every field after it.
+
+A struct that contains itself, directly or through other structs, has no finite
+layout and is refused by name.
 
 ### Size
 
@@ -144,11 +147,17 @@ decision that this form does not prejudge.
 Fixed arity: struct name, field name, receiver expression. The result is `ptr`.
 No load is performed.
 
-This is the composition primitive. Once a field may have struct type, it yields
-the address of that nested struct, which is the receiver of the next
-`field_addr` or `field_get_*` — so nested access will compose without a path
-form and without a grammar change. Today its use is taking the address of a
-scalar field.
+This is the composition primitive. A struct-typed field yields the address of
+the nested struct, which is the receiver of the next `field_addr` or
+`field_get_*`, so nested access composes without a path form:
+
+```text
+(field_get_f64 Inner b (field_addr Outer inner (param_get o)))
+```
+
+Each step is a constant-offset `getelementptr`, and LLVM folds the chain into a
+single one at the absolute offset. Composition therefore costs nothing against
+a dedicated path form, which is why no path form exists.
 
 ### Field read and write
 
@@ -167,6 +176,11 @@ The typed suffixes are `bool`, `i32`, `i64`, `f32`, `f64`, and `ptr`. A `bool`
 field occupies one byte, so `field_get_bool` narrows the loaded byte to `i1` and
 `field_set_bool` widens the stored value, matching the representation table in
 [Struct layout and compatibility ABI](struct-layout.md).
+
+The suffix must agree with the declared field type. Without that check,
+`field_get_i32` on an `f64` field would emit a four-byte load from an
+eight-byte field and read half a double as an integer. A struct-typed field has
+no scalar type and so matches no suffix: it is reached with `field_addr`.
 
 `field_get_T` is equivalent to a `field_addr` followed by `load_T`, and
 `field_set_T` to a `field_addr` followed by the matching store. Both are kept
