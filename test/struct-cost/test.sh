@@ -44,6 +44,10 @@ esac
   exit 1
 }
 
+# Announce before doing anything, so a failure producing no other output is
+# still distinguishable from the suite never having started.
+printf 'struct-cost: measuring raw and optimized profiles\n'
+
 PRELUDE='(program
   (name "PROGRAM")
   (version "0.1")
@@ -230,8 +234,16 @@ fi
 }
 
 if ! cmp -s "$BASELINE" "$TMP/measured.tsv"; then
-  printf 'struct-cost: measured cost differs from the recorded baseline\n' >&2
-  diff -u "$BASELINE" "$TMP/measured.tsv" >&2 || true
+  # Printed on stdout, not only stderr: when this fails in CI the diff is the
+  # whole diagnosis, and a harness whose failure detail is hard to recover is
+  # not much of a harness.
+  printf 'struct-cost: measured cost differs from the recorded baseline\n'
+  printf '=== measured ===\n'
+  cat "$TMP/measured.tsv"
+  printf '=== recorded ===\n'
+  cat "$BASELINE"
+  printf '=== diff ===\n'
+  diff -u "$BASELINE" "$TMP/measured.tsv" || true
   printf '\nIf this change is intentional, rerun with --write-baseline and say\n' >&2
   printf 'in the commit message why each number moved.\n' >&2
   exit 1
@@ -240,7 +252,7 @@ fi
 # The local class is the control. If it ever costs something, either the
 # optimizer stopped promoting non-escaping structs or this harness is measuring
 # the wrong function.
-local_row="$(grep '^opt\tlocal' "$BASELINE")"
+local_row="$(awk -F'\t' '$1 == "opt" && $2 == "local"' "$BASELINE")"
 local_malloc="$(printf '%s' "$local_row" | cut -f3)"
 local_load="$(printf '%s' "$local_row" | cut -f6)"
 if [[ "$local_malloc" -ne 0 || "$local_load" -ne 0 ]]; then
