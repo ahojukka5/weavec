@@ -186,6 +186,9 @@ bash "$ROOT/test/function-terminators/test.sh"
 log 'optional else'
 bash "$ROOT/test/optional-else/test.sh"
 
+log 'type annotations'
+bash "$ROOT/test/type-annotations/test.sh"
+
 log 'struct forms'
 bash "$ROOT/test/struct-forms/test.sh"
 

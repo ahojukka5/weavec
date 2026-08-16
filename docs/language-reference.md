@@ -46,6 +46,17 @@ A `(struct NAME ...)` declaration additionally introduces `NAME` as a nominal
 surface type. Nominal struct types lower physically to WIR `ptr`, but two
 different struct names are not interchangeable.
 
+A type annotation is always a bare name. There are no type constructors, so a
+parenthesised type such as `(owned Vec3)` is rejected wherever it appears — in a
+binding, a parameter, or a return declaration:
+
+```text
+weavec: surface binding: type must be a name, not a compound expression
+```
+
+The qualified spellings that ownership and borrowing will introduce are
+therefore refused rather than ignored until they mean something.
+
 The language exposes explicit-width operations rather than implicit numeric
 promotion. Cast operations must be written when moving between admitted numeric
 representations.
