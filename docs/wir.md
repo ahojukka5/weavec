@@ -1,19 +1,21 @@
-# WIR core version 2
+# WIR core version 3
 
-`weavec` uses WIR core version 2 as its single intermediate representation
-between surface lowering and LLVM emission.
+`weavec` uses WIR core version 3 as its intermediate representation between
+surface lowering and LLVM emission.
 
 The required module envelope is:
 
 ```text
 (core-module
-  (core-version 2)
+  (core-version 3)
   (decls
     declaration...))
 ```
 
-The version value is the integer token `2`. A missing value, a string such as
-`"2"`, or additional values do not satisfy the envelope.
+The version value is the integer token `3`. A missing value, a string such as
+`"3"`, or additional values do not satisfy the envelope. Core versions 1 and 2
+are rejected: a superseded version is refused by name rather than tolerated, so
+a stale toolchain fails immediately instead of producing wrong code.
 
 ## Product pipeline
 
@@ -21,27 +23,37 @@ The version value is the integer token `2`. A missing value, a string such as
 surface Weave
     │ weavec --frontend
     ▼
-WIR core version 2
+WIR core version 3
     │ weavec --backend
     ▼
 LLVM IR
 ```
 
-The initial seed compiler uses the same versioned boundary:
+The seed compiler is built across a **different** boundary:
 
 ```text
 surface compiler sources
-    │ weavec-bootstrap v0.3.0
+    │ weavec-bootstrap v0.3.1
     ▼
 WIR core version 2
-    │ weavec1 v0.3.1
+    │ weavec1 v0.3.2
     ▼
 LLVM IR for the seed weavec compiler
 ```
 
-The seed and self-hosted paths therefore agree on the WIR version. The lower
-repositories remain frozen; the final compiler does not maintain a private WIR
-dialect.
+The two boundaries do not agree, and cannot: `weavec-bootstrap` and `weavec1`
+are frozen released artifacts, so they stay at core version 2 permanently. They
+build the seed compiler and are not involved afterwards.
+
+The two never meet. Every producer and consumer in the build is paired with one
+of the same generation — `build.sh` pairs the bootstrap frontend with the
+`weavec1` backend, and `scripts/selfhost.sh` and release packaging pipe one
+`weavec` binary into itself. A mismatched pair fails on the envelope check
+rather than producing wrong code. See
+[Two WIR boundaries](architecture.md) for the same picture in context.
+
+The final compiler does not maintain a private WIR dialect: changing admitted
+forms or semantics requires a coordinated version transition.
 
 ## Envelope validation
 
@@ -54,7 +66,7 @@ output file. A valid input must:
 4. contain a `decls` form;
 5. satisfy the existing declaration and call-target checks.
 
-The backend rejects:
+The backend rejects every superseded version:
 
 - core version 1;
 - missing version declarations;
@@ -69,14 +81,15 @@ so every failed backend invocation leaves no LLVM file at the requested path.
 
 ## Compatibility policy
 
-Core version 1 is not accepted by the migrated self-hosted backend. Surface Weave
-and `weavec build` are pre-1.0, and the previous core-version-1 path was an
+Core versions 1 and 2 are not accepted by the self-hosted backend. Surface Weave
+and `weavec build` are pre-1.0, and each superseded path was an
 internal discrepancy rather than a separately released stable WIR contract.
 
-The stable WIR v2 contract is maintained by the frozen lower compiler stages.
+The frozen lower compiler stages maintain the core version 2 contract, which is
+what the seed build consumes. The self-hosted compiler maintains core version 3.
 Changing admitted WIR forms or semantics requires an explicit coordinated
-version transition. New surface features should lower through existing WIR v2
-forms whenever possible.
+version transition. New surface features should lower through existing forms
+whenever possible.
 
 Two capabilities are collected for the next coordinated transition rather than
 lowered through existing forms, because each needs the parser, validator,
@@ -97,7 +110,7 @@ its temporary WIR. The private comment forms are:
 
 A zero-based source index follows the original build input order, preserving
 exact file identity even when two inputs are byte-identical. The metadata is
-deterministic, has no semantic meaning in WIR v2, and is ignored by the existing
+deterministic, has no semantic meaning, and is ignored by the existing
 lexer as an ordinary comment. It is not emitted by normal
 `weavec --frontend`, build, fixture, or self-host flows. Backend diagnostics use
 the spans to recover exact original surface locations.
@@ -105,7 +118,7 @@ the spans to recover exact original surface locations.
 `weavec build --llvm-provenance` additionally consumes both comment forms to
 annotate LLVM function and statement groups with surface and WIR ranges. Direct
 and older WIR remain accepted and use the documented inference fallback; the
-comments never change WIR v2 semantics.
+comments never change WIR semantics.
 
 The proposed first-class replacement belongs to a future coordinated WIR
 revision and is documented separately in

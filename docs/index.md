@@ -87,7 +87,7 @@ names used when they were released.
 - [Generated LLVM analysis report](llvm-codegen-analysis-report.md)
 
 The backend and performance documents describe current self-hosted implementation
-behavior and optimization opportunities. They do not extend the stabilized WIR v2
+behavior and optimization opportunities. They do not extend the stabilized WIR
 contract.
 
 ## Repository documents

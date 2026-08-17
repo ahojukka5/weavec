@@ -102,7 +102,7 @@ optimized quantum forms
 runtime-call-compatible forms
     │ normal surface lowering
     ▼
-WIR core version 2
+WIR core version 3
     │ self-hosted backend
     ▼
 LLVM IR
@@ -111,8 +111,9 @@ LLVM IR
 The LLVM backend does not own high-level gate decomposition. It emits the WIR
 produced by the frontend, keeping quantum transformations in the surface compiler.
 
-The seed bootstrap and this quantum path use the same WIR core version 2
-boundary. See [Architecture](architecture.md) and [WIR core version 2](wir.md).
+This quantum path uses the current WIR boundary; the frozen seed bootstrap
+remains at core version 2. See [Architecture](architecture.md) and
+[WIR core version 3](wir.md).
 
 ## Hadamard nativization
 

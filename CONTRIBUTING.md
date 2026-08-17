@@ -18,18 +18,20 @@ automated agent.
 
 ## WIR rule
 
-The complete chain uses WIR core version 2. The self-hosted frontend must emit
-exactly one `(core-version 3)` declaration, and the self-hosted backend must
-reject other envelopes before output creation.
+The self-hosted frontend must emit exactly one `(core-version 3)` declaration,
+and the self-hosted backend must reject every other envelope before output
+creation. The frozen seed stages remain at core version 2 and are not affected
+by changes here; the two boundaries never meet.
 
-Do not add a private `weavec` WIR dialect. Prefer existing admitted WIR v2 forms;
+Do not add a private `weavec` WIR dialect. Prefer existing admitted forms;
 incompatible WIR semantics require an explicit coordinated version transition,
 regenerated fixtures, and the complete bootstrap and self-host gates. See
 [`docs/wir.md`](docs/wir.md).
 
 ## WIR evolution proposals
 
-When implementation work reveals a well-justified capability that WIR v2 cannot
+When implementation work reveals a well-justified capability that the current
+core version cannot
 express cleanly, preserve the current specification and use a compatible
 workaround when possible. Create a feature-request issue in `weavec` so the idea
 can be evaluated with other candidates for the next coordinated WIR version.
@@ -43,14 +45,15 @@ WIR next-version candidate: <capability>
 The issue should describe:
 
 - the concrete compiler, tooling, or user need;
-- the current WIR v2 workaround and its limitations;
+- the current workaround and its limitations;
 - why existing admitted forms are insufficient;
 - the proposed semantics, not merely an implementation sketch;
 - affected compiler stages, runtimes, validators, and tools;
 - migration, determinism, fixture, bootstrap, and self-host implications;
 - unresolved design questions and plausible alternatives.
 
-Do not modify WIR v2 merely to solve one local problem. Keep credible candidates
+Do not modify the WIR contract merely to solve one local problem. Keep credible
+candidates
 open, periodically review them together, and implement a coherent set in one
 explicit specification bump across the complete compiler chain.
 
@@ -58,7 +61,7 @@ explicit specification bump across the complete compiler chain.
 
 - **Surface Weave evolves here.** New surface forms, contracts, structs, quantum
   rewrites, and user-facing compiler behavior belong in this repository.
-- **Preserve the WIR v2 boundary.** Prefer existing admitted forms; coordinate
+- **Preserve the WIR boundary.** Prefer existing admitted forms; coordinate
   incompatible WIR semantics as a versioned compiler-chain change.
 - **No feature without a regression.** Add correctness, performance, quantum,
   diagnostics, package, or self-host coverage matching the changed boundary.
@@ -69,8 +72,9 @@ explicit specification bump across the complete compiler chain.
 - **Preserve deterministic source ordering.** `build.sh` and `selfhost.sh` must
   list compiler modules in the same order.
 - **Keep bootstrap boundaries named.** Consume `weavec-bootstrap` through its
-  command, multifile driver, and `libweave-sexpr.bc`; do not depend on private
-  generated parser modules.
+  command and multifile driver only. The production parser lives in
+  `src/parser/`; do not depend on lower-stage parser bitcode or private
+  generated modules.
 - **Prefer published SDKs.** The normal Linux build must remain reproducible from
   release archives and checksums without source-repository side effects.
 - **Keep runtime ownership explicit.** Compiler host support and the private
@@ -164,7 +168,8 @@ Example:
 feat(frontend): preserve exact source identity
 
 Record the original build-input index in diagnostics-only WIR mappings.
-This keeps byte-identical files distinguishable without changing WIR v2.
+This keeps byte-identical files distinguishable without changing the WIR
+contract.
 
 - Preserve ordinary frontend output.
 - Add identical-input and multifile regressions.
@@ -185,13 +190,13 @@ Include useful candidates from one or both categories:
 
 When a follow-up exposes a justified WIR capability gap, create a next-version
 feature-request issue using the WIR evolution process above. Do not propose a
-private WIR v2 extension as a shortcut.
+private WIR extension as a shortcut.
 
 ## What does not belong here
 
 - A private final-compiler WIR primitive added only to make one surface feature
   convenient.
-- Uncoordinated changes to Stage 0 runtime externs or Stage 1 WIR v2 contracts.
+- Uncoordinated changes to Stage 0 runtime externs or Stage 1 WIR contracts.
 - General maintenance of the frozen `weavec-bootstrap` frontend.
 - Production quantum-runtime behavior hidden inside the current test stub.
 - Compatibility aliases for the retired `weavec2` or `weavefront` names.
