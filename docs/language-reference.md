@@ -218,7 +218,7 @@ Update an existing local with:
 
 The raw backend represents mutable locals with stack slots. The selected LLVM
 optimization profile promotes eligible loop-carried values to SSA phis. See
-[Loop lowering contract](loop-lowering.md).
+[LLVM code-generation analysis](llvm-codegen-analysis.md).
 
 ## Blocks and control flow
 

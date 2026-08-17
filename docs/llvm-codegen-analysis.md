@@ -26,7 +26,8 @@ optimized loop resembling:
 %prev.phi = phi i32 [ %curr.phi, %while.body ], [ 0, %entry ]
 ```
 
-This boundary is documented in [Loop lowering contract](loop-lowering.md).
+This boundary is the uniform mutable stack lowering described below: the
+backend emits stack slots and LLVM reconstructs the phis.
 
 ## Why the custom SSA path was removed
 
@@ -34,8 +35,8 @@ The former backend contained dedicated loop-phi, branch-merge, latch, and
 exit-synchronization logic. A 168-fixture A/B test found identical optimized
 structural metrics for every fixture, byte-identical object text for 155 fixtures,
 and no systematic runtime benefit. LLVM reconstructed the same optimized phis
-from uniform stack semantics. See
-[Loop-lowering A/B evidence](loop-lowering-ab.md).
+from uniform stack semantics. This section is what remains of that evidence;
+the separate comparison pages were removed with the subsystem they measured.
 
 ## Reading the generated raw report
 
@@ -69,6 +70,5 @@ For final-code evidence use the public native artifact options described in
 ## Related documents
 
 - [Performance demonstrations](performance-demonstrations.md)
-- [Loop lowering contract](loop-lowering.md)
-- [Loop-lowering A/B evidence](loop-lowering-ab.md)
+- [Performance demonstrations](performance-demonstrations.md)
 - [Architecture](architecture.md)

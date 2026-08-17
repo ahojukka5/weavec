@@ -122,7 +122,6 @@ See:
 
 - [LLVM code-generation analysis](llvm-codegen-analysis.md)
 - [Generated LLVM analysis report](llvm-codegen-analysis-report.md)
-- [Loop lowering contract](loop-lowering.md)
 
 ## Required WIR header
 
