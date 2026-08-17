@@ -45,7 +45,7 @@ The compiler performs:
 ```text
 surface Weave
     ↓ frontend
-WIR core version 2
+WIR core version 3
     ↓ backend
 raw LLVM IR
     ↓ explicit LLVM optimization
@@ -57,10 +57,12 @@ native object
 executable
 ```
 
-The initial seed and subsequent self-hosted generations use the same WIR v2
-boundary. `weavec-bootstrap v0.3.0` and `weavec1 v0.3.1` construct the seed;
-the resulting compiler then emits and consumes WIR v2 itself. See
-[Architecture](docs/architecture.md) and [WIR v2](docs/wir.md).
+The seed and the self-hosted generations use **different** WIR versions, and
+cannot share one: `weavec-bootstrap v0.3.1` and `weavec1 v0.3.2` are frozen
+releases that construct the seed across core version 2, and the resulting
+compiler emits and consumes core version 3 itself. The two boundaries never
+meet. See [Architecture](docs/architecture.md) and
+[WIR core version 3](docs/wir.md).
 
 Intermediate files live in a private temporary directory. The linker writes a
 temporary executable beside the requested output, and the compiler publishes it
@@ -197,7 +199,7 @@ There are no current `weavec2` or `weavefront` compatibility aliases.
 
 The normal seed build downloads host-matched, checksum-verified lower-stage SDKs:
 
-- `weavec1 v0.3.2` for WIR core version 2 to LLVM compilation;
+- `weavec1 v0.3.2`, a frozen WIR core version 2 to LLVM backend, for the seed;
 - `weavec-bootstrap v0.3.1` for surface-to-WIR-v2 lowering and the multifile
   bootstrap driver.
 
@@ -226,7 +228,7 @@ weavec --audit <input.weave>
 weavec --audit-json <input.weave>
 ```
 
-The self-hosted `--frontend` emits WIR core version 2 for the self-hosted
+The self-hosted `--frontend` emits WIR core version 3 for the self-hosted
 `--backend`. The former implicit `weavec input.wir output.ll` backend spelling is
 rejected.
 
@@ -262,7 +264,7 @@ build/selfhost/stage1/weavec
 build/selfhost/stage2/weavec
 ```
 
-Both generations use the same WIR v2 frontend/backend boundary. Stage 2 must
+Both generations use the same core version 3 frontend/backend boundary. Stage 2 must
 reproduce representative surface WIR and native behavior.
 
 ## Current limitations

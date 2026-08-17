@@ -42,12 +42,12 @@ weavec build main.weave library.weave -o application
 ./application
 ```
 
-The source-list command performs surface lowering to WIR core version 2,
+The source-list command performs surface lowering to WIR core version 3,
 self-hosted backend compilation to raw LLVM IR, explicit LLVM optimization,
 target assembly and object generation, private runtime selection, target linking,
-optional final disassembly, and atomic output publication. The seed and
-self-hosted compiler generations use the same WIR v2 boundary. See
-[Architecture](architecture.md) and [WIR core version 2](wir.md).
+optional final disassembly, and atomic output publication. The seed is built
+across a separate, frozen core version 2 boundary. See
+[Architecture](architecture.md) and [WIR core version 3](wir.md).
 
 ### Build-mode precedence
 
@@ -259,14 +259,15 @@ weavec --frontend [--strict-contracts] <output.wir>
                   <input.weave> [input2.weave ...]
 ```
 
-This mode lowers ordered surface-Weave source files to one WIR v2 module:
+This mode lowers ordered surface-Weave source files to one WIR module:
 
 ```text
 (core-module (core-version 3) ...)
 ```
 
-The output uses the same versioned envelope as the frozen lower-stage bootstrap.
-See [WIR core version 2](wir.md).
+The frozen lower-stage bootstrap emits core version 2; this compiler emits
+core version 3, and neither accepts the other's output. See
+[WIR core version 3](wir.md).
 
 `--strict-contracts` turns violations of declared effect contracts such as
 `(pure)` and `(no_alloc)` into frontend failures. Runtime `(requires ...)` and
@@ -281,8 +282,9 @@ should use `weavec build`.
 weavec --backend <input.wir> <output.ll>
 ```
 
-This mode validates and compiles WIR core version 2 to LLVM IR. Core version 1,
-missing or duplicate version declarations, and invalid module roots are rejected.
+This mode validates and compiles WIR core version 3 to LLVM IR. Core versions 1
+and 2, missing or duplicate version declarations, and invalid module roots are
+rejected.
 Any backend failure removes a partial LLVM output.
 
 The explicit `--backend` marker is required; the former implicit

@@ -109,6 +109,25 @@ CURRENT_DOCS = (
     ROOT / "docs/language-reference.md",
     ROOT / "docs/quantum.md",
     ROOT / "docs/source-style.md",
+    # The contract document itself. Omitting it let the whole file describe a
+    # superseded version while docs/index.md linked it under the current one.
+    ROOT / "docs/wir.md",
+)
+
+# Words that make a superseded-version mention legitimate: either it is
+# attributed to a frozen stage, or it is stated to be refused. Anything else is
+# a claim about what this compiler currently does.
+FROZEN_STAGE_MARKERS = (
+    "weavec0",
+    "weavec1",
+    "weavec-bootstrap",
+    "frozen",
+    "seed",
+    "bootstrap",
+    "reject",
+    "refuse",
+    "not accepted",
+    "superseded",
 )
 
 # Terms that assert a superseded version is what the compiler currently emits.
@@ -132,6 +151,44 @@ SENTINEL_REGRESSION = ROOT / "test/correctness/surface/74_call_ptr_missing_calle
 
 def relative(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
+
+
+def unattributed_superseded_mentions(path: Path, text: str) -> list[str]:
+    """Report prose that names a superseded version without saying whose it is.
+
+    The spaced form cannot simply be banned: `weavec1` really is a WIR core
+    version 2 backend, and a superseded version must still be documented as
+    rejected. What distinguishes those from a stale claim is whether the
+    paragraph says whose version it is, or that it is refused.
+
+    Checked over a paragraph and the one before it, rather than per line: the
+    attribution and the version routinely land on different lines of a wrapped
+    sentence, and a lead-in sentence often precedes the list or diagram that
+    carries the version.
+    """
+    problems: list[str] = []
+    blocks = text.split("\n\n")
+    for index, block in enumerate(blocks):
+        lowered = block.lower()
+        mentions = [
+            phrase
+            for version in SUPERSEDED_CORE_VERSIONS
+            for phrase in (f"core version {version}", f"wir v{version}")
+            if phrase in lowered
+        ]
+        if not mentions:
+            continue
+        # A lead-in sentence attributing the version routinely sits in the
+        # paragraph before a list or a fenced diagram, so look at both.
+        context = (blocks[index - 1].lower() if index else "") + lowered
+        if any(marker in context for marker in FROZEN_STAGE_MARKERS):
+            continue
+        first = block.strip().splitlines()[0][:60]
+        problems.append(
+            f"{relative(path)} paragraph {index + 1} mentions {mentions[0]!r} "
+            f"without naming the frozen stage it belongs to: {first!r}"
+        )
+    return problems
 
 
 def audit() -> list[str]:
@@ -243,6 +300,7 @@ def audit() -> list[str]:
         for term in STALE_DOC_TERMS:
             if term in text:
                 errors.append(f"{relative(path)} contains stale WIR text {term!r}")
+        errors.extend(unattributed_superseded_mentions(path, text))
     index_text = (ROOT / "docs/index.md").read_text(encoding="utf-8")
     if f"[WIR core version {CURRENT_CORE_VERSION}](wir.md)" not in index_text:
         errors.append("docs/index.md does not link the current WIR contract")

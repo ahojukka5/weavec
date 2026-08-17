@@ -2,8 +2,8 @@
 
 This document describes the surface forms implemented by the current `weavec`
 frontend. It is a reference for source `.weave` files, not a reference for
-hand-written WIR. The frontend emits WIR core version 2; see
-[WIR core version 2](wir.md) for the intermediate-format contract.
+hand-written WIR. The frontend emits WIR core version 3; see
+[WIR core version 3](wir.md) for the intermediate-format contract.
 
 Weave source is an S-expression language. Semicolons introduce line comments.
 Identifiers and operator names are case-sensitive.
