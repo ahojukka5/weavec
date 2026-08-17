@@ -43,11 +43,19 @@ jobs:
           llvm-link --version
           musl-gcc --version
 
-      - name: Build compiler and run the full ladder
+      # On a master push, ci.yml runs the full ladder on this same commit for
+      # both libc variants, so repeating it here verifies nothing new and costs
+      # two more runner slots. A tag is what actually gets published, so it is
+      # verified independently rather than trusting an earlier run.
+      - name: Build compiler, and run the full ladder for a release tag
         shell: bash
         run: |
           set -o pipefail
-          ./test-all.sh 2>&1 | tee release-${{ matrix.libc }}.log
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            ./test-all.sh 2>&1 | tee release-${{ matrix.libc }}.log
+          else
+            ./build.sh 2>&1 | tee release-${{ matrix.libc }}.log
+          fi
 
       - name: Select archive version
         id: version
