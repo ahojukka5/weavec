@@ -113,8 +113,8 @@ past multi-file and audit failures.
 
 For loops, preserve uniform mutable stack semantics and ordinary structured
 control flow. Changes to nested `if`/`while` emission must be reviewed against
-[Loop lowering contract](loop-lowering.md), optimized evidence, and the
-performance goldens.
+[LLVM code-generation analysis](llvm-codegen-analysis.md), optimized evidence,
+and the performance goldens.
 
 ## Resource ownership
 

@@ -261,8 +261,10 @@ current head has completed successfully.
   draft and describe the blocker precisely. Unavailable CI does not make the
   contribution ready.
 
-CI runs the normal ladder with Linux glibc SDKs, Linux musl SDKs, and native
-macOS SDKs. The deep-selfhost CI job builds the seed first, then verifies
+CI runs the normal ladder with Linux glibc SDKs and Linux musl SDKs. There is
+no macOS job. macOS is a supported build host, so a change that could behave
+differently there should be run locally and the result stated in the pull
+request. The deep-selfhost CI job builds the seed first, then verifies
 stage-one and stage-two self-hosted compilers.
 
 ## Documentation-only changes
@@ -308,7 +310,7 @@ When changing an SDK pin:
 
 - verify the release provides all four platform archives and `SHA256SUMS`;
 - inspect `SDK-MANIFEST` for required commands and library paths;
-- run the complete glibc, musl, and macOS matrix;
+- run the glibc and musl matrix in CI, and the macOS build locally;
 - run deep self-hosting when compiler output or frontend modules changed;
 - document why the pin changed;
 - update architecture and release documents when the dependency contract changes.

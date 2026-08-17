@@ -37,6 +37,9 @@ log() {
 log 'WIR core-version audit'
 python3 "$ROOT/scripts/check_wir_core_version.py"
 
+log 'documentation links'
+python3 "$ROOT/scripts/check_doc_links.py"
+
 log 'WIR next source-location fixtures'
 python3 "$ROOT/scripts/check_wir_next_source_locations.py"
 

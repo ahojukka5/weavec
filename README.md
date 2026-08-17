@@ -247,8 +247,8 @@ See the [command reference](docs/command-reference.md),
 - quantum LLVM validation;
 - basic self-host integration tests.
 
-CI executes the full ladder with Linux glibc SDKs, Linux musl SDKs, and native
-macOS SDKs.
+CI executes the full ladder with Linux glibc SDKs and Linux musl SDKs. macOS is
+a supported build host and is exercised locally, but no macOS job runs in CI.
 
 Deep self-hosting is a separate permanent CI and release gate:
 
