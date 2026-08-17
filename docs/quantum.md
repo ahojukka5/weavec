@@ -78,14 +78,10 @@ are not stable language contracts yet.
 
 ## Frontend pipeline
 
-Quantum processing is implemented in ordered frontend modules:
-
-```text
-src/frontend/quantum_optimize.weave
-src/frontend/quantum_nativize.weave
-src/frontend/quantum_stats.weave
-src/frontend/emit.weave
-```
+Quantum processing is implemented in ordered frontend modules under
+`src/frontend/`: gate optimization, native-gate rewriting, statistics
+collection, and the shared emission path. `compiler/sources.list` declares which
+files participate and in what order.
 
 The self-hosted sequence is:
 
