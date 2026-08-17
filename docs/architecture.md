@@ -113,30 +113,22 @@ paths, unique, present, and non-symlinked.
 
 Other `.weave` files under `src/` may be reference implementations or
 optional target modules. They are not compiler inputs unless explicitly added
-to the canonical manifest.
+to the canonical manifest, and the manifest may exclude a file from linking
+with a leading `!`.
 
-### Core support
+This document describes what each layer owns. It deliberately does **not**
+reproduce the file list: `compiler/sources.list` is the single authority, and a
+handwritten second copy falls behind it. Read the manifest for the current set
+and its order.
 
-```text
-src/core/extern.weave
-src/core/io.weave
-src/core/util.weave
-src/core/trace_registry.weave
-```
+### Core support — `src/core/`
 
 These modules define external host interfaces, shared compiler utilities, and
 the canonical stable compilation-trace action metadata. Frontend transformations
 call semantic registry wrappers rather than embedding free-form kind, pass, and
 action strings at each lowering site.
 
-### Self-hosted S-expression parser
-
-```text
-src/parser/tokens.weave
-src/parser/tree.weave
-src/parser/lexer.weave
-src/parser/parser.weave
-```
+### Self-hosted S-expression parser — `src/parser/`
 
 These modules own the token store, syntax tree, lexer, and parser used by final
 `weavec`. They are ordinary ordered compiler sources, not a separately linked
@@ -150,53 +142,38 @@ or compatibility tests, but production compiler behavior belongs in surface
 Weave whenever surface Weave can express it. Parser semantics must not be moved
 into C or hand-written WIR to bypass that ownership rule.
 
-### Surface frontend and analysis
+### Structured types — `src/types/`
 
-```text
-src/frontend/quantum_optimize.weave
-src/frontend/quantum_nativize.weave
-src/frontend/quantum_stats.weave
-src/frontend/emit.weave
-src/frontend/contract-lower.weave
-src/frontend/struct.weave
-src/frontend/lower.weave
-src/frontend/driver.weave
-src/frontend/explain-audit.weave
-src/frontend/contract-effects.weave
-src/frontend/audit-report.weave
-```
+This layer owns the structured type graph: identity, storage, application,
+qualifiers, variants, and the semantic state that surface elaboration queries.
+Ownership qualifiers are modelled here; enforcing them is separate work.
+
+### Protocol documents — `src/protocol/`
+
+This layer owns the machine-readable outputs and the one checked streaming JSON
+writer they share: capabilities, diagnostics, build manifests, compilation
+traces, and the project and host protocols. Publication is transactional, so an
+incomplete document never replaces a previous one.
+
+### Surface frontend and analysis — `src/frontend/`
 
 This layer parses and combines ordered source modules, validates and lowers
 surface forms to WIR core version 3, performs implemented quantum rewrites,
 lowers executable contracts, and implements explain/audit modes.
 
-### Self-hosted WIR backend
-
-```text
-src/llvm/ctx.weave
-src/llvm/types.weave
-src/llvm/locals.weave
-src/llvm/strings.weave
-src/llvm/expr.weave
-src/llvm/stmt.weave
-src/llvm/fn.weave
-src/llvm/module.weave
-```
+### Self-hosted WIR backend — `src/llvm/`
 
 This layer validates WIR core version 3 and emits deterministic LLVM IR. It
-owns type spelling, locals, strings, expressions, statements, function/module
-emission, and uniform mutable control-flow lowering. LLVM owns scalar SSA
-promotion in the selected optimization profile. Envelope and call-target validation
-occur before output creation; emission failures remove partial LLVM output.
+owns type spelling, struct layout, locals, strings, expressions, statements,
+function and module emission, and uniform mutable control-flow lowering. LLVM
+owns scalar SSA promotion in the selected optimization profile. Envelope and
+call-target validation occur before output creation; emission failures remove
+partial LLVM output.
 
 The implementation is self-hosted, while the frozen `weavec1` WIR v2 backend is
 used only to construct the initial compiler seed.
 
-### Command entry point
-
-```text
-src/main.weave
-```
+### Command entry point — `src/main.weave`
 
 The entry module dispatches the public `build` command and low-level frontend,
 backend, quantum statistics, explain, and audit modes.

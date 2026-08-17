@@ -15,6 +15,7 @@ a stale toolchain fails loudly instead of producing wrong code.
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -151,6 +152,32 @@ SENTINEL_REGRESSION = ROOT / "test/correctness/surface/74_call_ptr_missing_calle
 
 def relative(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
+
+
+def duplicated_source_manifest(path: Path, text: str) -> list[str]:
+    """Report documentation that reproduces the compiler source manifest.
+
+    `compiler/sources.list` is the single authority for which files are compiler
+    inputs and in what order. A handwritten second copy in prose drifts: the
+    architecture document once listed 28 files while the manifest linked 75, and
+    included one the manifest explicitly excludes.
+
+    Inline mentions in backticks are fine and useful. What is refused is a
+    fenced block that is nothing but a list of source paths, which is the shape
+    that goes stale silently.
+    """
+    problems: list[str] = []
+    for block in re.findall(r"```[a-z]*\n(.*?)```", text, re.S):
+        lines = [line.strip() for line in block.strip().split("\n") if line.strip()]
+        if len(lines) < 2:
+            continue
+        if all(re.fullmatch(r"!?src/[A-Za-z0-9_/.-]+\.weave", line) for line in lines):
+            problems.append(
+                f"{relative(path)} reproduces the compiler source manifest "
+                f"({len(lines)} paths beginning {lines[0]!r}); "
+                f"compiler/sources.list is the single authority"
+            )
+    return problems
 
 
 def unattributed_superseded_mentions(path: Path, text: str) -> list[str]:
@@ -301,6 +328,7 @@ def audit() -> list[str]:
             if term in text:
                 errors.append(f"{relative(path)} contains stale WIR text {term!r}")
         errors.extend(unattributed_superseded_mentions(path, text))
+        errors.extend(duplicated_source_manifest(path, text))
     index_text = (ROOT / "docs/index.md").read_text(encoding="utf-8")
     if f"[WIR core version {CURRENT_CORE_VERSION}](wir.md)" not in index_text:
         errors.append("docs/index.md does not link the current WIR contract")
