@@ -2,7 +2,8 @@
 ; Canonical Result type for a success or a recoverable error.
 ;
 ; (try EXPR) unwraps Ok or returns the Err from the enclosing Result
-; function. Pass this file with the program that uses Result.
+; function. Pass this file with the program that uses Result. Helpers
+; are ordinary generic functions over match; they do not abort.
 
 (program
   (name "std.result")
@@ -11,4 +12,31 @@
   (enum Result
     (type-params T E)
     (variant Ok T)
-    (variant Err E)))
+    (variant Err E))
+
+  (fn result_is_ok
+    (type-params T E)
+    (params (value (type-app Result T E)))
+    (returns bool)
+    (do
+      (return (match Result value
+        (case Ok x true)
+        (case Err e false)))))
+
+  (fn result_is_err
+    (type-params T E)
+    (params (value (type-app Result T E)))
+    (returns bool)
+    (do
+      (return (match Result value
+        (case Ok x false)
+        (case Err e true)))))
+
+  (fn result_unwrap_or
+    (type-params T E)
+    (params (value (type-app Result T E)) (default T))
+    (returns T)
+    (do
+      (return (match Result value
+        (case Ok x x)
+        (case Err e default))))))

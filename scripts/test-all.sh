@@ -225,6 +225,9 @@ bash "$ROOT/test/generic-type-params/test.sh"
 log 'generic monomorphization'
 bash "$ROOT/test/generic-monomorphization/test.sh"
 
+log 'Option and Result helpers'
+bash "$ROOT/test/option-helpers/test.sh"
+
 log 'tagged variants'
 bash "$ROOT/test/tagged-variants/test.sh"
 

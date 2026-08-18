@@ -2,7 +2,8 @@
 ; Canonical Option type for a present or absent value.
 ;
 ; Absence is a tagged variant, not a null pointer. Pass this file with the
-; program that uses Option.
+; program that uses Option. Helpers are ordinary generic functions over
+; match; they do not abort and they do not take function values.
 
 (program
   (name "std.option")
@@ -11,4 +12,31 @@
   (enum Option
     (type-params T)
     (variant None)
-    (variant Some T)))
+    (variant Some T))
+
+  (fn option_is_some
+    (type-params T)
+    (params (value (type-app Option T)))
+    (returns bool)
+    (do
+      (return (match Option value
+        (case Some x true)
+        (case None false)))))
+
+  (fn option_is_none
+    (type-params T)
+    (params (value (type-app Option T)))
+    (returns bool)
+    (do
+      (return (match Option value
+        (case Some x false)
+        (case None true)))))
+
+  (fn option_unwrap_or
+    (type-params T)
+    (params (value (type-app Option T)) (default T))
+    (returns T)
+    (do
+      (return (match Option value
+        (case Some x x)
+        (case None default))))))

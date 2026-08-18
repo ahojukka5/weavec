@@ -148,6 +148,18 @@ with the program that uses them. See
   (variant Err E))
 ```
 
+`std.option` and `std.result` also provide helpers implemented with
+`match`. They are ordinary generic functions and do not abort:
+
+```weave
+(call option_is_some (type-args i32) some)
+(call option_unwrap_or (type-args i32) none 0)
+(call result_is_ok (type-args i32 i32) ok)
+(call result_unwrap_or (type-args i32 i32) err 0)
+```
+
+There is no function-valued `map` yet; map a payload with `match`.
+
 A complete program that uses these forms together is
 [examples/parse-digits](../examples/parse-digits/README.md).
 
