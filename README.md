@@ -247,10 +247,12 @@ See the [command reference](docs/command-reference.md),
 - quantum LLVM validation;
 - basic self-host integration tests.
 
-CI executes the full ladder with Linux glibc SDKs and Linux musl SDKs. macOS is
-a supported build host and is exercised locally, but no macOS job runs in CI.
+Pull requests run a light file-based contract smoke and commit-message lint on
+GitHub-hosted runners. The full ladder and deep self-host run after merge, on
+`master`, with Linux glibc SDKs and Linux musl SDKs. macOS is a supported build
+host and is exercised locally, but no macOS job runs in CI.
 
-Deep self-hosting is a separate permanent CI and release gate:
+Deep self-hosting is a separate permanent post-merge and release gate:
 
 ```sh
 ./build.sh

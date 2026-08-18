@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 name: ci
 
+# Pull requests get a file-based smoke on GitHub-hosted runners. The full
+# ladder and deep self-host run only after merge, on the self-hosted fleet.
 on:
   push:
     branches: [master]
@@ -16,9 +18,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  pr-smoke:
+    name: "check: pull-request contracts"
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run file-based repository contracts
+        shell: bash
+        run: bash scripts/pr-check.sh
+
   test:
     name: "test: compile & run full ladder (${{ matrix.name }})"
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'push'
     runs-on: self-hosted
     timeout-minutes: 30
     strategy:
@@ -71,7 +87,7 @@ jobs:
   deep-selfhost:
     name: "test: deep self-host ladder"
     needs: test
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'push'
     runs-on: self-hosted
     timeout-minutes: 60
     env:

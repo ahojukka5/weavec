@@ -8,6 +8,11 @@ surface-language contract stabilises.
 
 ## [Unreleased]
 
+### Changed
+
+- Pull-request CI is a light GitHub-hosted contract smoke and commit-message
+  lint. The full ladder and deep self-host run only after merge on `master`.
+
 ### Added
 
 - Deterministic monomorphization of generic functions: `(call identity
