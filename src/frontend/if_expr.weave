@@ -1,0 +1,402 @@
+; SPDX-License-Identifier: Apache-2.0
+; if_expr.weave — expression-valued if
+;
+; (if (condition EXPR) (then EXPR) (else EXPR)) is a value only as a let
+; initializer or a returned value. Else is required. Branch types must
+; agree. Statement if, including optional else, is unchanged.
+
+(program
+  (name "if_expr")
+  (version "0.1")
+
+  (fn ie_error
+    (params (tree ptr) (source ptr) (node i64) (detail ptr))
+    (returns i32)
+    (do
+      (call_void surface_error_prefix (const_string_ptr "if"))
+      (call_void write_cstr (const_i32 2) (param_get detail))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (call_void sdiag_record
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "frontend.if.invalid")
+        (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+        (const_i32 -1) (const_i32 -1) (const_i32 -1)
+        (const_string_ptr "if") (const_i64 -1) (const_i32 0))
+      (return (const_i32 1))))
+
+  (fn ie_clause
+    (params (tree ptr) (source ptr) (node i64) (ie_cname ptr) (ie_clen i64))
+    (returns i64)
+    (do
+      (let ie_child i64 (call_i64 node_first_child
+        (param_get tree) (param_get node)))
+      (set ie_child (call_i64 node_next_sibling
+        (param_get tree) (local_get ie_child)))
+      (while
+        (condition (ne_i64 (local_get ie_child) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (local_get ie_child)
+              (param_get ie_cname) (param_get ie_clen)) (const_i32 0)))
+            (then (do (return (local_get ie_child))))
+            (else (do)))
+          (set ie_child (call_i64 node_next_sibling
+            (param_get tree) (local_get ie_child)))))
+      (return (const_i64 -1))))
+
+  (fn ie_clause_body
+    (params (tree ptr) (clause i64))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_i64 (param_get clause) (const_i64 -1)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get tree) (param_get clause)) (const_i64 2)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 nth_child
+        (param_get tree) (param_get clause) (const_i64 1)))))
+
+  (fn ie_then_clause
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i64)
+    (do
+      (return (call_i64 ie_clause
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "then") (const_i64 4)))))
+
+  (fn ie_else_clause
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i64)
+    (do
+      (return (call_i64 ie_clause
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "else") (const_i64 4)))))
+
+  (fn ie_then_body
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i64)
+    (do
+      (return (call_i64 ie_clause_body
+        (param_get tree)
+        (call_i64 ie_then_clause
+          (param_get tree) (param_get source) (param_get node))))))
+
+  (fn ie_else_body
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i64)
+    (do
+      (return (call_i64 ie_clause_body
+        (param_get tree)
+        (call_i64 ie_else_clause
+          (param_get tree) (param_get source) (param_get node))))))
+
+  (fn ie_cond_expr
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i64)
+    (do
+      (return (call_i64 ie_clause_body
+        (param_get tree)
+        (call_i64 ie_clause
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "condition") (const_i64 9))))))
+
+  (fn ie_body_is_do
+    (params (tree ptr) (source ptr) (body i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (param_get body) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 head_equals
+        (param_get tree) (param_get source) (param_get body)
+        (const_string_ptr "do") (const_i64 2)))))
+
+  (fn if_expr_is_node
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get tree) (param_get node)) (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "if") (const_i64 2)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let ie_then i64 (call_i64 ie_then_body
+        (param_get tree) (param_get source) (param_get node)))
+      (if
+        (condition (eq_i64 (local_get ie_then) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ie_body_is_do
+          (param_get tree) (param_get source) (local_get ie_then))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do (return (const_i32 1)))))))
+
+  (fn ie_validate
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (let ie_cond i64 (call_i64 ie_cond_expr
+        (param_get tree) (param_get source) (param_get node)))
+      (if
+        (condition (eq_i64 (local_get ie_cond) (const_i64 -1)))
+        (then (do
+          (let ie_m1 ptr (const_string_ptr "expression if needs a condition"))
+          (return (call_i32 ie_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get ie_m1)))))
+        (else (do)))
+      (let ie_then i64 (call_i64 ie_then_body
+        (param_get tree) (param_get source) (param_get node)))
+      (if
+        (condition (eq_i64 (local_get ie_then) (const_i64 -1)))
+        (then (do
+          (let ie_m2 ptr (const_string_ptr "expression if needs a then expression"))
+          (return (call_i32 ie_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get ie_m2)))))
+        (else (do)))
+      (let ie_else i64 (call_i64 ie_else_body
+        (param_get tree) (param_get source) (param_get node)))
+      (if
+        (condition (eq_i64 (local_get ie_else) (const_i64 -1)))
+        (then (do
+          (let ie_m3 ptr (const_string_ptr "expression if requires an else"))
+          (return (call_i32 ie_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get ie_m3)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ie_body_is_do
+          (param_get tree) (param_get source) (local_get ie_else))
+          (const_i32 0)))
+        (then (do
+          (let ie_m4 ptr (const_string_ptr "expression if else must be an expression"))
+          (return (call_i32 ie_error
+            (param_get tree) (param_get source)
+            (call_i64 ie_else_clause
+              (param_get tree) (param_get source) (param_get node))
+            (local_get ie_m4)))))
+        (else (do)))
+      (let ie_condty i32 (call_i32 sst_expr_type
+        (param_get tree) (param_get source) (local_get ie_cond)
+        (call_i32 surface_type_bool)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get ie_condty) (call_i32 surface_type_unknown))
+          (eq_i32 (call_i32 weave_semantic_types_compatible
+            (call_i32 surface_type_bool) (local_get ie_condty))
+            (const_i32 0))))
+        (then (do
+          (let ie_m5 ptr (const_string_ptr "if condition must be bool"))
+          (return (call_i32 ie_error
+            (param_get tree) (param_get source) (local_get ie_cond)
+            (local_get ie_m5)))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn ie_check_types
+    (params (tree ptr) (source ptr) (node i64) (expected i32))
+    (returns i32)
+    (do
+      (let ie_then i64 (call_i64 ie_then_body
+        (param_get tree) (param_get source) (param_get node)))
+      (let ie_else i64 (call_i64 ie_else_body
+        (param_get tree) (param_get source) (param_get node)))
+      (let ie_thenty i32 (call_i32 sst_expr_type
+        (param_get tree) (param_get source) (local_get ie_then)
+        (param_get expected)))
+      (let ie_elsety i32 (call_i32 sst_expr_type
+        (param_get tree) (param_get source) (local_get ie_else)
+        (param_get expected)))
+      (if
+        (condition (and_bool
+          (ne_i32 (param_get expected) (call_i32 surface_type_unknown))
+          (and_bool
+            (ne_i32 (local_get ie_thenty) (call_i32 surface_type_unknown))
+            (eq_i32 (call_i32 weave_semantic_types_compatible
+              (param_get expected) (local_get ie_thenty))
+              (const_i32 0)))))
+        (then (do
+          (let ie_m6 ptr (const_string_ptr "if branch types disagree"))
+          (return (call_i32 ie_error
+            (param_get tree) (param_get source) (local_get ie_then)
+            (local_get ie_m6)))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (param_get expected) (call_i32 surface_type_unknown))
+          (and_bool
+            (ne_i32 (local_get ie_elsety) (call_i32 surface_type_unknown))
+            (eq_i32 (call_i32 weave_semantic_types_compatible
+              (param_get expected) (local_get ie_elsety))
+              (const_i32 0)))))
+        (then (do
+          (let ie_m7 ptr (const_string_ptr "if branch types disagree"))
+          (return (call_i32 ie_error
+            (param_get tree) (param_get source) (local_get ie_else)
+            (local_get ie_m7)))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get ie_thenty) (call_i32 surface_type_unknown))
+          (and_bool
+            (ne_i32 (local_get ie_elsety) (call_i32 surface_type_unknown))
+            (eq_i32 (call_i32 weave_semantic_types_compatible
+              (local_get ie_thenty) (local_get ie_elsety))
+              (const_i32 0)))))
+        (then (do
+          (let ie_m8 ptr (const_string_ptr "if branch types disagree"))
+          (return (call_i32 ie_error
+            (param_get tree) (param_get source) (local_get ie_else)
+            (local_get ie_m8)))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn if_expr_type
+    (params (tree ptr) (source ptr) (node i64) (expected i32))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (param_get expected) (call_i32 surface_type_unknown)))
+        (then (do (return (param_get expected))))
+        (else (do)))
+      (let ie_then i64 (call_i64 ie_then_body
+        (param_get tree) (param_get source) (param_get node)))
+      (if
+        (condition (eq_i64 (local_get ie_then) (const_i64 -1)))
+        (then (do (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (return (call_i32 sst_expr_type
+        (param_get tree) (param_get source) (local_get ie_then)
+        (param_get expected)))))
+
+  (fn ie_emit_condition
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (call_void weave_surface_match_write_open_if (param_get fd))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree)
+        (call_i64 ie_cond_expr
+          (param_get tree) (param_get source) (param_get node))
+        (call_i32 surface_type_bool))
+      (return_void)))
+
+  (fn if_expr_emit_return
+    (params (fd i32) (source ptr) (tree ptr) (node i64) (expected i32))
+    (returns void)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 ie_validate
+          (param_get tree) (param_get source) (param_get node))
+          (const_i32 0)))
+        (then (do (return_void)))
+        (else (do)))
+      (call_i32 ie_check_types
+        (param_get tree) (param_get source) (param_get node)
+        (param_get expected))
+      (call_void ie_emit_condition
+        (param_get fd) (param_get source) (param_get tree) (param_get node))
+      (call_void weave_surface_if_write_then_return (param_get fd))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree)
+        (call_i64 ie_then_body
+          (param_get tree) (param_get source) (param_get node))
+        (param_get expected))
+      (call_void weave_surface_if_write_else_return (param_get fd))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree)
+        (call_i64 ie_else_body
+          (param_get tree) (param_get source) (param_get node))
+        (param_get expected))
+      (call_void weave_surface_if_write_end_return (param_get fd))
+      (return_void)))
+
+  (fn if_expr_emit_let
+    (params (fd i32) (source ptr) (tree ptr) (let_node i64))
+    (returns void)
+    (do
+      (let ie_name i64 (call_i64 nth_child
+        (param_get tree) (param_get let_node) (const_i64 1)))
+      (let ie_type i64 (call_i64 nth_child
+        (param_get tree) (param_get let_node) (const_i64 2)))
+      (let ie_if i64 (call_i64 nth_child
+        (param_get tree) (param_get let_node) (const_i64 3)))
+      (let ie_ty i32 (call_i32 sst_type_code
+        (param_get tree) (param_get source) (local_get ie_type)))
+      (if
+        (condition (ne_i32 (call_i32 ie_validate
+          (param_get tree) (param_get source) (local_get ie_if))
+          (const_i32 0)))
+        (then (do (return_void)))
+        (else (do)))
+      (call_i32 ie_check_types
+        (param_get tree) (param_get source) (local_get ie_if)
+        (local_get ie_ty))
+      (call_void write_byte (param_get fd) (const_i32 40))
+      (call_void write_cstr (param_get fd) (const_string_ptr "let "))
+      (call_void emit_node
+        (param_get fd) (param_get source) (param_get tree) (local_get ie_name))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void sst_emit_declared_wir_type
+        (param_get fd) (param_get source) (param_get tree)
+        (local_get ie_type) (local_get ie_ty))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void weave_surface_match_write_dummy
+        (param_get fd) (call_ptr weave_semantic_type_wir (local_get ie_ty)))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (call_void write_byte (param_get fd) (const_i32 10))
+      (call_i32 weave_surface_local_add
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ie_name))
+        (call_i64 node_text_len (param_get tree) (local_get ie_name))
+        (local_get ie_ty))
+      (call_void ie_emit_condition
+        (param_get fd) (param_get source) (param_get tree) (local_get ie_if))
+      (call_void weave_surface_if_write_then_set (param_get fd))
+      (call_void emit_node
+        (param_get fd) (param_get source) (param_get tree) (local_get ie_name))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree)
+        (call_i64 ie_then_body
+          (param_get tree) (param_get source) (local_get ie_if))
+        (local_get ie_ty))
+      (call_void weave_surface_if_write_else_set (param_get fd))
+      (call_void emit_node
+        (param_get fd) (param_get source) (param_get tree) (local_get ie_name))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree)
+        (call_i64 ie_else_body
+          (param_get tree) (param_get source) (local_get ie_if))
+        (local_get ie_ty))
+      (call_void weave_surface_if_write_end_set (param_get fd))
+      (return_void)))
+
+  (fn if_expr_emit
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (let ie_m9 ptr (const_string_ptr "expression if must initialize a let or be returned"))
+      (call_void ie_error
+        (param_get tree) (param_get source) (param_get node)
+        (local_get ie_m9))
+      (call_void weave_surface_match_write_dummy
+        (param_get fd) (const_string_ptr "i32"))
+      (return_void)))
+)

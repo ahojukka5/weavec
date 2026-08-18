@@ -126,6 +126,12 @@
   (extern weave_surface_match_write_cond
     (params (fd i32) (prefix ptr) (temp i32) (tag i32)) (returns void))
   (extern weave_surface_match_write_open_if (params (fd i32)) (returns void))
+  (extern weave_surface_if_write_then_return (params (fd i32)) (returns void))
+  (extern weave_surface_if_write_else_return (params (fd i32)) (returns void))
+  (extern weave_surface_if_write_end_return (params (fd i32)) (returns void))
+  (extern weave_surface_if_write_then_set (params (fd i32)) (returns void))
+  (extern weave_surface_if_write_else_set (params (fd i32)) (returns void))
+  (extern weave_surface_if_write_end_set (params (fd i32)) (returns void))
   (extern weave_surface_match_write_then_do (params (fd i32)) (returns void))
   (extern weave_surface_match_write_else_do (params (fd i32)) (returns void))
   (extern weave_surface_match_write_close2 (params (fd i32)) (returns void))

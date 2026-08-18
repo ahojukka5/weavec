@@ -15,6 +15,9 @@ surface-language contract stabilises.
 
 ### Added
 
+- Expression-valued `if`: `(if (condition EXPR) (then EXPR) (else EXPR))`
+  as a `let` initializer or returned value. Else is required and the
+  branch types must agree. Statement `if` is unchanged.
 - A parse-digits example and an end-to-end qualification corpus for
   generics, variants, match, Option, Result, and try. Equivalent source
   order and relocated checkouts keep the same public facts; extracted
