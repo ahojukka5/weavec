@@ -228,6 +228,9 @@ bash "$ROOT/test/generic-monomorphization/test.sh"
 log 'Option and Result helpers'
 bash "$ROOT/test/option-helpers/test.sh"
 
+log 'String and Bytes'
+bash "$ROOT/test/string-bytes/test.sh"
+
 log 'tagged variants'
 bash "$ROOT/test/tagged-variants/test.sh"
 

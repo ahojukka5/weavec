@@ -18,6 +18,8 @@ package. The full contract is in the repository document
 | `stdlib/matrix.weave` | `std.matrix` |
 | `stdlib/statistics.weave` | `std.statistics` |
 | `stdlib/file.weave` | `std.file` |
+| `stdlib/bytes.weave` | `std.bytes` |
+| `stdlib/string.weave` | `std.string` |
 
 Pass the files a program needs, dependencies first. `std.memory` comes
 before anything that allocates. Do not link the private target runtime
