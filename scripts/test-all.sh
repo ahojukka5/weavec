@@ -135,6 +135,9 @@ bash "$ROOT/test/surface-elaboration/test.sh"
 log 'floating-point arithmetic'
 bash "$ROOT/test/float-arithmetic/test.sh"
 
+log 'f32 and f64 decimal literals'
+bash "$ROOT/test/f32-literals/test.sh"
+
 log 'process arguments'
 bash "$ROOT/test/process-arguments/test.sh"
 

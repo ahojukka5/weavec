@@ -8,6 +8,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -41,6 +42,39 @@ __attribute__((weak)) const char weave_compiler_version[] = "v0.0.0+unknown";
 
 int weave_rt_open_write_trunc(const char *path, int mode) {
     return open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
+}
+
+/* Copy a WIR decimal atom and return IEEE bits. is_f32 selects float vs
+ * double. The seed compiler cannot express this conversion in Weave. */
+int64_t weave_rt_float_literal_bits(
+    const char *text, int64_t len, int32_t is_f32) {
+    char *buf;
+    char *end;
+    double value;
+
+    if (text == NULL || len <= 0) {
+        return 0;
+    }
+    buf = (char *)malloc((size_t)len + 1);
+    if (buf == NULL) {
+        return 0;
+    }
+    memcpy(buf, text, (size_t)len);
+    buf[len] = '\0';
+    end = NULL;
+    value = strtod(buf, &end);
+    free(buf);
+    if (is_f32 != 0) {
+        float narrowed = (float)value;
+        uint32_t bits = 0;
+        memcpy(&bits, &narrowed, sizeof bits);
+        return (int64_t)(uint64_t)bits;
+    }
+    {
+        uint64_t bits = 0;
+        memcpy(&bits, &value, sizeof bits);
+        return (int64_t)bits;
+    }
 }
 
 int weave_rt_print_version(void) {
