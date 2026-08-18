@@ -47,34 +47,153 @@
         (let sst_generic_arity i32 (call_i32 weave_surface_symbol_type_param_count
           (param_get sst_source) (local_get sst_name_start)
           (local_get sst_name_length)))
+        (let sst_type_args i64 (call_i64 spec_type_args_node
+          (param_get sst_tree) (param_get sst_source) (param_get sst_node)))
+        (let sst_spec_index i32 (const_i32 -1))
+        (let sst_spec_args ptr (const_null))
         (if
           (condition (gt_i32 (local_get sst_generic_arity) (const_i32 0)))
           (then (do
+            (if
+              (condition (eq_i64 (local_get sst_type_args) (const_i64 -1)))
+              (then (do
+                (call_void surface_error_prefix (const_string_ptr "call"))
+                (call_void write_cstr
+                  (const_i32 2)
+                  (const_string_ptr "generic function "))
+                (call_void emit_node_text
+                  (const_i32 2) (param_get sst_source) (param_get sst_tree)
+                  (local_get sst_name_node))
+                (call_void write_cstr
+                  (const_i32 2)
+                  (const_string_ptr " requires explicit (type-args ...)"))
+                (call_void write_byte (const_i32 2) (const_i32 10))
+                (call_void sdiag_record
+                  (param_get sst_tree) (param_get sst_source)
+                  (param_get sst_node)
+                  (const_string_ptr "frontend.type.missing-type-args")
+                  (call_i32 surface_type_unknown)
+                  (call_i32 surface_type_unknown)
+                  (const_i32 -1) (local_get sst_generic_arity) (const_i32 0)
+                  (const_string_ptr "call") (local_get sst_name_node)
+                  (const_i32 0))
+                (return_void)))
+              (else (do)))
+            (let sst_arg_n i64 (sub_i64
+              (call_i64 count_children
+                (param_get sst_tree) (local_get sst_type_args))
+              (const_i64 1)))
+            (if
+              (condition (ne_i64 (local_get sst_arg_n)
+                (cast_i32_to_i64 (local_get sst_generic_arity))))
+              (then (do
+                (call_void surface_error_prefix (const_string_ptr "call"))
+                (call_void emit_node_text
+                  (const_i32 2) (param_get sst_source) (param_get sst_tree)
+                  (local_get sst_name_node))
+                (call_void write_cstr
+                  (const_i32 2) (const_string_ptr " expects "))
+                (call_void write_i64_dec (const_i32 2)
+                  (cast_i32_to_i64 (local_get sst_generic_arity)))
+                (call_void write_cstr
+                  (const_i32 2) (const_string_ptr " type argument(s), got "))
+                (call_void write_i64_dec (const_i32 2) (local_get sst_arg_n))
+                (call_void write_byte (const_i32 2) (const_i32 10))
+                (return_void)))
+              (else (do)))
+            (set sst_spec_args (call_ptr malloc
+              (mul_i64 (local_get sst_arg_n) (const_i64 4))))
+            (if
+              (condition (eq_ptr (local_get sst_spec_args) (const_null)))
+              (then (do (return_void)))
+              (else (do)))
+            (let sst_targ i64 (call_i64 nth_child
+              (param_get sst_tree) (local_get sst_type_args) (const_i64 1)))
+            (let sst_ti i32 (const_i32 0))
+            (while
+              (condition (lt_i32 (local_get sst_ti)
+                (local_get sst_generic_arity)))
+              (do
+                (let sst_tty i32 (call_i32 surface_resolve_type_form
+                  (param_get sst_tree) (param_get sst_source)
+                  (local_get sst_targ)))
+                (if
+                  (condition (eq_i32 (local_get sst_tty)
+                    (call_i32 surface_type_unknown)))
+                  (then (do
+                    (call_void free (local_get sst_spec_args))
+                    (call_void surface_error_prefix (const_string_ptr "call"))
+                    (call_void write_cstr
+                      (const_i32 2)
+                      (const_string_ptr "unknown type argument"))
+                    (call_void write_byte (const_i32 2) (const_i32 10))
+                    (return_void)))
+                  (else (do)))
+                (store_i32
+                  (ptr_add
+                    (local_get sst_spec_args)
+                    (mul_i64 (cast_i32_to_i64 (local_get sst_ti))
+                      (const_i64 4)))
+                  (local_get sst_tty))
+                (set sst_ti (add_i32 (local_get sst_ti) (const_i32 1)))
+                (set sst_targ (call_i64 node_next_sibling
+                  (param_get sst_tree) (local_get sst_targ)))))
+            (set sst_spec_index (call_i32 spec_intern_fn
+              (param_get sst_source) (local_get sst_name_start)
+              (local_get sst_name_length)
+              (local_get sst_spec_args) (local_get sst_generic_arity)))
+            (if
+              (condition (eq_i32 (local_get sst_spec_index) (const_i32 -2)))
+              (then (do
+                (call_void free (local_get sst_spec_args))
+                (call_void surface_error_prefix (const_string_ptr "specialize"))
+                (call_void write_cstr
+                  (const_i32 2)
+                  (const_string_ptr "too many generic specializations"))
+                (call_void write_byte (const_i32 2) (const_i32 10))
+                (return_void)))
+              (else (do)))
+            (if
+              (condition (lt_i32 (local_get sst_spec_index) (const_i32 0)))
+              (then (do
+                (call_void free (local_get sst_spec_args))
+                (call_void surface_error_prefix (const_string_ptr "specialize"))
+                (call_void write_cstr
+                  (const_i32 2)
+                  (const_string_ptr "cannot intern a specialization"))
+                (call_void write_byte (const_i32 2) (const_i32 10))
+                (return_void)))
+              (else (do)))
+            (set sst_return_type (call_i32 spec_instantiate_type
+              (local_get sst_return_type) (local_get sst_spec_args)
+              (local_get sst_generic_arity)))))
+          (else (do)))
+        (if
+          (condition (and_bool
+            (eq_i32 (local_get sst_generic_arity) (const_i32 0))
+            (ne_i64 (local_get sst_type_args) (const_i64 -1))))
+          (then (do
+            (call_void free (local_get sst_spec_args))
             (call_void surface_error_prefix (const_string_ptr "call"))
-            (call_void write_cstr
-              (const_i32 2)
-              (const_string_ptr "generic function "))
             (call_void emit_node_text
               (const_i32 2) (param_get sst_source) (param_get sst_tree)
               (local_get sst_name_node))
             (call_void write_cstr
-              (const_i32 2)
-              (const_string_ptr " cannot be called until it is specialized"))
+              (const_i32 2) (const_string_ptr " is not a generic function"))
             (call_void write_byte (const_i32 2) (const_i32 10))
-            (call_void sdiag_record
-              (param_get sst_tree) (param_get sst_source) (param_get sst_node)
-              (const_string_ptr "frontend.type.unspecialized-call")
-              (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
-              (const_i32 -1) (const_i32 -1) (const_i32 -1)
-              (const_string_ptr "call") (local_get sst_name_node) (const_i32 0))
             (return_void)))
           (else (do)))
         (let sst_expected_count i32 (call_i32 weave_surface_symbol_parameter_count
           (param_get sst_source) (local_get sst_name_start)
           (local_get sst_name_length)))
+        (let sst_skip i64 (const_i64 2))
+        (if
+          (condition (ne_i64 (local_get sst_type_args) (const_i64 -1)))
+          (then (do (set sst_skip (const_i64 3))))
+          (else (do)))
         (let sst_actual_count i64 (sub_i64
           (call_i64 count_children (param_get sst_tree) (param_get sst_node))
-          (const_i64 2)))
+          (local_get sst_skip)))
         (if
           (condition (or_bool
             (eq_i32 (local_get sst_return_type) (call_i32 surface_type_unknown))
@@ -91,11 +210,24 @@
         (call_void sst_emit_call_prefix
           (param_get sst_fd) (local_get sst_return_type))
         (call_void write_byte (param_get sst_fd) (const_i32 32))
-        (call_void surface_emit_symbol_name
-          (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
-          (local_get sst_name_node))
+        (if
+          (condition (ge_i32 (local_get sst_spec_index) (const_i32 0)))
+          (then (do
+            (call_void write_cstr
+              (param_get sst_fd)
+              (call_ptr weave_surface_spec_name (local_get sst_spec_index)))))
+          (else (do
+            (call_void surface_emit_symbol_name
+              (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+              (local_get sst_name_node)))))
         (let sst_argument i64 (call_i64 node_next_sibling
           (param_get sst_tree) (local_get sst_name_node)))
+        (if
+          (condition (ne_i64 (local_get sst_type_args) (const_i64 -1)))
+          (then (do
+            (set sst_argument (call_i64 node_next_sibling
+              (param_get sst_tree) (local_get sst_type_args)))))
+          (else (do)))
         (let sst_argument_index i32 (const_i32 0))
         (while
           (condition (ne_i64 (local_get sst_argument) (const_i64 -1)))
@@ -103,6 +235,15 @@
             (let sst_expected_type i32 (call_i32 weave_surface_symbol_parameter_type
               (param_get sst_source) (local_get sst_name_start)
               (local_get sst_name_length) (local_get sst_argument_index)))
+            (if
+              (condition (and_bool
+                (ge_i32 (local_get sst_spec_index) (const_i32 0))
+                (ne_ptr (local_get sst_spec_args) (const_null))))
+              (then (do
+                (set sst_expected_type (call_i32 spec_instantiate_type
+                  (local_get sst_expected_type) (local_get sst_spec_args)
+                  (local_get sst_generic_arity)))))
+              (else (do)))
             (let sst_actual_type i32 (call_i32 sop_expr_type
               (param_get sst_tree) (param_get sst_source) (local_get sst_argument)
               (local_get sst_expected_type)))
@@ -144,6 +285,10 @@
             (set sst_argument (call_i64 node_next_sibling
               (param_get sst_tree) (local_get sst_argument)))))
         (call_void write_byte (param_get sst_fd) (const_i32 41))
+        (if
+          (condition (ne_ptr (local_get sst_spec_args) (const_null)))
+          (then (do (call_void free (local_get sst_spec_args))))
+          (else (do)))
         (return_void)))
 
   (fn sst_emit_return

@@ -277,6 +277,11 @@
         (condition (ne_i32 (local_get decl_status) (const_i32 0)))
         (then (do (return (local_get decl_status))))
         (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_emit_pending_specs
+          (param_get fd)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
       (call_void emit_wir_footer (param_get fd))
       (return (const_i32 0))))
 )

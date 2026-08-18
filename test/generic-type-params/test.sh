@@ -135,7 +135,7 @@ cat > "$TMP/call-generic.weave" <<'EOF'
   (entry main (params) (returns i32)
     (do (return (call identity 1)))))
 EOF
-expect_rejected call-generic 'cannot be called until it is specialized'
+expect_rejected call-generic 'requires explicit (type-args ...)'
 
 # Malformed declarations.
 cat > "$TMP/empty-params.weave" <<'EOF'

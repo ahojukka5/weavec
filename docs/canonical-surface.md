@@ -121,8 +121,15 @@ confused with a value call or with reserved ownership spellings:
 name. `(type-app CONSTRUCTOR ARG...)` is the only compound type form. Other
 compound types such as `(owned T)` remain rejected.
 
-Generic declarations do not lower to WIR. Concrete specializations are a later
-step; a program may declare unused generic functions beside an ordinary `main`.
+A generic call names its type arguments explicitly:
+
+```weave
+(call identity (type-args i32) 1)
+```
+
+The compiler emits one concrete WIR function per distinct instantiation.
+Unused generic templates are not emitted. Constructing a generic struct is
+still a later specialization of `new`.
 
 ## Semantic structs
 
