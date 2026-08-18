@@ -89,6 +89,15 @@
           (if
             (condition (ne_i32 (call_i32 head_equals
               (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "match") (const_i64 5)) (const_i32 0)))
+            (then (do
+              (call_void match_emit
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (return_void)))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
               (const_string_ptr "field-get") (const_i64 9)) (const_i32 0)))
             (then (do
               (call_void sst_emit_field_get
@@ -162,6 +171,20 @@
               (eq_i64 (call_i64 count_children
                 (param_get tree) (param_get node)) (const_i64 2))))
             (then (do
+              (if
+                (condition (ne_i32 (call_i32 match_is_node
+                  (param_get tree) (param_get source)
+                  (call_i64 nth_child
+                    (param_get tree) (param_get node) (const_i64 1)))
+                  (const_i32 0)))
+                (then (do
+                  (call_void match_emit_return
+                    (param_get fd) (param_get source) (param_get tree)
+                    (call_i64 nth_child
+                      (param_get tree) (param_get node) (const_i64 1))
+                    (call_i32 weave_surface_get_return_type))
+                  (return_void)))
+                (else (do)))
               (call_void sst_emit_return
                 (param_get fd) (param_get source) (param_get tree) (param_get node))
               (return_void)))
@@ -224,6 +247,18 @@
               (eq_i64 (call_i64 count_children
                 (param_get tree) (param_get node)) (const_i64 4))))
             (then (do
+              (if
+                (condition (ne_i32 (call_i32 match_is_node
+                  (param_get tree) (param_get source)
+                  (call_i64 nth_child
+                    (param_get tree) (param_get node) (const_i64 3)))
+                  (const_i32 0)))
+                (then (do
+                  (call_void match_emit_let
+                    (param_get fd) (param_get source) (param_get tree)
+                    (param_get node))
+                  (return_void)))
+                (else (do)))
               (call_void sst_emit_let_node
                 (param_get fd) (param_get source) (param_get tree) (param_get node))
               (return_void)))

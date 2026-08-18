@@ -142,6 +142,7 @@ static int32_t weave_surface_symbol_count;
 static int32_t weave_surface_symbol_being_built = -1;
 static weave_surface_local weave_surface_locals[WEAVEC_SURFACE_MAX_LOCALS];
 static int32_t weave_surface_local_count;
+static int32_t weave_surface_match_temp;
 static weave_surface_struct weave_surface_structs[WEAVEC_SURFACE_MAX_STRUCTS];
 static int32_t weave_surface_struct_count;
 static weave_surface_module weave_surface_modules[WEAVEC_SURFACE_MAX_MODULES];
@@ -429,6 +430,7 @@ void weave_surface_symbols_reset(void) {
     weave_surface_symbol_count = 0;
     weave_surface_symbol_being_built = -1;
     weave_surface_local_count = 0;
+    weave_surface_match_temp = 0;
     weave_surface_struct_count = 0;
     weave_surface_module_count = 0;
     weave_surface_export_count = 0;
@@ -833,7 +835,45 @@ void weave_surface_locals_reset(void) {
         weave_surface_locals[index].name = NULL;
     }
     weave_surface_local_count = 0;
+    weave_surface_match_temp = 0;
     weave_surface_return_type = 0;
+}
+
+int32_t weave_surface_local_count_get(void) {
+    return weave_surface_local_count;
+}
+
+int32_t weave_surface_local_push(
+    const char *source,
+    int64_t start,
+    int64_t length,
+    int32_t type) {
+    if (type <= 0 || weave_surface_local_count >= WEAVEC_SURFACE_MAX_LOCALS) {
+        return -1;
+    }
+    char *name = weave_surface_copy_slice(source, start, length);
+    if (name == NULL) {
+        return -1;
+    }
+    int32_t index = weave_surface_local_count++;
+    weave_surface_locals[index].name = name;
+    weave_surface_locals[index].name_length = length;
+    weave_surface_locals[index].type = type;
+    return 0;
+}
+
+void weave_surface_local_truncate(int32_t count) {
+    if (count < 0) {
+        count = 0;
+    }
+    if (count > weave_surface_local_count) {
+        return;
+    }
+    for (int32_t index = count; index < weave_surface_local_count; ++index) {
+        free(weave_surface_locals[index].name);
+        weave_surface_locals[index].name = NULL;
+    }
+    weave_surface_local_count = count;
 }
 
 int32_t weave_surface_local_add(
@@ -1724,4 +1764,89 @@ void weave_surface_enum_write_payload_fn(
     weave_surface_enum_write(fd, load_head);
     weave_surface_enum_write(
         fd, " (ptr_add (param_get self) (const_i64 8)))))))\n");
+}
+
+int32_t weave_surface_match_temp_next(void) {
+    return weave_surface_match_temp++;
+}
+
+void weave_surface_match_write_temp(int32_t fd, int32_t temp) {
+    char line[32];
+    snprintf(line, sizeof(line), "__m%d", temp);
+    weave_surface_enum_write(fd, line);
+}
+
+void weave_surface_match_write_local_get(int32_t fd, int32_t temp) {
+    char line[48];
+    snprintf(line, sizeof(line), "(local_get __m%d)", temp);
+    weave_surface_enum_write(fd, line);
+}
+
+void weave_surface_match_write_let_head(int32_t fd, int32_t temp) {
+    char line[48];
+    snprintf(line, sizeof(line), "(let __m%d ptr ", temp);
+    weave_surface_enum_write(fd, line);
+}
+
+void weave_surface_match_write_cond(
+    int32_t fd,
+    const char *prefix,
+    int32_t temp,
+    int32_t tag) {
+    char line[256];
+    if (prefix == NULL) {
+        prefix = "";
+    }
+    snprintf(
+        line,
+        sizeof(line),
+        "(eq_i32 (call_i32 %s_tag (local_get __m%d)) (const_i32 %d))",
+        prefix,
+        temp,
+        tag);
+    weave_surface_enum_write(fd, line);
+}
+
+void weave_surface_match_write_open_if(int32_t fd) {
+    weave_surface_enum_write(fd, "(if (condition ");
+}
+
+void weave_surface_match_write_then_do(int32_t fd) {
+    weave_surface_enum_write(fd, ") (then (do ");
+}
+
+void weave_surface_match_write_else_do(int32_t fd) {
+    weave_surface_enum_write(fd, ") (else (do ");
+}
+
+void weave_surface_match_write_close2(int32_t fd) {
+    weave_surface_enum_write(fd, "))");
+}
+
+void weave_surface_match_write_close3(int32_t fd) {
+    weave_surface_enum_write(fd, ")))");
+}
+
+void weave_surface_match_write_dummy(int32_t fd, const char *wir_type) {
+    if (wir_type != NULL && strcmp(wir_type, "ptr") == 0) {
+        weave_surface_enum_write(fd, "(const_null)");
+        return;
+    }
+    if (wir_type != NULL && strcmp(wir_type, "bool") == 0) {
+        weave_surface_enum_write(fd, "(const_bool false)");
+        return;
+    }
+    if (wir_type != NULL && strcmp(wir_type, "i64") == 0) {
+        weave_surface_enum_write(fd, "(const_i64 0)");
+        return;
+    }
+    if (wir_type != NULL && strcmp(wir_type, "f32") == 0) {
+        weave_surface_enum_write(fd, "(const_f32 0.0)");
+        return;
+    }
+    if (wir_type != NULL && strcmp(wir_type, "f64") == 0) {
+        weave_surface_enum_write(fd, "(const_f64 0.0)");
+        return;
+    }
+    weave_surface_enum_write(fd, "(const_i32 0)");
 }
