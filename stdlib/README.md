@@ -20,6 +20,7 @@ package. The full contract is in the repository document
 | `stdlib/file.weave` | `std.file` |
 | `stdlib/bytes.weave` | `std.bytes` |
 | `stdlib/string.weave` | `std.string` |
+| `stdlib/vec.weave` | `std.vec` |
 
 Pass the files a program needs, dependencies first. `std.memory` comes
 before anything that allocates. Do not link the private target runtime

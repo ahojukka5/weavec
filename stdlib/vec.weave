@@ -1,0 +1,217 @@
+; SPDX-License-Identifier: Apache-2.0
+; Generic Vec and borrowed Slice with bounds-checked indexing.
+;
+; The first admitted element type is i32. Out-of-range get returns None
+; and set returns false. They do not abort. Slices are a data type, not
+; a borrow checker. std.memory and std.option must be earlier in the
+; build. std.vector remains the fixed Vec3 module.
+
+(program
+  (name "std.vec")
+  (version "0.1")
+
+  (struct Vec
+    (type-params T)
+    (field data ptr)
+    (field len i32)
+    (field cap i32))
+
+  (struct Slice
+    (type-params T)
+    (field data ptr)
+    (field len i32))
+
+  (fn vec_new
+    (type-params T)
+    (params)
+    (returns (type-app Vec T))
+    (do
+      (return
+        (new Vec
+          (data (const_null))
+          (len (const_i32 0))
+          (cap (const_i32 0))))))
+
+  (fn vec_len
+    (type-params T)
+    (params (value (type-app Vec T)))
+    (returns i32)
+    (do
+      (return (field-get value len))))
+
+  (fn vec_get
+    (type-params T)
+    (params (value (type-app Vec T)) (index i32))
+    (returns (type-app Option T))
+    (do
+      (if
+        (condition (or_bool
+          (lt_i32 (param_get index) (const_i32 0))
+          (or_bool
+            (eq_ptr (field-get value data) (const_null))
+            (ge_i32 (param_get index) (field-get value len)))))
+        (then (do
+          (return (variant Option (type-args T) None))))
+        (else (do)))
+      (return
+        (variant Option (type-args T) Some
+          (load_i32 (ptr_add
+            (field-get value data)
+            (mul_i64 (cast_i32_to_i64 (param_get index)) (const_i64 4))))))))
+
+  (fn vec_set
+    (type-params T)
+    (params (value (type-app Vec T)) (index i32) (item T))
+    (returns bool)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i32 (param_get index) (const_i32 0))
+          (or_bool
+            (eq_ptr (field-get value data) (const_null))
+            (ge_i32 (param_get index) (field-get value len)))))
+        (then (do (return (const_bool false))))
+        (else (do)))
+      (store_i32
+        (ptr_add
+          (field-get value data)
+          (mul_i64 (cast_i32_to_i64 (param_get index)) (const_i64 4)))
+        (param_get item))
+      (return (const_bool true))))
+
+  (fn vec_reserve
+    (type-params T)
+    (params (value (type-app Vec T)) (needed i32))
+    (returns (type-app Vec T))
+    (do
+      (if
+        (condition (le_i32 (param_get needed) (field-get value cap)))
+        (then (do (return (param_get value))))
+        (else (do)))
+      (let cap i32 (field-get value cap))
+      (if
+        (condition (eq_i32 (local_get cap) (const_i32 0)))
+        (then (do (set cap (const_i32 4))))
+        (else (do)))
+      (while
+        (condition (lt_i32 (local_get cap) (param_get needed)))
+        (do
+          (set cap (mul_i32 (local_get cap) (const_i32 2)))))
+      (let buf ptr (call_ptr malloc
+        (mul_i64 (cast_i32_to_i64 (local_get cap)) (const_i64 4))))
+      (if
+        (condition (eq_ptr (local_get buf) (const_null)))
+        (then (do (return (param_get value))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_ptr (field-get value data) (const_null))
+          (gt_i32 (field-get value len) (const_i32 0))))
+        (then (do
+          (let i i32 (const_i32 0))
+          (while
+            (condition (lt_i32 (local_get i) (field-get value len)))
+            (do
+              (store_i32
+                (ptr_add (local_get buf)
+                  (mul_i64 (cast_i32_to_i64 (local_get i)) (const_i64 4)))
+                (load_i32 (ptr_add (field-get value data)
+                  (mul_i64 (cast_i32_to_i64 (local_get i)) (const_i64 4)))))
+              (set i (add_i32 (local_get i) (const_i32 1)))))))
+        (else (do)))
+      (if
+        (condition (ne_ptr (field-get value data) (const_null)))
+        (then (do (call free (field-get value data))))
+        (else (do)))
+      (field-set value data (local_get buf))
+      (field-set value cap (local_get cap))
+      (return (param_get value))))
+
+  (fn vec_push
+    (type-params T)
+    (params (value (type-app Vec T)) (item T))
+    (returns (type-app Vec T))
+    (do
+      (let need i32 (add_i32 (field-get value len) (const_i32 1)))
+      (let grown (type-app Vec T) (call vec_reserve (type-args T)
+        (param_get value) (local_get need)))
+      (if
+        (condition (eq_ptr (field-get grown data) (const_null)))
+        (then (do (return (local_get grown))))
+        (else (do)))
+      (store_i32
+        (ptr_add (field-get grown data)
+          (mul_i64 (cast_i32_to_i64 (field-get grown len)) (const_i64 4)))
+        (param_get item))
+      (field-set grown len (add_i32 (field-get grown len) (const_i32 1)))
+      (return (local_get grown))))
+
+  (fn vec_as_slice
+    (type-params T)
+    (params (value (type-app Vec T)))
+    (returns (type-app Slice T))
+    (do
+      (return
+        (new Slice
+          (data (field-get value data))
+          (len (field-get value len))))))
+
+  (fn vec_release
+    (type-params T)
+    (params (value (type-app Vec T)))
+    (returns void)
+    (do
+      (if
+        (condition (ne_ptr (field-get value data) (const_null)))
+        (then (do (call free (field-get value data))))
+        (else (do)))
+      (call free (param_get value))
+      (return_void)))
+
+  (fn slice_len
+    (type-params T)
+    (params (value (type-app Slice T)))
+    (returns i32)
+    (do
+      (return (field-get value len))))
+
+  (fn slice_get
+    (type-params T)
+    (params (value (type-app Slice T)) (index i32))
+    (returns (type-app Option T))
+    (do
+      (if
+        (condition (or_bool
+          (lt_i32 (param_get index) (const_i32 0))
+          (or_bool
+            (eq_ptr (field-get value data) (const_null))
+            (ge_i32 (param_get index) (field-get value len)))))
+        (then (do
+          (return (variant Option (type-args T) None))))
+        (else (do)))
+      (return
+        (variant Option (type-args T) Some
+          (load_i32 (ptr_add
+            (field-get value data)
+            (mul_i64 (cast_i32_to_i64 (param_get index)) (const_i64 4))))))))
+
+  (fn slice_set
+    (type-params T)
+    (params (value (type-app Slice T)) (index i32) (item T))
+    (returns bool)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i32 (param_get index) (const_i32 0))
+          (or_bool
+            (eq_ptr (field-get value data) (const_null))
+            (ge_i32 (param_get index) (field-get value len)))))
+        (then (do (return (const_bool false))))
+        (else (do)))
+      (store_i32
+        (ptr_add
+          (field-get value data)
+          (mul_i64 (cast_i32_to_i64 (param_get index)) (const_i64 4)))
+        (param_get item))
+      (return (const_bool true))))
+)

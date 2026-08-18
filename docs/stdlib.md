@@ -49,14 +49,19 @@ library tree. Do not give a standard module a name that is not `std.<id>`.
 | `stdlib/file.weave` | `std.file` | Reading a small text file as lines. |
 | `stdlib/bytes.weave` | `std.bytes` | Owned byte buffer: length, append, get. |
 | `stdlib/string.weave` | `std.string` | Owned text buffer: length, append, get. |
+| `stdlib/vec.weave` | `std.vec` | Generic `Vec` and `Slice`, first for `i32`. |
 
 `std.bytes` and `std.string` are owned buffers. Indexing uses `bytes_get`
 and `string_get`, which return `None` when the index is out of range.
 They do not abort. `std.memory` and `std.option` must appear before
 them. `std.bytes` must appear before `std.string`.
 
-`std.vector` remains the existing three-component vector. A later
-generic vector module must use a different `<id>`.
+`std.vec` is the generic growable vector. `vec_get` and `slice_get`
+return `None` when the index is out of range; `vec_set` and `slice_set`
+return false. They do not abort. The first admitted element type is
+`i32`. A `Slice` shares the vector buffer; it is a data type, not a
+borrow checker. `std.memory` and `std.option` must appear before
+`std.vec`. `std.vector` remains the existing three-component `Vec3`.
 
 ## Adding a module
 

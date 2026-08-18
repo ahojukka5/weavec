@@ -176,6 +176,18 @@
             (else (do)))
           (set slot_index
             (add_i32 (local_get slot_index) (const_i32 1)))))
+      (let sf_graph ptr (call_ptr semantic_graph))
+      (if
+        (condition (and_bool
+          (ne_ptr (local_get sf_graph) (const_null))
+          (eq_i32 (call_i32 type_graph_kind
+            (local_get sf_graph) (param_get semantic_type))
+            (call_i32 type_kind_application))))
+        (then (do
+          (return (call_i32 semantic_flat_type
+            (call_i32 type_graph_child
+              (local_get sf_graph) (param_get semantic_type) (const_i64 0))))))
+        (else (do)))
       (return (const_i32 0))))
 
 (fn semantic_bind_struct
