@@ -383,6 +383,21 @@ static int weave_si_collect_expression_references(
             result = weave_si_add_match(model, &fact);
         }
         free(enumeration);
+    } else if (strcmp(head, "for") == 0) {
+        int64_t range = weave_si_nth_child(source->tree, node, 1);
+        int64_t body = weave_si_nth_child(source->tree, node, 2);
+        result = weave_si_collect_expression_references(
+            model, source_index, caller_symbol_index,
+            weave_si_nth_child(source->tree, range, 2)) &&
+            weave_si_collect_expression_references(
+                model, source_index, caller_symbol_index,
+                weave_si_nth_child(source->tree, range, 3)) &&
+            weave_si_collect_expression_references(
+                model, source_index, caller_symbol_index, body);
+    } else if (strcmp(head, "range") == 0 ||
+               strcmp(head, "break") == 0 ||
+               strcmp(head, "continue") == 0) {
+        result = 1;
     } else if (strcmp(head, "try") == 0) {
         result = weave_si_collect_children_from(
             model, source_index, caller_symbol_index, node, 1);
