@@ -207,6 +207,9 @@ bash "$ROOT/test/loop-control/test.sh"
 log 'raw and multiline string literals'
 bash "$ROOT/test/string-literals/test.sh"
 
+log 'string interpolation'
+bash "$ROOT/test/interp/test.sh"
+
 log 'struct aliasing (known gap)'
 bash "$ROOT/test/struct-aliasing/test.sh"
 

@@ -422,6 +422,19 @@ interpolation. All four lower to one `(const_string_ptr "...")`. Raw
 and multiline content is re-escaped so the existing WIR decode
 reconstructs the source bytes.
 
+`(interp PIECE...)` builds one text pointer from adjacent pieces:
+
+```weave
+(interp "count=" n " ok=" flag)
+```
+
+String literals and expressions of type `i32`, `i64`, `bool`, or `ptr`
+are admitted. Integers print as decimal without leading zeros. Booleans
+print as `true` or `false`. A text pointer is copied as a C string.
+Floating values, `void`, `null`, and unknown types are rejected. The
+result is `ptr` until a `String` type exists. There is no printf-style
+format string and no interpolation inside `"..."`.
+
 Floating constants currently use integer literal tokens and lower through an
 integer-to-floating conversion. Decimal literal syntax is not yet part of the
 stable surface contract.

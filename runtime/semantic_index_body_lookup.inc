@@ -125,6 +125,7 @@ static int weave_si_structural_body_head(const char *head) {
         "variant", "variant-tag", "variant-payload",
         "match", "case", "try",
         "for", "range", "break", "continue",
+        "interp",
     };
     for (size_t index = 0; index < sizeof(heads) / sizeof(heads[0]); ++index) {
         if (strcmp(head, heads[index]) == 0) return 1;

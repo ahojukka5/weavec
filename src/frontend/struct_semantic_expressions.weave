@@ -129,6 +129,15 @@
               (param_get sst_tree) (param_get sst_source)
               (param_get sst_node) (param_get sst_expected)))))
           (else (do)))
+        (if
+          (condition (ne_i32 (call_i32 interp_is_node
+            (param_get sst_tree) (param_get sst_source) (param_get sst_node))
+            (const_i32 0)))
+          (then (do
+            (return (call_i32 interp_type
+              (param_get sst_tree) (param_get sst_source)
+              (param_get sst_node) (param_get sst_expected)))))
+          (else (do)))
         (return (call_i32 surface_expr_type
           (param_get sst_tree) (param_get sst_source) (param_get sst_node)
           (param_get sst_expected)))))

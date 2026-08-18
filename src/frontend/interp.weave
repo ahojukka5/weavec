@@ -1,0 +1,283 @@
+; SPDX-License-Identifier: Apache-2.0
+; interp.weave — deterministic string interpolation
+;
+; (interp PIECE...) concatenates string literals and admitted values.
+; Admitted pieces are i32, i64, bool, and text pointers. The result is
+; ptr. Helpers lower through ordinary WIR calls, not a new WIR form.
+
+(program
+  (name "interp")
+  (version "0.1")
+
+  (fn ip_error
+    (params (tree ptr) (source ptr) (node i64) (detail ptr))
+    (returns i32)
+    (do
+      (call_void surface_error_prefix (const_string_ptr "interp"))
+      (call_void write_cstr (const_i32 2) (param_get detail))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (call_void sdiag_record
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "frontend.interp.invalid")
+        (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+        (const_i32 -1) (const_i32 -1) (const_i32 -1)
+        (const_string_ptr "interp") (const_i64 -1) (const_i32 0))
+      (return (const_i32 1))))
+
+  (fn interp_is_node
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get tree) (param_get node)) (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 head_equals
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "interp") (const_i64 6)))))
+
+  (fn interp_type
+    (params (tree ptr) (source ptr) (node i64) (expected i32))
+    (returns i32)
+    (do
+      (return (call_i32 surface_type_ptr))))
+
+  (fn ip_piece_kind
+    (params (tree ptr) (source ptr) (piece i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 node_kind
+          (param_get tree) (param_get piece)) (call_i32 node_string)))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (eq_i32 (call_i32 node_kind
+            (param_get tree) (param_get piece)) (call_i32 node_ident))
+          (ne_i32 (call_i32 ident_equals
+            (param_get tree) (param_get source) (param_get piece)
+            (const_string_ptr "null") (const_i64 4)) (const_i32 0))))
+        (then (do (return (const_i32 -2))))
+        (else (do)))
+      (let ip_ty i32 (call_i32 sop_expr_type
+        (param_get tree) (param_get source) (param_get piece)
+        (call_i32 surface_type_unknown)))
+      (if
+        (condition (eq_i32 (local_get ip_ty) (call_i32 surface_type_i32)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get ip_ty) (call_i32 surface_type_i64)))
+        (then (do (return (const_i32 2))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get ip_ty) (call_i32 surface_type_bool)))
+        (then (do (return (const_i32 3))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get ip_ty) (call_i32 surface_type_ptr)))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (local_get ip_ty) (call_i32 surface_type_f32))
+          (eq_i32 (local_get ip_ty) (call_i32 surface_type_f64))))
+        (then (do (return (const_i32 -3))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get ip_ty) (call_i32 surface_type_void)))
+        (then (do (return (const_i32 -4))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get ip_ty) (call_i32 surface_type_unknown)))
+        (then (do (return (const_i32 -5))))
+        (else (do)))
+      (return (const_i32 -1))))
+
+  (fn ip_reject
+    (params (tree ptr) (source ptr) (piece i64) (kind i32))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32 (param_get kind) (const_i32 -2)))
+        (then (do
+          (let ip_m1 ptr (const_string_ptr "interp cannot format null"))
+          (return (call_i32 ip_error
+            (param_get tree) (param_get source) (param_get piece)
+            (local_get ip_m1)))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get kind) (const_i32 -3)))
+        (then (do
+          (let ip_m2 ptr (const_string_ptr "interp cannot format a floating value"))
+          (return (call_i32 ip_error
+            (param_get tree) (param_get source) (param_get piece)
+            (local_get ip_m2)))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get kind) (const_i32 -4)))
+        (then (do
+          (let ip_m3 ptr (const_string_ptr "interp cannot format void"))
+          (return (call_i32 ip_error
+            (param_get tree) (param_get source) (param_get piece)
+            (local_get ip_m3)))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get kind) (const_i32 -5)))
+        (then (do
+          (let ip_m4 ptr (const_string_ptr "interp cannot format an unknown type"))
+          (return (call_i32 ip_error
+            (param_get tree) (param_get source) (param_get piece)
+            (local_get ip_m4)))))
+        (else (do)))
+      (let ip_m5 ptr (const_string_ptr "interp cannot format this type"))
+      (return (call_i32 ip_error
+        (param_get tree) (param_get source) (param_get piece)
+        (local_get ip_m5)))))
+
+  (fn ip_emit_piece
+    (params (fd i32) (source ptr) (tree ptr) (piece i64) (kind i32))
+    (returns void)
+    (do
+      (if
+        (condition (eq_i32 (param_get kind) (const_i32 1)))
+        (then (do
+          (call_void weave_surface_interp_write_call_i32 (param_get fd))
+          (call_void surface_emit_expr_expected
+            (param_get fd) (param_get source) (param_get tree)
+            (param_get piece) (call_i32 surface_type_i32))
+          (call_void weave_surface_interp_write_close (param_get fd))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get kind) (const_i32 2)))
+        (then (do
+          (call_void weave_surface_interp_write_call_i64 (param_get fd))
+          (call_void surface_emit_expr_expected
+            (param_get fd) (param_get source) (param_get tree)
+            (param_get piece) (call_i32 surface_type_i64))
+          (call_void weave_surface_interp_write_close (param_get fd))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get kind) (const_i32 3)))
+        (then (do
+          (call_void weave_surface_interp_write_call_bool (param_get fd))
+          (call_void surface_emit_expr_expected
+            (param_get fd) (param_get source) (param_get tree)
+            (param_get piece) (call_i32 surface_type_bool))
+          (call_void weave_surface_interp_write_close (param_get fd))
+          (return_void)))
+        (else (do)))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree)
+        (param_get piece) (call_i32 surface_type_ptr))
+      (return_void)))
+
+  (fn interp_emit
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (let ip_n i64 (sub_i64 (call_i64 count_children
+        (param_get tree) (param_get node)) (const_i64 1)))
+      (if
+        (condition (le_i64 (local_get ip_n) (const_i64 0)))
+        (then (do
+          (call_void weave_surface_interp_write_empty (param_get fd))
+          (return_void)))
+        (else (do)))
+      (let ip_kinds ptr (call_ptr malloc
+        (mul_i64 (local_get ip_n) (const_i64 4))))
+      (if
+        (condition (eq_ptr (local_get ip_kinds) (const_null)))
+        (then (do
+          (let ip_m6 ptr (const_string_ptr "interp is out of memory"))
+          (call_void ip_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get ip_m6))
+          (call_void weave_surface_interp_write_empty (param_get fd))
+          (return_void)))
+        (else (do)))
+      (let ip_piece i64 (call_i64 node_next_sibling
+        (param_get tree) (call_i64 node_first_child
+          (param_get tree) (param_get node))))
+      (let ip_i i64 (const_i64 0))
+      (let ip_bad i32 (const_i32 0))
+      (while
+        (condition (ne_i64 (local_get ip_piece) (const_i64 -1)))
+        (do
+          (let ip_kind i32 (call_i32 ip_piece_kind
+            (param_get tree) (param_get source) (local_get ip_piece)))
+          (store_i32 (ptr_add (local_get ip_kinds)
+            (mul_i64 (local_get ip_i) (const_i64 4))) (local_get ip_kind))
+          (if
+            (condition (lt_i32 (local_get ip_kind) (const_i32 0)))
+            (then (do
+              (set ip_bad (const_i32 1))
+              (call_i32 ip_reject
+                (param_get tree) (param_get source) (local_get ip_piece)
+                (local_get ip_kind))))
+            (else (do)))
+          (set ip_i (add_i64 (local_get ip_i) (const_i64 1)))
+          (set ip_piece (call_i64 node_next_sibling
+            (param_get tree) (local_get ip_piece)))))
+      (if
+        (condition (ne_i32 (local_get ip_bad) (const_i32 0)))
+        (then (do
+          (call_void free (local_get ip_kinds))
+          (call_void weave_surface_interp_write_empty (param_get fd))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (gt_i64 (local_get ip_n) (const_i64 1))
+          (ne_i32 (load_i32 (local_get ip_kinds)) (const_i32 4))))
+        (then (do (call_void weave_surface_interp_mark)))
+        (else (do)))
+      (if
+        (condition (gt_i64 (local_get ip_n) (const_i64 1)))
+        (then (do
+          (let ip_open i64 (const_i64 1))
+          (while
+            (condition (lt_i64 (local_get ip_open) (local_get ip_n)))
+            (do
+              (call_void weave_surface_interp_write_concat_open (param_get fd))
+              (set ip_open (add_i64 (local_get ip_open) (const_i64 1)))))))
+        (else (do)))
+      (set ip_piece (call_i64 node_next_sibling
+        (param_get tree) (call_i64 node_first_child
+          (param_get tree) (param_get node))))
+      (set ip_i (const_i64 0))
+      (while
+        (condition (ne_i64 (local_get ip_piece) (const_i64 -1)))
+        (do
+          (if
+            (condition (gt_i64 (local_get ip_i) (const_i64 0)))
+            (then (do
+              (call_void weave_surface_interp_write_space (param_get fd))))
+            (else (do)))
+          (call_void ip_emit_piece
+            (param_get fd) (param_get source) (param_get tree)
+            (local_get ip_piece)
+            (load_i32 (ptr_add (local_get ip_kinds)
+              (mul_i64 (local_get ip_i) (const_i64 4)))))
+          (if
+            (condition (gt_i64 (local_get ip_i) (const_i64 0)))
+            (then (do
+              (call_void weave_surface_interp_write_close (param_get fd))))
+            (else (do)))
+          (set ip_i (add_i64 (local_get ip_i) (const_i64 1)))
+          (set ip_piece (call_i64 node_next_sibling
+            (param_get tree) (local_get ip_piece)))))
+      (call_void free (local_get ip_kinds))
+      (return_void)))
+
+  (fn surface_emit_pending_interp
+    (params (fd i32))
+    (returns i32)
+    (do
+      (call_void weave_surface_interp_write_helpers (param_get fd))
+      (return (const_i32 0))))
+)
