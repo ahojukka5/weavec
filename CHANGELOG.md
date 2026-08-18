@@ -15,6 +15,11 @@ surface-language contract stabilises.
 
 ### Added
 
+- Primitive conversion and formatting in `stdlib/convert.weave`.
+  `format_i32` and `format_f64` produce an owned `String`; `format_f64`
+  matches `write_f64_trimmed`. `parse_i32`, `parse_i64`, `parse_bool`,
+  and `parse_float` return `Result` and use `Err 1` for invalid text.
+  There is no locale and no printf.
 - Generic `Vec` and `Slice` in `stdlib/vec.weave`, with construction,
   push, length, a slice view, and bounds-checked get/set. Out-of-range
   get returns `None` and set returns false. They do not abort. The

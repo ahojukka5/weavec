@@ -234,6 +234,9 @@ bash "$ROOT/test/string-bytes/test.sh"
 log 'generic Vec and Slice'
 bash "$ROOT/test/vec-slice/test.sh"
 
+log 'primitive conversion and formatting'
+bash "$ROOT/test/convert-format/test.sh"
+
 log 'tagged variants'
 bash "$ROOT/test/tagged-variants/test.sh"
 
