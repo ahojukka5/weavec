@@ -15,6 +15,13 @@ surface-language contract stabilises.
 
 ### Added
 
+- Generic `Vec` and `Slice` in `stdlib/vec.weave`, with construction,
+  push, length, a slice view, and bounds-checked get/set. Out-of-range
+  get returns `None` and set returns false. They do not abort. The
+  first admitted element type is `i32`. `std.vector` remains `Vec3`.
+- Generic struct helpers now emit when every field is a concrete type,
+  so `Vec<i32>` can be constructed. A field whose type is a parameter
+  still skips helpers.
 - Owned `String` and `Bytes` buffers in `stdlib/string.weave` and
   `stdlib/bytes.weave`, with length, append, literal construction, and
   conversion. Out-of-range `get` returns `None` and does not abort.

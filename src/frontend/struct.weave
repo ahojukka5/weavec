@@ -337,18 +337,25 @@
       (while
         (condition (ne_i64 (local_get stl_decl_field) (const_i64 -1)))
         (do
-          (call_void write_cstr
-            (param_get stl_fd) (const_string_ptr " (field "))
-          (call_void emit_node_text
-            (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
-            (call_i64 nth_child
-              (param_get stl_tree) (local_get stl_decl_field) (const_i64 1)))
-          (call_void write_byte (param_get stl_fd) (const_i32 32))
-          (call_void emit_wir_type
-            (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
-            (call_i64 nth_child
-              (param_get stl_tree) (local_get stl_decl_field) (const_i64 2)))
-          (call_void write_byte (param_get stl_fd) (const_i32 41))
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get stl_tree) (param_get stl_source)
+              (local_get stl_decl_field)
+              (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
+            (then (do
+              (call_void write_cstr
+                (param_get stl_fd) (const_string_ptr " (field "))
+              (call_void emit_node_text
+                (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+                (call_i64 nth_child
+                  (param_get stl_tree) (local_get stl_decl_field) (const_i64 1)))
+              (call_void write_byte (param_get stl_fd) (const_i32 32))
+              (call_void emit_wir_type
+                (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+                (call_i64 nth_child
+                  (param_get stl_tree) (local_get stl_decl_field) (const_i64 2)))
+              (call_void write_byte (param_get stl_fd) (const_i32 41))))
+            (else (do)))
           (set stl_decl_field (call_i64 node_next_sibling
             (param_get stl_tree) (local_get stl_decl_field)))))
       (call_void write_byte (param_get stl_fd) (const_i32 41))
@@ -377,19 +384,26 @@
       (while
         (condition (ne_i64 (local_get stl_constructor_field) (const_i64 -1)))
         (do
-          (let stl_constructor_field_name i64 (call_i64 nth_child
-            (param_get stl_tree) (local_get stl_constructor_field) (const_i64 1)))
-          (let stl_constructor_type_node i64 (call_i64 nth_child
-            (param_get stl_tree) (local_get stl_constructor_field) (const_i64 2)))
-          (call_void write_cstr (param_get stl_fd) (const_string_ptr " ("))
-          (call_void emit_node_text
-            (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
-            (local_get stl_constructor_field_name))
-          (call_void write_byte (param_get stl_fd) (const_i32 32))
-          (call_void emit_wir_type
-            (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
-            (local_get stl_constructor_type_node))
-          (call_void write_byte (param_get stl_fd) (const_i32 41))
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get stl_tree) (param_get stl_source)
+              (local_get stl_constructor_field)
+              (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
+            (then (do
+              (let stl_constructor_field_name i64 (call_i64 nth_child
+                (param_get stl_tree) (local_get stl_constructor_field) (const_i64 1)))
+              (let stl_constructor_type_node i64 (call_i64 nth_child
+                (param_get stl_tree) (local_get stl_constructor_field) (const_i64 2)))
+              (call_void write_cstr (param_get stl_fd) (const_string_ptr " ("))
+              (call_void emit_node_text
+                (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+                (local_get stl_constructor_field_name))
+              (call_void write_byte (param_get stl_fd) (const_i32 32))
+              (call_void emit_wir_type
+                (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+                (local_get stl_constructor_type_node))
+              (call_void write_byte (param_get stl_fd) (const_i32 41))))
+            (else (do)))
           (set stl_constructor_field (call_i64 node_next_sibling
             (param_get stl_tree) (local_get stl_constructor_field)))))
       (call_void write_cstr
@@ -421,26 +435,33 @@
       (while
         (condition (ne_i64 (local_get stl_constructor_field) (const_i64 -1)))
         (do
-          (let stl_store_name i64 (call_i64 nth_child
-            (param_get stl_tree) (local_get stl_constructor_field) (const_i64 1)))
-          (let stl_store_type i32 (call_i32 stl_field_type
-            (param_get stl_tree) (param_get stl_source)
-            (local_get stl_constructor_field)))
-          (call_void write_cstr
-            (param_get stl_fd) (const_string_ptr "        (field_set_"))
-          (call_void stl_emit_field_suffix
-            (param_get stl_fd) (local_get stl_store_type))
-          (call_void write_byte (param_get stl_fd) (const_i32 32))
-          (call_void stl_emit_field_target
-            (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
-            (local_get stl_constructor_type) (local_get stl_store_name))
-          (call_void write_cstr
-            (param_get stl_fd) (const_string_ptr " (local_get self) (param_get "))
-          (call_void emit_node_text
-            (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
-            (local_get stl_store_name))
-          (call_void write_cstr (param_get stl_fd) (const_string_ptr "))"))
-          (call_void write_byte (param_get stl_fd) (const_i32 10))
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get stl_tree) (param_get stl_source)
+              (local_get stl_constructor_field)
+              (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
+            (then (do
+              (let stl_store_name i64 (call_i64 nth_child
+                (param_get stl_tree) (local_get stl_constructor_field) (const_i64 1)))
+              (let stl_store_type i32 (call_i32 stl_field_type
+                (param_get stl_tree) (param_get stl_source)
+                (local_get stl_constructor_field)))
+              (call_void write_cstr
+                (param_get stl_fd) (const_string_ptr "        (field_set_"))
+              (call_void stl_emit_field_suffix
+                (param_get stl_fd) (local_get stl_store_type))
+              (call_void write_byte (param_get stl_fd) (const_i32 32))
+              (call_void stl_emit_field_target
+                (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+                (local_get stl_constructor_type) (local_get stl_store_name))
+              (call_void write_cstr
+                (param_get stl_fd) (const_string_ptr " (local_get self) (param_get "))
+              (call_void emit_node_text
+                (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+                (local_get stl_store_name))
+              (call_void write_cstr (param_get stl_fd) (const_string_ptr "))"))
+              (call_void write_byte (param_get stl_fd) (const_i32 10))))
+            (else (do)))
           (set stl_constructor_field (call_i64 node_next_sibling
             (param_get stl_tree) (local_get stl_constructor_field)))))
       (call_void write_cstr
@@ -526,6 +547,33 @@
       (call_void write_byte (param_get stl_fd) (const_i32 10))
       (return_void)))
 
+  (fn stl_generic_fields_concrete
+    (params (stl_tree ptr) (stl_source ptr) (stl_node i64))
+    (returns i32)
+    (do
+      (let stl_cf_field i64 (call_i64 node_next_sibling
+        (param_get stl_tree)
+        (call_i64 nth_child (param_get stl_tree) (param_get stl_node) (const_i64 1))))
+      (while
+        (condition (ne_i64 (local_get stl_cf_field) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get stl_tree) (param_get stl_source) (local_get stl_cf_field)
+              (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
+            (then (do
+              (let stl_cf_type i32 (call_i32 stl_field_type
+                (param_get stl_tree) (param_get stl_source) (local_get stl_cf_field)))
+              (if
+                (condition (eq_i32 (call_i32 stl_type_supported
+                  (local_get stl_cf_type)) (const_i32 0)))
+                (then (do (return (const_i32 0))))
+                (else (do)))))
+            (else (do)))
+          (set stl_cf_field (call_i64 node_next_sibling
+            (param_get stl_tree) (local_get stl_cf_field)))))
+      (return (const_i32 1))))
+
   (fn lower_struct
     (params (stl_fd i32) (stl_source ptr) (stl_tree ptr) (stl_node i64))
     (returns void)
@@ -540,7 +588,13 @@
         (condition (ne_i32 (call_i32 surface_decl_is_generic
           (param_get stl_tree) (param_get stl_source) (param_get stl_node))
           (const_i32 0)))
-        (then (do (return_void)))
+        (then (do
+          (if
+            (condition (eq_i32 (call_i32 stl_generic_fields_concrete
+              (param_get stl_tree) (param_get stl_source) (param_get stl_node))
+              (const_i32 0)))
+            (then (do (return_void)))
+            (else (do)))))
         (else (do)))
       (let stl_lower_name i64 (call_i64 nth_child
         (param_get stl_tree) (param_get stl_node) (const_i64 1)))
@@ -555,9 +609,16 @@
       (while
         (condition (ne_i64 (local_get stl_lower_field) (const_i64 -1)))
         (do
-          (call_void stl_emit_accessors
-            (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
-            (local_get stl_lower_name) (local_get stl_lower_field))
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get stl_tree) (param_get stl_source)
+              (local_get stl_lower_field)
+              (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
+            (then (do
+              (call_void stl_emit_accessors
+                (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+                (local_get stl_lower_name) (local_get stl_lower_field))))
+            (else (do)))
           (set stl_lower_field (call_i64 node_next_sibling
             (param_get stl_tree) (local_get stl_lower_field)))))
       (return_void)))

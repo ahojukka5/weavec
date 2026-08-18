@@ -151,5 +151,27 @@
             (call_i32 type_kind_application))))
         (then (do (return (const_i32 1))))
         (else (do)))
+      (if
+        (condition (and_bool
+          (eq_i32 (call_i32 type_graph_kind
+            (local_get sem_compat_graph) (param_get expected))
+            (call_i32 type_kind_application))
+          (eq_i32
+            (call_i32 type_graph_child
+              (local_get sem_compat_graph) (param_get expected) (const_i64 0))
+            (param_get actual))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (eq_i32 (call_i32 type_graph_kind
+            (local_get sem_compat_graph) (param_get actual))
+            (call_i32 type_kind_application))
+          (eq_i32
+            (call_i32 type_graph_child
+              (local_get sem_compat_graph) (param_get actual) (const_i64 0))
+            (param_get expected))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
       (return (const_i32 0))))
 )

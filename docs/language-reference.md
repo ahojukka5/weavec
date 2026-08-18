@@ -174,6 +174,24 @@ literal, appends, and indexes without naming `ptr`:
 range. They do not abort. Convert with `string_from_bytes` and
 `bytes_from_string`.
 
+`Vec` and `Slice` are the generic growable vector and a view over its
+buffer in `stdlib/vec.weave`. The first admitted element type is `i32`.
+Application source constructs, grows, and indexes without naming `ptr`:
+
+```weave
+(let v (call vec_new (type-args i32)))
+(call vec_push (type-args i32) v 10)
+(let n (call vec_len (type-args i32) v))
+(let item (call vec_get (type-args i32) v 0))
+(let sl (call vec_as_slice (type-args i32) v))
+```
+
+`vec_get` and `slice_get` return `None` when the index is out of range.
+`vec_set` and `slice_set` return false. They do not abort. A `Slice`
+shares the vector buffer; it is a data type, not a borrow checker.
+Later counted `for` over a vector uses `vec_len` and `vec_get`.
+`std.vector` remains the fixed `Vec3` module.
+
 A complete program that uses these forms together is
 [examples/parse-digits](../examples/parse-digits/README.md).
 
