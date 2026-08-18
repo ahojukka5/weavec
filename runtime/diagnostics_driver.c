@@ -131,6 +131,20 @@ static int weave_diag_preflight_source(
             }
             continue;
         }
+        if (in_string == 3) {
+            if (ch == '"' && i + 2 < length &&
+                data[i + 1] == '"' && data[i + 2] == '"') {
+                i += 2;
+                in_string = 0;
+            }
+            continue;
+        }
+        if (in_string == 2) {
+            if (ch == '"') {
+                in_string = 0;
+            }
+            continue;
+        }
         if (in_string) {
             if (ch == '\\' && i + 1 < length) {
                 ++i;
@@ -145,9 +159,25 @@ static int weave_diag_preflight_source(
             in_comment = 1;
             continue;
         }
-        if (ch == '"') {
-            in_string = 1;
+        if (ch == '#' && i + 1 < length && data[i + 1] == '"') {
             string_start = i;
+            if (i + 3 < length && data[i + 2] == '"' && data[i + 3] == '"') {
+                in_string = 3;
+                i += 3;
+            } else {
+                in_string = 2;
+                i += 1;
+            }
+            continue;
+        }
+        if (ch == '"') {
+            string_start = i;
+            if (i + 2 < length && data[i + 1] == '"' && data[i + 2] == '"') {
+                in_string = 3;
+                i += 2;
+            } else {
+                in_string = 1;
+            }
             continue;
         }
         if (ch == '(') {
@@ -257,6 +287,20 @@ static int weave_diag_unique_token_span(
                 }
                 continue;
             }
+            if (in_string == 3) {
+                if (ch == '"' && i + 2 < length &&
+                    data[i + 1] == '"' && data[i + 2] == '"') {
+                    i += 2;
+                    in_string = 0;
+                }
+                continue;
+            }
+            if (in_string == 2) {
+                if (ch == '"') {
+                    in_string = 0;
+                }
+                continue;
+            }
             if (in_string) {
                 if (ch == '\\' && i + 1 < length) {
                     ++i;
@@ -269,8 +313,23 @@ static int weave_diag_unique_token_span(
                 in_comment = 1;
                 continue;
             }
+            if (ch == '#' && i + 1 < length && data[i + 1] == '"') {
+                if (i + 3 < length && data[i + 2] == '"' && data[i + 3] == '"') {
+                    in_string = 3;
+                    i += 3;
+                } else {
+                    in_string = 2;
+                    i += 1;
+                }
+                continue;
+            }
             if (ch == '"') {
-                in_string = 1;
+                if (i + 2 < length && data[i + 1] == '"' && data[i + 2] == '"') {
+                    in_string = 3;
+                    i += 2;
+                } else {
+                    in_string = 1;
+                }
                 continue;
             }
             if (memcmp(data + i, token, token_length) != 0) {

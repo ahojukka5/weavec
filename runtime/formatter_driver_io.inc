@@ -128,6 +128,21 @@ static size_t weave_fmt_list_end(
             continue;
         }
         if (in_string) {
+            if (in_string == 3) {
+                if (ch == '"' && index + 2 < context->source_length &&
+                    context->source[index + 1] == '"' &&
+                    context->source[index + 2] == '"') {
+                    index += 2;
+                    in_string = 0;
+                }
+                continue;
+            }
+            if (in_string == 2) {
+                if (ch == '"') {
+                    in_string = 0;
+                }
+                continue;
+            }
             if (escaped) {
                 escaped = 0;
             } else if (ch == '\\') {
@@ -139,8 +154,26 @@ static size_t weave_fmt_list_end(
         }
         if (ch == ';') {
             in_comment = 1;
+        } else if (ch == '#' && index + 1 < context->source_length &&
+                   context->source[index + 1] == '"') {
+            if (index + 3 < context->source_length &&
+                context->source[index + 2] == '"' &&
+                context->source[index + 3] == '"') {
+                in_string = 3;
+                index += 3;
+            } else {
+                in_string = 2;
+                index += 1;
+            }
         } else if (ch == '"') {
-            in_string = 1;
+            if (index + 2 < context->source_length &&
+                context->source[index + 1] == '"' &&
+                context->source[index + 2] == '"') {
+                in_string = 3;
+                index += 2;
+            } else {
+                in_string = 1;
+            }
         } else if (ch == '(') {
             ++depth;
         } else if (ch == ')') {
@@ -163,9 +196,28 @@ static size_t weave_fmt_node_start(
     if (start < 0 || (uint64_t)start > context->source_length) {
         return context->source_length + 1;
     }
-    if (node_kind(context->tree, node) == node_string() && start > 0 &&
-        context->source[(size_t)start - 1] == '"') {
-        return (size_t)start - 1;
+    if (node_kind(context->tree, node) == node_string() && start > 0) {
+        if (start >= 4 &&
+            context->source[start - 4] == '#' &&
+            context->source[start - 3] == '"' &&
+            context->source[start - 2] == '"' &&
+            context->source[start - 1] == '"') {
+            return start - 4;
+        }
+        if (start >= 3 &&
+            context->source[start - 3] == '"' &&
+            context->source[start - 2] == '"' &&
+            context->source[start - 1] == '"') {
+            return start - 3;
+        }
+        if (start >= 2 &&
+            context->source[start - 2] == '#' &&
+            context->source[start - 1] == '"') {
+            return start - 2;
+        }
+        if (context->source[start - 1] == '"') {
+            return start - 1;
+        }
     }
     return (size_t)start;
 }
@@ -191,7 +243,15 @@ static size_t weave_fmt_node_end(
     size_t end = (size_t)text_start + (size_t)text_length;
     if (kind == node_string() && end < context->source_length &&
         context->source[end] == '"') {
-        ++end;
+        int64_t style = node_value(context->tree, node);
+        if ((style == 2 || style == 3) &&
+            end + 2 < context->source_length &&
+            context->source[end + 1] == '"' &&
+            context->source[end + 2] == '"') {
+            end += 3;
+        } else {
+            ++end;
+        }
     }
     return end;
 }

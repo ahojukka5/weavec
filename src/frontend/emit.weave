@@ -455,10 +455,12 @@
       (if
         (condition (eq_i32 (local_get kind) (call_i32 node_string)))
         (then (do
-          (call_void write_byte (param_get fd) (const_i32 34))
-          (call_void write_node_text
-            (param_get fd) (param_get source) (param_get tree) (param_get node))
-          (call_void write_byte (param_get fd) (const_i32 34))
+          (call_void weave_surface_write_string_quoted
+            (param_get fd) (param_get source)
+            (call_i64 node_text_start (param_get tree) (param_get node))
+            (call_i64 node_text_len (param_get tree) (param_get node))
+            (cast_i64_to_i32 (call_i64 node_value
+              (param_get tree) (param_get node))))
           (return_void)))
         (else (do)))
       (call_void write_node_text
