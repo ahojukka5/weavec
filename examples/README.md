@@ -75,10 +75,12 @@ modules a program needs are the ones it actually uses:
 | `stdlib/file.weave` | reading a text file as lines |
 | `stdlib/option.weave` | the `Option` type for a value that may be absent |
 | `stdlib/result.weave` | the `Result` type for success or a recoverable error |
+| `stdlib/bytes.weave` | owned byte buffers with length, append, and get |
+| `stdlib/string.weave` | owned text buffers with length, append, and get |
 
 Modules that depend on another must be listed after it: `stdlib/memory.weave`
-comes before anything that allocates, and `stdlib/vector.weave` before
-`stdlib/matrix.weave`.
+comes before anything that allocates, `stdlib/vector.weave` before
+`stdlib/matrix.weave`, and `stdlib/bytes.weave` before `stdlib/string.weave`.
 
 ## What these demonstrate
 

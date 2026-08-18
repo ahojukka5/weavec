@@ -160,6 +160,20 @@ with the program that uses them. See
 
 There is no function-valued `map` yet; map a payload with `match`.
 
+`String` and `Bytes` are owned buffers in `stdlib/string.weave` and
+`stdlib/bytes.weave`. Application source constructs them from a text
+literal, appends, and indexes without naming `ptr`:
+
+```weave
+(let s (call string_from_text "hello"))
+(call string_append s (call string_from_text " world"))
+(let ch (call string_get s 0))
+```
+
+`string_get` and `bytes_get` return `None` when the index is out of
+range. They do not abort. Convert with `string_from_bytes` and
+`bytes_from_string`.
+
 A complete program that uses these forms together is
 [examples/parse-digits](../examples/parse-digits/README.md).
 

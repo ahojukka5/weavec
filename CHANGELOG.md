@@ -15,6 +15,9 @@ surface-language contract stabilises.
 
 ### Added
 
+- Owned `String` and `Bytes` buffers in `stdlib/string.weave` and
+  `stdlib/bytes.weave`, with length, append, literal construction, and
+  conversion. Out-of-range `get` returns `None` and does not abort.
 - `option_is_some`, `option_is_none`, `option_unwrap_or`,
   `result_is_ok`, `result_is_err`, and `result_unwrap_or` in the
   shipped Option and Result modules. They are generic functions over

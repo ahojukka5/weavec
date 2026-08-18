@@ -1,0 +1,124 @@
+; SPDX-License-Identifier: Apache-2.0
+; Owned text buffer with length, append, and bounds-checked indexing.
+;
+; Text is an owned byte sequence. There is no Unicode normalization.
+; Out-of-range get returns None. It does not abort. std.bytes and
+; std.memory must be earlier in the build.
+
+(program
+  (name "std.string")
+  (version "0.1")
+
+  (struct String
+    (field data ptr)
+    (field len i32)
+    (field cap i32))
+
+  (fn string_from_bytes
+    (params (value Bytes))
+    (returns String)
+    (do
+      (let n i32 (call bytes_len (param_get value)))
+      (let buf ptr (call_ptr malloc
+        (add_i64 (cast_i32_to_i64 (local_get n)) (const_i64 1))))
+      (if
+        (condition (eq_ptr (local_get buf) (const_null)))
+        (then (do
+          (return
+            (new String
+              (data (const_null))
+              (len (const_i32 0))
+              (cap (const_i32 0))))))
+        (else (do)))
+      (let i i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get i) (local_get n)))
+        (do
+          (let b (type-app Option i32)
+            (call bytes_get (param_get value) (local_get i)))
+          (store_i8
+            (ptr_add (local_get buf) (cast_i32_to_i64 (local_get i)))
+            (call option_unwrap_or (type-args i32) (local_get b) 0))
+          (set i (add_i32 (local_get i) (const_i32 1)))))
+      (store_i8
+        (ptr_add (local_get buf) (cast_i32_to_i64 (local_get n)))
+        (const_i32 0))
+      (return
+        (new String
+          (data (local_get buf))
+          (len (local_get n))
+          (cap (local_get n))))))
+
+  (fn bytes_from_string
+    (params (value String))
+    (returns Bytes)
+    (do
+      (if
+        (condition (eq_ptr (field-get value data) (const_null)))
+        (then (do (return (call bytes_from_text (const_string_ptr "")))))
+        (else (do)))
+      (return (call bytes_from_text (field-get value data)))))
+
+  (fn string_from_text
+    (params (text ptr))
+    (returns String)
+    (do
+      (return (call string_from_bytes (call bytes_from_text (param_get text))))))
+
+  (fn string_len
+    (params (value String))
+    (returns i32)
+    (do
+      (return (field-get value len))))
+
+  (fn string_get
+    (params (value String) (index i32))
+    (returns (type-app Option i32))
+    (do
+      (if
+        (condition (or_bool
+          (lt_i32 (param_get index) (const_i32 0))
+          (or_bool
+            (eq_ptr (field-get value data) (const_null))
+            (ge_i32 (param_get index) (field-get value len)))))
+        (then (do
+          (return (variant Option (type-args i32) None))))
+        (else (do)))
+      (return
+        (variant Option (type-args i32) Some
+          (load_u8 (ptr_add
+            (field-get value data)
+            (cast_i32_to_i64 (param_get index))))))))
+
+  (fn string_append
+    (params (value String) (extra String))
+    (returns String)
+    (do
+      (let left Bytes (call bytes_from_string (param_get value)))
+      (let right Bytes (call bytes_from_string (param_get extra)))
+      (let grown Bytes (call bytes_append (local_get left) (local_get right)))
+      (let out String (call string_from_bytes (local_get grown)))
+      (if
+        (condition (ne_ptr (field-get value data) (const_null)))
+        (then (do (call free (field-get value data))))
+        (else (do)))
+      (field-set value data (field-get out data))
+      (field-set value len (field-get out len))
+      (field-set value cap (field-get out cap))
+      (field-set out data (const_null))
+      (call string_release (local_get out))
+      (call bytes_release (local_get right))
+      (call bytes_release (local_get grown))
+      (return (param_get value))))
+
+  (fn string_release
+    (params (value String))
+    (returns void)
+    (do
+      (if
+        (condition (ne_ptr (field-get value data) (const_null)))
+        (then (do (call free (field-get value data))))
+        (else (do)))
+      (call free (param_get value))
+      (return_void)))
+)

@@ -47,6 +47,13 @@ library tree. Do not give a standard module a name that is not `std.<id>`.
 | `stdlib/matrix.weave` | `std.matrix` | Fixed `Mat3`. |
 | `stdlib/statistics.weave` | `std.statistics` | Mean and variance. |
 | `stdlib/file.weave` | `std.file` | Reading a small text file as lines. |
+| `stdlib/bytes.weave` | `std.bytes` | Owned byte buffer: length, append, get. |
+| `stdlib/string.weave` | `std.string` | Owned text buffer: length, append, get. |
+
+`std.bytes` and `std.string` are owned buffers. Indexing uses `bytes_get`
+and `string_get`, which return `None` when the index is out of range.
+They do not abort. `std.memory` and `std.option` must appear before
+them. `std.bytes` must appear before `std.string`.
 
 `std.vector` remains the existing three-component vector. A later
 generic vector module must use a different `<id>`.

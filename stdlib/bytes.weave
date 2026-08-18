@@ -1,0 +1,180 @@
+; SPDX-License-Identifier: Apache-2.0
+; Owned byte buffer with length, append, and bounds-checked indexing.
+;
+; Out-of-range get returns None. It does not abort. Allocation comes from
+; std.memory, which must be earlier in the build. Application source should
+; use the functions below rather than the data field.
+
+(program
+  (name "std.bytes")
+  (version "0.1")
+
+  (struct Bytes
+    (field data ptr)
+    (field len i32)
+    (field cap i32))
+
+  (fn bytes_text_len
+    (params (text ptr))
+    (returns i32)
+    (do
+      (let n i32 (const_i32 0))
+      (if
+        (condition (eq_ptr (param_get text) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (while
+        (condition (ne_i32
+          (load_u8 (ptr_add (param_get text) (cast_i32_to_i64 (local_get n))))
+          (const_i32 0)))
+        (do
+          (set n (add_i32 (local_get n) (const_i32 1)))))
+      (return (local_get n))))
+
+  (fn bytes_copy
+    (params (dest ptr) (src ptr) (count i32))
+    (returns void)
+    (do
+      (let i i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get i) (param_get count)))
+        (do
+          (store_i8
+            (ptr_add (param_get dest) (cast_i32_to_i64 (local_get i)))
+            (load_u8 (ptr_add (param_get src) (cast_i32_to_i64 (local_get i)))))
+          (set i (add_i32 (local_get i) (const_i32 1)))))
+      (return_void)))
+
+  (fn bytes_empty
+    (params)
+    (returns Bytes)
+    (do
+      (return
+        (new Bytes
+          (data (const_null))
+          (len (const_i32 0))
+          (cap (const_i32 0))))))
+
+  (fn bytes_from_text
+    (params (text ptr))
+    (returns Bytes)
+    (do
+      (let n i32 (call_i32 bytes_text_len (param_get text)))
+      (let buf ptr (call_ptr malloc
+        (add_i64 (cast_i32_to_i64 (local_get n)) (const_i64 1))))
+      (if
+        (condition (eq_ptr (local_get buf) (const_null)))
+        (then (do (return (call bytes_empty))))
+        (else (do)))
+      (call_void bytes_copy (local_get buf) (param_get text) (local_get n))
+      (store_i8
+        (ptr_add (local_get buf) (cast_i32_to_i64 (local_get n)))
+        (const_i32 0))
+      (return
+        (new Bytes
+          (data (local_get buf))
+          (len (local_get n))
+          (cap (local_get n))))))
+
+  (fn bytes_len
+    (params (value Bytes))
+    (returns i32)
+    (do
+      (return (field-get value len))))
+
+  (fn bytes_get
+    (params (value Bytes) (index i32))
+    (returns (type-app Option i32))
+    (do
+      (if
+        (condition (or_bool
+          (lt_i32 (param_get index) (const_i32 0))
+          (or_bool
+            (eq_ptr (field-get value data) (const_null))
+            (ge_i32 (param_get index) (field-get value len)))))
+        (then (do
+          (return (variant Option (type-args i32) None))))
+        (else (do)))
+      (return
+        (variant Option (type-args i32) Some
+          (load_u8 (ptr_add
+            (field-get value data)
+            (cast_i32_to_i64 (param_get index))))))))
+
+  (fn bytes_reserve
+    (params (value Bytes) (needed i32))
+    (returns Bytes)
+    (do
+      (if
+        (condition (le_i32 (param_get needed) (field-get value cap)))
+        (then (do (return (param_get value))))
+        (else (do)))
+      (let cap i32 (field-get value cap))
+      (if
+        (condition (eq_i32 (local_get cap) (const_i32 0)))
+        (then (do (set cap (const_i32 8))))
+        (else (do)))
+      (while
+        (condition (lt_i32 (local_get cap) (param_get needed)))
+        (do
+          (set cap (mul_i32 (local_get cap) (const_i32 2)))))
+      (let buf ptr (call_ptr malloc
+        (add_i64 (cast_i32_to_i64 (local_get cap)) (const_i64 1))))
+      (if
+        (condition (eq_ptr (local_get buf) (const_null)))
+        (then (do (return (param_get value))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_ptr (field-get value data) (const_null))
+          (gt_i32 (field-get value len) (const_i32 0))))
+        (then (do
+          (call_void bytes_copy
+            (local_get buf) (field-get value data) (field-get value len))))
+        (else (do)))
+      (store_i8
+        (ptr_add (local_get buf) (cast_i32_to_i64 (field-get value len)))
+        (const_i32 0))
+      (if
+        (condition (ne_ptr (field-get value data) (const_null)))
+        (then (do (call free (field-get value data))))
+        (else (do)))
+      (field-set value data (local_get buf))
+      (field-set value cap (local_get cap))
+      (return (param_get value))))
+
+  (fn bytes_append
+    (params (value Bytes) (extra Bytes))
+    (returns Bytes)
+    (do
+      (let need i32 (add_i32 (field-get value len) (field-get extra len)))
+      (let grown Bytes (call bytes_reserve (param_get value) (local_get need)))
+      (if
+        (condition (or_bool
+          (eq_ptr (field-get grown data) (const_null))
+          (eq_ptr (field-get extra data) (const_null))))
+        (then (do (return (local_get grown))))
+        (else (do)))
+      (call_void bytes_copy
+        (ptr_add (field-get grown data)
+          (cast_i32_to_i64 (field-get grown len)))
+        (field-get extra data)
+        (field-get extra len))
+      (let nlen i32 (add_i32 (field-get grown len) (field-get extra len)))
+      (store_i8
+        (ptr_add (field-get grown data) (cast_i32_to_i64 (local_get nlen)))
+        (const_i32 0))
+      (field-set grown len (local_get nlen))
+      (return (local_get grown))))
+
+  (fn bytes_release
+    (params (value Bytes))
+    (returns void)
+    (do
+      (if
+        (condition (ne_ptr (field-get value data) (const_null)))
+        (then (do (call free (field-get value data))))
+        (else (do)))
+      (call free (param_get value))
+      (return_void)))
+)
