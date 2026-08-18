@@ -50,6 +50,7 @@ library tree. Do not give a standard module a name that is not `std.<id>`.
 | `stdlib/bytes.weave` | `std.bytes` | Owned byte buffer: length, append, get. |
 | `stdlib/string.weave` | `std.string` | Owned text buffer: length, append, get. |
 | `stdlib/vec.weave` | `std.vec` | Generic `Vec` and `Slice`, first for `i32`. |
+| `stdlib/convert.weave` | `std.convert` | Format and parse `i32`, `i64`, `f64`, and `bool`. |
 
 `std.bytes` and `std.string` are owned buffers. Indexing uses `bytes_get`
 and `string_get`, which return `None` when the index is out of range.
@@ -62,6 +63,14 @@ return false. They do not abort. The first admitted element type is
 `i32`. A `Slice` shares the vector buffer; it is a data type, not a
 borrow checker. `std.memory` and `std.option` must appear before
 `std.vec`. `std.vector` remains the existing three-component `Vec3`.
+
+`std.convert` formats admitted primitives to an owned `String` and
+parses text into `Result`. There is no locale and no printf. `format_f64`
+matches `write_f64_trimmed`: six-place rounding, trailing fractional
+zeros removed, at least one fractional digit. `parse_float` wraps
+`parse_f64_valid` and `parse_f64`. Invalid text is `Err 1`. `std.memory`,
+`std.option`, `std.result`, `std.parse`, `std.io`, `std.bytes`, and
+`std.string` must appear before `std.convert`.
 
 ## Adding a module
 

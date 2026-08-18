@@ -1,0 +1,395 @@
+; SPDX-License-Identifier: Apache-2.0
+; Primitive conversion and formatting.
+;
+; Format admitted numeric and boolean values to an owned String. Parse
+; text into Result. Invalid text is Err 1. There is no locale and no
+; printf. f64 format matches write_f64_trimmed: six-place rounding,
+; trailing fractional zeros removed, at least one fractional digit.
+; parse_float wraps parse_f64_valid and parse_f64. std.memory,
+; std.option, std.result, std.parse, std.io, std.bytes, and
+; std.string must be earlier in the build.
+
+(program
+  (name "std.convert")
+  (version "0.1")
+
+  (fn convert_text_eq
+    (params (text ptr) (want ptr))
+    (returns bool)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get text) (const_null))
+          (eq_ptr (param_get want) (const_null))))
+        (then (do (return (const_bool false))))
+        (else (do)))
+      (let i i64 (const_i64 0))
+      (while
+        (condition (eq_i32
+          (load_u8 (ptr_add (param_get text) (local_get i)))
+          (load_u8 (ptr_add (param_get want) (local_get i)))))
+        (do
+          (if
+            (condition (eq_i32
+              (load_u8 (ptr_add (param_get text) (local_get i)))
+              (const_i32 0)))
+            (then (do (return (const_bool true))))
+            (else (do)))
+          (set i (add_i64 (local_get i) (const_i64 1)))))
+      (return (const_bool false))))
+
+  (fn convert_digits_gt
+    (params (text ptr) (start i64) (count i32) (limit ptr))
+    (returns bool)
+    (do
+      (let i i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get i) (param_get count)))
+        (do
+          (let left i32 (load_u8 (ptr_add (param_get text)
+            (add_i64 (param_get start) (cast_i32_to_i64 (local_get i))))))
+          (let right i32 (load_u8 (ptr_add (param_get limit)
+            (cast_i32_to_i64 (local_get i)))))
+          (if
+            (condition (ne_i32 (local_get left) (local_get right)))
+            (then (do (return (gt_i32 (local_get left) (local_get right)))))
+            (else (do)))
+          (set i (add_i32 (local_get i) (const_i32 1)))))
+      (return (const_bool false))))
+
+  (fn convert_finish
+    (params (buf ptr) (n i32))
+    (returns String)
+    (do
+      (if
+        (condition (eq_ptr (param_get buf) (const_null)))
+        (then (do
+          (return (call string_from_text (const_string_ptr "")))))
+        (else (do)))
+      (store_i8
+        (ptr_add (param_get buf) (cast_i32_to_i64 (param_get n)))
+        (const_i32 0))
+      (return
+        (new String
+          (data (param_get buf))
+          (len (param_get n))
+          (cap (param_get n))))))
+
+  (fn format_i64
+    (params (value i64))
+    (returns String)
+    (do
+      (if
+        (condition (eq_i64 (param_get value) (const_i64 0)))
+        (then (do (return (call string_from_text (const_string_ptr "0")))))
+        (else (do)))
+      (let n i64 (param_get value))
+      (let neg i32 (const_i32 0))
+      (if
+        (condition (lt_i64 (local_get n) (const_i64 0)))
+        (then (do
+          (set neg (const_i32 1))
+          (set n (sub_i64 (const_i64 0) (local_get n)))))
+        (else (do)))
+      (if
+        (condition (lt_i64 (local_get n) (const_i64 0)))
+        (then (do
+          (return (call string_from_text
+            (const_string_ptr "-9223372036854775808")))))
+        (else (do)))
+      (let digits i32 (const_i32 0))
+      (let t i64 (local_get n))
+      (while
+        (condition (ne_i64 (local_get t) (const_i64 0)))
+        (do
+          (set digits (add_i32 (local_get digits) (const_i32 1)))
+          (set t (div_i64 (local_get t) (const_i64 10)))))
+      (let total i32 (add_i32 (local_get digits) (local_get neg)))
+      (let buf ptr (call_ptr malloc
+        (add_i64 (cast_i32_to_i64 (local_get total)) (const_i64 1))))
+      (if
+        (condition (eq_ptr (local_get buf) (const_null)))
+        (then (do (return (call string_from_text (const_string_ptr "")))))
+        (else (do)))
+      (let pos i32 (local_get total))
+      (set t (local_get n))
+      (while
+        (condition (ne_i64 (local_get t) (const_i64 0)))
+        (do
+          (set pos (sub_i32 (local_get pos) (const_i32 1)))
+          (store_i8
+            (ptr_add (local_get buf) (cast_i32_to_i64 (local_get pos)))
+            (add_i32 (const_i32 48)
+              (cast_i64_to_i32 (mod_i64 (local_get t) (const_i64 10)))))
+          (set t (div_i64 (local_get t) (const_i64 10)))))
+      (if
+        (condition (ne_i32 (local_get neg) (const_i32 0)))
+        (then (do (store_i8 (local_get buf) (const_i32 45))))
+        (else (do)))
+      (return (call convert_finish (local_get buf) (local_get total)))))
+
+  (fn format_i32
+    (params (value i32))
+    (returns String)
+    (do
+      (return (call format_i64 (cast_i32_to_i64 (param_get value))))))
+
+  (fn format_bool
+    (params (value bool))
+    (returns String)
+    (do
+      (if
+        (condition (param_get value))
+        (then (do (return (call string_from_text (const_string_ptr "true")))))
+        (else (do (return (call string_from_text (const_string_ptr "false"))))))))
+
+  (fn convert_put_u32
+    (params (buf ptr) (pos i32) (value i32) (width i32))
+    (returns i32)
+    (do
+      (let divisor i32 (const_i32 1))
+      (let place i32 (const_i32 1))
+      (while
+        (condition (lt_i32 (local_get place) (param_get width)))
+        (do
+          (set divisor (mul_i32 (local_get divisor) (const_i32 10)))
+          (set place (add_i32 (local_get place) (const_i32 1)))))
+      (let remaining i32 (param_get value))
+      (let out i32 (param_get pos))
+      (while
+        (condition (gt_i32 (local_get divisor) (const_i32 0)))
+        (do
+          (store_i8
+            (ptr_add (param_get buf) (cast_i32_to_i64 (local_get out)))
+            (add_i32 (const_i32 48)
+              (div_i32 (local_get remaining) (local_get divisor))))
+          (set out (add_i32 (local_get out) (const_i32 1)))
+          (set remaining (mod_i32 (local_get remaining) (local_get divisor)))
+          (set divisor (div_i32 (local_get divisor) (const_i32 10)))))
+      (return (local_get out))))
+
+  (fn format_f64
+    (params (value f64))
+    (returns String)
+    (do
+      (let magnitude f64 (call_f64 f64_magnitude (param_get value)))
+      (let whole i32 (call_i32 f64_fixed6_whole (local_get magnitude)))
+      (let scaled i32 (call_i32 f64_fixed6_fraction (local_get magnitude)))
+      (let head String (call format_i32 (local_get whole)))
+      (let digits i32 (local_get scaled))
+      (let width i32 (const_i32 6))
+      (if
+        (condition (eq_i32 (local_get scaled) (const_i32 0)))
+        (then (do
+          (set digits (const_i32 0))
+          (set width (const_i32 1))))
+        (else (do
+          (while
+            (condition (and_bool
+              (gt_i32 (local_get width) (const_i32 1))
+              (eq_i32 (mod_i32 (local_get digits) (const_i32 10)) (const_i32 0))))
+            (do
+              (set digits (div_i32 (local_get digits) (const_i32 10)))
+              (set width (sub_i32 (local_get width) (const_i32 1))))))))
+      (let hlen i32 (call string_len (local_get head)))
+      (let sign i32 (const_i32 0))
+      (if
+        (condition (lt_f64 (param_get value) (const_f64 0.0)))
+        (then (do (set sign (const_i32 1))))
+        (else (do)))
+      (let total i32 (add_i32 (add_i32 (local_get sign) (local_get hlen))
+        (add_i32 (const_i32 1) (local_get width))))
+      (let buf ptr (call_ptr malloc
+        (add_i64 (cast_i32_to_i64 (local_get total)) (const_i64 1))))
+      (if
+        (condition (eq_ptr (local_get buf) (const_null)))
+        (then (do
+          (call string_release (local_get head))
+          (return (call string_from_text (const_string_ptr "")))))
+        (else (do)))
+      (let pos i32 (const_i32 0))
+      (if
+        (condition (ne_i32 (local_get sign) (const_i32 0)))
+        (then (do
+          (store_i8 (local_get buf) (const_i32 45))
+          (set pos (const_i32 1))))
+        (else (do)))
+      (let i i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get i) (local_get hlen)))
+        (do
+          (store_i8
+            (ptr_add (local_get buf) (cast_i32_to_i64 (local_get pos)))
+            (call option_unwrap_or (type-args i32)
+              (call string_get (local_get head) (local_get i)) 0))
+          (set pos (add_i32 (local_get pos) (const_i32 1)))
+          (set i (add_i32 (local_get i) (const_i32 1)))))
+      (store_i8
+        (ptr_add (local_get buf) (cast_i32_to_i64 (local_get pos)))
+        (const_i32 46))
+      (set pos (add_i32 (local_get pos) (const_i32 1)))
+      (set pos (call convert_put_u32
+        (local_get buf) (local_get pos) (local_get digits) (local_get width)))
+      (call string_release (local_get head))
+      (return (call convert_finish (local_get buf) (local_get pos)))))
+
+  (fn convert_scan_i64
+    (params (text ptr))
+    (returns (type-app Result i64 i32))
+    (do
+      (if
+        (condition (eq_ptr (param_get text) (const_null)))
+        (then (do
+          (return (variant Result (type-args i64 i32) Err 1))))
+        (else (do)))
+      (let index i64 (const_i64 0))
+      (let current i32 (load_u8 (ptr_add (param_get text) (local_get index))))
+      (let neg i32 (const_i32 0))
+      (if
+        (condition (eq_i32 (local_get current) (const_i32 45)))
+        (then (do
+          (set neg (const_i32 1))
+          (set index (add_i64 (local_get index) (const_i64 1)))
+          (set current (load_u8 (ptr_add (param_get text) (local_get index))))))
+        (else (do)))
+      (if
+        (condition (not_bool (call_bool parse_is_digit (local_get current))))
+        (then (do
+          (return (variant Result (type-args i64 i32) Err 1))))
+        (else (do)))
+      (while
+        (condition (eq_i32 (local_get current) (const_i32 48)))
+        (do
+          (set index (add_i64 (local_get index) (const_i64 1)))
+          (set current (load_u8 (ptr_add (param_get text) (local_get index))))))
+      (if
+        (condition (eq_i32 (local_get current) (const_i32 0)))
+        (then (do
+          (return (variant Result (type-args i64 i32) Ok (const_i64 0)))))
+        (else (do)))
+      (let start i64 (local_get index))
+      (let count i32 (const_i32 0))
+      (while
+        (condition (call_bool parse_is_digit (local_get current)))
+        (do
+          (set count (add_i32 (local_get count) (const_i32 1)))
+          (set index (add_i64 (local_get index) (const_i64 1)))
+          (set current (load_u8 (ptr_add (param_get text) (local_get index))))))
+      (if
+        (condition (ne_i32 (local_get current) (const_i32 0)))
+        (then (do
+          (return (variant Result (type-args i64 i32) Err 1))))
+        (else (do)))
+      (if
+        (condition (gt_i32 (local_get count) (const_i32 19)))
+        (then (do
+          (return (variant Result (type-args i64 i32) Err 1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get count) (const_i32 19)))
+        (then (do
+          (if
+            (condition (and_bool
+              (ne_i32 (local_get neg) (const_i32 0))
+              (not_bool (call convert_digits_gt (param_get text)
+                (local_get start) (const_i32 19)
+                (const_string_ptr "9223372036854775808")))))
+            (then (do
+              (if
+                (condition (not_bool (call convert_digits_gt (param_get text)
+                  (local_get start) (const_i32 19)
+                  (const_string_ptr "9223372036854775807"))))
+                (then (do))
+                (else (do
+                  (return (variant Result (type-args i64 i32) Ok
+                    (sub_i64
+                      (sub_i64 (const_i64 0) (const_i64 9223372036854775807))
+                      (const_i64 1)))))))))
+            (else (do)))
+          (if
+            (condition (call convert_digits_gt (param_get text)
+              (local_get start) (const_i32 19)
+              (const_string_ptr "9223372036854775807")))
+            (then (do
+              (return (variant Result (type-args i64 i32) Err 1))))
+            (else (do)))))
+        (else (do)))
+      (let acc i64 (const_i64 0))
+      (let pos i64 (local_get start))
+      (let seen i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get seen) (local_get count)))
+        (do
+          (set acc (add_i64
+            (mul_i64 (local_get acc) (const_i64 10))
+            (cast_i32_to_i64 (sub_i32
+              (load_u8 (ptr_add (param_get text) (local_get pos)))
+              (const_i32 48)))))
+          (set pos (add_i64 (local_get pos) (const_i64 1)))
+          (set seen (add_i32 (local_get seen) (const_i32 1)))))
+      (if
+        (condition (ne_i32 (local_get neg) (const_i32 0)))
+        (then (do (set acc (sub_i64 (const_i64 0) (local_get acc)))))
+        (else (do)))
+      (return (variant Result (type-args i64 i32) Ok (local_get acc)))))
+
+  (fn parse_i64
+    (params (text ptr))
+    (returns (type-app Result i64 i32))
+    (do
+      (return (call convert_scan_i64 (param_get text)))))
+
+  (fn convert_i64_as_i32
+    (params (value i64))
+    (returns (type-app Result i32 i32))
+    (do
+      (if
+        (condition (or_bool
+          (lt_i64 (param_get value) (const_i64 -2147483648))
+          (gt_i64 (param_get value) (const_i64 2147483647))))
+        (then (do
+          (return (variant Result (type-args i32 i32) Err 1))))
+        (else (do)))
+      (return
+        (variant Result (type-args i32 i32) Ok
+          (cast_i64_to_i32 (param_get value))))))
+
+  (fn parse_i32
+    (params (text ptr))
+    (returns (type-app Result i32 i32))
+    (do
+      (let scanned (type-app Result i64 i32)
+        (call convert_scan_i64 (param_get text)))
+      (return (match Result scanned
+        (case Err e (variant Result (type-args i32 i32) Err e))
+        (case Ok n (call convert_i64_as_i32 n))))))
+
+  (fn parse_bool
+    (params (text ptr))
+    (returns (type-app Result bool i32))
+    (do
+      (if
+        (condition (call convert_text_eq (param_get text) (const_string_ptr "true")))
+        (then (do
+          (return (variant Result (type-args bool i32) Ok (const_bool true)))))
+        (else (do)))
+      (if
+        (condition (call convert_text_eq (param_get text) (const_string_ptr "false")))
+        (then (do
+          (return (variant Result (type-args bool i32) Ok (const_bool false)))))
+        (else (do)))
+      (return (variant Result (type-args bool i32) Err 1))))
+
+  (fn parse_float
+    (params (text ptr))
+    (returns (type-app Result f64 i32))
+    (do
+      (if
+        (condition (not_bool (call_bool parse_f64_valid (param_get text))))
+        (then (do
+          (return (variant Result (type-args f64 i32) Err 1))))
+        (else (do)))
+      (return
+        (variant Result (type-args f64 i32) Ok
+          (call_f64 parse_f64 (param_get text))))))
+)

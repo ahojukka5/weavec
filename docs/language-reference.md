@@ -192,6 +192,24 @@ shares the vector buffer; it is a data type, not a borrow checker.
 Later counted `for` over a vector uses `vec_len` and `vec_get`.
 `std.vector` remains the fixed `Vec3` module.
 
+`std.convert` formats admitted primitives to `String` and parses text
+into `Result`. There is no locale and no printf:
+
+```weave
+(let s (call format_i32 42))
+(let f (call format_f64 1.5))
+(let n (call parse_i32 "42"))
+(let x (call parse_float "1.5"))
+```
+
+`format_i32` is signed decimal. `format_f64` matches `write_f64_trimmed`:
+six-place rounding, trailing fractional zeros removed, at least one
+fractional digit. `1.5` is `1.5` and `1.0` is `1.0`. `format_bool` is
+`true` or `false`. `parse_i32`, `parse_i64`, `parse_bool`, and
+`parse_float` return `Err 1` when the text is invalid. `parse_float`
+wraps `parse_f64_valid` and `parse_f64`. `parse_f64` itself still
+returns `0.0` on invalid text.
+
 A complete program that uses these forms together is
 [examples/parse-digits](../examples/parse-digits/README.md).
 

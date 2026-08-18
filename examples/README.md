@@ -78,12 +78,14 @@ modules a program needs are the ones it actually uses:
 | `stdlib/bytes.weave` | owned byte buffers with length, append, and get |
 | `stdlib/string.weave` | owned text buffers with length, append, and get |
 | `stdlib/vec.weave` | generic `Vec` and `Slice` with bounds-checked get and set |
+| `stdlib/convert.weave` | format and parse `i32`, `i64`, `f64`, and `bool` |
 
 Modules that depend on another must be listed after it: `stdlib/memory.weave`
 comes before anything that allocates, `stdlib/vector.weave` before
 `stdlib/matrix.weave`, `stdlib/bytes.weave` before `stdlib/string.weave`,
 and `stdlib/memory.weave` plus `stdlib/option.weave` before
-`stdlib/vec.weave`.
+`stdlib/vec.weave`. `stdlib/convert.weave` comes after `stdlib/parse.weave`,
+`stdlib/io.weave`, `stdlib/result.weave`, and `stdlib/string.weave`.
 
 ## What these demonstrate
 
