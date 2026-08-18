@@ -124,6 +124,37 @@ returned.
   (case Err e 0)))
 ```
 
+`Option` and `Result` are the canonical generic enums for absence and
+recoverable errors. They live in `stdlib/option.weave` and
+`stdlib/result.weave` and are passed with the program that uses them:
+
+```weave
+(enum Option
+  (type-params T)
+  (variant None)
+  (variant Some T))
+
+(enum Result
+  (type-params T E)
+  (variant Ok T)
+  (variant Err E))
+```
+
+`(try EXPR)` unwraps a `Result`. The enclosing function must return a
+`Result` with the same error type. `try` initializes a `let`; on `Err` it
+returns that error, and on `Ok` the binding receives the success payload.
+There is no stack unwinding and no implicit conversion between error
+types.
+
+```weave
+(fn double
+  (params (n i32))
+  (returns (type-app Result i32 i32))
+  (do
+    (let v i32 (try (call parse-digit n)))
+    (return (variant Result (type-args i32 i32) Ok (op add v v)))))
+```
+
 Invalid constructors and payload types are rejected with exact diagnostics.
 
 Duplicate, empty, reserved, and unknown type-parameter names are rejected with

@@ -15,6 +15,9 @@ surface-language contract stabilises.
 
 ### Added
 
+- Canonical `Option` and `Result` types in `stdlib/option.weave` and
+  `stdlib/result.weave`, plus `(try EXPR)` to unwrap `Ok` or return
+  `Err` from a Result-returning function.
 - Exhaustive `match` over tagged enums: `(match ENUM VALUE (case CTOR
   [BIND] EXPR)*)`, with `_` as an explicit last-arm wildcard. Missing,
   duplicate, and unreachable arms fail with exact diagnostics. The form

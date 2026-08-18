@@ -181,6 +181,24 @@ and a `_` after every constructor, are errors. There is no silent default.
 `match` initializes a `let` or is returned. Arm order does not change tags.
 The frontend lowers the form to ordinary WIR tag tests before emission.
 
+## Option, Result, and try
+
+`Option` and `Result` are ordinary generic enums shipped in
+`stdlib/option.weave` and `stdlib/result.weave`. They are not a second
+pointer encoding.
+
+`(try EXPR)` is the one propagation form. `propagate` was considered and
+rejected: existing expression heads are short (`op`, `call`, `cast`,
+`match`), and `try` names the unwrap, not an exception. It is valid only
+as a `let` initializer in a function that returns `Result`. The error
+types must match. It lowers to a tag test: `Ok` binds the success
+payload, `Err` returns that same error constructor.
+
+```weave
+(let n i32 (try (call parse-digit ch)))
+(return (variant Result (type-args i32 i32) Ok n))
+```
+
 ## Semantic structs
 
 Struct declarations introduce nominal surface types. Source construction and

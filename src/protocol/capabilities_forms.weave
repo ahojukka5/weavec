@@ -193,6 +193,12 @@
       (call_void cap_write_role (param_get cf_writer) (const_string_ptr "binding-or-body") (const_i64 1) (const_string_ptr "one-or-two") (const_string_ptr "identifier-or-expression"))
       (call_void cap_form_finish (param_get cf_writer))
 
+      (call_void cap_form_begin (param_get cf_writer) (const_string_ptr "try")
+        (const_string_ptr "experimental") (const_i64 1) (const_i64 1)
+        (const_string_ptr "semantic") (const_string_ptr "option-result") (const_null))
+      (call_void cap_write_role (param_get cf_writer) (const_string_ptr "value") (const_i64 0) (const_string_ptr "one") (const_string_ptr "expression"))
+      (call_void cap_form_finish (param_get cf_writer))
+
       (call_void cap_form_begin (param_get cf_writer) (const_string_ptr "extern")
         (const_string_ptr "canonical") (const_i64 3) (const_i64 3)
         (const_string_ptr "explicit") (const_null) (const_null))

@@ -207,6 +207,9 @@ bash "$ROOT/test/tagged-variants/test.sh"
 log 'exhaustive match'
 bash "$ROOT/test/variant-match/test.sh"
 
+log 'option, result, and try'
+bash "$ROOT/test/option-result/test.sh"
+
 log 'struct forms'
 bash "$ROOT/test/struct-forms/test.sh"
 

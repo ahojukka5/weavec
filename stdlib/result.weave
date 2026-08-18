@@ -1,0 +1,14 @@
+; SPDX-License-Identifier: Apache-2.0
+; Canonical Result type for a success or a recoverable error.
+;
+; (try EXPR) unwraps Ok or returns the Err from the enclosing Result
+; function. Pass this file with the program that uses Result.
+
+(program
+  (name "std.result")
+  (version "0.1")
+
+  (enum Result
+    (type-params T E)
+    (variant Ok T)
+    (variant Err E)))

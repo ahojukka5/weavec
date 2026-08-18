@@ -1,0 +1,413 @@
+; SPDX-License-Identifier: Apache-2.0
+; try.weave — Result propagation
+;
+; (try EXPR) unwraps Ok or returns Err from the enclosing Result function.
+; try is an expression only as a let initializer. It lowers to a tag test
+; and an ordinary return of the error constructor.
+
+(program
+  (name "try")
+  (version "0.1")
+
+  (fn try_error
+    (params (tree ptr) (source ptr) (node i64) (detail ptr))
+    (returns i32)
+    (do
+      (call_void surface_error_prefix (const_string_ptr "try"))
+      (call_void write_cstr (const_i32 2) (param_get detail))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (call_void sdiag_record
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "frontend.try.invalid")
+        (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+        (const_i32 -1) (const_i32 -1) (const_i32 -1)
+        (const_string_ptr "try") (const_i64 -1) (const_i32 0))
+      (return (const_i32 1))))
+
+  (fn try_is_node
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get tree) (param_get node)) (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 head_equals
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "try") (const_i64 3)))))
+
+  (fn try_result_index
+    (params)
+    (returns i32)
+    (do
+      (return (call_i32 weave_surface_enum_index
+        (const_string_ptr "Result") (const_i64 0) (const_i64 6)))))
+
+  (fn try_enum_of_type
+    (params (type i32))
+    (returns i32)
+    (do
+      (if
+        (condition (le_i32 (param_get type) (const_i32 0)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 weave_surface_enum_is_type
+          (param_get type)) (const_i32 0)))
+        (then (do
+          (return (call_i32 weave_surface_enum_from_type (param_get type)))))
+        (else (do)))
+      (let tr_graph ptr (call_ptr semantic_graph))
+      (if
+        (condition (eq_ptr (local_get tr_graph) (const_null)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 type_graph_kind
+          (local_get tr_graph) (param_get type))
+          (call_i32 type_kind_application)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (let tr_ctor i32 (call_i32 type_graph_child
+        (local_get tr_graph) (param_get type) (const_i64 0)))
+      (if
+        (condition (eq_i32 (call_i32 weave_surface_enum_is_type
+          (local_get tr_ctor)) (const_i32 0)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (return (call_i32 weave_surface_enum_from_type (local_get tr_ctor)))))
+
+  (fn try_is_result
+    (params (type i32))
+    (returns i32)
+    (do
+      (let tr_idx i32 (call_i32 try_enum_of_type (param_get type)))
+      (let tr_want i32 (call_i32 try_result_index))
+      (if
+        (condition (or_bool
+          (lt_i32 (local_get tr_idx) (const_i32 0))
+          (lt_i32 (local_get tr_want) (const_i32 0))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (local_get tr_idx) (local_get tr_want)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+
+  (fn try_app_arg
+    (params (type i32) (index i64))
+    (returns i32)
+    (do
+      (let tr_g2 ptr (call_ptr semantic_graph))
+      (if
+        (condition (eq_ptr (local_get tr_g2) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 type_graph_kind
+          (local_get tr_g2) (param_get type))
+          (call_i32 type_kind_application)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 type_graph_child
+        (local_get tr_g2) (param_get type)
+        (add_i64 (param_get index) (const_i64 1))))))
+
+  (fn try_ok_type
+    (params (type i32))
+    (returns i32)
+    (do
+      (return (call_i32 try_app_arg (param_get type) (const_i64 0)))))
+
+  (fn try_err_type
+    (params (type i32))
+    (returns i32)
+    (do
+      (return (call_i32 try_app_arg (param_get type) (const_i64 1)))))
+
+  (fn try_expr_type
+    (params (tree ptr) (source ptr) (node i64) (expected i32))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get tree) (param_get node)) (const_i64 2)))
+        (then (do (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (let tr_valty i32 (call_i32 sst_expr_type
+        (param_get tree) (param_get source)
+        (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1))
+        (call_i32 surface_type_unknown)))
+      (if
+        (condition (eq_i32 (call_i32 try_is_result (local_get tr_valty))
+          (const_i32 0)))
+        (then (do (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (let tr_okty i32 (call_i32 try_ok_type (local_get tr_valty)))
+      (if
+        (condition (gt_i32 (local_get tr_okty) (const_i32 0)))
+        (then (do (return (local_get tr_okty))))
+        (else (do)))
+      (return (param_get expected))))
+
+  (fn try_intern_prefix
+    (params (type i32))
+    (returns ptr)
+    (do
+      (let tr_idx2 i32 (call_i32 try_enum_of_type (param_get type)))
+      (if
+        (condition (lt_i32 (local_get tr_idx2) (const_i32 0)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let tr_g3 ptr (call_ptr semantic_graph))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get tr_g3) (const_null))
+          (ne_i32 (call_i32 type_graph_kind
+            (local_get tr_g3) (param_get type))
+            (call_i32 type_kind_application))))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let tr_n i64 (call_i64 type_graph_child_count
+        (local_get tr_g3) (param_get type)))
+      (if
+        (condition (le_i64 (local_get tr_n) (const_i64 1)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let tr_argc i32 (cast_i64_to_i32 (sub_i64 (local_get tr_n) (const_i64 1))))
+      (let tr_args ptr (call_ptr malloc
+        (mul_i64 (cast_i32_to_i64 (local_get tr_argc)) (const_i64 4))))
+      (if
+        (condition (eq_ptr (local_get tr_args) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let tr_ai i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get tr_ai) (local_get tr_argc)))
+        (do
+          (store_i32
+            (ptr_add (local_get tr_args)
+              (mul_i64 (cast_i32_to_i64 (local_get tr_ai)) (const_i64 4)))
+            (call_i32 type_graph_child
+              (local_get tr_g3) (param_get type)
+              (add_i64 (cast_i32_to_i64 (local_get tr_ai)) (const_i64 1))))
+          (set tr_ai (add_i32 (local_get tr_ai) (const_i32 1)))))
+      (let tr_key ptr (call_ptr spec_build_key
+        (local_get tr_args) (local_get tr_argc)))
+      (let tr_sname ptr (call_ptr spec_build_name
+        (const_string_ptr "Result") (const_i64 0) (const_i64 6)
+        (local_get tr_args) (local_get tr_argc)))
+      (let tr_spec i32 (call_i32 weave_surface_enum_spec_intern
+        (const_string_ptr "Result") (const_i64 0) (const_i64 6)
+        (local_get tr_key) (local_get tr_sname)))
+      (if
+        (condition (ge_i32 (local_get tr_spec) (const_i32 0)))
+        (then (do
+          (call_i32 weave_surface_enum_spec_set_args
+            (local_get tr_spec) (local_get tr_args) (local_get tr_argc))))
+        (else (do)))
+      (call_void free (local_get tr_key))
+      (call_void free (local_get tr_sname))
+      (call_void free (local_get tr_args))
+      (if
+        (condition (lt_i32 (local_get tr_spec) (const_i32 0)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (return (call_ptr weave_surface_enum_spec_name (local_get tr_spec)))))
+
+  (fn try_ok_tag
+    (params)
+    (returns i32)
+    (do
+      (let tr_idx3 i32 (call_i32 try_result_index))
+      (if
+        (condition (lt_i32 (local_get tr_idx3) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let tr_okv i32 (call_i32 weave_surface_enum_find_variant
+        (local_get tr_idx3) (const_string_ptr "Ok")
+        (const_i64 0) (const_i64 2)))
+      (if
+        (condition (lt_i32 (local_get tr_okv) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 weave_surface_enum_variant_tag
+        (local_get tr_idx3) (local_get tr_okv)))))
+
+  (fn try_validate
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (call_i64 count_children
+          (param_get tree) (param_get node)) (const_i64 2)))
+        (then (do))
+        (else (do
+          (let tr_m1 ptr (const_string_ptr "try needs one operand"))
+          (return (call_i32 try_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get tr_m1))))))
+      (if
+        (condition (ge_i32 (call_i32 try_result_index) (const_i32 0)))
+        (then (do))
+        (else (do
+          (let tr_m2 ptr (const_string_ptr "Result is not defined"))
+          (return (call_i32 try_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get tr_m2))))))
+      (let tr_retty i32 (call_i32 weave_surface_get_return_type))
+      (if
+        (condition (ne_i32 (call_i32 try_is_result (local_get tr_retty))
+          (const_i32 0)))
+        (then (do))
+        (else (do
+          (let tr_m3 ptr (const_string_ptr "try requires a Result-returning function"))
+          (return (call_i32 try_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get tr_m3))))))
+      (let tr_exprty i32 (call_i32 sst_expr_type
+        (param_get tree) (param_get source)
+        (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1))
+        (call_i32 surface_type_unknown)))
+      (if
+        (condition (ne_i32 (call_i32 try_is_result (local_get tr_exprty))
+          (const_i32 0)))
+        (then (do))
+        (else (do
+          (let tr_m4 ptr (const_string_ptr "try needs a Result value"))
+          (return (call_i32 try_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get tr_m4))))))
+      (if
+        (condition (ne_i32 (call_i32 weave_semantic_types_compatible
+          (call_i32 try_err_type (local_get tr_retty))
+          (call_i32 try_err_type (local_get tr_exprty)))
+          (const_i32 0)))
+        (then (do))
+        (else (do
+          (let tr_m5 ptr (const_string_ptr "try error type does not match the function Result"))
+          (return (call_i32 try_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get tr_m5))))))
+      (return (const_i32 0))))
+
+  (fn try_emit_scrutinee
+    (params (fd i32) (source ptr) (tree ptr) (expr i64) (type i32) (temp i32))
+    (returns void)
+    (do
+      (call_void weave_surface_match_write_let_head
+        (param_get fd) (param_get temp))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree)
+        (param_get expr) (param_get type))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (call_void write_byte (param_get fd) (const_i32 10))
+      (return_void)))
+
+  (fn try_emit_let
+    (params (fd i32) (source ptr) (tree ptr) (let_node i64))
+    (returns void)
+    (do
+      (let tr_name i64 (call_i64 nth_child
+        (param_get tree) (param_get let_node) (const_i64 1)))
+      (let tr_tynode i64 (call_i64 nth_child
+        (param_get tree) (param_get let_node) (const_i64 2)))
+      (let tr_try i64 (call_i64 nth_child
+        (param_get tree) (param_get let_node) (const_i64 3)))
+      (let tr_decl i32 (call_i32 sst_type_code
+        (param_get tree) (param_get source) (local_get tr_tynode)))
+      (if
+        (condition (eq_i32 (call_i32 try_validate
+          (param_get tree) (param_get source) (local_get tr_try))
+          (const_i32 0)))
+        (then (do))
+        (else (do (return_void))))
+      (let tr_exprty2 i32 (call_i32 sst_expr_type
+        (param_get tree) (param_get source)
+        (call_i64 nth_child (param_get tree) (local_get tr_try) (const_i64 1))
+        (call_i32 surface_type_unknown)))
+      (let tr_okty2 i32 (call_i32 try_ok_type (local_get tr_exprty2)))
+      (if
+        (condition (or_bool
+          (eq_i32 (local_get tr_decl) (call_i32 surface_type_unknown))
+          (or_bool
+            (eq_i32 (local_get tr_okty2) (call_i32 surface_type_unknown))
+            (ne_i32 (call_i32 weave_semantic_types_compatible
+              (local_get tr_decl) (local_get tr_okty2)) (const_i32 0)))))
+        (then (do))
+        (else (do
+          (let tr_m6 ptr (const_string_ptr "try success type does not match the binding"))
+          (call_void try_error
+            (param_get tree) (param_get source) (local_get tr_try)
+            (local_get tr_m6))
+          (return_void))))
+      (let tr_pre ptr (call_ptr try_intern_prefix (local_get tr_exprty2)))
+      (if
+        (condition (ne_ptr (local_get tr_pre) (const_null)))
+        (then (do))
+        (else (do
+          (let tr_m7 ptr (const_string_ptr "cannot specialize Result for try"))
+          (call_void try_error
+            (param_get tree) (param_get source) (local_get tr_try)
+            (local_get tr_m7))
+          (return_void))))
+      (call_void write_byte (param_get fd) (const_i32 40))
+      (call_void write_cstr (param_get fd) (const_string_ptr "let "))
+      (call_void emit_node
+        (param_get fd) (param_get source) (param_get tree) (local_get tr_name))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void sst_emit_declared_wir_type
+        (param_get fd) (param_get source) (param_get tree)
+        (local_get tr_tynode) (local_get tr_decl))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void weave_surface_match_write_dummy
+        (param_get fd) (call_ptr weave_semantic_type_wir (local_get tr_decl)))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (call_void write_byte (param_get fd) (const_i32 10))
+      (call_i32 weave_surface_local_add
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get tr_name))
+        (call_i64 node_text_len (param_get tree) (local_get tr_name))
+        (local_get tr_decl))
+      (let tr_temp i32 (call_i32 weave_surface_match_temp_next))
+      (call_void try_emit_scrutinee
+        (param_get fd) (param_get source) (param_get tree)
+        (call_i64 nth_child (param_get tree) (local_get tr_try) (const_i64 1))
+        (local_get tr_exprty2) (local_get tr_temp))
+      (call_void weave_surface_match_write_open_if (param_get fd))
+      (call_void weave_surface_match_write_cond
+        (param_get fd) (local_get tr_pre) (local_get tr_temp)
+        (call_i32 try_ok_tag))
+      (call_void weave_surface_match_write_then_do (param_get fd))
+      (call_void weave_surface_try_write_set_ok
+        (param_get fd)
+        (ptr_add
+          (param_get source)
+          (call_i64 node_text_start (param_get tree) (local_get tr_name)))
+        (call_i64 node_text_len (param_get tree) (local_get tr_name))
+        (local_get tr_pre)
+        (call_ptr weave_semantic_type_wir (local_get tr_okty2))
+        (local_get tr_temp))
+      (call_void weave_surface_match_write_else_do (param_get fd))
+      (call_void weave_surface_try_write_return_err
+        (param_get fd) (local_get tr_pre)
+        (call_ptr weave_semantic_type_wir
+          (call_i32 try_err_type (local_get tr_exprty2)))
+        (local_get tr_temp))
+      (call_void weave_surface_match_write_close3 (param_get fd))
+      (return_void)))
+
+  (fn try_emit
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (let tr_m8 ptr (const_string_ptr "try must initialize a let"))
+      (call_void try_error
+        (param_get tree) (param_get source) (param_get node)
+        (local_get tr_m8))
+      (call_void weave_surface_match_write_dummy
+        (param_get fd) (const_string_ptr "i32"))
+      (return_void)))
+)

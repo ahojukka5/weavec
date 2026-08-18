@@ -66,6 +66,8 @@ modules a program needs are the ones it actually uses:
 | `stdlib/matrix.weave` | the `Mat3` type and matrix-vector multiplication |
 | `stdlib/statistics.weave` | mean and variance over a set of values |
 | `stdlib/file.weave` | reading a text file as lines |
+| `stdlib/option.weave` | the `Option` type for a value that may be absent |
+| `stdlib/result.weave` | the `Result` type for success or a recoverable error |
 
 Modules that depend on another must be listed after it: `stdlib/memory.weave`
 comes before anything that allocates, and `stdlib/vector.weave` before

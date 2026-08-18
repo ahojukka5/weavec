@@ -184,6 +184,8 @@
         (const_string_ptr "tagged-variants") (const_string_ptr "experimental") (const_i64 147))
       (call_void cap_write_feature (param_get cr_writer)
         (const_string_ptr "exhaustive-match") (const_string_ptr "experimental") (const_i64 148))
+      (call_void cap_write_feature (param_get cr_writer)
+        (const_string_ptr "option-result") (const_string_ptr "experimental") (const_i64 149))
       (call_i32 weave_host_json_array_end (param_get cr_writer))
       (return_void)))
 )
