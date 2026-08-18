@@ -97,6 +97,12 @@ The `explicit-generics` feature is experimental. It publishes the
 [#145](https://github.com/ahojukka5/weavec/issues/145). Generic declarations
 resolve as structured types; they are not specialized to WIR yet.
 
+The `string-literals` feature is experimental. It publishes raw
+`#"..."` and multiline `"""..."""` spellings, including `#"""..."""`,
+and links to issue [#239](https://github.com/ahojukka5/weavec/issues/239).
+Ordinary escaped `"..."` is unchanged. All four lower to
+`const_string_ptr`.
+
 The application-language roadmap and its five epics are documented in
 [`roadmap.md`](roadmap.md). Planned capabilities should link to their owning epic
 or focused subissue instead of using completed historical issue numbers.

@@ -1983,6 +1983,39 @@ void weave_surface_loop_write_inc_if_close(int32_t fd) {
     weave_surface_enum_write(fd, ")))");
 }
 
+void weave_surface_write_string_quoted(
+    int32_t fd,
+    const char *source,
+    int64_t start,
+    int64_t length,
+    int32_t style) {
+    weave_surface_enum_write(fd, "\"");
+    if (source == NULL || start < 0 || length <= 0) {
+        weave_surface_enum_write(fd, "\"");
+        return;
+    }
+    const unsigned char *bytes =
+        (const unsigned char *)source + (size_t)start;
+    if (style == 0) {
+        write(fd, bytes, (size_t)length);
+        weave_surface_enum_write(fd, "\"");
+        return;
+    }
+    for (int64_t index = 0; index < length; ++index) {
+        unsigned char byte = bytes[index];
+        if (byte == (unsigned char)'\\') {
+            weave_surface_enum_write(fd, "\\\\");
+        } else if (byte == (unsigned char)'"') {
+            weave_surface_enum_write(fd, "\\\"");
+        } else if (byte == (unsigned char)'\n') {
+            weave_surface_enum_write(fd, "\\n");
+        } else {
+            write(fd, &byte, 1);
+        }
+    }
+    weave_surface_enum_write(fd, "\"");
+}
+
 void weave_surface_match_write_then_do(int32_t fd) {
     weave_surface_enum_write(fd, ") (then (do ");
 }

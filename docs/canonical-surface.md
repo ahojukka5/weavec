@@ -257,6 +257,10 @@ Examples:
 (call choose true 40 2)
 (call consume-pointer null)
 (call consume-string "weave")
+(call consume-raw #"C:\path")
+(call consume-multiline """
+line
+""")
 (op add count 1)
 (op add 1.5 2.25)
 (new Record (count 42) (flag true))

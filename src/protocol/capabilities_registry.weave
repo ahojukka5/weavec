@@ -188,6 +188,8 @@
         (const_string_ptr "option-result") (const_string_ptr "experimental") (const_i64 149))
       (call_void cap_write_feature (param_get cr_writer)
         (const_string_ptr "loop-control") (const_string_ptr "experimental") (const_i64 237))
+      (call_void cap_write_feature (param_get cr_writer)
+        (const_string_ptr "string-literals") (const_string_ptr "experimental") (const_i64 239))
       (call_i32 weave_host_json_array_end (param_get cr_writer))
       (return_void)))
 )

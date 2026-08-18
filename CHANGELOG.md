@@ -15,6 +15,10 @@ surface-language contract stabilises.
 
 ### Added
 
+- Raw `#"..."` and multiline `"""..."""` string literals, including the
+  combined `#"""..."""` spelling. They keep exact source bytes, do not
+  interpolate, and lower to one existing `const_string_ptr`. Ordinary
+  escaped `"..."` is unchanged.
 - Counted `(for (range NAME START END) (do ...))` over a half-open `i32`
   range, plus `(break)` and `(continue)` in `for` and `while`. They
   lower to ordinary WIR `while`.

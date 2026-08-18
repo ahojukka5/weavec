@@ -647,9 +647,12 @@
           (eq_i32 (param_get expected) (call_i32 surface_type_ptr))))
         (then (do
           (call_void write_cstr (param_get fd) (const_string_ptr "(const_string_ptr "))
-          (call_void write_byte (param_get fd) (const_i32 34))
-          (call_void emit_node_text (param_get fd) (param_get source) (param_get tree) (param_get node))
-          (call_void write_byte (param_get fd) (const_i32 34))
+          (call_void weave_surface_write_string_quoted
+            (param_get fd) (param_get source)
+            (call_i64 node_text_start (param_get tree) (param_get node))
+            (call_i64 node_text_len (param_get tree) (param_get node))
+            (cast_i64_to_i32 (call_i64 node_value
+              (param_get tree) (param_get node))))
           (call_void write_byte (param_get fd) (const_i32 41))
           (return_void)))
         (else (do)))

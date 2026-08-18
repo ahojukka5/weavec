@@ -159,6 +159,9 @@
   (extern weave_surface_loop_write_inc_if_open (params (fd i32)) (returns void))
   (extern weave_surface_loop_write_inc_if_then (params (fd i32)) (returns void))
   (extern weave_surface_loop_write_inc_if_close (params (fd i32)) (returns void))
+  (extern weave_surface_write_string_quoted
+    (params (fd i32) (source ptr) (start i64) (length i64) (style i32))
+    (returns void))
   (extern weave_surface_match_write_then_do (params (fd i32)) (returns void))
   (extern weave_surface_match_write_else_do (params (fd i32)) (returns void))
   (extern weave_surface_match_write_close2 (params (fd i32)) (returns void))

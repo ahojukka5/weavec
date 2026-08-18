@@ -156,8 +156,21 @@ static int weave_fmt_write_atom(
         weave_fmt_fail(context);
         return 0;
     }
-    if (kind == node_string() && !weave_fmt_write_char(context, '"')) {
-        return 0;
+    if (kind == node_string()) {
+        int64_t style = node_value(context->tree, node);
+        if ((style == 1 || style == 3) &&
+            !weave_fmt_write_char(context, '#')) {
+            return 0;
+        }
+        if (style == 2 || style == 3) {
+            if (!weave_fmt_write_char(context, '"') ||
+                !weave_fmt_write_char(context, '"') ||
+                !weave_fmt_write_char(context, '"')) {
+                return 0;
+            }
+        } else if (!weave_fmt_write_char(context, '"')) {
+            return 0;
+        }
     }
     if (kind == node_int()) {
         char buffer[32];
@@ -174,8 +187,17 @@ static int weave_fmt_write_atom(
             (size_t)length_raw)) {
         return 0;
     }
-    if (kind == node_string() && !weave_fmt_write_char(context, '"')) {
-        return 0;
+    if (kind == node_string()) {
+        int64_t style = node_value(context->tree, node);
+        if (style == 2 || style == 3) {
+            if (!weave_fmt_write_char(context, '"') ||
+                !weave_fmt_write_char(context, '"') ||
+                !weave_fmt_write_char(context, '"')) {
+                return 0;
+            }
+        } else if (!weave_fmt_write_char(context, '"')) {
+            return 0;
+        }
     }
     return 1;
 }

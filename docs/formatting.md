@@ -66,6 +66,9 @@ semantic facts.
 | `(const_null)` | `null`, in a pointer context |
 | `(const_string_ptr "text")` | `"text"`, in a pointer context |
 
+Raw `#"..."` and multiline `"""..."""` (including `#"""..."""`) keep
+their source delimiters. Content bytes are not rewritten.
+
 A typed operator whose type would otherwise be lost receives a canonical type
 anchor. For example:
 

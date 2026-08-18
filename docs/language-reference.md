@@ -403,6 +403,25 @@ Explicit constant forms include:
 (const_string_ptr "text")
 ```
 
+Surface string literals are:
+
+```weave
+"hello\nworld"
+#"hello\nworld"
+"""hello
+world"""
+#"""hello\n
+world"""
+```
+
+`"..."` is the existing escaped spelling. `#"..."` is raw: every byte
+between the quotes is kept, including backslash. `"""..."""` is
+multiline: the closer is three quotes and newlines are part of the
+content. `#"""..."""` is both raw and multiline. There is no
+interpolation. All four lower to one `(const_string_ptr "...")`. Raw
+and multiline content is re-escaped so the existing WIR decode
+reconstructs the source bytes.
+
 Floating constants currently use integer literal tokens and lower through an
 integer-to-floating conversion. Decimal literal syntax is not yet part of the
 stable surface contract.
