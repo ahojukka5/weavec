@@ -36,6 +36,9 @@ weavec-vX.Y.Z-linux-x86_64-<libc>/
 │   └── weavec/
 │       └── <target-triple>/
 │           └── libweave-runtime.a
+├── stdlib/
+│   └── *.weave
+├── examples/
 ├── BUILD-MANIFEST
 ├── VERSION
 ├── README.md
@@ -45,6 +48,10 @@ weavec-vX.Y.Z-linux-x86_64-<libc>/
 
 The compiler is statically linked for the selected libc. The target runtime is a
 private static archive discovered relative to the installed compiler.
+`stdlib/` is the user-facing standard library and keeps the same
+repository-relative paths so documented build commands work from an
+extracted package. See
+[Standard-library layout and module naming](stdlib.md).
 
 Normal users compile a native program with:
 

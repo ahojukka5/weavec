@@ -33,6 +33,11 @@ A single compilation may use legacy `program` roots or explicit `module` roots,
 but not both. Module identity never comes from an absolute path or command-line
 position.
 
+User-facing standard-library files currently use the `program` root with
+name `std.<id>` and path `stdlib/<id>.weave`. That identity stays if a
+later change adopts `(module std.<id> ...)`. See
+[Standard-library layout and module naming](stdlib.md).
+
 ## Exports
 
 An export clause names one or more declarations from the current module:

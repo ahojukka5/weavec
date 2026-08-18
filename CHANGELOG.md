@@ -15,6 +15,10 @@ surface-language contract stabilises.
 
 ### Added
 
+- A documented home and name for standard-library modules:
+  `stdlib/<id>.weave` is `std.<id>`. Existing files stay. Release
+  packages ship that directory at the extracted root. The private
+  target runtime remains a compiler resource users must not link.
 - `(interp PIECE...)` concatenates string literals with admitted `i32`,
   `i64`, `bool`, and text-pointer values into one `ptr`. Floating,
   void, null, and unknown pieces are rejected. The form lowers to
