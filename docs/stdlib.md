@@ -41,8 +41,8 @@ library tree. Do not give a standard module a name that is not `std.<id>`.
 | `stdlib/parse.weave` | `std.parse` | ASCII decimal number parsing. |
 | `stdlib/io.weave` | `std.io` | Writing text and numbers. |
 | `stdlib/math.weave` | `std.math` | Square root and trigonometry. |
-| `stdlib/option.weave` | `std.option` | Canonical `Option`. |
-| `stdlib/result.weave` | `std.result` | Canonical `Result`. |
+| `stdlib/option.weave` | `std.option` | Canonical `Option`, plus `is_some`, `is_none`, and `unwrap_or`. |
+| `stdlib/result.weave` | `std.result` | Canonical `Result`, plus `is_ok`, `is_err`, and `unwrap_or`. |
 | `stdlib/vector.weave` | `std.vector` | Fixed `Vec3`, not a generic vector. |
 | `stdlib/matrix.weave` | `std.matrix` | Fixed `Mat3`. |
 | `stdlib/statistics.weave` | `std.statistics` | Mean and variance. |

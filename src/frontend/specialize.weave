@@ -61,6 +61,60 @@
             (param_get args)
             (mul_i64 (cast_i32_to_i64 (local_get spec_ord)) (const_i64 4)))))))
         (else (do)))
+      (if
+        (condition (eq_i32 (local_get spec_kind)
+          (call_i32 type_kind_application)))
+        (then (do
+          (let si_n i64 (call_i64 type_graph_child_count
+            (local_get spec_graph) (param_get type)))
+          (if
+            (condition (lt_i64 (local_get si_n) (const_i64 2)))
+            (then (do (return (param_get type))))
+            (else (do)))
+          (let si_ctor i32 (call_i32 type_graph_child
+            (local_get spec_graph) (param_get type) (const_i64 0)))
+          (let si_argc i64 (sub_i64 (local_get si_n) (const_i64 1)))
+          (let si_newargs ptr (call_ptr malloc
+            (mul_i64 (local_get si_argc) (const_i64 4))))
+          (if
+            (condition (eq_ptr (local_get si_newargs) (const_null)))
+            (then (do (return (param_get type))))
+            (else (do)))
+          (let si_ai i64 (const_i64 0))
+          (let si_changed i32 (const_i32 0))
+          (while
+            (condition (lt_i64 (local_get si_ai) (local_get si_argc)))
+            (do
+              (let si_old i32 (call_i32 type_graph_child
+                (local_get spec_graph) (param_get type)
+                (add_i64 (local_get si_ai) (const_i64 1))))
+              (let si_new i32 (call_i32 spec_instantiate_type
+                (local_get si_old) (param_get args) (param_get count)))
+              (store_i32
+                (ptr_add (local_get si_newargs)
+                  (mul_i64 (local_get si_ai) (const_i64 4)))
+                (local_get si_new))
+              (if
+                (condition (ne_i32 (local_get si_new) (local_get si_old)))
+                (then (do (set si_changed (const_i32 1))))
+                (else (do)))
+              (set si_ai (add_i64 (local_get si_ai) (const_i64 1)))))
+          (if
+            (condition (eq_i32 (local_get si_changed) (const_i32 0)))
+            (then (do
+              (call_void free (local_get si_newargs))
+              (return (param_get type))))
+            (else (do)))
+          (let si_app i32 (call_i32 type_graph_application
+            (local_get spec_graph) (local_get si_ctor)
+            (local_get si_newargs) (local_get si_argc)))
+          (call_void free (local_get si_newargs))
+          (if
+            (condition (eq_i32 (local_get si_app) (const_i32 0)))
+            (then (do (return (param_get type))))
+            (else (do)))
+          (return (local_get si_app))))
+        (else (do)))
       (return (param_get type))))
 
   (fn spec_call_result_type

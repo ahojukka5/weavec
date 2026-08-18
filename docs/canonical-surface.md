@@ -184,7 +184,8 @@ The frontend lowers the form to ordinary WIR tag tests before emission.
 ## Option, Result, and try
 
 `Option` and `Result` are ordinary generic enums shipped in
-`stdlib/option.weave` and `stdlib/result.weave`. They are not a second
+`stdlib/option.weave` and `stdlib/result.weave`, including the
+`option_*` and `result_*` helpers over `match`. They are not a second
 pointer encoding.
 
 `(try EXPR)` is the one propagation form. `propagate` was considered and

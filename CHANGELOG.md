@@ -15,6 +15,12 @@ surface-language contract stabilises.
 
 ### Added
 
+- `option_is_some`, `option_is_none`, `option_unwrap_or`,
+  `result_is_ok`, `result_is_err`, and `result_unwrap_or` in the
+  shipped Option and Result modules. They are generic functions over
+  `match`, specialize for `i32`, and do not abort.
+- Instantiating a generic call now substitutes type arguments inside
+  parameter types such as `Option<T>`, so those helpers type-check.
 - A documented home and name for standard-library modules:
   `stdlib/<id>.weave` is `std.<id>`. Existing files stay. Release
   packages ship that directory at the extracted root. The private
