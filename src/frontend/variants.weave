@@ -1,0 +1,995 @@
+; SPDX-License-Identifier: Apache-2.0
+; variants.weave — tagged enum declarations and WIR lowering
+;
+; Layout is a 16-byte heap object: i32 tag at offset 0 and an 8-byte payload
+; slot at offset 8. Nullary variants store zero in the payload slot. Tags are
+; declaration order. Generic templates are not emitted.
+
+(program
+  (name "variants")
+  (version "0.1")
+
+  (fn var_error
+    (params (tree ptr) (source ptr) (node i64) (detail ptr))
+    (returns i32)
+    (do
+      (call_void surface_error_prefix (const_string_ptr "enum"))
+      (call_void write_cstr (const_i32 2) (param_get detail))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (call_void sdiag_record
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "frontend.enum.invalid")
+        (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+        (const_i32 -1) (const_i32 -1) (const_i32 -1)
+        (const_string_ptr "enum") (const_i64 -1) (const_i32 0))
+      (return (const_i32 1))))
+
+  (fn var_payload_supported
+    (params (type i32))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (or_bool
+            (eq_i32 (param_get type) (call_i32 surface_type_i32))
+            (eq_i32 (param_get type) (call_i32 surface_type_i64)))
+          (or_bool
+            (or_bool
+              (eq_i32 (param_get type) (call_i32 surface_type_f32))
+              (eq_i32 (param_get type) (call_i32 surface_type_f64)))
+            (or_bool
+              (eq_i32 (param_get type) (call_i32 surface_type_bool))
+              (or_bool
+                (eq_i32 (param_get type) (call_i32 surface_type_ptr))
+                (ne_i32 (call_i32 weave_surface_enum_is_type
+                  (param_get type)) (const_i32 0)))))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 weave_surface_struct_is_type
+          (param_get type)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let ven_graph ptr (call_ptr semantic_graph))
+      (if
+        (condition (and_bool
+          (ne_ptr (local_get ven_graph) (const_null))
+          (eq_i32 (call_i32 type_graph_kind
+            (local_get ven_graph) (param_get type))
+            (call_i32 type_kind_generic_parameter))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn var_emit_wir_type
+    (params (fd i32) (type i32))
+    (returns void)
+    (do
+      (call_void write_cstr
+        (param_get fd)
+        (call_ptr weave_semantic_type_wir (param_get type)))
+      (return_void)))
+
+  (fn var_emit_store_head
+    (params (fd i32) (type i32))
+    (returns void)
+    (do
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_i32)))
+        (then (do
+          (call_void write_cstr (param_get fd) (const_string_ptr "store_i32"))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_i64)))
+        (then (do
+          (call_void write_cstr (param_get fd) (const_string_ptr "store_i64"))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_f32)))
+        (then (do
+          (call_void write_cstr (param_get fd) (const_string_ptr "store_f32"))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_f64)))
+        (then (do
+          (call_void write_cstr (param_get fd) (const_string_ptr "store_f64"))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_bool)))
+        (then (do
+          (call_void write_cstr (param_get fd) (const_string_ptr "store_i8"))
+          (return_void)))
+        (else (do)))
+      (call_void write_cstr (param_get fd) (const_string_ptr "store_ptr"))
+      (return_void)))
+
+  (fn var_emit_load_head
+    (params (fd i32) (type i32))
+    (returns void)
+    (do
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_i32)))
+        (then (do
+          (call_void write_cstr (param_get fd) (const_string_ptr "load_i32"))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_i64)))
+        (then (do
+          (call_void write_cstr (param_get fd) (const_string_ptr "load_i64"))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_f32)))
+        (then (do
+          (call_void write_cstr (param_get fd) (const_string_ptr "load_f32"))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_f64)))
+        (then (do
+          (call_void write_cstr (param_get fd) (const_string_ptr "load_f64"))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_bool)))
+        (then (do
+          (call_void write_cstr (param_get fd) (const_string_ptr "load_u8"))
+          (return_void)))
+        (else (do)))
+      (call_void write_cstr (param_get fd) (const_string_ptr "load_ptr"))
+      (return_void)))
+
+  (fn var_validate
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (lt_i64 (call_i64 count_children
+          (param_get tree) (param_get node)) (const_i64 3)))
+        (then (do
+          (return (call_i32 var_error
+            (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "enum requires a name and at least one variant")))))
+        (else (do)))
+      (let ven_name i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 1)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get tree) (local_get ven_name)) (const_i32 0)))
+        (then (do
+          (return (call_i32 var_error
+            (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "enum name must be an identifier")))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_type_code
+          (param_get tree) (param_get source) (local_get ven_name))
+          (call_i32 surface_type_unknown)))
+        (then (do
+          (return (call_i32 var_error
+            (param_get tree) (param_get source) (local_get ven_name)
+            (const_string_ptr "reserved enum name")))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_validate_type_params
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "enum")) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let ven_child i64 (call_i64 node_next_sibling
+        (param_get tree) (local_get ven_name)))
+      (let ven_count i32 (const_i32 0))
+      (while
+        (condition (ne_i64 (local_get ven_child) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (local_get ven_child)
+              (const_string_ptr "type-params") (const_i64 11)) (const_i32 0)))
+            (then (do
+              (if
+                (condition (eq_i32 (call_i32 head_equals
+                  (param_get tree) (param_get source) (local_get ven_child)
+                  (const_string_ptr "variant") (const_i64 7)) (const_i32 0)))
+                (then (do
+                  (return (call_i32 var_error
+                    (param_get tree) (param_get source) (local_get ven_child)
+                    (const_string_ptr "enum children must be (variant NAME [TYPE])")))))
+                (else (do)))
+              (let ven_nchildren i64 (call_i64 count_children
+                (param_get tree) (local_get ven_child)))
+              (if
+                (condition (or_bool
+                  (lt_i64 (local_get ven_nchildren) (const_i64 2))
+                  (gt_i64 (local_get ven_nchildren) (const_i64 3))))
+                (then (do
+                  (return (call_i32 var_error
+                    (param_get tree) (param_get source) (local_get ven_child)
+                    (const_string_ptr "variant must be (variant NAME) or (variant NAME TYPE)")))))
+                (else (do)))
+              (if
+                (condition (eq_i32 (call_i32 surface_node_is_ident
+                  (param_get tree)
+                  (call_i64 nth_child
+                    (param_get tree) (local_get ven_child) (const_i64 1)))
+                  (const_i32 0)))
+                (then (do
+                  (return (call_i32 var_error
+                    (param_get tree) (param_get source) (local_get ven_child)
+                    (const_string_ptr "variant name must be an identifier")))))
+                (else (do)))
+              (set ven_count (add_i32 (local_get ven_count) (const_i32 1)))))
+            (else (do)))
+          (set ven_child (call_i64 node_next_sibling
+            (param_get tree) (local_get ven_child)))))
+      (if
+        (condition (eq_i32 (local_get ven_count) (const_i32 0)))
+        (then (do
+          (return (call_i32 var_error
+            (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "enum requires a name and at least one variant")))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn var_register
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 var_validate
+          (param_get tree) (param_get source) (param_get node)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_bind_type_params
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "enum") (const_string_ptr "enum"))
+          (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let ven_name i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 1)))
+      (let ven_index i32 (call_i32 weave_surface_enum_define
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ven_name))
+        (call_i64 node_text_len (param_get tree) (local_get ven_name))))
+      (if
+        (condition (eq_i32 (local_get ven_index) (const_i32 -2)))
+        (then (do
+          (call_void weave_surface_type_params_reset)
+          (return (call_i32 var_error
+            (param_get tree) (param_get source) (local_get ven_name)
+            (const_string_ptr "duplicate enum")))))
+        (else (do)))
+      (if
+        (condition (lt_i32 (local_get ven_index) (const_i32 0)))
+        (then (do
+          (call_void weave_surface_type_params_reset)
+          (return (call_i32 var_error
+            (param_get tree) (param_get source) (local_get ven_name)
+            (const_string_ptr "cannot register enum")))))
+        (else (do)))
+      (let ven_graph ptr (call_ptr semantic_graph))
+      (let ven_copied ptr (call_ptr type_buffer_new))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get ven_graph) (const_null))
+          (or_bool
+            (eq_ptr (local_get ven_copied) (const_null))
+            (eq_i32 (call_i32 type_buffer_append_n
+              (local_get ven_copied)
+              (ptr_add
+                (param_get source)
+                (call_i64 node_text_start
+                  (param_get tree) (local_get ven_name)))
+              (call_i64 node_text_len
+                (param_get tree) (local_get ven_name)))
+              (const_i32 0)))))
+        (then (do
+          (call_void type_buffer_dispose (local_get ven_copied))
+          (call_void weave_surface_type_params_reset)
+          (return (call_i32 var_error
+            (param_get tree) (param_get source) (local_get ven_name)
+            (const_string_ptr "cannot intern enum type")))))
+        (else (do)))
+      (let ven_type_name ptr (call_ptr type_buffer_take (local_get ven_copied)))
+      (let ven_type i32 (call_i32 type_graph_nominal
+        (local_get ven_graph) (const_string_ptr "enum") (local_get ven_type_name)))
+      (call_void free (local_get ven_type_name))
+      (if
+        (condition (eq_i32 (local_get ven_type) (const_i32 0)))
+        (then (do
+          (call_void weave_surface_type_params_reset)
+          (return (call_i32 var_error
+            (param_get tree) (param_get source) (local_get ven_name)
+            (const_string_ptr "cannot intern enum type")))))
+        (else (do)))
+      (call_i32 weave_surface_enum_set_graph_type
+        (local_get ven_index) (local_get ven_type))
+      (call_i32 weave_surface_enum_set_type_param_count
+        (local_get ven_index)
+        (call_i32 weave_surface_type_param_count_current))
+      (let ven_child i64 (call_i64 node_next_sibling
+        (param_get tree) (local_get ven_name)))
+      (while
+        (condition (ne_i64 (local_get ven_child) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (local_get ven_child)
+              (const_string_ptr "variant") (const_i64 7)) (const_i32 0)))
+            (then (do
+              (let ven_vname i64 (call_i64 nth_child
+                (param_get tree) (local_get ven_child) (const_i64 1)))
+              (let ven_payload i32 (const_i32 0))
+              (if
+                (condition (eq_i64 (call_i64 count_children
+                  (param_get tree) (local_get ven_child)) (const_i64 3)))
+                (then (do
+                  (set ven_payload (call_i32 surface_resolve_type_form
+                    (param_get tree) (param_get source)
+                    (call_i64 nth_child
+                      (param_get tree) (local_get ven_child) (const_i64 2))))
+                  (if
+                    (condition (eq_i32 (local_get ven_payload)
+                      (call_i32 surface_type_unknown)))
+                    (then (do
+                      (call_void weave_surface_type_params_reset)
+                      (return (call_i32 var_error
+                        (param_get tree) (param_get source) (local_get ven_child)
+                        (const_string_ptr "unknown variant payload type")))))
+                    (else (do)))
+                  (if
+                    (condition (eq_i32 (call_i32 var_payload_supported
+                      (local_get ven_payload)) (const_i32 0)))
+                    (then (do
+                      (call_void weave_surface_type_params_reset)
+                      (return (call_i32 var_error
+                        (param_get tree) (param_get source) (local_get ven_child)
+                        (const_string_ptr "unsupported variant payload type")))))
+                    (else (do)))))
+                (else (do)))
+              (let ven_added i32 (call_i32 weave_surface_enum_add_variant
+                (local_get ven_index) (param_get source)
+                (call_i64 node_text_start (param_get tree) (local_get ven_vname))
+                (call_i64 node_text_len (param_get tree) (local_get ven_vname))
+                (local_get ven_payload)))
+              (if
+                (condition (eq_i32 (local_get ven_added) (const_i32 -2)))
+                (then (do
+                  (call_void weave_surface_type_params_reset)
+                  (return (call_i32 var_error
+                    (param_get tree) (param_get source) (local_get ven_vname)
+                    (const_string_ptr "duplicate variant")))))
+                (else (do)))
+              (if
+                (condition (lt_i32 (local_get ven_added) (const_i32 0)))
+                (then (do
+                  (call_void weave_surface_type_params_reset)
+                  (return (call_i32 var_error
+                    (param_get tree) (param_get source) (local_get ven_vname)
+                    (const_string_ptr "cannot register variant")))))
+                (else (do)))))
+            (else (do)))
+          (set ven_child (call_i64 node_next_sibling
+            (param_get tree) (local_get ven_child)))))
+      (call_void weave_surface_type_params_reset)
+      (return (const_i32 0))))
+
+  (fn var_store_head_ptr
+    (params (type i32))
+    (returns ptr)
+    (do
+      (if
+        (condition (le_i32 (param_get type) (const_i32 0)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_i32)))
+        (then (do (return (const_string_ptr "store_i32"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_i64)))
+        (then (do (return (const_string_ptr "store_i64"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_f32)))
+        (then (do (return (const_string_ptr "store_f32"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_f64)))
+        (then (do (return (const_string_ptr "store_f64"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_bool)))
+        (then (do (return (const_string_ptr "store_i8"))))
+        (else (do)))
+      (return (const_string_ptr "store_ptr"))))
+
+  (fn var_load_head_ptr
+    (params (type i32))
+    (returns ptr)
+    (do
+      (if
+        (condition (le_i32 (param_get type) (const_i32 0)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_i32)))
+        (then (do (return (const_string_ptr "load_i32"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_i64)))
+        (then (do (return (const_string_ptr "load_i64"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_f32)))
+        (then (do (return (const_string_ptr "load_f32"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_f64)))
+        (then (do (return (const_string_ptr "load_f64"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get type) (call_i32 surface_type_bool)))
+        (then (do (return (const_string_ptr "load_u8"))))
+        (else (do)))
+      (return (const_string_ptr "load_ptr"))))
+
+  (fn var_emit_constructor
+    (params
+      (fd i32) (prefix ptr) (variant_name ptr) (tag i32) (payload i32))
+    (returns void)
+    (do
+      (call_void weave_surface_enum_write_constructor
+        (param_get fd) (param_get prefix) (param_get variant_name)
+        (param_get tag) (call_ptr var_store_head_ptr (param_get payload)))
+      (return_void)))
+
+  (fn var_emit_tag_fn
+    (params (fd i32) (prefix ptr))
+    (returns void)
+    (do
+      (call_void weave_surface_enum_write_tag_fn
+        (param_get fd) (param_get prefix))
+      (return_void)))
+
+  (fn var_emit_payload_fn
+    (params (fd i32) (prefix ptr) (variant_name ptr) (payload i32))
+    (returns void)
+    (do
+      (if
+        (condition (le_i32 (param_get payload) (const_i32 0)))
+        (then (do (return_void)))
+        (else (do)))
+      (call_void weave_surface_enum_write_payload_fn
+        (param_get fd) (param_get prefix) (param_get variant_name)
+        (call_ptr var_load_head_ptr (param_get payload))
+        (call_ptr weave_semantic_type_wir (param_get payload)))
+      (return_void)))
+
+
+  (fn var_emit_helpers
+    (params (fd i32) (enum_index i32) (prefix ptr) (args ptr) (count i32))
+    (returns void)
+    (do
+      (let ven_n i32 (call_i32 weave_surface_enum_variant_count
+        (param_get enum_index)))
+      (let ven_i i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get ven_i) (local_get ven_n)))
+        (do
+          (call_void var_emit_constructor
+            (param_get fd) (param_get prefix)
+            (call_ptr weave_surface_enum_variant_name
+              (param_get enum_index) (local_get ven_i))
+            (call_i32 weave_surface_enum_variant_tag
+              (param_get enum_index) (local_get ven_i))
+            (call_i32 spec_instantiate_type
+              (call_i32 weave_surface_enum_variant_payload
+                (param_get enum_index) (local_get ven_i))
+              (param_get args) (param_get count)))
+          (set ven_i (add_i32 (local_get ven_i) (const_i32 1)))))
+      (call_void var_emit_tag_fn (param_get fd) (param_get prefix))
+      (set ven_i (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get ven_i) (local_get ven_n)))
+        (do
+          (call_void var_emit_payload_fn
+            (param_get fd) (param_get prefix)
+            (call_ptr weave_surface_enum_variant_name
+              (param_get enum_index) (local_get ven_i))
+            (call_i32 spec_instantiate_type
+              (call_i32 weave_surface_enum_variant_payload
+                (param_get enum_index) (local_get ven_i))
+              (param_get args) (param_get count)))
+          (set ven_i (add_i32 (local_get ven_i) (const_i32 1)))))
+      (return_void)))
+
+  (fn lower_enum
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 surface_decl_is_generic
+          (param_get tree) (param_get source) (param_get node))
+          (const_i32 0)))
+        (then (do (return_void)))
+        (else (do)))
+      (let ven_name i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 1)))
+      (let ven_index i32 (call_i32 weave_surface_enum_index
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ven_name))
+        (call_i64 node_text_len (param_get tree) (local_get ven_name))))
+      (if
+        (condition (lt_i32 (local_get ven_index) (const_i32 0)))
+        (then (do (return_void)))
+        (else (do)))
+      (call_void var_emit_helpers
+        (param_get fd) (local_get ven_index)
+        (call_ptr weave_surface_enum_name (local_get ven_index))
+        (const_null) (const_i32 0))
+      (return_void)))
+
+  (fn var_construct_type
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (let ven_type_node i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 1)))
+      (let ven_type i32 (call_i32 weave_surface_enum_lookup
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ven_type_node))
+        (call_i64 node_text_len (param_get tree) (local_get ven_type_node))))
+      (let ven_args_node i64 (call_i64 spec_type_args_node
+        (param_get tree) (param_get source) (param_get node)))
+      (if
+        (condition (eq_i64 (local_get ven_args_node) (const_i64 -1)))
+        (then (do (return (local_get ven_type))))
+        (else (do)))
+      (let ven_argc64 i64 (sub_i64
+        (call_i64 count_children (param_get tree) (local_get ven_args_node))
+        (const_i64 1)))
+      (if
+        (condition (le_i64 (local_get ven_argc64) (const_i64 0)))
+        (then (do (return (local_get ven_type))))
+        (else (do)))
+      (let ven_vals ptr (call_ptr malloc
+        (mul_i64 (local_get ven_argc64) (const_i64 4))))
+      (if
+        (condition (eq_ptr (local_get ven_vals) (const_null)))
+        (then (do (return (local_get ven_type))))
+        (else (do)))
+      (let ven_targ i64 (call_i64 nth_child
+        (param_get tree) (local_get ven_args_node) (const_i64 1)))
+      (let ven_idx64 i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get ven_idx64) (local_get ven_argc64)))
+        (do
+          (store_i32
+            (ptr_add (local_get ven_vals) (mul_i64 (local_get ven_idx64) (const_i64 4)))
+            (call_i32 surface_resolve_type_form
+              (param_get tree) (param_get source) (local_get ven_targ)))
+          (set ven_idx64 (add_i64 (local_get ven_idx64) (const_i64 1)))
+          (set ven_targ (call_i64 node_next_sibling
+            (param_get tree) (local_get ven_targ)))))
+      (let ven_app i32 (call_i32 weave_semantic_type_application
+        (local_get ven_type) (local_get ven_vals) (local_get ven_argc64)))
+      (call_void free (local_get ven_vals))
+      (return (local_get ven_app))))
+
+  (fn var_ctor_skip
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i64)
+    (do
+      (let ven_second i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 2)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_list_head
+          (param_get tree) (param_get source) (local_get ven_second)
+          (const_string_ptr "type-args") (const_i64 9)) (const_i32 0)))
+        (then (do (return (const_i64 2))))
+        (else (do (return (const_i64 3)))))))
+
+  (fn var_emit_construct
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (if
+        (condition (lt_i64 (call_i64 count_children
+          (param_get tree) (param_get node)) (const_i64 3)))
+        (then (do
+          (call_void var_error
+            (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "variant construction needs an enum and constructor"))
+          (call_void write_cstr (param_get fd) (const_string_ptr "(const_null)"))
+          (return_void)))
+        (else (do)))
+      (let ven_type_node i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 1)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get tree) (local_get ven_type_node)) (const_i32 0)))
+        (then (do
+          (call_void var_error
+            (param_get tree) (param_get source) (local_get ven_type_node)
+            (const_string_ptr "enum type must be a name"))
+          (call_void write_cstr (param_get fd) (const_string_ptr "(const_null)"))
+          (return_void)))
+        (else (do)))
+      (let ven_index i32 (call_i32 weave_surface_enum_index
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ven_type_node))
+        (call_i64 node_text_len (param_get tree) (local_get ven_type_node))))
+      (if
+        (condition (lt_i32 (local_get ven_index) (const_i32 0)))
+        (then (do
+          (call_void var_error
+            (param_get tree) (param_get source) (local_get ven_type_node)
+            (const_string_ptr "unknown enum"))
+          (call_void write_cstr (param_get fd) (const_string_ptr "(const_null)"))
+          (return_void)))
+        (else (do)))
+      (let ven_arity i32 (call_i32 weave_surface_enum_type_param_count
+        (local_get ven_index)))
+      (let ven_args_node i64 (call_i64 spec_type_args_node
+        (param_get tree) (param_get source) (param_get node)))
+      (let ven_prefix ptr (call_ptr weave_surface_enum_name (local_get ven_index)))
+      (if
+        (condition (gt_i32 (local_get ven_arity) (const_i32 0)))
+        (then (do
+          (if
+            (condition (eq_i64 (local_get ven_args_node) (const_i64 -1)))
+            (then (do
+              (call_void var_error
+                (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "generic enum requires explicit (type-args ...)"))
+              (call_void write_cstr
+                (param_get fd) (const_string_ptr "(const_null)"))
+              (return_void)))
+            (else (do)))
+          (let ven_got i64 (sub_i64
+            (call_i64 count_children
+              (param_get tree) (local_get ven_args_node))
+            (const_i64 1)))
+          (if
+            (condition (ne_i64 (local_get ven_got)
+              (cast_i32_to_i64 (local_get ven_arity))))
+            (then (do
+              (call_void var_error
+                (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "wrong number of enum type arguments"))
+              (call_void write_cstr
+                (param_get fd) (const_string_ptr "(const_null)"))
+              (return_void)))
+            (else (do)))
+          (let ven_vals ptr (call_ptr malloc
+            (mul_i64 (cast_i32_to_i64 (local_get ven_arity)) (const_i64 4))))
+          (if
+            (condition (eq_ptr (local_get ven_vals) (const_null)))
+            (then (do
+              (call_void write_cstr
+                (param_get fd) (const_string_ptr "(const_null)"))
+              (return_void)))
+            (else (do)))
+          (let ven_targ i64 (call_i64 nth_child
+            (param_get tree) (local_get ven_args_node) (const_i64 1)))
+          (let ven_ti i32 (const_i32 0))
+          (while
+            (condition (lt_i32 (local_get ven_ti) (local_get ven_arity)))
+            (do
+              (store_i32
+                (ptr_add
+                  (local_get ven_vals)
+                  (mul_i64 (cast_i32_to_i64 (local_get ven_ti)) (const_i64 4)))
+                (call_i32 surface_resolve_type_form
+                  (param_get tree) (param_get source) (local_get ven_targ)))
+              (set ven_ti (add_i32 (local_get ven_ti) (const_i32 1)))
+              (set ven_targ (call_i64 node_next_sibling
+                (param_get tree) (local_get ven_targ)))))
+          (let ven_key ptr (call_ptr spec_build_key
+            (local_get ven_vals) (local_get ven_arity)))
+          (let ven_sname ptr (call_ptr spec_build_name
+            (param_get source)
+            (call_i64 node_text_start (param_get tree) (local_get ven_type_node))
+            (call_i64 node_text_len (param_get tree) (local_get ven_type_node))
+            (local_get ven_vals) (local_get ven_arity)))
+          (let ven_spec i32 (call_i32 weave_surface_enum_spec_intern
+            (param_get source)
+            (call_i64 node_text_start (param_get tree) (local_get ven_type_node))
+            (call_i64 node_text_len (param_get tree) (local_get ven_type_node))
+            (local_get ven_key) (local_get ven_sname)))
+          (if
+            (condition (ge_i32 (local_get ven_spec) (const_i32 0)))
+            (then (do
+              (call_i32 weave_surface_enum_spec_set_args
+                (local_get ven_spec) (local_get ven_vals) (local_get ven_arity))))
+            (else (do)))
+          (call_void free (local_get ven_key))
+          (call_void free (local_get ven_sname))
+          (call_void free (local_get ven_vals))
+          (if
+            (condition (lt_i32 (local_get ven_spec) (const_i32 0)))
+            (then (do
+              (call_void var_error
+                (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "cannot specialize generic enum"))
+              (call_void write_cstr
+                (param_get fd) (const_string_ptr "(const_null)"))
+              (return_void)))
+            (else (do)))
+          (set ven_prefix
+            (call_ptr weave_surface_enum_spec_name (local_get ven_spec)))))
+        (else (do
+          (if
+            (condition (ne_i64 (local_get ven_args_node) (const_i64 -1)))
+            (then (do
+              (call_void var_error
+                (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "enum is not generic"))
+              (call_void write_cstr
+                (param_get fd) (const_string_ptr "(const_null)"))
+              (return_void)))
+            (else (do))))))
+      (let ven_ctor_at i64 (call_i64 var_ctor_skip
+        (param_get tree) (param_get source) (param_get node)))
+      (let ven_ctor i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (local_get ven_ctor_at)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get tree) (local_get ven_ctor)) (const_i32 0)))
+        (then (do
+          (call_void var_error
+            (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "variant constructor must be a name"))
+          (call_void write_cstr (param_get fd) (const_string_ptr "(const_null)"))
+          (return_void)))
+        (else (do)))
+      (let ven_v i32 (call_i32 weave_surface_enum_find_variant
+        (local_get ven_index) (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ven_ctor))
+        (call_i64 node_text_len (param_get tree) (local_get ven_ctor))))
+      (if
+        (condition (lt_i32 (local_get ven_v) (const_i32 0)))
+        (then (do
+          (call_void var_error
+            (param_get tree) (param_get source) (local_get ven_ctor)
+            (const_string_ptr "unknown variant constructor"))
+          (call_void write_cstr (param_get fd) (const_string_ptr "(const_null)"))
+          (return_void)))
+        (else (do)))
+      (let ven_payload i32 (call_i32 weave_surface_enum_variant_payload
+        (local_get ven_index) (local_get ven_v)))
+      (let ven_value i64 (call_i64 node_next_sibling
+        (param_get tree) (local_get ven_ctor)))
+      (if
+        (condition (gt_i32 (local_get ven_payload) (const_i32 0)))
+        (then (do
+          (if
+            (condition (eq_i64 (local_get ven_value) (const_i64 -1)))
+            (then (do
+              (call_void var_error
+                (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "variant constructor expects a payload"))
+              (call_void write_cstr
+                (param_get fd) (const_string_ptr "(const_null)"))
+              (return_void)))
+            (else (do)))))
+        (else (do
+          (if
+            (condition (ne_i64 (local_get ven_value) (const_i64 -1)))
+            (then (do
+              (call_void var_error
+                (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "variant constructor takes no payload"))
+              (call_void write_cstr
+                (param_get fd) (const_string_ptr "(const_null)"))
+              (return_void)))
+            (else (do))))))
+      (call_void write_cstr (param_get fd) (const_string_ptr "(call_ptr "))
+      (call_void write_cstr (param_get fd) (local_get ven_prefix))
+      (call_void write_cstr (param_get fd) (const_string_ptr "_new_"))
+      (call_void emit_node_text
+        (param_get fd) (param_get source) (param_get tree) (local_get ven_ctor))
+      (if
+        (condition (ne_i64 (local_get ven_value) (const_i64 -1)))
+        (then (do
+          (call_void write_byte (param_get fd) (const_i32 32))
+          (call_void surface_emit_expr_expected
+            (param_get fd) (param_get source) (param_get tree)
+            (local_get ven_value) (local_get ven_payload))))
+        (else (do)))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (return_void)))
+
+  (fn var_emit_tag
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get tree) (param_get node)) (const_i64 3)))
+        (then (do
+          (call_void var_error
+            (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "variant-tag needs an enum name and a value"))
+          (call_void write_cstr (param_get fd) (const_string_ptr "(const_i32 0)"))
+          (return_void)))
+        (else (do)))
+      (let ven_type_node i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 1)))
+      (let ven_index i32 (call_i32 weave_surface_enum_index
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ven_type_node))
+        (call_i64 node_text_len (param_get tree) (local_get ven_type_node))))
+      (if
+        (condition (lt_i32 (local_get ven_index) (const_i32 0)))
+        (then (do
+          (call_void var_error
+            (param_get tree) (param_get source) (local_get ven_type_node)
+            (const_string_ptr "unknown enum"))
+          (call_void write_cstr (param_get fd) (const_string_ptr "(const_i32 0)"))
+          (return_void)))
+        (else (do)))
+      (call_void write_cstr (param_get fd) (const_string_ptr "(call_i32 "))
+      (call_void write_cstr
+        (param_get fd) (call_ptr weave_surface_enum_name (local_get ven_index)))
+      (call_void write_cstr (param_get fd) (const_string_ptr "_tag "))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree)
+        (call_i64 nth_child (param_get tree) (param_get node) (const_i64 2))
+        (call_i32 weave_surface_enum_lookup
+          (param_get source)
+          (call_i64 node_text_start (param_get tree) (local_get ven_type_node))
+          (call_i64 node_text_len (param_get tree) (local_get ven_type_node))))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (return_void)))
+
+  (fn var_emit_payload
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get tree) (param_get node)) (const_i64 4)))
+        (then (do
+          (call_void var_error
+            (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "variant-payload needs an enum, constructor, and value"))
+          (call_void write_cstr (param_get fd) (const_string_ptr "(const_i32 0)"))
+          (return_void)))
+        (else (do)))
+      (let ven_type_node i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 1)))
+      (let ven_ctor i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 2)))
+      (let ven_index i32 (call_i32 weave_surface_enum_index
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ven_type_node))
+        (call_i64 node_text_len (param_get tree) (local_get ven_type_node))))
+      (let ven_v i32 (call_i32 weave_surface_enum_find_variant
+        (local_get ven_index) (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ven_ctor))
+        (call_i64 node_text_len (param_get tree) (local_get ven_ctor))))
+      (if
+        (condition (or_bool
+          (lt_i32 (local_get ven_index) (const_i32 0))
+          (lt_i32 (local_get ven_v) (const_i32 0))))
+        (then (do
+          (call_void var_error
+            (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "unknown enum or variant constructor"))
+          (call_void write_cstr (param_get fd) (const_string_ptr "(const_i32 0)"))
+          (return_void)))
+        (else (do)))
+      (let ven_payload i32 (call_i32 weave_surface_enum_variant_payload
+        (local_get ven_index) (local_get ven_v)))
+      (if
+        (condition (le_i32 (local_get ven_payload) (const_i32 0)))
+        (then (do
+          (call_void var_error
+            (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "variant has no payload"))
+          (call_void write_cstr (param_get fd) (const_string_ptr "(const_i32 0)"))
+          (return_void)))
+        (else (do)))
+      (call_void write_cstr (param_get fd) (const_string_ptr "(call_"))
+      (call_void var_emit_wir_type (param_get fd) (local_get ven_payload))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void write_cstr
+        (param_get fd) (call_ptr weave_surface_enum_name (local_get ven_index)))
+      (call_void write_cstr (param_get fd) (const_string_ptr "_payload_"))
+      (call_void emit_node_text
+        (param_get fd) (param_get source) (param_get tree) (local_get ven_ctor))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree)
+        (call_i64 nth_child (param_get tree) (param_get node) (const_i64 3))
+        (call_i32 weave_surface_enum_lookup
+          (param_get source)
+          (call_i64 node_text_start (param_get tree) (local_get ven_type_node))
+          (call_i64 node_text_len (param_get tree) (local_get ven_type_node))))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (return_void)))
+
+  (fn var_fill_spec_args
+    (params (spec_index i32) (args ptr) (count i32))
+    (returns void)
+    (do
+      (let ven_ai i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get ven_ai) (param_get count)))
+        (do
+          (store_i32
+            (ptr_add
+              (param_get args)
+              (mul_i64 (cast_i32_to_i64 (local_get ven_ai)) (const_i64 4)))
+            (call_i32 weave_surface_enum_spec_arg_type
+              (param_get spec_index) (local_get ven_ai)))
+          (set ven_ai (add_i32 (local_get ven_ai) (const_i32 1)))))
+      (return_void)))
+
+  (fn var_emit_one_enum_spec
+    (params (fd i32) (spec_index i32))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 weave_surface_enum_spec_emitted
+          (param_get spec_index)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let ven_gname ptr (call_ptr weave_surface_enum_spec_generic_name
+        (param_get spec_index)))
+      (let ven_index i32 (call_i32 weave_surface_enum_index
+        (local_get ven_gname) (const_i64 0)
+        (call_i64 strlen (local_get ven_gname))))
+      (if
+        (condition (lt_i32 (local_get ven_index) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (call_void weave_surface_enum_spec_mark_emitted (param_get spec_index))
+      (let ven_argc i32 (call_i32 weave_surface_enum_spec_arg_count
+        (param_get spec_index)))
+      (let ven_args ptr (const_null))
+      (if
+        (condition (gt_i32 (local_get ven_argc) (const_i32 0)))
+        (then (do
+          (set ven_args (call_ptr malloc
+            (mul_i64 (cast_i32_to_i64 (local_get ven_argc)) (const_i64 4))))
+          (if
+            (condition (eq_ptr (local_get ven_args) (const_null)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (call_void var_fill_spec_args
+            (param_get spec_index) (local_get ven_args) (local_get ven_argc))))
+        (else (do)))
+      (call_void var_emit_helpers
+        (param_get fd) (local_get ven_index)
+        (call_ptr weave_surface_enum_spec_name (param_get spec_index))
+        (local_get ven_args) (local_get ven_argc))
+      (call_void free (local_get ven_args))
+      (return (const_i32 0))))
+
+  (fn surface_emit_pending_enum_specs
+    (params (fd i32))
+    (returns i32)
+    (do
+      (let ven_i i32 (const_i32 0))
+      (let ven_n i32 (call_i32 weave_surface_enum_spec_count))
+      (while
+        (condition (lt_i32 (local_get ven_i) (local_get ven_n)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 var_emit_one_enum_spec
+              (param_get fd) (local_get ven_i)) (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (set ven_i (add_i32 (local_get ven_i) (const_i32 1)))))
+      (return (const_i32 0))))
+)

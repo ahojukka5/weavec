@@ -131,6 +131,36 @@ The compiler emits one concrete WIR function per distinct instantiation.
 Unused generic templates are not emitted. Constructing a generic struct is
 still a later specialization of `new`.
 
+## Tagged variants
+
+An `enum` declares a nominal tagged type. Each `variant` has a stable tag in
+declaration order and an optional payload:
+
+```weave
+(enum Color
+  (variant Red)
+  (variant Blue i32))
+
+(enum Option
+  (type-params T)
+  (variant None)
+  (variant Some T))
+```
+
+Construction, tag access, and payload access are explicit:
+
+```weave
+(variant Color Red)
+(variant Color Blue 7)
+(variant Option (type-args i32) Some 1)
+(variant-tag Color value)
+(variant-payload Color Blue value)
+```
+
+The concrete layout is a 16-byte heap object: an `i32` tag at offset 0 and an
+8-byte payload slot at offset 8. Generic templates are not emitted; each
+distinct type-argument list produces one specialized helper family.
+
 ## Semantic structs
 
 Struct declarations introduce nominal surface types. Source construction and

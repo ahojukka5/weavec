@@ -244,6 +244,12 @@
                   (const_string_ptr "struct") (const_i64 6)) (const_i32 0)))
                 (then (do
                   (call_void lower_struct (param_get fd) (param_get source) (param_get tree) (local_get child))))
+                (else (do)))
+              (if
+                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
+                  (const_string_ptr "enum") (const_i64 4)) (const_i32 0)))
+                (then (do
+                  (call_void lower_enum (param_get fd) (param_get source) (param_get tree) (local_get child))))
                 (else (do)))))
             (else (do)))
           (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
@@ -279,6 +285,11 @@
         (else (do)))
       (if
         (condition (ne_i32 (call_i32 surface_emit_pending_specs
+          (param_get fd)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_emit_pending_enum_specs
           (param_get fd)) (const_i32 0)))
         (then (do (return (const_i32 1))))
         (else (do)))

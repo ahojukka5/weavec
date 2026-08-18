@@ -52,6 +52,7 @@ src/frontend/surface_cast_emit.weave
 src/frontend/semantic_diagnostics.weave
 src/frontend/generics.weave
 src/frontend/specialize.weave
+src/frontend/variants.weave
 src/frontend/emit_helpers.weave
 src/frontend/emit.weave
 src/frontend/contract_canonical.weave

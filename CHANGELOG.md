@@ -15,6 +15,10 @@ surface-language contract stabilises.
 
 ### Added
 
+- Tagged `enum` declarations with optional payloads, explicit
+  `(variant ...)`, `(variant-tag ...)`, and `(variant-payload ...)`
+  forms, and deterministic 16-byte tag-plus-payload lowering. Generic
+  enums specialize like generic functions.
 - Deterministic monomorphization of generic functions: `(call identity
   (type-args i32) 1)` emits one concrete WIR function per distinct
   instantiation and reuses it for later calls.

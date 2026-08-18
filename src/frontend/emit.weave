@@ -62,6 +62,33 @@
           (if
             (condition (ne_i32 (call_i32 head_equals
               (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "variant") (const_i64 7)) (const_i32 0)))
+            (then (do
+              (call_void var_emit_construct
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (return_void)))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "variant-tag") (const_i64 11)) (const_i32 0)))
+            (then (do
+              (call_void var_emit_tag
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (return_void)))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "variant-payload") (const_i64 15)) (const_i32 0)))
+            (then (do
+              (call_void var_emit_payload
+                (param_get fd) (param_get source) (param_get tree) (param_get node))
+              (return_void)))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
               (const_string_ptr "field-get") (const_i64 9)) (const_i32 0)))
             (then (do
               (call_void sst_emit_field_get

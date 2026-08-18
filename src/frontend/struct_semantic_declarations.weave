@@ -245,6 +245,18 @@
                       (else (do)))))
                   (else (do)))
                 (if
+                  (condition (ne_i32 (call_i32 head_equals
+                    (param_get sst_tree) (param_get sst_source) (local_get sst_child)
+                    (const_string_ptr "enum") (const_i64 4)) (const_i32 0)))
+                  (then (do
+                    (if
+                      (condition (ne_i32 (call_i32 var_register
+                        (param_get sst_tree) (param_get sst_source)
+                        (local_get sst_child)) (const_i32 0)))
+                      (then (do (return (const_i32 1))))
+                      (else (do)))))
+                  (else (do)))
+                (if
                   (condition (or_bool
                     (or_bool
                       (ne_i32 (call_i32 head_equals
