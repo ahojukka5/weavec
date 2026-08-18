@@ -143,6 +143,8 @@ archive contains:
 weavec-vX.Y.Z-linux-x86_64-<libc>/
 ├── bin/weavec
 ├── lib/weavec/<target-triple>/libweave-runtime.a
+├── stdlib/*.weave
+├── examples/
 ├── BUILD-MANIFEST
 ├── VERSION
 ├── README.md

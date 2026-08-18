@@ -460,7 +460,10 @@ rm -rf "$EXTRACTED_SMOKE"
 mkdir -p "$EXTRACTED_SMOKE"
 tar -C "$EXTRACTED_SMOKE" -xzf "$ARCHIVE"
 [[ -x "$EXTRACTED_PACKAGE/bin/weavec" ]]
-[[ -s "$EXTRACTED_PACKAGE/stdlib/io.weave" ]]
+[[ -s "$EXTRACTED_PACKAGE/stdlib/README.md" ]]
+for packaged_module in "$ROOT/stdlib"/*.weave; do
+  [[ -s "$EXTRACTED_PACKAGE/stdlib/$(basename "$packaged_module")" ]]
+done
 [[ -s "$EXTRACTED_PACKAGE/examples/float-arithmetic/main.weave" ]]
 cat > "$EXTRACTED_FLOAT_EXPECTED" <<'EOF_FLOAT'
 1.5 + 2.25 = 3.75

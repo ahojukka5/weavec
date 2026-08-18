@@ -132,7 +132,9 @@ returned.
 
 `Option` and `Result` are the canonical generic enums for absence and
 recoverable errors. They live in `stdlib/option.weave` and
-`stdlib/result.weave` and are passed with the program that uses them:
+`stdlib/result.weave` as `std.option` and `std.result`, and are passed
+with the program that uses them. See
+[Standard-library layout and module naming](stdlib.md).
 
 ```weave
 (enum Option

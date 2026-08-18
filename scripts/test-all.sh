@@ -189,6 +189,9 @@ bash "$ROOT/test/parse-digits/test.sh"
 log 'examples index'
 bash "$ROOT/test/examples-index/test.sh"
 
+log 'standard-library layout'
+bash "$ROOT/test/stdlib-layout/test.sh"
+
 log 'function terminators'
 bash "$ROOT/test/function-terminators/test.sh"
 

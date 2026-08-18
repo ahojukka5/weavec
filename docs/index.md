@@ -42,6 +42,8 @@ names used when they were released.
   version strings, build-time embedding, and reproducibility semantics.
 - [Language reference](language-reference.md) — the implemented surface-Weave
   forms accepted by the current compiler.
+- [Standard-library layout and module naming](stdlib.md) — where `stdlib`
+  modules live, how they are named `std.<id>`, and how packages ship them.
 - [Canonical LLM-facing surface forms](canonical-surface.md) — typed canonical
   calls, contextual literals, compatibility forms, and deterministic elaboration.
 - [WIR core version 3](wir.md) — the self-hosted frontend/backend envelope,

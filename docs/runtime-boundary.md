@@ -52,3 +52,8 @@ Weave.
 with a fixed Newton iteration. The C runtime therefore contributes no numeric
 algorithm and no libm dependency; for this feature it only stores and returns the
 platform-provided raw argument values mechanically.
+
+User-facing modules live in `stdlib/` and are named `std.<id>`. Application
+source must not link the private target runtime or declare `weave_rt_` /
+`__weave_` symbols. See
+[Standard-library layout and module naming](stdlib.md).
