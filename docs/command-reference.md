@@ -35,12 +35,30 @@ weavec build [--project <directory-or-manifest>] [-o <program>]
              [the same target, optimization, tooling, and evidence options]
 ```
 
-Explicit source-list example:
+Explicit source-list example, using Option, Result, match, and try:
 
 ```sh
-weavec build main.weave library.weave -o application
-./application
+weavec build \
+  stdlib/process.weave \
+  stdlib/parse.weave \
+  stdlib/option.weave \
+  stdlib/result.weave \
+  stdlib/io.weave \
+  examples/parse-digits/main.weave \
+  -o parse-digits
+
+./parse-digits 1 2 3
 ```
+
+Expected output:
+
+```text
+digits = 1 2 3
+sum = 6
+```
+
+See [Parse digits](../examples/parse-digits/README.md) for the other documented
+invocations. The same command works from an extracted release package.
 
 The source-list command performs surface lowering to WIR core version 3,
 self-hosted backend compilation to raw LLVM IR, explicit LLVM optimization,

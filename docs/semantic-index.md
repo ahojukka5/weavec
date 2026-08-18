@@ -78,7 +78,10 @@ diagnostic item.
 
 Module-level declarations use stable `symbol:N` identifiers. Named struct and
 enum type references, field operations, and variant constructors link to their
-`struct`, `enum`, `field`, or `variant` symbol. Primitive types are compiler-resolved built-ins and therefore have
+`struct`, `enum`, `field`, or `variant` symbol. Program-form files in one
+analysis share a namespace, matching the frontend: a type declared in one
+`(program)` file is visible to the others. Explicit modules still require an
+import. Primitive types are compiler-resolved built-ins and therefore have
 `symbol_id: null` with `status: "resolved"`.
 
 Parameters and locals are validated lexical bindings rather than module

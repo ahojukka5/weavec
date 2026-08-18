@@ -15,9 +15,14 @@ surface-language contract stabilises.
 
 ### Added
 
+- A parse-digits example and an end-to-end qualification corpus for
+  generics, variants, match, Option, Result, and try. Equivalent source
+  order and relocated checkouts keep the same public facts; extracted
+  packages build the example the same way as a repository checkout.
 - Semantic-index facts for enums, variant constructors, match patterns,
-  and concrete function and enum specializations. Existing
-  `weavec-semantic-index-v1` documents remain valid.
+  and concrete function and enum specializations. Program-form files in
+  one analysis share a namespace, so those facts resolve across files.
+  Existing `weavec-semantic-index-v1` documents remain valid.
 - Canonical `Option` and `Result` types in `stdlib/option.weave` and
   `stdlib/result.weave`, plus `(try EXPR)` to unwrap `Ok` or return
   `Err` from a Result-returning function.
@@ -45,7 +50,7 @@ surface-language contract stabilises.
   lower to the same WIR.
 - A bare `(return)` as the void return spelling, meaning exactly
   `(return_void)`.
-- A user-facing index of the example programs, listing all eleven with their
+- A user-facing index of the example programs, listing all twelve with their
   standard-module dependencies.
 - A file-based numeric summary example, with `std.file` for reading a small
   text file as lines, `std.statistics` sharing one mean and variance

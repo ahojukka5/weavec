@@ -1,0 +1,118 @@
+; SPDX-License-Identifier: Apache-2.0
+
+(program
+  (name "parse-digits")
+  (version "0.1")
+
+  (fn identity
+    (type-params T)
+    (params (value T))
+    (returns T)
+    (do
+      (return value)))
+
+  ; A present digit is Some, anything else is None. Absence is a tagged
+  ; variant, not a reserved integer.
+  (fn as-digit
+    (params (value f64))
+    (returns (type-app Option i32))
+    (do
+      (let whole i32 (cast i32 value))
+      (if
+        (condition (op less-than whole 0))
+        (then (do
+          (return (variant Option (type-args i32) None))))
+        (else (do)))
+      (if
+        (condition (op greater-than whole 9))
+        (then (do
+          (return (variant Option (type-args i32) None))))
+        (else (do)))
+      (if
+        (condition (op not-equal value (cast f64 whole)))
+        (then (do
+          (return (variant Option (type-args i32) None))))
+        (else (do)))
+      (return (variant Option (type-args i32) Some whole))))
+
+  ; Parse one argument as a digit. Err 1 means the text is not a digit.
+  (fn parse-digit
+    (params (index i32))
+    (returns (type-app Result i32 i32))
+    (do
+      (if
+        (condition (op not (call parse_f64_valid (call arg index))))
+        (then (do
+          (return (variant Result (type-args i32 i32) Err 1))))
+        (else (do)))
+      (let maybe (type-app Option i32)
+        (call as-digit (call parse_f64 (call arg index))))
+      (return (match Option maybe
+        (case None (variant Result (type-args i32 i32) Err 1))
+        (case Some n
+          (variant Result (type-args i32 i32) Ok
+            (call identity (type-args i32) n)))))))
+
+  (fn add-digit
+    (params (total i32) (index i32))
+    (returns (type-app Result i32 i32))
+    (do
+      (let digit i32 (try (call parse-digit index)))
+      (return (variant Result (type-args i32 i32) Ok
+        (op add total digit)))))
+
+  (fn sum-digits
+    (params)
+    (returns (type-app Result i32 i32))
+    (do
+      (let index i32 0)
+      (let total i32 0)
+      (while
+        (condition (op less-than index (call args_count)))
+        (do
+          (let next i32 (try (call add-digit total index)))
+          (set total next)
+          (set index (op add index 1))))
+      (return (variant Result (type-args i32 i32) Ok total))))
+
+  ; std.process owns the native entry wrapper and calls this function.
+  (fn program_main
+    (params)
+    (returns i32)
+    (do
+      (if
+        (condition (op equal (call args_count) 0))
+        (then (do
+          (call write_stderr "usage: parse-digits <digit>...\n")
+          (return 2)))
+        (else (do)))
+      (let index i32 0)
+      (while
+        (condition (op less-than index (call args_count)))
+        (do
+          (let parsed (type-app Result i32 i32) (call parse-digit index))
+          (let digit i32 (match Result parsed
+            (case Ok x x)
+            (case Err e -1)))
+          (if
+            (condition (op less-than digit 0))
+            (then (do
+              (call write_stderr "error: not a digit: ")
+              (call write_stderr (call arg index))
+              (call write_stderr "\n")
+              (return 2)))
+            (else (do)))
+          (if
+            (condition (op equal index 0))
+            (then (do (call write_stdout "digits = ")))
+            (else (do (call write_stdout " "))))
+          (call write_digit digit)
+          (set index (op add index 1))))
+      (let summed (type-app Result i32 i32) (call sum-digits))
+      (let total i32 (match Result summed
+        (case Ok x x)
+        (case Err e -1)))
+      (call write_stdout "\nsum = ")
+      (call write_u32_decimal total)
+      (call write_stdout "\n")
+      (return 0))))

@@ -183,6 +183,9 @@ bash "$ROOT/test/newton-root/test.sh"
 log 'file-based numeric summary'
 bash "$ROOT/test/file-statistics/test.sh"
 
+log 'parse digits with Option and Result'
+bash "$ROOT/test/parse-digits/test.sh"
+
 log 'examples index'
 bash "$ROOT/test/examples-index/test.sh"
 
@@ -212,6 +215,9 @@ bash "$ROOT/test/variant-match/test.sh"
 
 log 'option, result, and try'
 bash "$ROOT/test/option-result/test.sh"
+
+log 'structured types qualification'
+bash "$ROOT/test/structured-types-qualify/test.sh"
 
 log 'struct forms'
 bash "$ROOT/test/struct-forms/test.sh"

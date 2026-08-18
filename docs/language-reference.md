@@ -140,6 +140,9 @@ recoverable errors. They live in `stdlib/option.weave` and
   (variant Err E))
 ```
 
+A complete program that uses these forms together is
+[examples/parse-digits](../examples/parse-digits/README.md).
+
 `(try EXPR)` unwraps a `Result`. The enclosing function must return a
 `Result` with the same error type. `try` initializes a `let`; on `Err` it
 returns that error, and on `Ok` the binding receives the success payload.

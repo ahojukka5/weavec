@@ -10,11 +10,19 @@ static int weave_si_is_kind(
     return strcmp(symbol->kind, kind) == 0;
 }
 
+static int weave_si_module_is_legacy(
+    const weave_si_model *model,
+    size_t module_index) {
+    return module_index < model->module_count &&
+        !model->modules[module_index].explicit_module;
+}
+
 static size_t weave_si_find_visible_top_symbol(
     const weave_si_model *model,
     size_t module_index,
     const char *name,
     const char *kind) {
+    if (name == NULL || kind == NULL) return WEAVE_SI_NONE;
     for (size_t index = 0; index < model->symbol_count; ++index) {
         const weave_si_symbol *symbol = &model->symbols[index];
         if (symbol->module_index == module_index &&
@@ -31,6 +39,18 @@ static size_t weave_si_find_visible_top_symbol(
             item->symbol_index != WEAVE_SI_NONE &&
             weave_si_is_kind(&model->symbols[item->symbol_index], kind)) {
             return item->symbol_index;
+        }
+    }
+    // Program-form files share one namespace, matching the frontend.
+    if (weave_si_module_is_legacy(model, module_index)) {
+        for (size_t index = 0; index < model->symbol_count; ++index) {
+            const weave_si_symbol *symbol = &model->symbols[index];
+            if (symbol->module_index != module_index &&
+                weave_si_module_is_legacy(model, symbol->module_index) &&
+                weave_si_is_kind(symbol, kind) &&
+                strcmp(symbol->name, name) == 0) {
+                return index;
+            }
         }
     }
     return WEAVE_SI_NONE;
