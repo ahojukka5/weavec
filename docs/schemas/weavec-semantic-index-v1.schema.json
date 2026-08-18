@@ -54,6 +54,14 @@
       "type": "array",
       "items": {"$ref": "#/$defs/call_edge"}
     },
+    "specializations": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/specialization"}
+    },
+    "matches": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/match"}
+    },
     "diagnostics": {"$ref": "#/$defs/diagnostics"}
   },
   "additionalProperties": true,
@@ -209,7 +217,16 @@
         "id": {"$ref": "#/$defs/symbol_id"},
         "module_id": {"$ref": "#/$defs/module_id"},
         "kind": {
-          "enum": ["fn", "entry", "extern", "const", "struct", "field"]
+          "enum": [
+            "fn",
+            "entry",
+            "extern",
+            "const",
+            "struct",
+            "field",
+            "enum",
+            "variant"
+          ]
         },
         "name": {"type": "string", "minLength": 1},
         "visibility": {"enum": ["public", "private"]},
@@ -230,7 +247,16 @@
           ]
         },
         "role": {
-          "enum": ["call", "read", "write", "type", "import", "export"]
+          "enum": [
+            "call",
+            "read",
+            "write",
+            "type",
+            "import",
+            "export",
+            "construct",
+            "pattern"
+          ]
         },
         "span": {"$ref": "#/$defs/span"},
         "status": {
@@ -340,6 +366,52 @@
             "not-imported"
           ]
         }
+      },
+      "additionalProperties": true
+    },
+    "specialization": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "generic_name",
+        "specialized_name",
+        "arguments"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^specialization:[0-9]+$"},
+        "kind": {"enum": ["fn", "enum"]},
+        "generic_name": {"type": "string", "minLength": 1},
+        "specialized_name": {"type": "string", "minLength": 1},
+        "arguments": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "additionalProperties": true
+    },
+    "match": {
+      "type": "object",
+      "required": [
+        "id",
+        "enum_symbol_id",
+        "span",
+        "exhaustive",
+        "wildcard",
+        "arm_count"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^match:[0-9]+$"},
+        "enum_symbol_id": {
+          "oneOf": [
+            {"$ref": "#/$defs/symbol_id"},
+            {"type": "null"}
+          ]
+        },
+        "span": {"$ref": "#/$defs/span"},
+        "exhaustive": {"type": "boolean"},
+        "wildcard": {"type": "boolean"},
+        "arm_count": {"type": "integer", "minimum": 0}
       },
       "additionalProperties": true
     },

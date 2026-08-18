@@ -274,6 +274,34 @@ static int weave_si_add_call_edge(
     return 1;
 }
 
+static int weave_si_add_specialization(
+    weave_si_model *model,
+    const weave_si_specialization *item) {
+    if (!weave_si_grow(
+            (void **)&model->specializations,
+            &model->specialization_capacity,
+            model->specialization_count,
+            sizeof(*model->specializations))) {
+        return 0;
+    }
+    model->specializations[model->specialization_count++] = *item;
+    return 1;
+}
+
+static int weave_si_add_match(
+    weave_si_model *model,
+    const weave_si_match *item) {
+    if (!weave_si_grow(
+            (void **)&model->matches,
+            &model->match_capacity,
+            model->match_count,
+            sizeof(*model->matches))) {
+        return 0;
+    }
+    model->matches[model->match_count++] = *item;
+    return 1;
+}
+
 static size_t weave_si_find_module(
     const weave_si_model *model,
     const char *name) {
@@ -374,8 +402,18 @@ static char *weave_si_signature_callable(
     weave_si_buffer_cstr(&canonical, ") (returns ");
     char *return_type = NULL;
     if (returns >= 0 && weave_si_head_equals(source, returns, "returns")) {
-        return_type = weave_si_node_text(
-            source, weave_si_nth_child(source->tree, returns, 1));
+        int64_t type_node = weave_si_nth_child(source->tree, returns, 1);
+        size_t type_start = 0;
+        size_t type_end = 0;
+        if (type_node >= 0 &&
+            node_kind(source->tree, type_node) == node_list() &&
+            weave_si_span(source, type_node, &type_start, &type_end) &&
+            type_end > type_start) {
+            return_type = weave_si_copy(
+                source->bytes + type_start, type_end - type_start);
+        } else {
+            return_type = weave_si_node_text(source, type_node);
+        }
     }
     if (return_type == NULL) return_type = weave_si_copy("unknown", 7);
     weave_si_buffer_cstr(&canonical, return_type != NULL ? return_type : "unknown");
@@ -474,6 +512,104 @@ static char *weave_si_signature_struct(
     return canonical.data;
 }
 
+static char *weave_si_signature_enum(
+    const weave_si_source *source,
+    int64_t declaration,
+    char **summary_out) {
+    weave_si_buffer canonical;
+    weave_si_buffer summary;
+    weave_si_buffer_init(&canonical);
+    weave_si_buffer_init(&summary);
+    weave_si_buffer_cstr(&canonical, "(enum");
+    int64_t enum_params = weave_si_find_clause(
+        source, declaration, "type-params");
+    if (enum_params >= 0) {
+        weave_si_buffer_cstr(&canonical, " (type-params");
+        int64_t parameter = node_next_sibling(
+            source->tree, node_first_child(source->tree, enum_params));
+        while (parameter >= 0) {
+            char *name = weave_si_node_text(source, parameter);
+            if (name != NULL) {
+                weave_si_buffer_char(&canonical, ' ');
+                weave_si_buffer_cstr(&canonical, name);
+                free(name);
+            }
+            parameter = node_next_sibling(source->tree, parameter);
+        }
+        weave_si_buffer_char(&canonical, ')');
+    }
+    weave_si_buffer_char(&summary, '{');
+    int64_t child = node_next_sibling(
+        source->tree,
+        weave_si_nth_child(source->tree, declaration, 1));
+    int first = 1;
+    while (child >= 0) {
+        if (weave_si_head_equals(source, child, "variant")) {
+            char *name = weave_si_node_text(
+                source, weave_si_nth_child(source->tree, child, 1));
+            char *type = NULL;
+            if (weave_si_nth_child(source->tree, child, 2) >= 0) {
+                type = weave_si_node_text(
+                    source, weave_si_nth_child(source->tree, child, 2));
+            }
+            if (name != NULL) {
+                weave_si_buffer_cstr(&canonical, " (variant ");
+                weave_si_buffer_cstr(&canonical, name);
+                if (type != NULL) {
+                    weave_si_buffer_char(&canonical, ' ');
+                    weave_si_buffer_cstr(&canonical, type);
+                }
+                weave_si_buffer_char(&canonical, ')');
+                if (!first) weave_si_buffer_cstr(&summary, ", ");
+                weave_si_buffer_cstr(&summary, name);
+                first = 0;
+            }
+            free(name);
+            free(type);
+        }
+        child = node_next_sibling(source->tree, child);
+    }
+    weave_si_buffer_char(&canonical, ')');
+    weave_si_buffer_char(&summary, '}');
+    if (canonical.failed || summary.failed) {
+        free(canonical.data);
+        free(summary.data);
+        return NULL;
+    }
+    *summary_out = summary.data;
+    return canonical.data;
+}
+
+static char *weave_si_signature_variant(
+    const char *enumeration,
+    const char *name,
+    const char *type,
+    char **summary_out) {
+    weave_si_buffer canonical;
+    weave_si_buffer summary;
+    weave_si_buffer_init(&canonical);
+    weave_si_buffer_init(&summary);
+    weave_si_buffer_cstr(&canonical, "(variant ");
+    weave_si_buffer_cstr(&canonical, enumeration);
+    weave_si_buffer_char(&canonical, ' ');
+    weave_si_buffer_cstr(&canonical, name);
+    if (type != NULL) {
+        weave_si_buffer_char(&canonical, ' ');
+        weave_si_buffer_cstr(&canonical, type);
+    }
+    weave_si_buffer_char(&canonical, ')');
+    weave_si_buffer_cstr(&summary, enumeration);
+    weave_si_buffer_cstr(&summary, ".");
+    weave_si_buffer_cstr(&summary, name);
+    if (canonical.failed || summary.failed) {
+        free(canonical.data);
+        free(summary.data);
+        return NULL;
+    }
+    *summary_out = summary.data;
+    return canonical.data;
+}
+
 static char *weave_si_signature_field(
     const char *structure,
     const char *type,
@@ -520,7 +656,9 @@ static int weave_si_collect_symbol(
         ? weave_si_signature_callable(source, kind, declaration, &summary)
         : strcmp(kind, "const") == 0
             ? weave_si_signature_const(source, declaration, &summary)
-            : weave_si_signature_struct(source, declaration, &summary);
+            : strcmp(kind, "enum") == 0
+                ? weave_si_signature_enum(source, declaration, &summary)
+                : weave_si_signature_struct(source, declaration, &summary);
     if (signature == NULL || summary == NULL) {
         free(name);
         free(signature);
@@ -602,6 +740,61 @@ static int weave_si_collect_symbol(
                 }
             }
             field = node_next_sibling(source->tree, field);
+        }
+    }
+    if (strcmp(kind, "enum") == 0) {
+        int64_t child = node_next_sibling(source->tree, name_node);
+        while (child >= 0) {
+            if (weave_si_head_equals(source, child, "variant")) {
+                int64_t variant_name_node = weave_si_nth_child(
+                    source->tree, child, 1);
+                int64_t type_node = weave_si_nth_child(
+                    source->tree, child, 2);
+                char *variant_name = weave_si_node_text(
+                    source, variant_name_node);
+                char *variant_type = type_node >= 0
+                    ? weave_si_node_text(source, type_node)
+                    : NULL;
+                size_t variant_start = 0;
+                size_t variant_end = 0;
+                if (variant_name == NULL ||
+                    !weave_si_span(
+                        source, child, &variant_start, &variant_end)) {
+                    free(variant_name);
+                    free(variant_type);
+                    return 0;
+                }
+                char *variant_summary = NULL;
+                char *variant_signature = weave_si_signature_variant(
+                    name, variant_name, variant_type, &variant_summary);
+                free(variant_type);
+                weave_si_symbol variant_symbol = {
+                    .module_index = module_index,
+                    .source_index = source_index,
+                    .kind = weave_si_copy("variant", 7),
+                    .name = variant_name,
+                    .signature = variant_signature,
+                    .summary = variant_summary,
+                    .start = variant_start,
+                    .end = variant_end,
+                    .is_public = 0,
+                    .is_callable = 0,
+                    .declaration_node = child,
+                };
+                size_t ignored = WEAVE_SI_NONE;
+                if (variant_symbol.kind == NULL ||
+                    variant_symbol.signature == NULL ||
+                    variant_symbol.summary == NULL ||
+                    !weave_si_add_symbol(
+                        model, &variant_symbol, &ignored)) {
+                    free(variant_symbol.kind);
+                    free(variant_symbol.name);
+                    free(variant_symbol.signature);
+                    free(variant_symbol.summary);
+                    return 0;
+                }
+            }
+            child = node_next_sibling(source->tree, child);
         }
     }
     return 1;

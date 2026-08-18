@@ -35,6 +35,19 @@ extern int32_t lower_sources(
     char **argv,
     const char *output_path,
     int64_t first_input_index);
+extern int32_t weave_surface_spec_count(void);
+extern const char *weave_surface_spec_name(int32_t index);
+extern const char *weave_surface_spec_generic_name(int32_t index);
+extern int32_t weave_surface_spec_arg_count(int32_t index);
+extern int32_t weave_surface_spec_arg_type(int32_t index, int32_t arg_index);
+extern int32_t weave_surface_enum_spec_count(void);
+extern const char *weave_surface_enum_spec_name(int32_t index);
+extern const char *weave_surface_enum_spec_generic_name(int32_t index);
+extern int32_t weave_surface_enum_spec_arg_count(int32_t index);
+extern int32_t weave_surface_enum_spec_arg_type(
+    int32_t index,
+    int32_t arg_index);
+extern char *weave_semantic_type_display(int32_t type);
 
 typedef struct weave_si_sha256 {
     uint32_t state[8];
@@ -130,6 +143,24 @@ typedef struct weave_si_call_edge {
     const char *status;
 } weave_si_call_edge;
 
+typedef struct weave_si_specialization {
+    char *kind;
+    char *generic_name;
+    char *specialized_name;
+    char **arguments;
+    size_t argument_count;
+} weave_si_specialization;
+
+typedef struct weave_si_match {
+    size_t source_index;
+    size_t start;
+    size_t end;
+    size_t enum_symbol_index;
+    int wildcard;
+    int exhaustive;
+    size_t arm_count;
+} weave_si_match;
+
 typedef struct weave_si_model {
     weave_si_source *sources;
     size_t source_count;
@@ -151,6 +182,12 @@ typedef struct weave_si_model {
     weave_si_call_edge *call_edges;
     size_t call_edge_count;
     size_t call_edge_capacity;
+    weave_si_specialization *specializations;
+    size_t specialization_count;
+    size_t specialization_capacity;
+    weave_si_match *matches;
+    size_t match_count;
+    size_t match_capacity;
     char source_set_sha256[65];
     char options_sha256[65];
     int body_references_complete;

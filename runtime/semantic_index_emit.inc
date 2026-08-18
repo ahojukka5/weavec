@@ -327,6 +327,63 @@ static int weave_si_write_call_edges(
     return weave_json_array_end(writer);
 }
 
+static int weave_si_write_specializations(
+    weave_json_writer *writer,
+    const weave_si_model *model) {
+    if (!weave_json_array_begin(writer)) return 0;
+    for (size_t index = 0; index < model->specialization_count; ++index) {
+        const weave_si_specialization *item = &model->specializations[index];
+        if (!weave_json_object_begin(writer) ||
+            !weave_json_key(writer, "id") ||
+            !weave_si_json_id(writer, "specialization", index) ||
+            !weave_json_key(writer, "kind") ||
+            !weave_json_string(writer, item->kind) ||
+            !weave_json_key(writer, "generic_name") ||
+            !weave_json_string(writer, item->generic_name) ||
+            !weave_json_key(writer, "specialized_name") ||
+            !weave_json_string(writer, item->specialized_name) ||
+            !weave_json_key(writer, "arguments") ||
+            !weave_json_array_begin(writer)) {
+            return 0;
+        }
+        for (size_t arg = 0; arg < item->argument_count; ++arg) {
+            if (!weave_json_string(writer, item->arguments[arg])) return 0;
+        }
+        if (!weave_json_array_end(writer) || !weave_json_object_end(writer)) {
+            return 0;
+        }
+    }
+    return weave_json_array_end(writer);
+}
+
+static int weave_si_write_matches(
+    weave_json_writer *writer,
+    const weave_si_model *model) {
+    if (!weave_json_array_begin(writer)) return 0;
+    for (size_t index = 0; index < model->match_count; ++index) {
+        const weave_si_match *item = &model->matches[index];
+        if (!weave_json_object_begin(writer) ||
+            !weave_json_key(writer, "id") ||
+            !weave_si_json_id(writer, "match", index) ||
+            !weave_json_key(writer, "enum_symbol_id") ||
+            !weave_si_json_optional_id(
+                writer, "symbol", item->enum_symbol_index) ||
+            !weave_json_key(writer, "span") ||
+            !weave_si_write_span(
+                writer, item->source_index, item->start, item->end) ||
+            !weave_json_key(writer, "exhaustive") ||
+            !weave_si_json_bool(writer, item->exhaustive) ||
+            !weave_json_key(writer, "wildcard") ||
+            !weave_si_json_bool(writer, item->wildcard) ||
+            !weave_json_key(writer, "arm_count") ||
+            !weave_json_int64(writer, (int64_t)item->arm_count) ||
+            !weave_json_object_end(writer)) {
+            return 0;
+        }
+    }
+    return weave_json_array_end(writer);
+}
+
 static int weave_si_write_document(
     FILE *stream,
     const weave_si_model *model) {
@@ -400,6 +457,10 @@ static int weave_si_write_document(
         !weave_si_write_exports(&writer, model) ||
         !weave_json_key(&writer, "call_edges") ||
         !weave_si_write_call_edges(&writer, model) ||
+        !weave_json_key(&writer, "specializations") ||
+        !weave_si_write_specializations(&writer, model) ||
+        !weave_json_key(&writer, "matches") ||
+        !weave_si_write_matches(&writer, model) ||
         !weave_json_key(&writer, "diagnostics") ||
         !weave_json_object_begin(&writer) ||
         !weave_json_key(&writer, "format") ||

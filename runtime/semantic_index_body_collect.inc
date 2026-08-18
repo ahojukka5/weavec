@@ -207,6 +207,188 @@ static int weave_si_collect_expression_references(
             source_index,
             caller_symbol_index,
             weave_si_nth_child(source->tree, node, 1));
+    } else if (strcmp(head, "variant") == 0 ||
+               strcmp(head, "variant-tag") == 0 ||
+               strcmp(head, "variant-payload") == 0) {
+        int64_t enum_node = weave_si_nth_child(source->tree, node, 1);
+        char *enumeration = weave_si_node_text(source, enum_node);
+        result = weave_si_add_type_reference(
+            model,
+            source_index,
+            model->symbols[caller_symbol_index].module_index,
+            enum_node);
+        if (result && strcmp(head, "variant") == 0) {
+            int64_t ctor_at = 2;
+            int64_t maybe_args = weave_si_nth_child(source->tree, node, 2);
+            if (maybe_args >= 0 &&
+                weave_si_head_equals(source, maybe_args, "type-args")) {
+                result = weave_si_add_type_reference(
+                    model,
+                    source_index,
+                    model->symbols[caller_symbol_index].module_index,
+                    maybe_args);
+                ctor_at = 3;
+            }
+            int64_t ctor_node = weave_si_nth_child(
+                source->tree, node, ctor_at);
+            char *ctor = weave_si_node_text(source, ctor_node);
+            size_t ctor_index = enumeration == NULL || ctor == NULL
+                ? WEAVE_SI_NONE
+                : weave_si_find_variant_symbol(
+                    model,
+                    model->symbols[caller_symbol_index].module_index,
+                    enumeration,
+                    ctor);
+            result = result && weave_si_add_node_reference(
+                model,
+                source_index,
+                ctor_node,
+                ctor_index,
+                "construct",
+                ctor_index == WEAVE_SI_NONE ? "unresolved" : "resolved") &&
+                weave_si_collect_children_from(
+                    model,
+                    source_index,
+                    caller_symbol_index,
+                    node,
+                    ctor_at + 1);
+            free(ctor);
+        } else if (result && strcmp(head, "variant-payload") == 0) {
+            int64_t ctor_node = weave_si_nth_child(source->tree, node, 2);
+            char *ctor = weave_si_node_text(source, ctor_node);
+            size_t ctor_index = enumeration == NULL || ctor == NULL
+                ? WEAVE_SI_NONE
+                : weave_si_find_variant_symbol(
+                    model,
+                    model->symbols[caller_symbol_index].module_index,
+                    enumeration,
+                    ctor);
+            result = weave_si_add_node_reference(
+                model,
+                source_index,
+                ctor_node,
+                ctor_index,
+                "construct",
+                ctor_index == WEAVE_SI_NONE ? "unresolved" : "resolved") &&
+                weave_si_collect_expression_references(
+                    model,
+                    source_index,
+                    caller_symbol_index,
+                    weave_si_nth_child(source->tree, node, 3));
+            free(ctor);
+        } else if (result) {
+            result = weave_si_collect_expression_references(
+                model,
+                source_index,
+                caller_symbol_index,
+                weave_si_nth_child(source->tree, node, 2));
+        }
+        free(enumeration);
+    } else if (strcmp(head, "match") == 0) {
+        int64_t enum_node = weave_si_nth_child(source->tree, node, 1);
+        char *enumeration = weave_si_node_text(source, enum_node);
+        size_t enum_index = enumeration == NULL
+            ? WEAVE_SI_NONE
+            : weave_si_find_visible_top_symbol(
+                model,
+                model->symbols[caller_symbol_index].module_index,
+                enumeration,
+                "enum");
+        result = weave_si_add_type_reference(
+            model,
+            source_index,
+            model->symbols[caller_symbol_index].module_index,
+            enum_node) &&
+            weave_si_collect_expression_references(
+                model,
+                source_index,
+                caller_symbol_index,
+                weave_si_nth_child(source->tree, node, 2));
+        int wildcard = 0;
+        size_t arm_count = 0;
+        size_t covered = 0;
+        size_t declared = 0;
+        if (enum_index != WEAVE_SI_NONE) {
+            for (size_t index = 0; index < model->symbol_count; ++index) {
+                if (model->symbols[index].module_index ==
+                        model->symbols[enum_index].module_index &&
+                    weave_si_is_kind(&model->symbols[index], "variant") &&
+                    model->symbols[index].signature != NULL &&
+                    strstr(
+                        model->symbols[index].signature,
+                        enumeration) != NULL) {
+                    declared++;
+                }
+            }
+        }
+        int64_t arm = weave_si_nth_child(source->tree, node, 3);
+        while (result && arm >= 0) {
+            arm_count++;
+            int64_t ctor_node = weave_si_nth_child(source->tree, arm, 1);
+            char *ctor = weave_si_node_text(source, ctor_node);
+            int is_wild = ctor != NULL && strcmp(ctor, "_") == 0;
+            if (is_wild) {
+                wildcard = 1;
+                result = weave_si_add_node_reference(
+                    model,
+                    source_index,
+                    ctor_node,
+                    WEAVE_SI_NONE,
+                    "pattern",
+                    "resolved");
+            } else {
+                size_t ctor_index = enumeration == NULL || ctor == NULL
+                    ? WEAVE_SI_NONE
+                    : weave_si_find_variant_symbol(
+                        model,
+                        model->symbols[caller_symbol_index].module_index,
+                        enumeration,
+                        ctor);
+                if (ctor_index != WEAVE_SI_NONE) covered++;
+                result = weave_si_add_node_reference(
+                    model,
+                    source_index,
+                    ctor_node,
+                    ctor_index,
+                    "pattern",
+                    ctor_index == WEAVE_SI_NONE
+                        ? "unresolved" : "resolved");
+            }
+            int64_t body = weave_si_nth_child(
+                source->tree,
+                arm,
+                weave_si_nth_child(source->tree, arm, 3) >= 0 ? 3 : 2);
+            result = result && weave_si_collect_expression_references(
+                model, source_index, caller_symbol_index, body);
+            free(ctor);
+            arm = node_next_sibling(source->tree, arm);
+        }
+        size_t start = 0;
+        size_t end = 0;
+        if (result && weave_si_span(source, node, &start, &end)) {
+            weave_si_match fact = {
+                .source_index = source_index,
+                .start = start,
+                .end = end,
+                .enum_symbol_index = enum_index,
+                .wildcard = wildcard,
+                .exhaustive = wildcard ||
+                    (declared > 0 && covered >= declared),
+                .arm_count = arm_count,
+            };
+            result = weave_si_add_match(model, &fact);
+        }
+        free(enumeration);
+    } else if (strcmp(head, "try") == 0) {
+        result = weave_si_collect_children_from(
+            model, source_index, caller_symbol_index, node, 1);
+    } else if (strcmp(head, "type-app") == 0 ||
+               strcmp(head, "type-args") == 0) {
+        result = weave_si_add_type_reference(
+            model,
+            source_index,
+            model->symbols[caller_symbol_index].module_index,
+            node);
     } else if (weave_si_structural_body_head(head) ||
                weave_si_typed_compatibility_head(head)) {
         result = weave_si_collect_children_from(
@@ -281,6 +463,20 @@ static int weave_si_collect_declaration_type_references(
                 }
                 field = node_next_sibling(source->tree, field);
             }
+        } else if (weave_si_is_kind(symbol, "enum")) {
+            int64_t child = weave_si_nth_child(source->tree, declaration, 2);
+            while (child >= 0) {
+                if (weave_si_head_equals(source, child, "variant") &&
+                    weave_si_nth_child(source->tree, child, 2) >= 0 &&
+                    !weave_si_add_type_reference(
+                        model,
+                        symbol->source_index,
+                        symbol->module_index,
+                        weave_si_nth_child(source->tree, child, 2))) {
+                    return 0;
+                }
+                child = node_next_sibling(source->tree, child);
+            }
         }
     }
     return 1;
@@ -308,8 +504,12 @@ static int weave_si_collect_body_references(weave_si_model *model) {
         } else if (weave_surface_module_use_legacy() != 0) {
             return 0;
         }
-        int64_t child = weave_si_nth_child(
-            source->tree, symbol->declaration_node, 4);
+        int64_t child = weave_si_find_clause(
+            source, symbol->declaration_node, "do");
+        if (child < 0) {
+            child = weave_si_nth_child(
+                source->tree, symbol->declaration_node, 4);
+        }
         while (child >= 0) {
             if (!weave_si_collect_expression_references(
                     model,
@@ -319,6 +519,90 @@ static int weave_si_collect_body_references(weave_si_model *model) {
                 return 0;
             }
             child = node_next_sibling(source->tree, child);
+        }
+    }
+    return 1;
+}
+
+static int weave_si_record_specialization(
+    weave_si_model *model,
+    const char *kind,
+    const char *generic_name,
+    const char *specialized_name,
+    int32_t spec_index,
+    int32_t (*arg_count_fn)(int32_t),
+    int32_t (*arg_type_fn)(int32_t, int32_t)) {
+    if (generic_name == NULL || specialized_name == NULL) return 0;
+    int32_t argc = arg_count_fn(spec_index);
+    if (argc < 0) argc = 0;
+    char **arguments = NULL;
+    if (argc > 0) {
+        arguments = (char **)calloc((size_t)argc, sizeof(*arguments));
+        if (arguments == NULL) return 0;
+        for (int32_t arg = 0; arg < argc; ++arg) {
+            int32_t type = arg_type_fn(spec_index, arg);
+            char *display = weave_semantic_type_display(type);
+            arguments[arg] = display != NULL && display[0] != '\0'
+                ? weave_si_copy(display, strlen(display))
+                : weave_si_copy("unknown", 7);
+            if (arguments[arg] == NULL) {
+                for (int32_t prior = 0; prior < arg; ++prior) {
+                    free(arguments[prior]);
+                }
+                free(arguments);
+                return 0;
+            }
+        }
+    }
+    weave_si_specialization item = {
+        .kind = weave_si_copy(kind, strlen(kind)),
+        .generic_name = weave_si_copy(generic_name, strlen(generic_name)),
+        .specialized_name = weave_si_copy(
+            specialized_name, strlen(specialized_name)),
+        .arguments = arguments,
+        .argument_count = (size_t)argc,
+    };
+    if (item.kind == NULL ||
+        item.generic_name == NULL ||
+        item.specialized_name == NULL ||
+        !weave_si_add_specialization(model, &item)) {
+        free(item.kind);
+        free(item.generic_name);
+        free(item.specialized_name);
+        if (arguments != NULL) {
+            for (int32_t arg = 0; arg < argc; ++arg) free(arguments[arg]);
+            free(arguments);
+        }
+        return 0;
+    }
+    return 1;
+}
+
+static int weave_si_collect_specializations(weave_si_model *model) {
+    int32_t fn_count = weave_surface_spec_count();
+    for (int32_t index = 0; index < fn_count; ++index) {
+        if (!weave_si_record_specialization(
+                model,
+                "fn",
+                weave_surface_spec_generic_name(index),
+                weave_surface_spec_name(index),
+                index,
+                weave_surface_spec_arg_count,
+                weave_surface_spec_arg_type)) {
+            return 0;
+        }
+    }
+    int32_t enum_count = weave_surface_enum_spec_count();
+    for (int32_t index = 0; index < enum_count; ++index) {
+        if (!weave_si_record_specialization(
+                model,
+                "enum",
+                weave_surface_enum_spec_generic_name(index),
+                weave_surface_enum_spec_name(index),
+                index,
+                weave_surface_enum_spec_arg_count,
+                weave_surface_enum_spec_arg_type)) {
+            return 0;
         }
     }
     return 1;

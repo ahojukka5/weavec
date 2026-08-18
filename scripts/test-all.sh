@@ -114,6 +114,9 @@ bash "$ROOT/test/project-acceptance/test.sh"
 log 'semantic-index emitter'
 bash "$ROOT/test/semantic-index/test.sh"
 
+log 'semantic-index type facts'
+bash "$ROOT/test/semantic-type-facts/test.sh"
+
 log 'semantic-index module ordering'
 bash "$ROOT/test/semantic-index-module-order/test.sh"
 

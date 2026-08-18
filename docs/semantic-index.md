@@ -28,13 +28,16 @@ A successful analysis publishes authoritative facts for:
 
 - supplied source documents and their SHA-256 hashes;
 - explicit modules and deterministic synthetic legacy modules;
-- function, entry, external, constant, struct, and field declarations;
+- function, entry, external, constant, struct, field, enum, and variant
+  declarations;
 - definition spans and canonical signatures;
 - explicit imports and exports;
 - call references and compiler-resolved caller/callee edges;
 - body-level reads and writes for canonical and admitted compatibility forms;
 - explicit type references in declarations, bindings, casts, and constructors;
 - semantic struct constructor, field-read, and field-write references;
+- variant construction and match-pattern references;
+- concrete function and enum specializations;
 - stable module interface descriptions and SHA-256 hashes;
 - complete successful and explicit failed-analysis states.
 
@@ -66,13 +69,16 @@ diagnostic item.
 - `call`: a canonical or typed call target;
 - `read`: a parameter, local, constant, or struct-field value read;
 - `write`: an assignment target, constructor field, or struct-field update;
-- `type`: an explicit type occurrence;
+- `type`: an explicit type occurrence, including `type-app` constructors
+  and arguments;
 - `import`: an imported declaration name;
-- `export`: an exported declaration name.
+- `export`: an exported declaration name;
+- `construct`: a variant constructor at a construction or payload site;
+- `pattern`: a match-arm constructor, or `_` for an explicit wildcard.
 
-Module-level declarations use stable `symbol:N` identifiers. Named struct type
-references and semantic field operations link to their `struct` or `field`
-symbol. Primitive types are compiler-resolved built-ins and therefore have
+Module-level declarations use stable `symbol:N` identifiers. Named struct and
+enum type references, field operations, and variant constructors link to their
+`struct`, `enum`, `field`, or `variant` symbol. Primitive types are compiler-resolved built-ins and therefore have
 `symbol_id: null` with `status: "resolved"`.
 
 Parameters and locals are validated lexical bindings rather than module
@@ -109,6 +115,8 @@ Modules use source order. Symbols use module order, then definition byte offset,
 kind, and source name. Imports and exports use owning module order and source
 offset. References use source order, byte offset, role, and target symbol.
 Call edges are ordered by caller symbol, call-reference ID, and callee symbol.
+Specializations are ordered by kind, generic name, and specialized name.
+Matches are ordered by source and byte offset.
 
 IDs are stable only for an identical source set, compiler identity, target, and
 analysis options. Tools must not persist them as global identities across
@@ -151,9 +159,12 @@ types, and return type. Representative forms are:
 (entry (params) (returns i32))
 (extern (params (value i64)) (returns void))
 (struct (type-params T) (field value T))
+(enum (type-params T) (variant None) (variant Some T))
+(variant Option Some T)
 ```
 
-Constants, structs, and fields use analogous compiler-owned canonical forms.
+Constants, structs, fields, enums, and variants use analogous compiler-owned
+canonical forms.
 Generic parameter lists are part of the signature when present.
 Signature text is protocol data rather than source formatting.
 

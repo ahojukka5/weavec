@@ -100,7 +100,10 @@ static int weave_si_typed_compatibility_head(const char *head) {
 static int weave_si_structural_body_head(const char *head) {
     static const char *const heads[] = {
         "do", "if", "condition", "then", "else", "while", "return",
-        "requires", "ensures",
+        "requires", "ensures", "params", "returns",
+        "type-params", "type-app", "type-args",
+        "variant", "variant-tag", "variant-payload",
+        "match", "case", "try",
     };
     for (size_t index = 0; index < sizeof(heads) / sizeof(heads[0]); ++index) {
         if (strcmp(head, heads[index]) == 0) return 1;
@@ -135,18 +138,112 @@ static int weave_si_add_node_reference(
     return weave_si_add_reference(model, &reference, &ignored);
 }
 
+static size_t weave_si_find_nominal_type(
+    const weave_si_model *model,
+    size_t module_index,
+    const char *name) {
+    size_t found = weave_si_find_visible_top_symbol(
+        model, module_index, name, "struct");
+    if (found != WEAVE_SI_NONE) return found;
+    return weave_si_find_visible_top_symbol(
+        model, module_index, name, "enum");
+}
+
+static size_t weave_si_find_variant_symbol(
+    const weave_si_model *model,
+    size_t module_index,
+    const char *enumeration,
+    const char *constructor) {
+    size_t enum_index = weave_si_find_visible_top_symbol(
+        model, module_index, enumeration, "enum");
+    if (enum_index == WEAVE_SI_NONE || enumeration == NULL ||
+        constructor == NULL) {
+        return WEAVE_SI_NONE;
+    }
+    size_t owner_module = model->symbols[enum_index].module_index;
+    size_t prefix_len = strlen(enumeration);
+    for (size_t index = 0; index < model->symbol_count; ++index) {
+        const weave_si_symbol *symbol = &model->symbols[index];
+        if (symbol->module_index != owner_module ||
+            !weave_si_is_kind(symbol, "variant") ||
+            strcmp(symbol->name, constructor) != 0 ||
+            symbol->signature == NULL) {
+            continue;
+        }
+        if (strncmp(symbol->signature, "(variant ", 9) == 0 &&
+            strncmp(symbol->signature + 9, enumeration, prefix_len) == 0 &&
+            symbol->signature[9 + prefix_len] == ' ') {
+            return index;
+        }
+    }
+    return WEAVE_SI_NONE;
+}
+
+static int weave_si_type_param_named(
+    const weave_si_source *source,
+    int64_t declaration,
+    const char *name) {
+    int64_t clause = weave_si_find_clause(source, declaration, "type-params");
+    if (clause < 0 || name == NULL) return 0;
+    int64_t parameter = node_next_sibling(
+        source->tree, node_first_child(source->tree, clause));
+    while (parameter >= 0) {
+        char *candidate = weave_si_node_text(source, parameter);
+        int match = candidate != NULL && strcmp(candidate, name) == 0;
+        free(candidate);
+        if (match) return 1;
+        parameter = node_next_sibling(source->tree, parameter);
+    }
+    return 0;
+}
+
 static int weave_si_add_type_reference(
     weave_si_model *model,
     size_t source_index,
     size_t module_index,
     int64_t type_node) {
     weave_si_source *source = &model->sources[source_index];
+    if (type_node < 0) return 1;
+    if (node_kind(source->tree, type_node) == node_list()) {
+        if (weave_si_head_equals(source, type_node, "type-app") ||
+            weave_si_head_equals(source, type_node, "type-args") ||
+            weave_si_head_equals(source, type_node, "type-params")) {
+            int64_t child = weave_si_nth_child(source->tree, type_node, 1);
+            while (child >= 0) {
+                if (!weave_si_add_type_reference(
+                        model, source_index, module_index, child)) {
+                    return 0;
+                }
+                child = node_next_sibling(source->tree, child);
+            }
+            return 1;
+        }
+        return 1;
+    }
     char *name = weave_si_node_text(source, type_node);
     if (name == NULL) return 0;
-    size_t symbol_index = weave_si_find_visible_top_symbol(
-        model, module_index, name, "struct");
+    size_t symbol_index = weave_si_find_nominal_type(
+        model, module_index, name);
+    int type_param = 0;
+    if (symbol_index == WEAVE_SI_NONE) {
+        for (size_t index = 0; index < model->symbol_count; ++index) {
+            const weave_si_symbol *symbol = &model->symbols[index];
+            if (symbol->module_index == module_index &&
+                (weave_si_is_kind(symbol, "fn") ||
+                 weave_si_is_kind(symbol, "struct") ||
+                 weave_si_is_kind(symbol, "enum")) &&
+                weave_si_type_param_named(
+                    &model->sources[symbol->source_index],
+                    symbol->declaration_node,
+                    name)) {
+                type_param = 1;
+                break;
+            }
+        }
+    }
     const char *status = symbol_index != WEAVE_SI_NONE ||
-        weave_si_builtin_type(name) ? "resolved" : "unresolved";
+        weave_si_builtin_type(name) || type_param
+        ? "resolved" : "unresolved";
     int result = weave_si_add_node_reference(
         model, source_index, type_node, symbol_index, "type", status);
     free(name);
@@ -167,6 +264,10 @@ static char *weave_si_find_local_type_in_node(
     if (weave_si_head_equals(source, node, "let")) {
         name_node = weave_si_nth_child(source->tree, node, 1);
         type_node = weave_si_nth_child(source->tree, node, 2);
+    } else if (weave_si_head_equals(source, node, "case") &&
+               weave_si_nth_child(source->tree, node, 3) >= 0) {
+        name_node = weave_si_nth_child(source->tree, node, 2);
+        fallback = "unknown";
     } else if (weave_si_head_equals(source, node, "qmeasure")) {
         name_node = weave_si_nth_child(source->tree, node, 2);
         fallback = "bool";
@@ -177,10 +278,15 @@ static char *weave_si_find_local_type_in_node(
         size_t end = 0;
         size_t form_start = 0;
         size_t form_end = 0;
+        int in_scope = 0;
         if (candidate != NULL && strcmp(candidate, name) == 0 &&
             weave_si_span(source, name_node, &start, &end) &&
-            weave_si_span(source, node, &form_start, &form_end) &&
-            form_end <= use_start && start >= *best_start) {
+            weave_si_span(source, node, &form_start, &form_end)) {
+            in_scope = weave_si_head_equals(source, node, "case")
+                ? end <= use_start && start >= *best_start
+                : form_end <= use_start && start >= *best_start;
+        }
+        if (in_scope) {
             result = type_node >= 0
                 ? weave_si_node_text(source, type_node)
                 : weave_si_copy(fallback, strlen(fallback));
@@ -241,8 +347,12 @@ static char *weave_si_find_binding_type(
     }
     size_t best_start = 0;
     char *result = NULL;
-    int64_t child = weave_si_nth_child(
-        source->tree, caller->declaration_node, 4);
+    int64_t child = weave_si_find_clause(
+        source, caller->declaration_node, "do");
+    if (child < 0) {
+        child = weave_si_nth_child(
+            source->tree, caller->declaration_node, 4);
+    }
     while (child >= 0) {
         char *nested = weave_si_find_local_type_in_node(
             source, child, name, use_start, &best_start);
