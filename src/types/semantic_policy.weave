@@ -71,6 +71,12 @@
         (then (do (return (const_string_ptr "ptr"))))
         (else (do)))
       (if
+        (condition (or_bool
+          (eq_i32 (local_get sem_wir_kind) (call_i32 type_kind_nominal))
+          (eq_i32 (local_get sem_wir_kind) (call_i32 type_kind_variant))))
+        (then (do (return (const_string_ptr "ptr"))))
+        (else (do)))
+      (if
         (condition (eq_i32 (local_get sem_wir_kind) (call_i32 type_kind_application)))
         (then (do
           (let sem_wir_ctor i32
@@ -123,9 +129,17 @@
       (if
         (condition (and_bool
           (eq_i32 (param_get expected) (local_get sem_compat_pointer))
-          (gt_i32
-            (call_i32 semantic_flat_type (param_get actual))
-            (const_i32 0))))
+          (or_bool
+            (gt_i32
+              (call_i32 semantic_flat_type (param_get actual))
+              (const_i32 0))
+            (or_bool
+              (ne_i32 (call_i32 weave_surface_enum_is_type
+                (param_get actual)) (const_i32 0))
+              (eq_i32
+                (call_i32 type_graph_kind
+                  (local_get sem_compat_graph) (param_get actual))
+                (call_i32 type_kind_nominal))))))
         (then (do (return (const_i32 1))))
         (else (do)))
       (if

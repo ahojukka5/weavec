@@ -8,8 +8,10 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define WEAVEC_SURFACE_MAX_SYMBOLS 4096
 #define WEAVEC_SURFACE_MAX_PARAMS 64
@@ -18,6 +20,9 @@
 #define WEAVEC_SURFACE_MAX_STRUCT_FIELDS 128
 #define WEAVEC_SURFACE_MAX_TYPE_PARAMS 16
 #define WEAVEC_SURFACE_MAX_SPECS 64
+#define WEAVEC_SURFACE_MAX_ENUMS 256
+#define WEAVEC_SURFACE_MAX_VARIANTS 32
+#define WEAVEC_SURFACE_MAX_ENUM_SPECS 64
 #define WEAVEC_SURFACE_STRUCT_TYPE_BASE 1024
 #define WEAVEC_SURFACE_MAX_MODULES 512
 #define WEAVEC_SURFACE_MAX_EXPORTS 4096
@@ -80,6 +85,35 @@ typedef struct {
 typedef struct {
     char *name;
     int64_t name_length;
+    int32_t payload_type;
+    int32_t tag;
+} weave_surface_enum_variant;
+
+typedef struct {
+    char *name;
+    int64_t name_length;
+    int32_t defined;
+    int32_t variant_count;
+    int32_t type_param_count;
+    int32_t graph_type;
+    char *source_path;
+    weave_surface_enum_variant variants[WEAVEC_SURFACE_MAX_VARIANTS];
+} weave_surface_enum;
+
+typedef struct {
+    char *generic_name;
+    int64_t generic_name_length;
+    char *key;
+    char *spec_name;
+    char *source_path;
+    int32_t arg_count;
+    int32_t arg_types[WEAVEC_SURFACE_MAX_TYPE_PARAMS];
+    int32_t emitted;
+} weave_surface_enum_spec;
+
+typedef struct {
+    char *name;
+    int64_t name_length;
     int32_t type;
     int32_t ordinal;
 } weave_surface_type_param;
@@ -126,6 +160,11 @@ static weave_surface_type_param
 static int32_t weave_surface_type_param_count;
 static weave_surface_spec weave_surface_specs[WEAVEC_SURFACE_MAX_SPECS];
 static int32_t weave_surface_n_specs;
+static weave_surface_enum weave_surface_enums[WEAVEC_SURFACE_MAX_ENUMS];
+static int32_t weave_surface_n_enums;
+static weave_surface_enum_spec
+    weave_surface_enum_specs[WEAVEC_SURFACE_MAX_ENUM_SPECS];
+static int32_t weave_surface_n_enum_specs;
 static char *weave_surface_current_source_path;
 
 static char *weave_surface_copy_slice(
@@ -365,6 +404,28 @@ void weave_surface_symbols_reset(void) {
         weave_surface_specs[index].spec_name = NULL;
         weave_surface_specs[index].source_path = NULL;
     }
+    for (int32_t index = 0; index < weave_surface_n_enums; ++index) {
+        free(weave_surface_enums[index].name);
+        free(weave_surface_enums[index].source_path);
+        weave_surface_enums[index].name = NULL;
+        weave_surface_enums[index].source_path = NULL;
+        for (int32_t variant = 0;
+             variant < weave_surface_enums[index].variant_count;
+             ++variant) {
+            free(weave_surface_enums[index].variants[variant].name);
+            weave_surface_enums[index].variants[variant].name = NULL;
+        }
+    }
+    for (int32_t index = 0; index < weave_surface_n_enum_specs; ++index) {
+        free(weave_surface_enum_specs[index].generic_name);
+        free(weave_surface_enum_specs[index].key);
+        free(weave_surface_enum_specs[index].spec_name);
+        free(weave_surface_enum_specs[index].source_path);
+        weave_surface_enum_specs[index].generic_name = NULL;
+        weave_surface_enum_specs[index].key = NULL;
+        weave_surface_enum_specs[index].spec_name = NULL;
+        weave_surface_enum_specs[index].source_path = NULL;
+    }
     weave_surface_symbol_count = 0;
     weave_surface_symbol_being_built = -1;
     weave_surface_local_count = 0;
@@ -379,6 +440,8 @@ void weave_surface_symbols_reset(void) {
     weave_surface_error = 0;
     weave_surface_type_param_count = 0;
     weave_surface_n_specs = 0;
+    weave_surface_n_enums = 0;
+    weave_surface_n_enum_specs = 0;
 }
 
 int32_t weave_surface_module_use_legacy(void) {
@@ -1218,4 +1281,447 @@ int32_t weave_surface_spec_arg_type(int32_t index, int32_t arg_index) {
         return 0;
     }
     return weave_surface_specs[index].arg_types[arg_index];
+}
+
+static int32_t weave_surface_enum_find(
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    for (int32_t index = 0; index < weave_surface_n_enums; ++index) {
+        if (weave_surface_slice_equal(
+                weave_surface_enums[index].name,
+                weave_surface_enums[index].name_length,
+                source,
+                start,
+                length)) {
+            return index;
+        }
+    }
+    return -1;
+}
+
+int32_t weave_surface_enum_define(
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    if (source == NULL || start < 0 || length <= 0) {
+        return -1;
+    }
+    if (weave_surface_enum_find(source, start, length) >= 0) {
+        return -2;
+    }
+    if (weave_surface_n_enums >= WEAVEC_SURFACE_MAX_ENUMS) {
+        return -1;
+    }
+    char *name = weave_surface_copy_slice(source, start, length);
+    if (name == NULL) {
+        return -1;
+    }
+    int32_t index = weave_surface_n_enums++;
+    weave_surface_enums[index].name = name;
+    weave_surface_enums[index].name_length = length;
+    weave_surface_enums[index].defined = 1;
+    weave_surface_enums[index].variant_count = 0;
+    weave_surface_enums[index].type_param_count = 0;
+    weave_surface_enums[index].graph_type = 0;
+    weave_surface_enums[index].source_path = NULL;
+    if (weave_surface_current_source_path != NULL) {
+        size_t path_len = strlen(weave_surface_current_source_path);
+        weave_surface_enums[index].source_path =
+            weave_surface_copy_slice(
+                weave_surface_current_source_path, 0, (int64_t)path_len);
+    }
+    return index;
+}
+
+int32_t weave_surface_enum_set_graph_type(int32_t index, int32_t graph_type) {
+    if (index < 0 || index >= weave_surface_n_enums || graph_type <= 0) {
+        return -1;
+    }
+    weave_surface_enums[index].graph_type = graph_type;
+    return 0;
+}
+
+int32_t weave_surface_enum_set_type_param_count(int32_t index, int32_t count) {
+    if (index < 0 || index >= weave_surface_n_enums ||
+        count < 0 || count > WEAVEC_SURFACE_MAX_TYPE_PARAMS) {
+        return -1;
+    }
+    weave_surface_enums[index].type_param_count = count;
+    return 0;
+}
+
+int32_t weave_surface_enum_add_variant(
+    int32_t index,
+    const char *source,
+    int64_t start,
+    int64_t length,
+    int32_t payload_type) {
+    if (index < 0 || index >= weave_surface_n_enums ||
+        source == NULL || start < 0 || length <= 0 ||
+        weave_surface_enums[index].variant_count >=
+            WEAVEC_SURFACE_MAX_VARIANTS) {
+        return -1;
+    }
+    weave_surface_enum *item = &weave_surface_enums[index];
+    for (int32_t variant = 0; variant < item->variant_count; ++variant) {
+        if (weave_surface_slice_equal(
+                item->variants[variant].name,
+                item->variants[variant].name_length,
+                source,
+                start,
+                length)) {
+            return -2;
+        }
+    }
+    char *name = weave_surface_copy_slice(source, start, length);
+    if (name == NULL) {
+        return -1;
+    }
+    int32_t tag = item->variant_count;
+    item->variants[tag].name = name;
+    item->variants[tag].name_length = length;
+    item->variants[tag].payload_type = payload_type;
+    item->variants[tag].tag = tag;
+    item->variant_count += 1;
+    return tag;
+}
+
+int32_t weave_surface_enum_index(
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    return weave_surface_enum_find(source, start, length);
+}
+
+int32_t weave_surface_enum_lookup(
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    int32_t index = weave_surface_enum_find(source, start, length);
+    if (index < 0) {
+        return 0;
+    }
+    return weave_surface_enums[index].graph_type;
+}
+
+int32_t weave_surface_enum_is_type(int32_t graph_type) {
+    if (graph_type <= 0) {
+        return 0;
+    }
+    for (int32_t index = 0; index < weave_surface_n_enums; ++index) {
+        if (weave_surface_enums[index].graph_type == graph_type) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int32_t weave_surface_enum_from_type(int32_t graph_type) {
+    if (graph_type <= 0) {
+        return -1;
+    }
+    for (int32_t index = 0; index < weave_surface_n_enums; ++index) {
+        if (weave_surface_enums[index].graph_type == graph_type) {
+            return index;
+        }
+    }
+    return -1;
+}
+
+const char *weave_surface_enum_name(int32_t index) {
+    if (index < 0 || index >= weave_surface_n_enums) {
+        return NULL;
+    }
+    return weave_surface_enums[index].name;
+}
+
+const char *weave_surface_enum_source_path(int32_t index) {
+    if (index < 0 || index >= weave_surface_n_enums) {
+        return NULL;
+    }
+    return weave_surface_enums[index].source_path;
+}
+
+int32_t weave_surface_enum_type_param_count(int32_t index) {
+    if (index < 0 || index >= weave_surface_n_enums) {
+        return 0;
+    }
+    return weave_surface_enums[index].type_param_count;
+}
+
+int32_t weave_surface_enum_variant_count(int32_t index) {
+    if (index < 0 || index >= weave_surface_n_enums) {
+        return 0;
+    }
+    return weave_surface_enums[index].variant_count;
+}
+
+int32_t weave_surface_enum_find_variant(
+    int32_t index,
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    if (index < 0 || index >= weave_surface_n_enums) {
+        return -1;
+    }
+    weave_surface_enum *item = &weave_surface_enums[index];
+    for (int32_t variant = 0; variant < item->variant_count; ++variant) {
+        if (weave_surface_slice_equal(
+                item->variants[variant].name,
+                item->variants[variant].name_length,
+                source,
+                start,
+                length)) {
+            return variant;
+        }
+    }
+    return -1;
+}
+
+int32_t weave_surface_enum_variant_tag(int32_t index, int32_t variant) {
+    if (index < 0 || index >= weave_surface_n_enums ||
+        variant < 0 ||
+        variant >= weave_surface_enums[index].variant_count) {
+        return -1;
+    }
+    return weave_surface_enums[index].variants[variant].tag;
+}
+
+int32_t weave_surface_enum_variant_payload(int32_t index, int32_t variant) {
+    if (index < 0 || index >= weave_surface_n_enums ||
+        variant < 0 ||
+        variant >= weave_surface_enums[index].variant_count) {
+        return 0;
+    }
+    return weave_surface_enums[index].variants[variant].payload_type;
+}
+
+const char *weave_surface_enum_variant_name(int32_t index, int32_t variant) {
+    if (index < 0 || index >= weave_surface_n_enums ||
+        variant < 0 ||
+        variant >= weave_surface_enums[index].variant_count) {
+        return NULL;
+    }
+    return weave_surface_enums[index].variants[variant].name;
+}
+
+int32_t weave_surface_enum_spec_count(void) {
+    return weave_surface_n_enum_specs;
+}
+
+int32_t weave_surface_enum_spec_intern(
+    const char *source,
+    int64_t start,
+    int64_t length,
+    const char *key,
+    const char *spec_name) {
+    if (source == NULL || start < 0 || length <= 0 ||
+        key == NULL || spec_name == NULL) {
+        return -1;
+    }
+    for (int32_t index = 0; index < weave_surface_n_enum_specs; ++index) {
+        if (weave_surface_slice_equal(
+                weave_surface_enum_specs[index].generic_name,
+                weave_surface_enum_specs[index].generic_name_length,
+                source,
+                start,
+                length) &&
+            strcmp(weave_surface_enum_specs[index].key, key) == 0) {
+            return index;
+        }
+    }
+    if (weave_surface_n_enum_specs >= WEAVEC_SURFACE_MAX_ENUM_SPECS) {
+        return -2;
+    }
+    char *generic_name = weave_surface_copy_slice(source, start, length);
+    char *key_copy = weave_surface_copy_slice(key, 0, (int64_t)strlen(key));
+    char *name_copy =
+        weave_surface_copy_slice(spec_name, 0, (int64_t)strlen(spec_name));
+    if (generic_name == NULL || key_copy == NULL || name_copy == NULL) {
+        free(generic_name);
+        free(key_copy);
+        free(name_copy);
+        return -1;
+    }
+    int32_t index = weave_surface_n_enum_specs++;
+    weave_surface_enum_specs[index].generic_name = generic_name;
+    weave_surface_enum_specs[index].generic_name_length = length;
+    weave_surface_enum_specs[index].key = key_copy;
+    weave_surface_enum_specs[index].spec_name = name_copy;
+    weave_surface_enum_specs[index].source_path = NULL;
+    weave_surface_enum_specs[index].arg_count = 0;
+    weave_surface_enum_specs[index].emitted = 0;
+    int32_t enum_index = weave_surface_enum_find(source, start, length);
+    const char *path = NULL;
+    if (enum_index >= 0) {
+        path = weave_surface_enums[enum_index].source_path;
+    }
+    if (path == NULL) {
+        path = weave_surface_current_source_path;
+    }
+    if (path != NULL) {
+        weave_surface_enum_specs[index].source_path =
+            weave_surface_copy_slice(path, 0, (int64_t)strlen(path));
+    }
+    return index;
+}
+
+const char *weave_surface_enum_spec_name(int32_t index) {
+    if (index < 0 || index >= weave_surface_n_enum_specs) {
+        return NULL;
+    }
+    return weave_surface_enum_specs[index].spec_name;
+}
+
+const char *weave_surface_enum_spec_generic_name(int32_t index) {
+    if (index < 0 || index >= weave_surface_n_enum_specs) {
+        return NULL;
+    }
+    return weave_surface_enum_specs[index].generic_name;
+}
+
+const char *weave_surface_enum_spec_source_path(int32_t index) {
+    if (index < 0 || index >= weave_surface_n_enum_specs) {
+        return NULL;
+    }
+    return weave_surface_enum_specs[index].source_path;
+}
+
+int32_t weave_surface_enum_spec_emitted(int32_t index) {
+    if (index < 0 || index >= weave_surface_n_enum_specs) {
+        return 1;
+    }
+    return weave_surface_enum_specs[index].emitted;
+}
+
+void weave_surface_enum_spec_mark_emitted(int32_t index) {
+    if (index < 0 || index >= weave_surface_n_enum_specs) {
+        return;
+    }
+    weave_surface_enum_specs[index].emitted = 1;
+}
+
+int32_t weave_surface_enum_spec_set_args(
+    int32_t index,
+    const int32_t *args,
+    int32_t count) {
+    if (index < 0 || index >= weave_surface_n_enum_specs ||
+        args == NULL || count < 0 ||
+        count > WEAVEC_SURFACE_MAX_TYPE_PARAMS) {
+        return -1;
+    }
+    weave_surface_enum_specs[index].arg_count = count;
+    for (int32_t arg = 0; arg < count; ++arg) {
+        weave_surface_enum_specs[index].arg_types[arg] = args[arg];
+    }
+    return 0;
+}
+
+int32_t weave_surface_enum_spec_arg_count(int32_t index) {
+    if (index < 0 || index >= weave_surface_n_enum_specs) {
+        return 0;
+    }
+    return weave_surface_enum_specs[index].arg_count;
+}
+
+int32_t weave_surface_enum_spec_arg_type(int32_t index, int32_t arg_index) {
+    if (index < 0 || index >= weave_surface_n_enum_specs ||
+        arg_index < 0 ||
+        arg_index >= weave_surface_enum_specs[index].arg_count) {
+        return 0;
+    }
+    return weave_surface_enum_specs[index].arg_types[arg_index];
+}
+
+static void weave_surface_enum_write(int fd, const char *text) {
+    if (text == NULL) {
+        return;
+    }
+    write(fd, text, strlen(text));
+}
+
+void weave_surface_enum_write_constructor(
+    int32_t fd,
+    const char *prefix,
+    const char *variant_name,
+    int32_t tag,
+    const char *store_head) {
+    char line[256];
+    weave_surface_enum_write(fd, "    (fn ");
+    weave_surface_enum_write(fd, prefix);
+    weave_surface_enum_write(fd, "_new_");
+    weave_surface_enum_write(fd, variant_name);
+    if (store_head != NULL && store_head[0] != '\0') {
+        weave_surface_enum_write(fd, " (params (payload ");
+        if (strcmp(store_head, "store_i32") == 0) {
+            weave_surface_enum_write(fd, "i32");
+        } else if (strcmp(store_head, "store_i64") == 0) {
+            weave_surface_enum_write(fd, "i64");
+        } else if (strcmp(store_head, "store_f32") == 0) {
+            weave_surface_enum_write(fd, "f32");
+        } else if (strcmp(store_head, "store_f64") == 0) {
+            weave_surface_enum_write(fd, "f64");
+        } else if (strcmp(store_head, "store_i8") == 0) {
+            weave_surface_enum_write(fd, "bool");
+        } else {
+            weave_surface_enum_write(fd, "ptr");
+        }
+        weave_surface_enum_write(fd, ")) (returns ptr) (do\n");
+    } else {
+        weave_surface_enum_write(
+            fd, " (params) (returns ptr) (do\n");
+    }
+    weave_surface_enum_write(
+        fd, "      (let self ptr (call_ptr malloc (const_i64 16)))\n");
+    weave_surface_enum_write(
+        fd,
+        "      (if (condition (eq_ptr (local_get self) (const_null)))\n");
+    weave_surface_enum_write(
+        fd, "        (then (do (return (const_null))))\n");
+    weave_surface_enum_write(fd, "        (else (do)))\n");
+    snprintf(line, sizeof(line),
+        "      (store_i32 (local_get self) (const_i32 %d))\n", tag);
+    weave_surface_enum_write(fd, line);
+    if (store_head != NULL && store_head[0] != '\0') {
+        weave_surface_enum_write(fd, "      (");
+        weave_surface_enum_write(fd, store_head);
+        weave_surface_enum_write(
+            fd,
+            " (ptr_add (local_get self) (const_i64 8)) (param_get payload))\n");
+    } else {
+        weave_surface_enum_write(
+            fd,
+            "      (store_i64 (ptr_add (local_get self) (const_i64 8)) (const_i64 0))\n");
+    }
+    weave_surface_enum_write(fd, "      (return (local_get self)))))\n");
+}
+
+void weave_surface_enum_write_tag_fn(int32_t fd, const char *prefix) {
+    weave_surface_enum_write(fd, "    (fn ");
+    weave_surface_enum_write(fd, prefix);
+    weave_surface_enum_write(
+        fd,
+        "_tag (params (self ptr)) (returns i32) (do (return (load_i32 (param_get self)))))\n");
+}
+
+void weave_surface_enum_write_payload_fn(
+    int32_t fd,
+    const char *prefix,
+    const char *variant_name,
+    const char *load_head,
+    const char *wir_type) {
+    if (load_head == NULL || wir_type == NULL) {
+        return;
+    }
+    weave_surface_enum_write(fd, "    (fn ");
+    weave_surface_enum_write(fd, prefix);
+    weave_surface_enum_write(fd, "_payload_");
+    weave_surface_enum_write(fd, variant_name);
+    weave_surface_enum_write(fd, " (params (self ptr)) (returns ");
+    weave_surface_enum_write(fd, wir_type);
+    weave_surface_enum_write(fd, ") (do (return (");
+    weave_surface_enum_write(fd, load_head);
+    weave_surface_enum_write(
+        fd, " (ptr_add (param_get self) (const_i64 8)))))))\n");
 }

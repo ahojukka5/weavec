@@ -392,10 +392,18 @@
         (else (do)))
       (let ctor_node i64 (call_i64 nth_child
         (param_get tree) (param_get node) (const_i64 1)))
-      (let ctor_type i32 (call_i32 weave_surface_struct_type_or_declare
+      (let ctor_type i32 (call_i32 weave_surface_enum_lookup
         (param_get source)
         (call_i64 node_text_start (param_get tree) (local_get ctor_node))
         (call_i64 node_text_len (param_get tree) (local_get ctor_node))))
+      (if
+        (condition (eq_i32 (local_get ctor_type) (const_i32 0)))
+        (then (do
+          (set ctor_type (call_i32 weave_surface_struct_type_or_declare
+            (param_get source)
+            (call_i64 node_text_start (param_get tree) (local_get ctor_node))
+            (call_i64 node_text_len (param_get tree) (local_get ctor_node))))))
+        (else (do)))
       (if
         (condition (le_i32 (local_get ctor_type) (const_i32 0)))
         (then (do
@@ -414,8 +422,16 @@
             (const_string_ptr "type-app") (local_get ctor_node) (const_i32 0))
           (return (call_i32 surface_type_unknown))))
         (else (do)))
-      (let expected_arity i32 (call_i32 weave_surface_struct_type_param_count
-        (local_get ctor_type)))
+      (let expected_arity i32 (const_i32 0))
+      (if
+        (condition (ne_i32 (call_i32 weave_surface_enum_is_type
+          (local_get ctor_type)) (const_i32 0)))
+        (then (do
+          (set expected_arity (call_i32 weave_surface_enum_type_param_count
+            (call_i32 weave_surface_enum_from_type (local_get ctor_type))))))
+        (else (do
+          (set expected_arity (call_i32 weave_surface_struct_type_param_count
+            (local_get ctor_type))))))
       (if
         (condition (eq_i32 (local_get expected_arity) (const_i32 0)))
         (then (do
@@ -528,6 +544,14 @@
       (if
         (condition (ne_i32 (local_get param_type) (const_i32 0)))
         (then (do (return (local_get param_type))))
+        (else (do)))
+      (let enum_type i32 (call_i32 weave_surface_enum_lookup
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (param_get node))
+        (call_i64 node_text_len (param_get tree) (param_get node))))
+      (if
+        (condition (ne_i32 (local_get enum_type) (const_i32 0)))
+        (then (do (return (local_get enum_type))))
         (else (do)))
       (return (call_i32 weave_surface_struct_type_or_declare
         (param_get source)

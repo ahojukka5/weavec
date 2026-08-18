@@ -157,4 +157,61 @@
   (extern weave_surface_spec_arg_count (params (index i32)) (returns i32))
   (extern weave_surface_spec_arg_type
     (params (index i32) (arg_index i32)) (returns i32))
+  (extern weave_surface_enum_define
+    (params (source ptr) (start i64) (length i64)) (returns i32))
+  (extern weave_surface_enum_set_graph_type
+    (params (index i32) (graph_type i32)) (returns i32))
+  (extern weave_surface_enum_set_type_param_count
+    (params (index i32) (count i32)) (returns i32))
+  (extern weave_surface_enum_add_variant
+    (params
+      (index i32) (source ptr) (start i64) (length i64) (payload_type i32))
+    (returns i32))
+  (extern weave_surface_enum_index
+    (params (source ptr) (start i64) (length i64)) (returns i32))
+  (extern weave_surface_enum_lookup
+    (params (source ptr) (start i64) (length i64)) (returns i32))
+  (extern weave_surface_enum_is_type (params (graph_type i32)) (returns i32))
+  (extern weave_surface_enum_from_type (params (graph_type i32)) (returns i32))
+  (extern weave_surface_enum_name (params (index i32)) (returns ptr))
+  (extern weave_surface_enum_source_path (params (index i32)) (returns ptr))
+  (extern weave_surface_enum_type_param_count (params (index i32)) (returns i32))
+  (extern weave_surface_enum_variant_count (params (index i32)) (returns i32))
+  (extern weave_surface_enum_find_variant
+    (params (index i32) (source ptr) (start i64) (length i64))
+    (returns i32))
+  (extern weave_surface_enum_variant_tag
+    (params (index i32) (variant i32)) (returns i32))
+  (extern weave_surface_enum_variant_payload
+    (params (index i32) (variant i32)) (returns i32))
+  (extern weave_surface_enum_variant_name
+    (params (index i32) (variant i32)) (returns ptr))
+  (extern weave_surface_enum_spec_count (params) (returns i32))
+  (extern weave_surface_enum_spec_intern
+    (params
+      (source ptr) (start i64) (length i64) (key ptr) (spec_name ptr))
+    (returns i32))
+  (extern weave_surface_enum_spec_name (params (index i32)) (returns ptr))
+  (extern weave_surface_enum_spec_generic_name
+    (params (index i32)) (returns ptr))
+  (extern weave_surface_enum_spec_source_path
+    (params (index i32)) (returns ptr))
+  (extern weave_surface_enum_spec_emitted (params (index i32)) (returns i32))
+  (extern weave_surface_enum_spec_mark_emitted
+    (params (index i32)) (returns void))
+  (extern weave_surface_enum_spec_set_args
+    (params (index i32) (args ptr) (count i32)) (returns i32))
+  (extern weave_surface_enum_spec_arg_count (params (index i32)) (returns i32))
+  (extern weave_surface_enum_spec_arg_type
+    (params (index i32) (arg_index i32)) (returns i32))
+  (extern weave_surface_enum_write_constructor
+    (params
+      (fd i32) (prefix ptr) (variant_name ptr) (tag i32) (store_head ptr))
+    (returns void))
+  (extern weave_surface_enum_write_tag_fn
+    (params (fd i32) (prefix ptr)) (returns void))
+  (extern weave_surface_enum_write_payload_fn
+    (params
+      (fd i32) (prefix ptr) (variant_name ptr) (load_head ptr) (wir_type ptr))
+    (returns void))
 )

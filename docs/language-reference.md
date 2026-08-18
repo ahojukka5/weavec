@@ -97,6 +97,23 @@ identities, so file order does not change it. `entry` and `extern` cannot take
 type parameters. Constructing a generic struct still requires a later
 specialization of `new`.
 
+A tagged `enum` is a nominal type. Variants are numbered in source order. A
+nullary variant has only a tag; a payload variant stores one value in a fixed
+8-byte slot beside the tag:
+
+```weave
+(enum Result
+  (type-params T E)
+  (variant Ok T)
+  (variant Err E))
+
+(let ok (type-app Result i32 i32) (variant Result (type-args i32 i32) Ok 1))
+(return (variant-tag Result ok))
+```
+
+Pattern matching is a later step. Invalid constructors and payload types are
+rejected with exact diagnostics.
+
 Duplicate, empty, reserved, and unknown type-parameter names are rejected with
 exact diagnostics. Applying a non-generic type, or applying a generic type with
 the wrong number of arguments, is also rejected.
