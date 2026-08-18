@@ -97,6 +97,33 @@ Legacy forms such as `add_i32`, `lt_i64`, `and_bool`, and
 `cast_i64_to_i32` remain accepted for compatibility and compiler
 implementation code.
 
+## Explicit generics
+
+Type parameters and type applications use named heads so they cannot be
+confused with a value call or with reserved ownership spellings:
+
+```weave
+(fn identity
+  (type-params T)
+  (params (value T))
+  (returns T)
+  (do
+    (return value)))
+
+(struct Box
+  (type-params T)
+  (field value T))
+
+(let boxed (type-app Box i32) ...)
+```
+
+`(type-params ...)` is an optional clause immediately after the declaration
+name. `(type-app CONSTRUCTOR ARG...)` is the only compound type form. Other
+compound types such as `(owned T)` remain rejected.
+
+Generic declarations do not lower to WIR. Concrete specializations are a later
+step; a program may declare unused generic functions beside an ordinary `main`.
+
 ## Semantic structs
 
 Struct declarations introduce nominal surface types. Source construction and

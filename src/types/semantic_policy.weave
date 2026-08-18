@@ -70,6 +70,24 @@
         (condition (eq_i32 (local_get sem_wir_kind) (call_i32 type_kind_pointer)))
         (then (do (return (const_string_ptr "ptr"))))
         (else (do)))
+      (if
+        (condition (eq_i32 (local_get sem_wir_kind) (call_i32 type_kind_application)))
+        (then (do
+          (let sem_wir_ctor i32
+            (call_i32 type_graph_child
+              (local_get sem_wir_graph) (param_get type) (const_i64 0)))
+          (if
+            (condition (or_bool
+              (eq_i32
+                (call_i32 type_graph_kind
+                  (local_get sem_wir_graph) (local_get sem_wir_ctor))
+                (call_i32 type_kind_nominal))
+              (gt_i32
+                (call_i32 semantic_flat_type (local_get sem_wir_ctor))
+                (const_i32 0))))
+            (then (do (return (const_string_ptr "ptr"))))
+            (else (do (return (const_string_ptr "unknown")))))))
+        (else (do)))
       (return (const_string_ptr "unknown"))))
 
 (fn weave_semantic_types_compatible
@@ -108,6 +126,15 @@
           (gt_i32
             (call_i32 semantic_flat_type (param_get actual))
             (const_i32 0))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (eq_i32 (param_get expected) (local_get sem_compat_pointer))
+          (eq_i32
+            (call_i32 type_graph_kind
+              (local_get sem_compat_graph) (param_get actual))
+            (call_i32 type_kind_application))))
         (then (do (return (const_i32 1))))
         (else (do)))
       (return (const_i32 0))))

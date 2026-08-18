@@ -164,7 +164,9 @@
           (if
             (condition (or_bool
               (eq_i32 (call_i32 surface_node_is_ident (param_get tree) (local_get name_node)) (const_i32 0))
-              (eq_i32 (call_i32 surface_node_is_ident (param_get tree) (local_get type_node)) (const_i32 0))))
+              (eq_i32 (call_i32 surface_type_form_valid
+                (param_get tree) (param_get source) (local_get type_node))
+                (const_i32 0))))
             (then (do (return (const_i32 0))))
             (else (do)))
           (set param (call_i64 node_next_sibling (param_get tree) (local_get param)))))
@@ -179,8 +181,12 @@
         (then (do (return (const_i32 0))))
         (else (do)))
       (let name_node i64 (call_i64 nth_child (param_get tree) (param_get decl_node) (const_i64 1)))
-      (let params_node i64 (call_i64 nth_child (param_get tree) (param_get decl_node) (const_i64 2)))
-      (let returns_node i64 (call_i64 nth_child (param_get tree) (param_get decl_node) (const_i64 3)))
+      (let params_node i64 (call_i64 find_named_clause
+        (param_get tree) (param_get source) (param_get decl_node)
+        (const_string_ptr "params") (const_i64 6)))
+      (let returns_node i64 (call_i64 find_named_clause
+        (param_get tree) (param_get source) (param_get decl_node)
+        (const_string_ptr "returns") (const_i64 7)))
       (if
         (condition (eq_i32 (call_i32 surface_node_is_ident
           (param_get tree) (local_get name_node)) (const_i32 0)))
@@ -192,9 +198,7 @@
         (then (do (return (const_i32 0))))
         (else (do)))
       (if
-        (condition (eq_i32 (call_i32 surface_node_is_list_head
-          (param_get tree) (param_get source) (local_get returns_node)
-          (const_string_ptr "returns") (const_i64 7)) (const_i32 0)))
+        (condition (eq_i64 (local_get returns_node) (const_i64 -1)))
         (then (do (return (const_i32 0))))
         (else (do)))
       (if
@@ -202,7 +206,8 @@
         (then (do (return (const_i32 0))))
         (else (do)))
       (let type_node i64 (call_i64 nth_child (param_get tree) (local_get returns_node) (const_i64 1)))
-      (return (call_i32 surface_node_is_ident (param_get tree) (local_get type_node)))))
+      (return (call_i32 surface_type_form_valid
+        (param_get tree) (param_get source) (local_get type_node)))))
 
   (fn surface_register_parameters
     (params (tree ptr) (source ptr) (params_node i64))

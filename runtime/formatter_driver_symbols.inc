@@ -2,8 +2,8 @@ static void weave_fmt_add_signature(
     weave_fmt_context *context,
     int64_t declaration) {
     int64_t name = weave_fmt_nth_child(context, declaration, 1);
-    int64_t params = weave_fmt_nth_child(context, declaration, 2);
-    int64_t returns = weave_fmt_nth_child(context, declaration, 3);
+    int64_t params = weave_fmt_find_clause(context, declaration, "params");
+    int64_t returns = weave_fmt_find_clause(context, declaration, "returns");
     if (name == -1 || params == -1 || returns == -1 ||
         node_kind(context->tree, name) != node_ident()) {
         return;

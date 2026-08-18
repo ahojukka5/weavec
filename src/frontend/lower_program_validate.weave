@@ -237,17 +237,9 @@
       (call_void write_byte (const_i32 2) (const_i32 10))
       (return (const_i32 1))))
 
-  ; A type annotation must be a plain identifier.
-  ;
-  ; Nothing rejected a parenthesised type before this. `(let v (owned Vec3) ...)`
-  ; lowered to `(let v unknown ...)` and compiled clean whenever the binding went
-  ; unused; when it was used, the failure surfaced as "receiver is not a known
-  ; struct value" against the field access rather than against the annotation.
-  ;
-  ; This matters beyond the immediate confusion: `(owned T)` and `(borrow T)`
-  ; are the qualifiers the ownership work introduces, so silently accepting them
-  ; today would let source be written against a spelling that means nothing yet
-  ; and would change meaning under it later.
+  ; A type annotation must be a name or a type-app. Other compound spellings
+  ; such as `(owned T)` are rejected so they cannot be written before they mean
+  ; something.
   (fn validate_type_annotation
     (params (tree ptr) (source ptr) (type_node i64) (role ptr))
     (returns i32)
@@ -257,8 +249,9 @@
         (then (do (return (const_i32 0))))
         (else (do)))
       (if
-        (condition (ne_i32 (call_i32 surface_node_is_ident
-          (param_get tree) (param_get type_node)) (const_i32 0)))
+        (condition (ne_i32 (call_i32 surface_type_form_valid
+          (param_get tree) (param_get source) (param_get type_node))
+          (const_i32 0)))
         (then (do (return (const_i32 0))))
         (else (do)))
       (call_void surface_error_prefix (param_get role))

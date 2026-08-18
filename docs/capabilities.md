@@ -92,6 +92,11 @@ deterministic source discovery, public type interfaces, entry-module selection,
 and the later incremental-build boundary. Tools must continue to treat
 `modules` as experimental until that user-facing project contract stabilizes.
 
+The `explicit-generics` feature is experimental. It publishes the
+`(type-params ...)` and `(type-app ...)` forms and links to issue
+[#145](https://github.com/ahojukka5/weavec/issues/145). Generic declarations
+resolve as structured types; they are not specialized to WIR yet.
+
 The application-language roadmap and its five epics are documented in
 [`roadmap.md`](roadmap.md). Planned capabilities should link to their owning epic
 or focused subissue instead of using completed historical issue numbers.

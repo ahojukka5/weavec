@@ -1,0 +1,536 @@
+; SPDX-License-Identifier: Apache-2.0
+; generics.weave — explicit type parameters and type applications
+;
+; Generic declarations are surface and semantic facts. They do not lower to
+; WIR; concrete specializations belong to a later monomorphization issue.
+
+(program
+  (name "generics")
+  (version "0.1")
+
+  (fn surface_type_app_node
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (return (call_i32 surface_node_is_list_head
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "type-app") (const_i64 8)))))
+
+  (fn surface_type_form_valid
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 surface_node_is_ident
+          (param_get tree) (param_get node)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 surface_type_app_node
+          (param_get tree) (param_get source) (param_get node)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (lt_i64 (call_i64 count_children
+          (param_get tree) (param_get node)) (const_i64 3)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get tree)
+          (call_i64 nth_child
+            (param_get tree) (param_get node) (const_i64 1)))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let form_arg i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 2)))
+      (while
+        (condition (ne_i64 (local_get form_arg) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 surface_type_form_valid
+              (param_get tree) (param_get source) (local_get form_arg))
+              (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set form_arg (call_i64 node_next_sibling
+            (param_get tree) (local_get form_arg)))))
+      (return (const_i32 1))))
+
+  (fn surface_type_params_clause
+    (params (tree ptr) (source ptr) (decl i64))
+    (returns i64)
+    (do
+      (return (call_i64 find_named_clause
+        (param_get tree) (param_get source) (param_get decl)
+        (const_string_ptr "type-params") (const_i64 11)))))
+
+  (fn surface_decl_is_generic
+    (params (tree ptr) (source ptr) (decl i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (call_i64 surface_type_params_clause
+          (param_get tree) (param_get source) (param_get decl))
+          (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do (return (const_i32 1)))))))
+
+  (fn surface_type_error
+    (params
+      (tree ptr) (source ptr) (node i64) (role ptr) (code ptr) (detail ptr))
+    (returns i32)
+    (do
+      (call_void surface_error_prefix (param_get role))
+      (call_void write_cstr (const_i32 2) (param_get detail))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (call_void sdiag_record
+        (param_get tree) (param_get source) (param_get node) (param_get code)
+        (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+        (const_i32 -1) (const_i32 -1) (const_i32 -1)
+        (param_get role) (param_get node) (const_i32 0))
+      (return (const_i32 1))))
+
+  (fn surface_type_param_reserved
+    (params (tree ptr) (source ptr) (name_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 surface_type_code
+          (param_get tree) (param_get source) (param_get name_node))
+          (call_i32 surface_type_unknown)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn surface_validate_type_params
+    (params (tree ptr) (source ptr) (decl i64) (role ptr))
+    (returns i32)
+    (do
+      (let param_count i64 (call_i64 count_named_clauses
+        (param_get tree) (param_get source) (param_get decl)
+        (const_string_ptr "type-params") (const_i64 11)))
+      (if
+        (condition (gt_i64 (local_get param_count) (const_i64 1)))
+        (then (do
+          (return (call_i32 surface_type_error
+            (param_get tree) (param_get source) (param_get decl)
+            (param_get role)
+            (const_string_ptr "frontend.type.duplicate-param-clause")
+            (const_string_ptr "only one (type-params ...) clause is allowed")))))
+        (else (do)))
+      (let params_node i64 (call_i64 surface_type_params_clause
+        (param_get tree) (param_get source) (param_get decl)))
+      (if
+        (condition (eq_i64 (local_get params_node) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (lt_i64 (call_i64 count_children
+          (param_get tree) (local_get params_node)) (const_i64 2)))
+        (then (do
+          (return (call_i32 surface_type_error
+            (param_get tree) (param_get source) (local_get params_node)
+            (param_get role)
+            (const_string_ptr "frontend.type.empty-params")
+            (const_string_ptr "(type-params ...) must name at least one parameter")))))
+        (else (do)))
+      (let name_node i64 (call_i64 nth_child
+        (param_get tree) (local_get params_node) (const_i64 1)))
+      (while
+        (condition (ne_i64 (local_get name_node) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 surface_node_is_ident
+              (param_get tree) (local_get name_node)) (const_i32 0)))
+            (then (do
+              (return (call_i32 surface_type_error
+                (param_get tree) (param_get source) (local_get name_node)
+                (param_get role)
+                (const_string_ptr "frontend.type.malformed-params")
+                (const_string_ptr "type parameter must be a name")))))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 surface_type_param_reserved
+              (param_get tree) (param_get source) (local_get name_node))
+              (const_i32 0)))
+            (then (do
+              (call_void surface_error_prefix (param_get role))
+              (call_void write_cstr
+                (const_i32 2) (const_string_ptr "type parameter "))
+              (call_void emit_node_text
+                (const_i32 2) (param_get source) (param_get tree)
+                (local_get name_node))
+              (call_void write_cstr
+                (const_i32 2) (const_string_ptr " shadows a reserved type"))
+              (call_void write_byte (const_i32 2) (const_i32 10))
+              (call_void sdiag_record
+                (param_get tree) (param_get source) (local_get name_node)
+                (const_string_ptr "frontend.type.reserved-param")
+                (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+                (const_i32 -1) (const_i32 -1) (const_i32 -1)
+                (param_get role) (local_get name_node) (const_i32 0))
+              (return (const_i32 1))))
+            (else (do)))
+          (let prior_node i64 (call_i64 nth_child
+            (param_get tree) (local_get params_node) (const_i64 1)))
+          (while
+            (condition (ne_i64 (local_get prior_node) (local_get name_node)))
+            (do
+              (if
+                (condition (ne_i32 (call_i32 ident_equals
+                  (param_get tree) (param_get source) (local_get prior_node)
+                  (ptr_add
+                    (param_get source)
+                    (call_i64 node_text_start
+                      (param_get tree) (local_get name_node)))
+                  (call_i64 node_text_len
+                    (param_get tree) (local_get name_node)))
+                  (const_i32 0)))
+                (then (do
+                  (call_void surface_error_prefix (param_get role))
+                  (call_void write_cstr
+                    (const_i32 2) (const_string_ptr "duplicate type parameter "))
+                  (call_void emit_node_text
+                    (const_i32 2) (param_get source) (param_get tree)
+                    (local_get name_node))
+                  (call_void write_byte (const_i32 2) (const_i32 10))
+                  (call_void sdiag_record
+                    (param_get tree) (param_get source) (local_get name_node)
+                    (const_string_ptr "frontend.type.duplicate-param")
+                    (call_i32 surface_type_unknown)
+                    (call_i32 surface_type_unknown)
+                    (const_i32 -1) (const_i32 -1) (const_i32 -1)
+                    (param_get role) (local_get name_node) (const_i32 0))
+                  (return (const_i32 1))))
+                (else (do)))
+              (set prior_node (call_i64 node_next_sibling
+                (param_get tree) (local_get prior_node)))))
+          (set name_node (call_i64 node_next_sibling
+            (param_get tree) (local_get name_node)))))
+      (return (const_i32 0))))
+
+  (fn surface_generic_owner_new
+    (params (kind ptr) (tree ptr) (source ptr) (name_node i64))
+    (returns ptr)
+    (do
+      (let owner_buf ptr (call_ptr type_buffer_new))
+      (if
+        (condition (eq_ptr (local_get owner_buf) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let module_name ptr (call_ptr weave_surface_module_current_name))
+      (let owner_ok i32 (const_i32 1))
+      (if
+        (condition (ne_ptr (local_get module_name) (const_null)))
+        (then (do
+          (if
+            (condition (eq_i32 (call_i32 type_buffer_append
+              (local_get owner_buf) (local_get module_name)) (const_i32 0)))
+            (then (do (set owner_ok (const_i32 0))))
+            (else (do)))
+          (if
+            (condition (and_bool
+              (ne_i32 (local_get owner_ok) (const_i32 0))
+              (eq_i32 (call_i32 type_buffer_append
+                (local_get owner_buf) (const_string_ptr "::")) (const_i32 0))))
+            (then (do (set owner_ok (const_i32 0))))
+            (else (do)))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get owner_ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append
+            (local_get owner_buf) (param_get kind)) (const_i32 0))))
+        (then (do (set owner_ok (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get owner_ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append
+            (local_get owner_buf) (const_string_ptr ":")) (const_i32 0))))
+        (then (do (set owner_ok (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get owner_ok) (const_i32 0))
+          (eq_i32 (call_i32 type_buffer_append_n
+            (local_get owner_buf)
+            (ptr_add
+              (param_get source)
+              (call_i64 node_text_start
+                (param_get tree) (param_get name_node)))
+            (call_i64 node_text_len
+              (param_get tree) (param_get name_node)))
+            (const_i32 0))))
+        (then (do (set owner_ok (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get owner_ok) (const_i32 0)))
+        (then (do
+          (call_void type_buffer_dispose (local_get owner_buf))
+          (return (const_null))))
+        (else (do)))
+      (return (call_ptr type_buffer_take (local_get owner_buf)))))
+
+  (fn surface_bind_type_params
+    (params (tree ptr) (source ptr) (decl i64) (kind ptr) (role ptr))
+    (returns i32)
+    (do
+      (call_void weave_surface_type_params_reset)
+      (if
+        (condition (ne_i32 (call_i32 surface_validate_type_params
+          (param_get tree) (param_get source) (param_get decl)
+          (param_get role)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let params_node i64 (call_i64 surface_type_params_clause
+        (param_get tree) (param_get source) (param_get decl)))
+      (if
+        (condition (eq_i64 (local_get params_node) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let decl_name i64 (call_i64 nth_child
+        (param_get tree) (param_get decl) (const_i64 1)))
+      (let owner ptr (call_ptr surface_generic_owner_new
+        (param_get kind) (param_get tree) (param_get source)
+        (local_get decl_name)))
+      (if
+        (condition (eq_ptr (local_get owner) (const_null)))
+        (then (do
+          (return (call_i32 surface_type_error
+            (param_get tree) (param_get source) (param_get decl)
+            (param_get role)
+            (const_string_ptr "frontend.type.owner-failed")
+            (const_string_ptr "cannot build a generic-parameter owner")))))
+        (else (do)))
+      (let bind_name i64 (call_i64 nth_child
+        (param_get tree) (local_get params_node) (const_i64 1)))
+      (let bind_ordinal i32 (const_i32 0))
+      (while
+        (condition (ne_i64 (local_get bind_name) (const_i64 -1)))
+        (do
+          (let bind_buf ptr (call_ptr type_buffer_new))
+          (if
+            (condition (or_bool
+              (eq_ptr (local_get bind_buf) (const_null))
+              (eq_i32 (call_i32 type_buffer_append_n
+                (local_get bind_buf)
+                (ptr_add
+                  (param_get source)
+                  (call_i64 node_text_start
+                    (param_get tree) (local_get bind_name)))
+                (call_i64 node_text_len
+                  (param_get tree) (local_get bind_name)))
+                (const_i32 0))))
+            (then (do
+              (call_void type_buffer_dispose (local_get bind_buf))
+              (call_void free (local_get owner))
+              (return (call_i32 surface_type_error
+                (param_get tree) (param_get source) (local_get bind_name)
+                (param_get role)
+                (const_string_ptr "frontend.type.owner-failed")
+                (const_string_ptr "cannot copy a type-parameter name")))))
+            (else (do)))
+          (let bind_copied ptr (call_ptr type_buffer_take (local_get bind_buf)))
+          (if
+            (condition (eq_ptr (local_get bind_copied) (const_null)))
+            (then (do
+              (call_void free (local_get owner))
+              (return (call_i32 surface_type_error
+                (param_get tree) (param_get source) (local_get bind_name)
+                (param_get role)
+                (const_string_ptr "frontend.type.owner-failed")
+                (const_string_ptr "cannot copy a type-parameter name")))))
+            (else (do)))
+          (let bind_type i32 (call_i32 weave_semantic_type_generic_parameter
+            (local_get owner) (local_get bind_ordinal)
+            (local_get bind_copied)))
+          (call_void free (local_get bind_copied))
+          (if
+            (condition (eq_i32 (local_get bind_type) (const_i32 0)))
+            (then (do
+              (call_void free (local_get owner))
+              (return (call_i32 surface_type_error
+                (param_get tree) (param_get source) (local_get bind_name)
+                (param_get role)
+                (const_string_ptr "frontend.type.bind-failed")
+                (const_string_ptr "cannot intern a type parameter")))))
+            (else (do)))
+          (if
+            (condition (lt_i32 (call_i32 weave_surface_type_param_push
+              (param_get source)
+              (call_i64 node_text_start
+                (param_get tree) (local_get bind_name))
+              (call_i64 node_text_len
+                (param_get tree) (local_get bind_name))
+              (local_get bind_type) (local_get bind_ordinal))
+              (const_i32 0)))
+            (then (do
+              (call_void free (local_get owner))
+              (return (call_i32 surface_type_error
+                (param_get tree) (param_get source) (local_get bind_name)
+                (param_get role)
+                (const_string_ptr "frontend.type.bind-failed")
+                (const_string_ptr "too many type parameters")))))
+            (else (do)))
+          (set bind_ordinal (add_i32 (local_get bind_ordinal) (const_i32 1)))
+          (set bind_name (call_i64 node_next_sibling
+            (param_get tree) (local_get bind_name)))))
+      (call_void free (local_get owner))
+      (return (const_i32 0))))
+
+  (fn surface_resolve_type_app
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 surface_type_form_valid
+          (param_get tree) (param_get source) (param_get node)) (const_i32 0)))
+        (then (do (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (let ctor_node i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 1)))
+      (let ctor_type i32 (call_i32 weave_surface_struct_type_or_declare
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ctor_node))
+        (call_i64 node_text_len (param_get tree) (local_get ctor_node))))
+      (if
+        (condition (le_i32 (local_get ctor_type) (const_i32 0)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "type-app"))
+          (call_void write_cstr
+            (const_i32 2) (const_string_ptr "unknown type constructor "))
+          (call_void emit_node_text
+            (const_i32 2) (param_get source) (param_get tree)
+            (local_get ctor_node))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (call_void sdiag_record
+            (param_get tree) (param_get source) (local_get ctor_node)
+            (const_string_ptr "frontend.type.unknown-constructor")
+            (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+            (const_i32 -1) (const_i32 -1) (const_i32 -1)
+            (const_string_ptr "type-app") (local_get ctor_node) (const_i32 0))
+          (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (let expected_arity i32 (call_i32 weave_surface_struct_type_param_count
+        (local_get ctor_type)))
+      (if
+        (condition (eq_i32 (local_get expected_arity) (const_i32 0)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "type-app"))
+          (call_void emit_node_text
+            (const_i32 2) (param_get source) (param_get tree)
+            (local_get ctor_node))
+          (call_void write_cstr
+            (const_i32 2) (const_string_ptr " is not a generic type"))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (call_void sdiag_record
+            (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "frontend.type.not-generic")
+            (call_i32 surface_type_unknown) (local_get ctor_type)
+            (const_i32 -1) (const_i32 -1) (const_i32 -1)
+            (const_string_ptr "type-app") (local_get ctor_node) (const_i32 0))
+          (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (let actual_arity i64 (sub_i64
+        (call_i64 count_children (param_get tree) (param_get node))
+        (const_i64 2)))
+      (if
+        (condition (ne_i64 (local_get actual_arity)
+          (cast_i32_to_i64 (local_get expected_arity))))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "type-app"))
+          (call_void emit_node_text
+            (const_i32 2) (param_get source) (param_get tree)
+            (local_get ctor_node))
+          (call_void write_cstr
+            (const_i32 2) (const_string_ptr " expects "))
+          (call_void write_i64_dec (const_i32 2)
+            (cast_i32_to_i64 (local_get expected_arity)))
+          (call_void write_cstr
+            (const_i32 2) (const_string_ptr " type argument(s), got "))
+          (call_void write_i64_dec (const_i32 2) (local_get actual_arity))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (call_void sdiag_record
+            (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "frontend.type.application-arity")
+            (call_i32 surface_type_unknown) (local_get ctor_type)
+            (const_i32 -1)
+            (local_get expected_arity)
+            (cast_i64_to_i32 (local_get actual_arity))
+            (const_string_ptr "type-app") (local_get ctor_node) (const_i32 0))
+          (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (let args ptr (call_ptr malloc
+        (mul_i64 (local_get actual_arity) (const_i64 4))))
+      (if
+        (condition (eq_ptr (local_get args) (const_null)))
+        (then (do (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (let arg_node i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 2)))
+      (let gen_arg_index i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get gen_arg_index) (local_get actual_arity)))
+        (do
+          (let arg_type i32 (call_i32 surface_resolve_type_form
+            (param_get tree) (param_get source) (local_get arg_node)))
+          (if
+            (condition (eq_i32 (local_get arg_type)
+              (call_i32 surface_type_unknown)))
+            (then (do
+              (call_void free (local_get args))
+              (return (call_i32 surface_type_unknown))))
+            (else (do)))
+          (store_i32
+            (ptr_add (local_get args) (mul_i64 (local_get gen_arg_index) (const_i64 4)))
+            (local_get arg_type))
+          (set arg_node (call_i64 node_next_sibling
+            (param_get tree) (local_get arg_node)))
+          (set gen_arg_index (add_i64 (local_get gen_arg_index) (const_i64 1)))))
+      (let applied i32 (call_i32 weave_semantic_type_application
+        (local_get ctor_type) (local_get args) (local_get actual_arity)))
+      (call_void free (local_get args))
+      (return (local_get applied))))
+
+  (fn surface_resolve_type_form
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (param_get node) (const_i64 -1)))
+        (then (do (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_type_app_node
+          (param_get tree) (param_get source) (param_get node)) (const_i32 0)))
+        (then (do
+          (return (call_i32 surface_resolve_type_app
+            (param_get tree) (param_get source) (param_get node)))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get tree) (param_get node)) (const_i32 0)))
+        (then (do (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (let primitive i32 (call_i32 surface_type_code
+        (param_get tree) (param_get source) (param_get node)))
+      (if
+        (condition (ne_i32 (local_get primitive) (call_i32 surface_type_unknown)))
+        (then (do (return (local_get primitive))))
+        (else (do)))
+      (let param_type i32 (call_i32 weave_surface_type_param_lookup
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (param_get node))
+        (call_i64 node_text_len (param_get tree) (param_get node))))
+      (if
+        (condition (ne_i32 (local_get param_type) (const_i32 0)))
+        (then (do (return (local_get param_type))))
+        (else (do)))
+      (return (call_i32 weave_surface_struct_type_or_declare
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (param_get node))
+        (call_i64 node_text_len (param_get tree) (param_get node))))))
+)

@@ -147,11 +147,14 @@ types, and return type. Representative forms are:
 
 ```text
 (fn (params (left i32) (right i32)) (returns i32))
+(fn (type-params T) (params (value T)) (returns T))
 (entry (params) (returns i32))
 (extern (params (value i64)) (returns void))
+(struct (type-params T) (field value T))
 ```
 
 Constants, structs, and fields use analogous compiler-owned canonical forms.
+Generic parameter lists are part of the signature when present.
 Signature text is protocol data rather than source formatting.
 
 ## Interface hashing

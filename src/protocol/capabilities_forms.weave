@@ -131,6 +131,19 @@
       (call_void cap_write_role (param_get cf_writer) (const_string_ptr "type") (const_i64 1) (const_string_ptr "one") (const_string_ptr "type"))
       (call_void cap_form_finish (param_get cf_writer))
 
+      (call_void cap_form_begin (param_get cf_writer) (const_string_ptr "type-params")
+        (const_string_ptr "experimental") (const_i64 1) (const_i64 -1)
+        (const_string_ptr "explicit") (const_string_ptr "explicit-generics") (const_null))
+      (call_void cap_write_role (param_get cf_writer) (const_string_ptr "parameters") (const_i64 0) (const_string_ptr "one-or-more") (const_string_ptr "identifier"))
+      (call_void cap_form_finish (param_get cf_writer))
+
+      (call_void cap_form_begin (param_get cf_writer) (const_string_ptr "type-app")
+        (const_string_ptr "experimental") (const_i64 2) (const_i64 -1)
+        (const_string_ptr "explicit") (const_string_ptr "explicit-generics") (const_null))
+      (call_void cap_write_role (param_get cf_writer) (const_string_ptr "constructor") (const_i64 0) (const_string_ptr "one") (const_string_ptr "identifier"))
+      (call_void cap_write_role (param_get cf_writer) (const_string_ptr "arguments") (const_i64 1) (const_string_ptr "one-or-more") (const_string_ptr "type"))
+      (call_void cap_form_finish (param_get cf_writer))
+
       (call_void cap_form_begin (param_get cf_writer) (const_string_ptr "extern")
         (const_string_ptr "canonical") (const_i64 3) (const_i64 3)
         (const_string_ptr "explicit") (const_null) (const_null))

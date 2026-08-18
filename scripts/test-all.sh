@@ -195,6 +195,9 @@ bash "$ROOT/test/struct-aliasing/test.sh"
 log 'type annotations'
 bash "$ROOT/test/type-annotations/test.sh"
 
+log 'explicit generic type parameters'
+bash "$ROOT/test/generic-type-params/test.sh"
+
 log 'struct forms'
 bash "$ROOT/test/struct-forms/test.sh"
 

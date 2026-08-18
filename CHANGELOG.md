@@ -10,6 +10,11 @@ surface-language contract stabilises.
 
 ### Added
 
+- Explicit generic type parameters and type applications as surface and
+  semantic forms: `(type-params T E)` on functions and structs, and
+  `(type-app CONSTRUCTOR ARG...)` in type positions. Declarations resolve onto
+  the structured type graph and appear in module-interface signatures;
+  unspecialized generic functions are not emitted to WIR.
 - A design contract for layout-free struct declarations and typed field
   operations in the next coordinated WIR core-version revision, resolving
   layout in the backend rather than the frontend, with the consumer survey it

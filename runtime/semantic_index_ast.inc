@@ -64,6 +64,20 @@ static int weave_si_head_equals(
             source, node_first_child(source->tree, node), value);
 }
 
+static int64_t weave_si_find_clause(
+    const weave_si_source *source,
+    int64_t declaration,
+    const char *head) {
+    int64_t child = node_first_child(source->tree, declaration);
+    while (child >= 0) {
+        if (weave_si_head_equals(source, child, head)) {
+            return child;
+        }
+        child = node_next_sibling(source->tree, child);
+    }
+    return -1;
+}
+
 static size_t weave_si_form_end(
     const char *source,
     size_t length,
@@ -301,14 +315,30 @@ static char *weave_si_signature_callable(
     const char *kind,
     int64_t declaration,
     char **summary_out) {
-    int64_t params = weave_si_nth_child(source->tree, declaration, 2);
-    int64_t returns = weave_si_nth_child(source->tree, declaration, 3);
+    int64_t type_params = weave_si_find_clause(source, declaration, "type-params");
+    int64_t params = weave_si_find_clause(source, declaration, "params");
+    int64_t returns = weave_si_find_clause(source, declaration, "returns");
     weave_si_buffer canonical;
     weave_si_buffer summary;
     weave_si_buffer_init(&canonical);
     weave_si_buffer_init(&summary);
     weave_si_buffer_char(&canonical, '(');
     weave_si_buffer_cstr(&canonical, kind);
+    if (type_params >= 0) {
+        weave_si_buffer_cstr(&canonical, " (type-params");
+        int64_t parameter = node_next_sibling(
+            source->tree, node_first_child(source->tree, type_params));
+        while (parameter >= 0) {
+            char *name = weave_si_node_text(source, parameter);
+            if (name != NULL) {
+                weave_si_buffer_char(&canonical, ' ');
+                weave_si_buffer_cstr(&canonical, name);
+                free(name);
+            }
+            parameter = node_next_sibling(source->tree, parameter);
+        }
+        weave_si_buffer_char(&canonical, ')');
+    }
     weave_si_buffer_cstr(&canonical, " (params");
     weave_si_buffer_char(&summary, '(');
     if (params >= 0 && weave_si_head_equals(source, params, "params")) {
@@ -388,6 +418,23 @@ static char *weave_si_signature_struct(
     weave_si_buffer_init(&canonical);
     weave_si_buffer_init(&summary);
     weave_si_buffer_cstr(&canonical, "(struct");
+    int64_t struct_params = weave_si_find_clause(
+        source, declaration, "type-params");
+    if (struct_params >= 0) {
+        weave_si_buffer_cstr(&canonical, " (type-params");
+        int64_t parameter = node_next_sibling(
+            source->tree, node_first_child(source->tree, struct_params));
+        while (parameter >= 0) {
+            char *name = weave_si_node_text(source, parameter);
+            if (name != NULL) {
+                weave_si_buffer_char(&canonical, ' ');
+                weave_si_buffer_cstr(&canonical, name);
+                free(name);
+            }
+            parameter = node_next_sibling(source->tree, parameter);
+        }
+        weave_si_buffer_char(&canonical, ')');
+    }
     weave_si_buffer_char(&summary, '{');
     int64_t field = node_next_sibling(
         source->tree,

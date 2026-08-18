@@ -116,4 +116,22 @@
   (extern weave_surface_get_return_type (params) (returns i32))
   (extern weave_surface_set_error (params) (returns void))
   (extern weave_surface_has_error (params) (returns i32))
+  (extern weave_surface_module_current_name (params) (returns ptr))
+  (extern weave_surface_type_params_reset (params) (returns void))
+  (extern weave_surface_type_param_push
+    (params
+      (source ptr) (start i64) (length i64) (type i32) (ordinal i32))
+    (returns i32))
+  (extern weave_surface_type_param_lookup
+    (params (source ptr) (start i64) (length i64))
+    (returns i32))
+  (extern weave_surface_type_param_count_current (params) (returns i32))
+  (extern weave_surface_symbol_set_type_param_count
+    (params (count i32)) (returns i32))
+  (extern weave_surface_symbol_type_param_count
+    (params (source ptr) (start i64) (length i64)) (returns i32))
+  (extern weave_surface_struct_set_type_param_count_storage
+    (params (flat_type i32) (count i32)) (returns i32))
+  (extern weave_surface_struct_type_param_count_storage
+    (params (flat_type i32)) (returns i32))
 )

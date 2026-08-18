@@ -46,9 +46,15 @@ A `(struct NAME ...)` declaration additionally introduces `NAME` as a nominal
 surface type. Nominal struct types lower physically to WIR `ptr`, but two
 different struct names are not interchangeable.
 
-A type annotation is always a bare name. There are no type constructors, so a
-parenthesised type such as `(owned Vec3)` is rejected wherever it appears — in a
-binding, a parameter, or a return declaration:
+A type annotation is a bare name or an explicit type application:
+
+```weave
+(let count i32 0)
+(let box (type-app Box i32) ...)
+```
+
+Other parenthesised types such as `(owned Vec3)` are rejected wherever they
+appear — in a binding, a parameter, or a return declaration:
 
 ```text
 weavec: surface binding: type must be a name, not a compound expression
@@ -56,6 +62,35 @@ weavec: surface binding: type must be a name, not a compound expression
 
 The qualified spellings that ownership and borrowing will introduce are
 therefore refused rather than ignored until they mean something.
+
+A function or struct may declare explicit type parameters immediately after its
+name. Type applications name the constructor and its arguments:
+
+```weave
+(fn identity
+  (type-params T)
+  (params (value T))
+  (returns T)
+  (do
+    (return value)))
+
+(struct Box
+  (type-params T)
+  (field value T))
+
+(fn wrap-i32
+  (params (value i32))
+  (returns (type-app Box i32))
+  ...)
+```
+
+Generic declarations are surface and semantic facts. They do not appear in WIR;
+calling a generic function or constructing a generic struct requires a later
+specialization step. `entry` and `extern` cannot take type parameters.
+
+Duplicate, empty, reserved, and unknown type-parameter names are rejected with
+exact diagnostics. Applying a non-generic type, or applying a generic type with
+the wrong number of arguments, is also rejected.
 
 The language exposes explicit-width operations rather than implicit numeric
 promotion. Cast operations must be written when moving between admitted numeric

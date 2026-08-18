@@ -178,6 +178,8 @@
         (const_string_ptr "semantic-index") (const_string_ptr "experimental") (const_i64 37))
       (call_void cap_write_feature (param_get cr_writer)
         (const_string_ptr "quantum-surface") (const_string_ptr "experimental") (const_i64 0))
+      (call_void cap_write_feature (param_get cr_writer)
+        (const_string_ptr "explicit-generics") (const_string_ptr "experimental") (const_i64 145))
       (call_i32 weave_host_json_array_end (param_get cr_writer))
       (return_void)))
 )

@@ -16,6 +16,7 @@
 #define WEAVEC_SURFACE_MAX_LOCALS 4096
 #define WEAVEC_SURFACE_MAX_STRUCTS 512
 #define WEAVEC_SURFACE_MAX_STRUCT_FIELDS 128
+#define WEAVEC_SURFACE_MAX_TYPE_PARAMS 16
 #define WEAVEC_SURFACE_STRUCT_TYPE_BASE 1024
 #define WEAVEC_SURFACE_MAX_MODULES 512
 #define WEAVEC_SURFACE_MAX_EXPORTS 4096
@@ -37,6 +38,7 @@ typedef struct {
     int32_t return_type;
     int32_t parameter_count;
     int32_t parameter_types[WEAVEC_SURFACE_MAX_PARAMS];
+    int32_t type_param_count;
     int32_t module_index;
 } weave_surface_symbol;
 
@@ -57,8 +59,16 @@ typedef struct {
     int64_t name_length;
     int32_t defined;
     int32_t field_count;
+    int32_t type_param_count;
     weave_surface_struct_field fields[WEAVEC_SURFACE_MAX_STRUCT_FIELDS];
 } weave_surface_struct;
+
+typedef struct {
+    char *name;
+    int64_t name_length;
+    int32_t type;
+    int32_t ordinal;
+} weave_surface_type_param;
 
 typedef struct {
     char *name;
@@ -97,6 +107,9 @@ static int32_t weave_surface_current_module = -1;
 static int32_t weave_surface_resolution_status;
 static int32_t weave_surface_return_type;
 static int32_t weave_surface_error;
+static weave_surface_type_param
+    weave_surface_type_params[WEAVEC_SURFACE_MAX_TYPE_PARAMS];
+static int32_t weave_surface_type_param_count;
 
 static char *weave_surface_copy_slice(
     const char *source,
@@ -178,6 +191,7 @@ static int32_t weave_surface_struct_allocate(
     weave_surface_structs[index].name_length = length;
     weave_surface_structs[index].defined = 0;
     weave_surface_structs[index].field_count = 0;
+    weave_surface_structs[index].type_param_count = 0;
     return index;
 }
 
@@ -318,6 +332,10 @@ void weave_surface_symbols_reset(void) {
         weave_surface_imports[index].module_name = NULL;
         weave_surface_imports[index].symbol_name = NULL;
     }
+    for (int32_t index = 0; index < weave_surface_type_param_count; ++index) {
+        free(weave_surface_type_params[index].name);
+        weave_surface_type_params[index].name = NULL;
+    }
     weave_surface_symbol_count = 0;
     weave_surface_symbol_being_built = -1;
     weave_surface_local_count = 0;
@@ -330,6 +348,7 @@ void weave_surface_symbols_reset(void) {
     weave_surface_resolution_status = WEAVEC_SURFACE_RESOLUTION_OK;
     weave_surface_return_type = 0;
     weave_surface_error = 0;
+    weave_surface_type_param_count = 0;
 }
 
 int32_t weave_surface_module_use_legacy(void) {
@@ -571,6 +590,7 @@ int32_t weave_surface_symbol_begin(
     weave_surface_symbols[index].name_length = length;
     weave_surface_symbols[index].return_type = return_type;
     weave_surface_symbols[index].parameter_count = 0;
+    weave_surface_symbols[index].type_param_count = 0;
     weave_surface_symbols[index].module_index = weave_surface_current_module;
     weave_surface_symbol_being_built = index;
     return index;
@@ -789,6 +809,7 @@ int32_t weave_surface_struct_define(
     }
     weave_surface_structs[index].defined = 1;
     weave_surface_structs[index].field_count = 0;
+    weave_surface_structs[index].type_param_count = 0;
     return WEAVEC_SURFACE_STRUCT_TYPE_BASE + index;
 }
 
@@ -906,4 +927,96 @@ void weave_surface_set_error(void) {
 
 int32_t weave_surface_has_error(void) {
     return weave_surface_error;
+}
+
+void weave_surface_type_params_reset(void) {
+    for (int32_t index = 0; index < weave_surface_type_param_count; ++index) {
+        free(weave_surface_type_params[index].name);
+        weave_surface_type_params[index].name = NULL;
+    }
+    weave_surface_type_param_count = 0;
+}
+
+int32_t weave_surface_type_param_push(
+    const char *source,
+    int64_t start,
+    int64_t length,
+    int32_t type,
+    int32_t ordinal) {
+    if (type <= 0 ||
+        weave_surface_type_param_count >= WEAVEC_SURFACE_MAX_TYPE_PARAMS) {
+        return -1;
+    }
+    char *name = weave_surface_copy_slice(source, start, length);
+    if (name == NULL) {
+        return -1;
+    }
+    int32_t index = weave_surface_type_param_count++;
+    weave_surface_type_params[index].name = name;
+    weave_surface_type_params[index].name_length = length;
+    weave_surface_type_params[index].type = type;
+    weave_surface_type_params[index].ordinal = ordinal;
+    return index;
+}
+
+int32_t weave_surface_type_param_lookup(
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    for (int32_t index = 0; index < weave_surface_type_param_count; ++index) {
+        if (weave_surface_slice_equal(
+                weave_surface_type_params[index].name,
+                weave_surface_type_params[index].name_length,
+                source,
+                start,
+                length)) {
+            return weave_surface_type_params[index].type;
+        }
+    }
+    return 0;
+}
+
+int32_t weave_surface_type_param_count_current(void) {
+    return weave_surface_type_param_count;
+}
+
+int32_t weave_surface_symbol_set_type_param_count(int32_t count) {
+    if (weave_surface_symbol_being_built < 0 ||
+        count < 0 ||
+        count > WEAVEC_SURFACE_MAX_TYPE_PARAMS) {
+        return -1;
+    }
+    weave_surface_symbols[weave_surface_symbol_being_built].type_param_count =
+        count;
+    return 0;
+}
+
+int32_t weave_surface_symbol_type_param_count(
+    const char *source,
+    int64_t start,
+    int64_t length) {
+    int32_t index = weave_surface_symbol_resolve(source, start, length);
+    if (index < 0) {
+        return 0;
+    }
+    return weave_surface_symbols[index].type_param_count;
+}
+
+int32_t weave_surface_struct_set_type_param_count_storage(
+    int32_t flat_type,
+    int32_t count) {
+    int32_t index = weave_surface_struct_index_from_type(flat_type);
+    if (index < 0 || count < 0 || count > WEAVEC_SURFACE_MAX_TYPE_PARAMS) {
+        return -1;
+    }
+    weave_surface_structs[index].type_param_count = count;
+    return 0;
+}
+
+int32_t weave_surface_struct_type_param_count_storage(int32_t flat_type) {
+    int32_t index = weave_surface_struct_index_from_type(flat_type);
+    if (index < 0) {
+        return 0;
+    }
+    return weave_surface_structs[index].type_param_count;
 }
