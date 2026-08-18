@@ -366,7 +366,28 @@
           (set offset (add_i64 (local_get offset) (const_i64 1)))))
       (return (const_i32 0))))
 
-  ; Emit const_f32 / const_f64 from the exact WIR literal spelling.
+  ; LLVM treats 0x... as a hex float, so integer bit patterns must be
+  ; decimal. i64 min cannot be negated by write_i64_dec.
+  (fn llvm_write_int_bits
+    (params (ib_fd i32) (ib_bits i64))
+    (returns void)
+    (do
+      (if
+        (condition (and_bool
+          (lt_i64 (param_get ib_bits) (const_i64 0))
+          (eq_i64 (param_get ib_bits)
+            (sub_i64 (const_i64 0) (param_get ib_bits)))))
+        (then (do
+          (call_void write_cstr
+            (param_get ib_fd) (const_string_ptr "-9223372036854775808"))
+          (return_void)))
+        (else (do)))
+      (call_void write_i64_dec (param_get ib_fd) (param_get ib_bits))
+      (return_void)))
+
+  ; Emit const_f32 / const_f64. Decimal spellings become a bitcast of the
+  ; IEEE bits so LLVM never sees a non-representable decimal token, and
+  ; signed zero is not flipped by adding 0.0.
   (fn emit_const_float
     (params (ctx ptr) (node i64) (dst_type_id i32))
     (returns i64)
@@ -382,13 +403,27 @@
         (condition (ne_i32 (call_i32 llvm_node_is_decimal_literal
           (local_get source) (local_get tree) (local_get val_node)) (const_i32 0)))
         (then (do
-          ; LLVM has no standalone floating constant instruction. Adding
-          ; zero materializes a typed SSA value without changing the number.
-          (call_void write_cstr (local_get fd) (const_string_ptr " = fadd "))
-          (call_void emit_type (local_get fd) (param_get dst_type_id))
-          (call_void write_cstr (local_get fd) (const_string_ptr " 0.0, "))
-          (call_void emit_node_text
-            (local_get fd) (local_get source) (local_get tree) (local_get val_node))
+          (let cf_is_f32 i32 (const_i32 0))
+          (if
+            (condition (eq_i32 (param_get dst_type_id) (const_i32 5)))
+            (then (do (set cf_is_f32 (const_i32 1))))
+            (else (do)))
+          (let cf_bits i64 (call_i64 weave_rt_float_literal_bits
+            (ptr_add (local_get source)
+              (call_i64 node_text_start (local_get tree) (local_get val_node)))
+            (call_i64 node_text_len (local_get tree) (local_get val_node))
+            (local_get cf_is_f32)))
+          (call_void write_cstr (local_get fd) (const_string_ptr " = bitcast "))
+          (if
+            (condition (ne_i32 (local_get cf_is_f32) (const_i32 0)))
+            (then (do
+              (call_void write_cstr (local_get fd) (const_string_ptr "i32 "))
+              (call_void llvm_write_int_bits (local_get fd) (local_get cf_bits))
+              (call_void write_cstr (local_get fd) (const_string_ptr " to float"))))
+            (else (do
+              (call_void write_cstr (local_get fd) (const_string_ptr "i64 "))
+              (call_void llvm_write_int_bits (local_get fd) (local_get cf_bits))
+              (call_void write_cstr (local_get fd) (const_string_ptr " to double")))))
           (call_void write_byte (local_get fd) (const_i32 10))
           (return (local_get t))))
         (else (do)))

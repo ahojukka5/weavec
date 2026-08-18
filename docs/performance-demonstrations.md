@@ -114,9 +114,9 @@ The selected LLVM profile promotes eligible slots uniformly. The generated raw
 analysis report measures promotion pressure; final conclusions use optimized LLVM
 and machine-code evidence.
 
-`const_f32` and `const_f64` currently lower from integer literal tokens through
-`sitofp`; decimal floating literals are not yet part of the stable surface or
-current self-hosted WIR contract.
+Integer `const_f32` and `const_f64` tokens lower through `sitofp`. Decimal
+tokens emit a `bitcast` of the IEEE bits so LLVM accepts values such as
+`0.1` and keeps the sign of `-0.0`.
 
 See:
 

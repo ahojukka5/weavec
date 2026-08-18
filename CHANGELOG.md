@@ -13,6 +13,12 @@ surface-language contract stabilises.
 - Pull-request CI is a light GitHub-hosted contract smoke and commit-message
   lint. The full ladder and deep self-host run only after merge on `master`.
 
+### Fixed
+
+- Decimal `const_f32` and `const_f64` now emit a `bitcast` of the IEEE
+  bits instead of `fadd` with a spliced decimal token. LLVM no longer
+  rejects values such as `0.1`, and `-0.0` keeps its sign.
+
 ### Added
 
 - Primitive conversion and formatting in `stdlib/convert.weave`.

@@ -26,6 +26,11 @@
   ; portable.c owns host portability helpers; build_driver.c owns the public
   ; source-to-executable orchestration and private runtime discovery.
   (extern weave_rt_open_write_trunc (params (path ptr) (mode i32)) (returns i32))
+  ; Decimal float → IEEE bits. weavec1 cannot compile f64 compiler
+  ; sources, so the host performs this one conversion.
+  (extern weave_rt_float_literal_bits
+    (params (text ptr) (len i64) (is_f32 i32))
+    (returns i64))
   (extern weave_rt_print_version (params) (returns i32))
   (extern weave_rt_print_capabilities (params) (returns i32))
   (extern weave_rt_format_main (params (argc i32) (argv ptr)) (returns i32))

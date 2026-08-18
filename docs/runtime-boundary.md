@@ -26,9 +26,13 @@ compiler implementation language.
 
 `src/parser/lexer.weave` recognizes decimal numeric atoms and preserves their exact
 source spelling. The self-hosted frontend assigns decimal literals their surface
-floating type and lowers them to ordinary WIR core version 2 `const_f32` or
-`const_f64` forms. The self-hosted LLVM layer emits those constants without a C
-parser or semantic override.
+floating type and lowers them to ordinary WIR `const_f32` or `const_f64` forms.
+The self-hosted LLVM layer emits a `bitcast` of the IEEE bits so LLVM never
+sees a non-representable decimal token. The bit conversion itself is
+`weave_rt_float_literal_bits` in the compiler host: weavec1 cannot compile
+`f64` compiler sources, so Weave cannot yet own that step. The helper copies
+the source span and returns host IEEE bits; it does not choose a second
+rounding rule.
 
 `stdlib/io.weave` owns decimal rounding, digit generation, fixed-width fractional
 output, and trailing-zero removal. Its only host dependencies are the platform
