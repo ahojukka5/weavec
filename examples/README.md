@@ -1,11 +1,12 @@
 # Weave example programs
 
-Eleven small, complete programs written in ordinary Weave. Each one builds with a
+Twelve small, complete programs written in ordinary Weave. Each one builds with a
 single `weavec build` command and runs from a terminal — from a checkout of this
 repository or from an extracted release package, with no other setup.
 
 None of them require knowing anything about how the compiler works. They use
-command-line arguments, arithmetic, conditionals, loops, structs, and files.
+command-line arguments, arithmetic, conditionals, loops, structs, tagged
+choices, and files.
 
 ## The programs
 
@@ -34,6 +35,12 @@ command-line arguments, arithmetic, conditionals, loops, structs, and files.
 | [projectile-motion](projectile-motion/README.md) | Flight time, height, and range from speed and angle |
 | [newton-root](newton-root/README.md) | A square root by iteration, reporting how many passes it took |
 | [file-statistics](file-statistics/README.md) | The same summary as `statistics`, read from a text file |
+
+### Absence and recoverable errors
+
+| program | what it does |
+| --- | --- |
+| [parse-digits](parse-digits/README.md) | Digits from the command line: `1 2 3` → `digits = 1 2 3` / `sum = 6` |
 
 ## Building one
 

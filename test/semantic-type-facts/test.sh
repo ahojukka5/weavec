@@ -108,6 +108,54 @@ assert doc["matches"][0]["enum_symbol_id"] == symbols["Option"]["id"]
 print("semantic-type-facts: success document passed")
 PY
 
+cat > "$TMP/option.weave" <<'EOF'
+(program
+  (name "option")
+  (version "0.1")
+  (enum Option
+    (type-params T)
+    (variant None)
+    (variant Some T)))
+EOF
+cat > "$TMP/app.weave" <<'EOF'
+(program
+  (name "app")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let some (type-app Option i32) (variant Option (type-args i32) Some 4))
+      (return (match Option some
+        (case None 0)
+        (case Some x x))))))
+EOF
+"$WEAVEC" analyze "$TMP/option.weave" "$TMP/app.weave" \
+  --semantic-index-json "$TMP/cross-file.json"
+python3 - "$TMP/cross-file.json" <<'PY'
+import json
+import pathlib
+import sys
+
+doc = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert doc["analysis"]["status"] == "complete"
+assert doc["analysis"]["complete"] is True
+constructs = [
+    item for item in doc["references"] if item["role"] == "construct"
+]
+patterns = [
+    item for item in doc["references"] if item["role"] == "pattern"
+]
+assert constructs
+assert patterns
+assert all(item["status"] == "resolved" for item in constructs)
+assert all(item["status"] == "resolved" for item in patterns)
+assert doc["matches"]
+assert doc["matches"][0]["exhaustive"] is True
+assert doc["matches"][0]["enum_symbol_id"] is not None
+print("semantic-type-facts: cross-file document passed")
+PY
+
 cat > "$TMP/bad.weave" <<'EOF'
 (program
   (name "bad")

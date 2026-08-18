@@ -800,6 +800,37 @@ cmp "$EXTRACTED_FILESTATS_EXPECTED" "$EXTRACTED_FILESTATS_OUT" || {
   printf 'extracted file statistics stdout mismatch\n' >&2
   exit 1
 }
+
+EXTRACTED_DIGITS_BIN="$EXTRACTED_SMOKE/parse-digits"
+EXTRACTED_DIGITS_OUT="$EXTRACTED_SMOKE/parse-digits.stdout"
+EXTRACTED_DIGITS_ERR="$EXTRACTED_SMOKE/parse-digits.stderr"
+[[ -s "$EXTRACTED_PACKAGE/stdlib/option.weave" ]]
+[[ -s "$EXTRACTED_PACKAGE/stdlib/result.weave" ]]
+[[ -s "$EXTRACTED_PACKAGE/examples/parse-digits/main.weave" ]]
+"$EXTRACTED_PACKAGE/bin/weavec" build \
+  "$EXTRACTED_PACKAGE/stdlib/process.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/parse.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/option.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/result.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/io.weave" \
+  "$EXTRACTED_PACKAGE/examples/parse-digits/main.weave" \
+  -o "$EXTRACTED_DIGITS_BIN"
+set +e
+LC_ALL=C "$EXTRACTED_DIGITS_BIN" 1 2 3 \
+  >"$EXTRACTED_DIGITS_OUT" 2>"$EXTRACTED_DIGITS_ERR"
+extracted_digits_status="$?"
+set -e
+if [[ "$extracted_digits_status" -ne 0 || -s "$EXTRACTED_DIGITS_ERR" ]]; then
+  printf 'extracted parse-digits failed (status=%s)\n' \
+    "$extracted_digits_status" >&2
+  cat "$EXTRACTED_DIGITS_ERR" >&2
+  exit 1
+fi
+printf 'digits = 1 2 3\nsum = 6\n' > "$EXTRACTED_SMOKE/parse-digits.expected"
+cmp "$EXTRACTED_SMOKE/parse-digits.expected" "$EXTRACTED_DIGITS_OUT" || {
+  printf 'extracted parse-digits stdout mismatch\n' >&2
+  exit 1
+}
 rm -rf "$EXTRACTED_SMOKE"
 
 printf '%s\n' "$ARCHIVE"
