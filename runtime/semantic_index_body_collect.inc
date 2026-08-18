@@ -98,16 +98,20 @@ static int weave_si_collect_expression_references(
     if (head == NULL) return 0;
     int result = 1;
     if (strcmp(head, "let") == 0) {
-        result = weave_si_add_type_reference(
-            model,
-            source_index,
-            model->symbols[caller_symbol_index].module_index,
-            weave_si_nth_child(source->tree, node, 2)) &&
-            weave_si_collect_expression_references(
+        int inferred = weave_si_nth_child(source->tree, node, 3) < 0;
+        result = 1;
+        if (!inferred) {
+            result = weave_si_add_type_reference(
                 model,
                 source_index,
-                caller_symbol_index,
-                weave_si_nth_child(source->tree, node, 3));
+                model->symbols[caller_symbol_index].module_index,
+                weave_si_nth_child(source->tree, node, 2));
+        }
+        result = result && weave_si_collect_expression_references(
+            model,
+            source_index,
+            caller_symbol_index,
+            weave_si_nth_child(source->tree, node, inferred ? 2 : 3));
     } else if (strcmp(head, "set") == 0 ||
                strcmp(head, "local_set") == 0 ||
                strcmp(head, "global_set") == 0) {

@@ -236,7 +236,8 @@ does not conceal the compiler diagnostic. See
 A literal may omit its WIR constructor when an authoritative expected type is
 available locally. The current contexts are:
 
-- typed `let` initializers;
+- typed `let` initializers, including `(let NAME EXPR)` when EXPR has one
+  authoritative type;
 - assignment to a known local;
 - typed function arguments;
 - function return expressions;
@@ -247,6 +248,8 @@ Examples:
 
 ```weave
 (let count i64 0)
+(let n 1)
+(let gain 1.5)
 (let gain f64 1.5)
 (set count 1)
 (return 42)

@@ -1,0 +1,102 @@
+; SPDX-License-Identifier: Apache-2.0
+; let_infer.weave — omit a let type when the initializer is authoritative
+;
+; (let NAME EXPR) is accepted when EXPR has exactly one known type. Emitted
+; WIR still names that concrete type. (let NAME TYPE EXPR) is unchanged.
+
+(program
+  (name "let_infer")
+  (version "0.1")
+
+  (fn li_error
+    (params (tree ptr) (source ptr) (node i64) (detail ptr))
+    (returns i32)
+    (do
+      (call_void surface_error_prefix (const_string_ptr "let"))
+      (call_void write_cstr (const_i32 2) (param_get detail))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (call_void sdiag_record
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "frontend.let.untyped")
+        (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+        (const_i32 -1) (const_i32 -1) (const_i32 -1)
+        (const_string_ptr "let") (const_i64 -1) (const_i32 0))
+      (return (const_i32 1))))
+
+  (fn let_is_inferred
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get tree) (param_get node)) (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "let") (const_i64 3)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i64 (call_i64 count_children
+          (param_get tree) (param_get node)) (const_i64 3)))
+        (then (do (return (const_i32 1))))
+        (else (do (return (const_i32 0)))))))
+
+  (fn li_infer_type
+    (params (tree ptr) (source ptr) (expr i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 sop_node_is_decimal_literal
+          (param_get tree) (param_get source) (param_get expr))
+          (const_i32 0)))
+        (then (do (return (call_i32 surface_type_f64))))
+        (else (do)))
+      (let li_ty i32 (call_i32 sop_expr_type
+        (param_get tree) (param_get source) (param_get expr)
+        (call_i32 surface_type_unknown)))
+      (if
+        (condition (eq_i32 (local_get li_ty) (call_i32 surface_type_void)))
+        (then (do (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (return (local_get li_ty))))
+
+  (fn let_infer_emit
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (let li_name i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 1)))
+      (let li_expr i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 2)))
+      (let li_ty i32 (call_i32 li_infer_type
+        (param_get tree) (param_get source) (local_get li_expr)))
+      (if
+        (condition (eq_i32 (local_get li_ty) (call_i32 surface_type_unknown)))
+        (then (do
+          (let li_m1 ptr (const_string_ptr "let needs a type annotation"))
+          (call_void li_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get li_m1))
+          (return_void)))
+        (else (do)))
+      (call_void write_byte (param_get fd) (const_i32 40))
+      (call_void write_cstr (param_get fd) (const_string_ptr "let "))
+      (call_void emit_node
+        (param_get fd) (param_get source) (param_get tree) (local_get li_name))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void sst_emit_wir_type (param_get fd) (local_get li_ty))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree)
+        (local_get li_expr) (local_get li_ty))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (call_i32 weave_surface_local_add
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get li_name))
+        (call_i64 node_text_len (param_get tree) (local_get li_name))
+        (local_get li_ty))
+      (return_void)))
+)

@@ -884,12 +884,34 @@
     (do
       (let ml_name_27 i64 (call_i64 nth_child
         (param_get tree) (param_get let_node) (const_i64 1)))
+      (let ml_n_27 i64 (call_i64 count_children
+        (param_get tree) (param_get let_node)))
       (let ml_type i64 (call_i64 nth_child
         (param_get tree) (param_get let_node) (const_i64 2)))
       (let ml_match i64 (call_i64 nth_child
         (param_get tree) (param_get let_node) (const_i64 3)))
-      (let mi_type i32 (call_i32 sst_type_code
-        (param_get tree) (param_get source) (local_get ml_type)))
+      (let mi_type i32 (const_i32 0))
+      (if
+        (condition (eq_i64 (local_get ml_n_27) (const_i64 3)))
+        (then (do
+          (set ml_match (call_i64 nth_child
+            (param_get tree) (param_get let_node) (const_i64 2)))
+          (set mi_type (call_i32 match_expr_type
+            (param_get tree) (param_get source) (local_get ml_match)
+            (call_i32 surface_type_unknown)))
+          (if
+            (condition (eq_i32 (local_get mi_type)
+              (call_i32 surface_type_unknown)))
+            (then (do
+              (let mp_msg_27 ptr (const_string_ptr "let needs a type annotation"))
+              (call_void mat_error
+                (param_get tree) (param_get source) (param_get let_node)
+                (local_get mp_msg_27))
+              (return_void)))
+            (else (do)))))
+        (else (do
+          (set mi_type (call_i32 sst_type_code
+            (param_get tree) (param_get source) (local_get ml_type))))))
       (if
         (condition (ne_i32 (call_i32 mat_validate
           (param_get tree) (param_get source) (local_get ml_match))
@@ -914,9 +936,14 @@
       (call_void emit_node
         (param_get fd) (param_get source) (param_get tree) (local_get ml_name_27))
       (call_void write_byte (param_get fd) (const_i32 32))
-      (call_void sst_emit_declared_wir_type
-        (param_get fd) (param_get source) (param_get tree)
-        (local_get ml_type) (local_get mi_type))
+      (if
+        (condition (eq_i64 (local_get ml_n_27) (const_i64 3)))
+        (then (do
+          (call_void sst_emit_wir_type (param_get fd) (local_get mi_type))))
+        (else (do
+          (call_void sst_emit_declared_wir_type
+            (param_get fd) (param_get source) (param_get tree)
+            (local_get ml_type) (local_get mi_type)))))
       (call_void write_byte (param_get fd) (const_i32 32))
       (call_void weave_surface_match_write_dummy
         (param_get fd) (call_ptr weave_semantic_type_wir (local_get mi_type)))

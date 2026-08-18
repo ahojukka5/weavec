@@ -198,6 +198,9 @@ bash "$ROOT/test/optional-else/test.sh"
 log 'expression-valued if'
 bash "$ROOT/test/expr-if/test.sh"
 
+log 'authoritative let type inference'
+bash "$ROOT/test/let-infer/test.sh"
+
 log 'struct aliasing (known gap)'
 bash "$ROOT/test/struct-aliasing/test.sh"
 
