@@ -116,6 +116,13 @@
               (const_string_ptr "struct-type") (local_get sst_name_node))
             (return (const_i32 1))))
           (else (do)))
+        (if
+          (condition (ne_i32 (call_i32 surface_bind_type_params
+            (param_get sst_tree) (param_get sst_source) (param_get sst_node)
+            (const_string_ptr "struct") (const_string_ptr "struct declaration"))
+            (const_i32 0)))
+          (then (do (return (const_i32 1))))
+          (else (do)))
         (let sst_struct_type i32 (call_i32 weave_surface_struct_define
           (param_get sst_source)
           (call_i64 node_text_start (param_get sst_tree) (local_get sst_name_node))
@@ -142,35 +149,49 @@
               (const_string_ptr "struct-type") (local_get sst_name_node))
             (return (const_i32 1))))
           (else (do)))
+        (call_i32 weave_surface_struct_set_type_param_count
+          (local_get sst_struct_type)
+          (call_i32 weave_surface_type_param_count_current))
         (let sst_field i64 (call_i64 node_next_sibling
           (param_get sst_tree) (local_get sst_name_node)))
         (while
           (condition (ne_i64 (local_get sst_field) (const_i64 -1)))
           (do
-            (let sst_field_name i64 (call_i64 nth_child
-              (param_get sst_tree) (local_get sst_field) (const_i64 1)))
-            (let sst_field_type_node i64 (call_i64 nth_child
-              (param_get sst_tree) (local_get sst_field) (const_i64 2)))
-            (let sst_field_type i32 (call_i32 surface_type_code
-              (param_get sst_tree) (param_get sst_source)
-              (local_get sst_field_type_node)))
             (if
-              (condition (lt_i32 (call_i32 weave_surface_struct_add_field
-                (local_get sst_struct_type) (param_get sst_source)
-                (call_i64 node_text_start (param_get sst_tree) (local_get sst_field_name))
-                (call_i64 node_text_len (param_get sst_tree) (local_get sst_field_name))
-                (local_get sst_field_type)) (const_i32 0)))
+              (condition (eq_i32 (call_i32 head_equals
+                (param_get sst_tree) (param_get sst_source) (local_get sst_field)
+                (const_string_ptr "type-params") (const_i64 11)) (const_i32 0)))
               (then (do
-                (call_void sst_human_prefix (const_string_ptr "struct declaration"))
-                (call_void write_cstr
-                  (const_i32 2) (const_string_ptr "cannot register field "))
-                (call_void emit_node_text
-                  (const_i32 2) (param_get sst_source) (param_get sst_tree)
-                  (local_get sst_field_name))
-                (call_void write_byte (const_i32 2) (const_i32 10))
-                (return (const_i32 1))))
+                (let sst_field_name i64 (call_i64 nth_child
+                  (param_get sst_tree) (local_get sst_field) (const_i64 1)))
+                (let sst_field_type_node i64 (call_i64 nth_child
+                  (param_get sst_tree) (local_get sst_field) (const_i64 2)))
+                (let sst_field_type i32 (call_i32 sst_type_code
+                  (param_get sst_tree) (param_get sst_source)
+                  (local_get sst_field_type_node)))
+                (if
+                  (condition (lt_i32 (call_i32 weave_surface_struct_add_field
+                    (local_get sst_struct_type) (param_get sst_source)
+                    (call_i64 node_text_start
+                      (param_get sst_tree) (local_get sst_field_name))
+                    (call_i64 node_text_len
+                      (param_get sst_tree) (local_get sst_field_name))
+                    (local_get sst_field_type)) (const_i32 0)))
+                  (then (do
+                    (call_void weave_surface_type_params_reset)
+                    (call_void sst_human_prefix
+                      (const_string_ptr "struct declaration"))
+                    (call_void write_cstr
+                      (const_i32 2) (const_string_ptr "cannot register field "))
+                    (call_void emit_node_text
+                      (const_i32 2) (param_get sst_source) (param_get sst_tree)
+                      (local_get sst_field_name))
+                    (call_void write_byte (const_i32 2) (const_i32 10))
+                    (return (const_i32 1))))
+                  (else (do)))))
               (else (do)))
             (set sst_field (call_i64 node_next_sibling
               (param_get sst_tree) (local_get sst_field)))))
+        (call_void weave_surface_type_params_reset)
         (return (const_i32 0))))
 )

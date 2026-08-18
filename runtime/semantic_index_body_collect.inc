@@ -235,7 +235,7 @@ static int weave_si_collect_declaration_type_references(
         if (weave_si_is_kind(symbol, "fn") ||
             weave_si_is_kind(symbol, "entry") ||
             weave_si_is_kind(symbol, "extern")) {
-            int64_t params = weave_si_nth_child(source->tree, declaration, 2);
+            int64_t params = weave_si_find_clause(source, declaration, "params");
             if (params >= 0 && weave_si_head_equals(source, params, "params")) {
                 int64_t parameter = node_next_sibling(
                     source->tree, node_first_child(source->tree, params));
@@ -251,7 +251,7 @@ static int weave_si_collect_declaration_type_references(
                     parameter = node_next_sibling(source->tree, parameter);
                 }
             }
-            int64_t returns = weave_si_nth_child(source->tree, declaration, 3);
+            int64_t returns = weave_si_find_clause(source, declaration, "returns");
             if (returns >= 0 && weave_si_head_equals(source, returns, "returns") &&
                 !weave_si_add_type_reference(
                     model,

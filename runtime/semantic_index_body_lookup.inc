@@ -218,8 +218,8 @@ static char *weave_si_find_binding_type(
             return weave_si_copy(arrow + 4, strlen(arrow + 4));
         }
     }
-    int64_t params = weave_si_nth_child(
-        source->tree, caller->declaration_node, 2);
+    int64_t params = weave_si_find_clause(
+        source, caller->declaration_node, "params");
     if (params >= 0 && weave_si_head_equals(source, params, "params")) {
         int64_t parameter = node_next_sibling(
             source->tree, node_first_child(source->tree, params));

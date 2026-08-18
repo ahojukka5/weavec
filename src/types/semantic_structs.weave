@@ -62,6 +62,34 @@
           (param_get source) (param_get start) (param_get length)
           (param_get field_type)))))
 
+(fn weave_surface_struct_set_type_param_count
+    (params (struct_type i32) (count i32))
+    (returns i32)
+    (do
+      (let flat_type i32
+        (call_i32 semantic_flat_type (param_get struct_type)))
+      (if
+        (condition (le_i32 (local_get flat_type) (const_i32 0)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (return
+        (call_i32 weave_surface_struct_set_type_param_count_storage
+          (local_get flat_type) (param_get count)))))
+
+(fn weave_surface_struct_type_param_count
+    (params (struct_type i32))
+    (returns i32)
+    (do
+      (let flat_type i32
+        (call_i32 semantic_flat_type (param_get struct_type)))
+      (if
+        (condition (le_i32 (local_get flat_type) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return
+        (call_i32 weave_surface_struct_type_param_count_storage
+          (local_get flat_type)))))
+
 (fn weave_surface_struct_is_type
     (params (type i32))
     (returns i32)

@@ -68,6 +68,23 @@ static int weave_fmt_node_text_equals(
     return memcmp(context->source + (size_t)start, text, expected) == 0;
 }
 
+static int64_t weave_fmt_find_clause(
+    const weave_fmt_context *context,
+    int64_t list,
+    const char *head) {
+    int64_t child = node_first_child(context->tree, list);
+    while (child != -1) {
+        if (node_kind(context->tree, child) == node_list()) {
+            int64_t child_head = node_first_child(context->tree, child);
+            if (weave_fmt_node_text_equals(context, child_head, head)) {
+                return child;
+            }
+        }
+        child = node_next_sibling(context->tree, child);
+    }
+    return -1;
+}
+
 static int64_t weave_fmt_nth_child(
     const weave_fmt_context *context,
     int64_t list,

@@ -210,11 +210,17 @@
                   (const_string_ptr "fn") (const_i64 2)) (const_i32 0)))
                 (then (do
                   (if
-                    (condition (ne_i32 (call_i32 lower_fn
-                      (param_get fd) (param_get source) (param_get tree) (local_get child) (local_get effect_table)) (const_i32 0)))
+                    (condition (eq_i32 (call_i32 surface_decl_is_generic
+                      (param_get tree) (param_get source) (local_get child))
+                      (const_i32 0)))
                     (then (do
-                      (call_void effect_table_free (local_get effect_table))
-                      (return (const_i32 1))))
+                      (if
+                        (condition (ne_i32 (call_i32 lower_fn
+                          (param_get fd) (param_get source) (param_get tree) (local_get child) (local_get effect_table)) (const_i32 0)))
+                        (then (do
+                          (call_void effect_table_free (local_get effect_table))
+                          (return (const_i32 1))))
+                        (else (do)))))
                     (else (do)))))
                 (else (do)))
               (if

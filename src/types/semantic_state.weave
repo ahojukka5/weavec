@@ -232,6 +232,38 @@
         (call_i32 type_graph_primitive
           (local_get graph) (param_get primitive_name)))))
 
+(fn weave_semantic_type_generic_parameter
+    (params (owner ptr) (ordinal i32) (parameter_name ptr))
+    (returns i32)
+    (do
+      (let graph ptr (call_ptr semantic_graph))
+      (if
+        (condition (eq_ptr (local_get graph) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return
+        (call_i32 type_graph_generic_parameter
+          (local_get graph)
+          (param_get owner)
+          (param_get ordinal)
+          (param_get parameter_name)))))
+
+(fn weave_semantic_type_application
+    (params (constructor i32) (arguments ptr) (argument_count i64))
+    (returns i32)
+    (do
+      (let graph ptr (call_ptr semantic_graph))
+      (if
+        (condition (eq_ptr (local_get graph) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return
+        (call_i32 type_graph_application
+          (local_get graph)
+          (param_get constructor)
+          (param_get arguments)
+          (param_get argument_count)))))
+
 (fn weave_surface_symbols_reset
     (params)
     (returns void)

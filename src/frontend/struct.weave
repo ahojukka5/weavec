@@ -142,89 +142,117 @@
             (const_string_ptr "struct name must be an identifier"))
           (return (const_i32 1))))
         (else (do)))
+      (if
+        (condition (gt_i64 (call_i64 count_named_clauses
+          (param_get stl_tree) (param_get stl_source) (param_get stl_node)
+          (const_string_ptr "type-params") (const_i64 11)) (const_i64 1)))
+        (then (do
+          (call_void stl_error_malformed
+            (param_get stl_tree) (param_get stl_source) (param_get stl_node)
+            (const_string_ptr "only one (type-params ...) clause is allowed"))
+          (return (const_i32 1))))
+        (else (do)))
+      (let stl_generic i32 (call_i32 surface_decl_is_generic
+        (param_get stl_tree) (param_get stl_source) (param_get stl_node)))
       (let stl_field i64 (call_i64 node_next_sibling
         (param_get stl_tree) (local_get stl_name)))
       (while
         (condition (ne_i64 (local_get stl_field) (const_i64 -1)))
         (do
           (if
-            (condition (or_bool
-              (ne_i32
-                (call_i32 node_kind (param_get stl_tree) (local_get stl_field))
-                (call_i32 node_list))
-              (or_bool
-                (eq_i32
-                  (call_i32 head_equals
+            (condition (eq_i32 (call_i32 head_equals
+              (param_get stl_tree) (param_get stl_source) (local_get stl_field)
+              (const_string_ptr "type-params") (const_i64 11)) (const_i32 0)))
+            (then (do
+              (if
+                (condition (or_bool
+                  (ne_i32
+                    (call_i32 node_kind (param_get stl_tree) (local_get stl_field))
+                    (call_i32 node_list))
+                  (or_bool
+                    (eq_i32
+                      (call_i32 head_equals
+                        (param_get stl_tree) (param_get stl_source)
+                        (local_get stl_field)
+                        (const_string_ptr "field") (const_i64 5))
+                      (const_i32 0))
+                    (ne_i64
+                      (call_i64 count_children
+                        (param_get stl_tree) (local_get stl_field))
+                      (const_i64 3)))))
+                (then (do
+                  (call_void stl_error_malformed
                     (param_get stl_tree) (param_get stl_source)
                     (local_get stl_field)
-                    (const_string_ptr "field") (const_i64 5))
-                  (const_i32 0))
-                (ne_i64
-                  (call_i64 count_children
-                    (param_get stl_tree) (local_get stl_field))
-                  (const_i64 3)))))
-            (then (do
-              (call_void stl_error_malformed
-                (param_get stl_tree) (param_get stl_source)
-                (local_get stl_field)
-                (const_string_ptr "fields must use (field NAME TYPE)"))
-              (return (const_i32 1))))
-            (else (do)))
-          (let stl_field_name i64 (call_i64 nth_child
-            (param_get stl_tree) (local_get stl_field) (const_i64 1)))
-          (let stl_type_node i64 (call_i64 nth_child
-            (param_get stl_tree) (local_get stl_field) (const_i64 2)))
-          (if
-            (condition (or_bool
-              (eq_i32
-                (call_i32 surface_node_is_ident
-                  (param_get stl_tree) (local_get stl_field_name))
-                (const_i32 0))
-              (eq_i32
-                (call_i32 surface_node_is_ident
-                  (param_get stl_tree) (local_get stl_type_node))
-                (const_i32 0))))
-            (then (do
-              (call_void stl_error_malformed
-                (param_get stl_tree) (param_get stl_source)
-                (local_get stl_field)
-                (const_string_ptr "field name and type must be identifiers"))
-              (return (const_i32 1))))
-            (else (do)))
-          (let stl_type_code i32 (call_i32 surface_type_code
-            (param_get stl_tree) (param_get stl_source)
-            (local_get stl_type_node)))
-          (if
-            (condition (eq_i32
-              (call_i32 stl_type_supported (local_get stl_type_code))
-              (const_i32 0)))
-            (then (do
-              (call_void stl_error_unsupported_type
-                (param_get stl_tree) (param_get stl_source)
-                (local_get stl_type_node) (local_get stl_field_name))
-              (return (const_i32 1))))
-            (else (do)))
-          (let stl_prior i64 (call_i64 node_next_sibling
-            (param_get stl_tree) (local_get stl_name)))
-          (while
-            (condition (ne_i64 (local_get stl_prior) (local_get stl_field)))
-            (do
-              (let stl_prior_name i64 (call_i64 nth_child
-                (param_get stl_tree) (local_get stl_prior) (const_i64 1)))
-              (if
-                (condition (ne_i32
-                  (call_i32 stl_nodes_equal
-                    (param_get stl_source) (param_get stl_tree)
-                    (local_get stl_prior_name) (local_get stl_field_name))
-                  (const_i32 0)))
-                (then (do
-                  (call_void stl_error_duplicate_field
-                    (param_get stl_tree) (param_get stl_source)
-                    (local_get stl_field_name))
+                    (const_string_ptr "fields must use (field NAME TYPE)"))
                   (return (const_i32 1))))
                 (else (do)))
-              (set stl_prior (call_i64 node_next_sibling
-                (param_get stl_tree) (local_get stl_prior)))))
+              (let stl_field_name i64 (call_i64 nth_child
+                (param_get stl_tree) (local_get stl_field) (const_i64 1)))
+              (let stl_type_node i64 (call_i64 nth_child
+                (param_get stl_tree) (local_get stl_field) (const_i64 2)))
+              (if
+                (condition (or_bool
+                  (eq_i32
+                    (call_i32 surface_node_is_ident
+                      (param_get stl_tree) (local_get stl_field_name))
+                    (const_i32 0))
+                  (eq_i32
+                    (call_i32 surface_type_form_valid
+                      (param_get stl_tree) (param_get stl_source)
+                      (local_get stl_type_node))
+                    (const_i32 0))))
+                (then (do
+                  (call_void stl_error_malformed
+                    (param_get stl_tree) (param_get stl_source)
+                    (local_get stl_field)
+                    (const_string_ptr "field name must be an identifier and type must be a name or type-app"))
+                  (return (const_i32 1))))
+                (else (do)))
+              (let stl_type_code i32 (call_i32 surface_type_code
+                (param_get stl_tree) (param_get stl_source)
+                (local_get stl_type_node)))
+              (if
+                (condition (and_bool
+                  (eq_i32 (local_get stl_generic) (const_i32 0))
+                  (eq_i32
+                    (call_i32 stl_type_supported (local_get stl_type_code))
+                    (const_i32 0))))
+                (then (do
+                  (call_void stl_error_unsupported_type
+                    (param_get stl_tree) (param_get stl_source)
+                    (local_get stl_type_node) (local_get stl_field_name))
+                  (return (const_i32 1))))
+                (else (do)))
+              (let stl_prior i64 (call_i64 node_next_sibling
+                (param_get stl_tree) (local_get stl_name)))
+              (while
+                (condition (ne_i64 (local_get stl_prior) (local_get stl_field)))
+                (do
+                  (if
+                    (condition (ne_i32 (call_i32 head_equals
+                      (param_get stl_tree) (param_get stl_source)
+                      (local_get stl_prior)
+                      (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
+                    (then (do
+                      (let stl_prior_name i64 (call_i64 nth_child
+                        (param_get stl_tree) (local_get stl_prior) (const_i64 1)))
+                      (if
+                        (condition (ne_i32
+                          (call_i32 stl_nodes_equal
+                            (param_get stl_source) (param_get stl_tree)
+                            (local_get stl_prior_name) (local_get stl_field_name))
+                          (const_i32 0)))
+                        (then (do
+                          (call_void stl_error_duplicate_field
+                            (param_get stl_tree) (param_get stl_source)
+                            (local_get stl_field_name))
+                          (return (const_i32 1))))
+                        (else (do)))))
+                    (else (do)))
+                  (set stl_prior (call_i64 node_next_sibling
+                    (param_get stl_tree) (local_get stl_prior)))))))
+            (else (do)))
           (set stl_field (call_i64 node_next_sibling
             (param_get stl_tree) (local_get stl_field)))))
       (return (const_i32 0))))
@@ -504,6 +532,12 @@
     (do
       (if
         (condition (ne_i32 (call_i32 stl_validate
+          (param_get stl_tree) (param_get stl_source) (param_get stl_node))
+          (const_i32 0)))
+        (then (do (return_void)))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_decl_is_generic
           (param_get stl_tree) (param_get stl_source) (param_get stl_node))
           (const_i32 0)))
         (then (do (return_void)))

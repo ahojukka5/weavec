@@ -9,21 +9,9 @@
       (params (sst_tree ptr) (sst_source ptr) (sst_type_node i64))
       (returns i32)
       (do
-        (let sst_builtin i32 (call_i32 surface_type_code
-          (param_get sst_tree) (param_get sst_source) (param_get sst_type_node)))
-        (if
-          (condition (ne_i32 (local_get sst_builtin) (call_i32 surface_type_unknown)))
-          (then (do (return (local_get sst_builtin))))
-          (else (do)))
-        (if
-          (condition (eq_i32 (call_i32 surface_node_is_ident
-            (param_get sst_tree) (param_get sst_type_node)) (const_i32 0)))
-          (then (do (return (call_i32 surface_type_unknown))))
-          (else (do)))
-        (return (call_i32 weave_surface_struct_type_or_declare
-          (param_get sst_source)
-          (call_i64 node_text_start (param_get sst_tree) (param_get sst_type_node))
-          (call_i64 node_text_len (param_get sst_tree) (param_get sst_type_node))))))
+        (return (call_i32 surface_resolve_type_form
+          (param_get sst_tree) (param_get sst_source)
+          (param_get sst_type_node)))))
 
   (fn sst_type_name_ptr
       (params (sst_type i32))

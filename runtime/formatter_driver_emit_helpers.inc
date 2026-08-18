@@ -30,8 +30,8 @@ static int weave_fmt_prepare_function_scope(
     *saved_binding_count = context->binding_count;
     *saved_return_type = context->current_return_type;
     context->binding_count = 0;
-    int64_t params = weave_fmt_nth_child(context, list, 2);
-    int64_t returns = weave_fmt_nth_child(context, list, 3);
+    int64_t params = weave_fmt_find_clause(context, list, "params");
+    int64_t returns = weave_fmt_find_clause(context, list, "returns");
     context->current_return_type = weave_fmt_type_from_text(
         context, weave_fmt_nth_child(context, returns, 1));
     int64_t parameter = weave_fmt_nth_child(context, params, 1);

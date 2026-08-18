@@ -151,10 +151,12 @@ their established lowering.
 source-aware frontend retains the `lower-qubit-to-i64` compilation-trace event,
 while the self-hosted semantic policy owns the eventual WIR spelling.
 
-Future generic and variant features must resolve and specialize structured types
-before WIR emission. WIR v2 should continue to receive concrete functions,
-nominal layouts, calls, branches, and primitive operations unless a later issue
-proves that a coordinated WIR change is unavoidable.
+Issue [#145](https://github.com/ahojukka5/weavec/issues/145) now resolves
+explicit generic parameters and type applications onto those graph nodes.
+Generic declarations do not appear in WIR; concrete specializations remain a
+later issue. WIR continues to receive concrete functions, nominal layouts,
+calls, branches, and primitive operations unless a later issue proves that a
+coordinated WIR change is unavoidable.
 
 ## Qualification
 

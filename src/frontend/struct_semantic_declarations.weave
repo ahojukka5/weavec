@@ -76,12 +76,46 @@
             (const_i32 0)))
           (then (do (return (const_i32 0))))
           (else (do)))
+        (if
+          (condition (and_bool
+            (or_bool
+              (ne_i32 (call_i32 head_equals
+                (param_get sst_tree) (param_get sst_source)
+                (param_get sst_decl_node)
+                (const_string_ptr "entry") (const_i64 5)) (const_i32 0))
+              (ne_i32 (call_i32 head_equals
+                (param_get sst_tree) (param_get sst_source)
+                (param_get sst_decl_node)
+                (const_string_ptr "extern") (const_i64 6)) (const_i32 0)))
+            (ne_i32 (call_i32 surface_decl_is_generic
+              (param_get sst_tree) (param_get sst_source)
+              (param_get sst_decl_node)) (const_i32 0))))
+          (then (do
+            (call_void surface_error_prefix (const_string_ptr "declaration"))
+            (call_void write_cstr
+              (const_i32 2)
+              (const_string_ptr "entry and extern cannot have type parameters"))
+            (call_void write_byte (const_i32 2) (const_i32 10))
+            (return (const_i32 1))))
+          (else (do)))
+        (if
+          (condition (ne_i32 (call_i32 surface_bind_type_params
+            (param_get sst_tree) (param_get sst_source)
+            (param_get sst_decl_node)
+            (const_string_ptr "fn") (const_string_ptr "declaration"))
+            (const_i32 0)))
+          (then (do (return (const_i32 1))))
+          (else (do)))
         (let sst_name_node i64 (call_i64 nth_child
           (param_get sst_tree) (param_get sst_decl_node) (const_i64 1)))
-        (let sst_params_node i64 (call_i64 nth_child
-          (param_get sst_tree) (param_get sst_decl_node) (const_i64 2)))
-        (let sst_returns_node i64 (call_i64 nth_child
-          (param_get sst_tree) (param_get sst_decl_node) (const_i64 3)))
+        (let sst_params_node i64 (call_i64 find_named_clause
+          (param_get sst_tree) (param_get sst_source)
+          (param_get sst_decl_node)
+          (const_string_ptr "params") (const_i64 6)))
+        (let sst_returns_node i64 (call_i64 find_named_clause
+          (param_get sst_tree) (param_get sst_source)
+          (param_get sst_decl_node)
+          (const_string_ptr "returns") (const_i64 7)))
         (let sst_return_type_node i64 (call_i64 nth_child
           (param_get sst_tree) (local_get sst_returns_node) (const_i64 1)))
         (let sst_return_type i32 (call_i32 sst_type_code
@@ -120,8 +154,12 @@
             (call_void write_byte (const_i32 2) (const_i32 10))
             (return (const_i32 1))))
           (else (do)))
-        (return (call_i32 sst_register_parameters
-          (param_get sst_tree) (param_get sst_source) (local_get sst_params_node)))))
+        (call_i32 weave_surface_symbol_set_type_param_count
+          (call_i32 weave_surface_type_param_count_current))
+        (let sst_param_status i32 (call_i32 sst_register_parameters
+          (param_get sst_tree) (param_get sst_source) (local_get sst_params_node)))
+        (call_void weave_surface_type_params_reset)
+        (return (local_get sst_param_status))))
 
   (fn sst_register_const
       (params (sst_tree ptr) (sst_source ptr) (sst_decl_node i64))

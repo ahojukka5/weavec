@@ -19,6 +19,16 @@
         (condition (eq_i32 (local_get kind) (call_i32 node_list)))
         (then (do
           (if
+            (condition (or_bool
+              (ne_i32 (call_i32 head_equals
+                (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "type-params") (const_i64 11)) (const_i32 0))
+              (ne_i32 (call_i32 head_equals
+                (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "type-app") (const_i64 8)) (const_i32 0))))
+            (then (do (return_void)))
+            (else (do)))
+          (if
             (condition (ne_i32 (call_i32 head_equals
               (param_get tree) (param_get source) (param_get node)
               (const_string_ptr "params") (const_i64 6)) (const_i32 0)))
