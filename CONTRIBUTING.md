@@ -243,29 +243,32 @@ portable across supported hosts and covered by the complete platform matrix.
 
 ## Pull request readiness and CI completion
 
-A pull request is not ready for review until every required check for its exact
-current head has completed successfully.
+Pull-request CI is intentionally light so review is not blocked by the full
+compiler ladder. The required PR checks are commit-message lint and the
+file-based contract smoke (`scripts/pr-check.sh`). They run on GitHub-hosted
+runners and do not build the compiler.
 
-- Keep the pull request in draft while any required workflow or check is queued,
-  pending, in progress, cancelled, timed out, or failing.
-- A red or cancelled check means the contribution is unfinished. Inspect the
-  logs, fix the underlying code, tests, workflow, or runner interaction, and run
-  fresh validation rather than asking a reviewer to accept the failure.
-- Continue the task until the complete required matrix is green. Do not stop with
-  a status report while a fixable required check remains unresolved.
-- After rebasing, squashing, force-pushing, or otherwise rewriting history, treat
-  all earlier results as stale and validate the new exact head again.
-- Mark the pull request ready for review only after CI is green, the final commit
-  history is clean, and the pull-request validation summary matches that head.
-- If required external infrastructure is unavailable, leave the pull request in
-  draft and describe the blocker precisely. Unavailable CI does not make the
-  contribution ready.
+A pull request is ready for review when those PR checks for the exact current
+head have completed successfully.
 
-CI runs the normal ladder with Linux glibc SDKs and Linux musl SDKs. There is
-no macOS job. macOS is a supported build host, so a change that could behave
-differently there should be run locally and the result stated in the pull
-request. The deep-selfhost CI job builds the seed first, then verifies
-stage-one and stage-two self-hosted compilers.
+- Keep the pull request in draft while a required PR check is queued, pending,
+  in progress, cancelled, timed out, or failing.
+- A red or cancelled PR check is unfinished work. Inspect its logs, fix the
+  underlying code, tests, workflow, or runner interaction, and trigger fresh
+  validation for the exact corrected head.
+- After rebasing, squashing, force-pushing, or otherwise rewriting history,
+  treat earlier PR-check results as stale and wait for the new head.
+- Mark the pull request ready for review only after the light PR checks are
+  green and the branch history and validation summary are final.
+- If GitHub-hosted PR infrastructure is unavailable, leave the pull request in
+  draft and describe the blocker precisely.
+
+Do not wait for the full ladder or deep self-host on a pull request. Those jobs
+run only after merge, on `master`, with Linux glibc SDKs and Linux musl SDKs.
+A red post-merge check is a follow-up fix, not a reason to keep the original
+PR open. There is no macOS job. macOS is a supported build host, so a change
+that could behave differently there should be run locally and the result stated
+in the pull request.
 
 ## Documentation-only changes
 

@@ -8,11 +8,10 @@ on:
 permissions:
   contents: read
 
-# A newer push or pull-request update makes an in-flight run obsolete. Cancel
-# it instead of letting it run to completion: these jobs land on a shared
-# self-hosted fleet, so a superseded run is holding a slot that current work
-# is queueing for. Grouped per workflow, so unrelated workflows in this
-# repository never cancel each other.
+# Commit-message lint is a short Python scan. It used to share the
+# self-hosted fleet with the full ladder, so a 12-second job sat in queue
+# for minutes. GitHub-hosted runners start immediately and need no compiler
+# toolchain.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -20,7 +19,7 @@ concurrency:
 jobs:
   validate:
     name: "lint: validate commit messages"
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout trusted policy
         uses: actions/checkout@v4
