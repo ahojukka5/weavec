@@ -124,6 +124,7 @@ static int weave_si_structural_body_head(const char *head) {
         "type-params", "type-app", "type-args",
         "variant", "variant-tag", "variant-payload",
         "match", "case", "try",
+        "for", "range", "break", "continue",
     };
     for (size_t index = 0; index < sizeof(heads) / sizeof(heads[0]); ++index) {
         if (strcmp(head, heads[index]) == 0) return 1;
@@ -292,6 +293,9 @@ static char *weave_si_find_local_type_in_node(
                weave_si_nth_child(source->tree, node, 3) >= 0) {
         name_node = weave_si_nth_child(source->tree, node, 2);
         fallback = "unknown";
+    } else if (weave_si_head_equals(source, node, "range")) {
+        name_node = weave_si_nth_child(source->tree, node, 1);
+        fallback = "i32";
     } else if (weave_si_head_equals(source, node, "qmeasure")) {
         name_node = weave_si_nth_child(source->tree, node, 2);
         fallback = "bool";

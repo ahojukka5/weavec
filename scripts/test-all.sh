@@ -201,6 +201,9 @@ bash "$ROOT/test/expr-if/test.sh"
 log 'authoritative let type inference'
 bash "$ROOT/test/let-infer/test.sh"
 
+log 'for, break, and continue'
+bash "$ROOT/test/loop-control/test.sh"
+
 log 'struct aliasing (known gap)'
 bash "$ROOT/test/struct-aliasing/test.sh"
 

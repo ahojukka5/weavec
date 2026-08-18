@@ -308,7 +308,21 @@ ending in a fully returning `if` is accepted:
       (else (do (return 9))))))
 ```
 
-A loop never satisfies the rule on its own, because a `while` may run zero times.
+A loop never satisfies the rule on its own, because a `while` or `for` may run
+zero times.
+
+A counted `for` is:
+
+```weave
+(for (range i 0 n)
+  (do
+    (if (condition (op equal i 2))
+      (then (do (break))))
+    (continue)))
+```
+
+The range is half-open and `i32`. `break` and `continue` apply to the nearest
+`for` or `while`. The frontend lowers them to ordinary WIR `while` plus flags.
 
 In a function returning `void`, a bare `(return)` is the void return and means
 exactly `(return_void)`. In a function returning a value it is an error, because

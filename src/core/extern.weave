@@ -132,6 +132,33 @@
   (extern weave_surface_if_write_then_set (params (fd i32)) (returns void))
   (extern weave_surface_if_write_else_set (params (fd i32)) (returns void))
   (extern weave_surface_if_write_end_set (params (fd i32)) (returns void))
+  (extern weave_surface_loop_push (params) (returns i32))
+  (extern weave_surface_loop_pop (params) (returns void))
+  (extern weave_surface_loop_id (params) (returns i32))
+  (extern weave_surface_loop_write_let_flag
+    (params (fd i32) (id i32) (suffix ptr) (value i32)) (returns void))
+  (extern weave_surface_loop_write_set_flag
+    (params (fd i32) (id i32) (suffix ptr) (value i32)) (returns void))
+  (extern weave_surface_loop_write_run_live
+    (params (fd i32) (id i32)) (returns void))
+  (extern weave_surface_loop_write_gate_open
+    (params (fd i32) (id i32)) (returns void))
+  (extern weave_surface_loop_write_gate_close (params (fd i32)) (returns void))
+  (extern weave_surface_loop_write_lt_name
+    (params (fd i32) (source ptr) (start i64) (length i64) (id i32))
+    (returns void))
+  (extern weave_surface_loop_write_inc_name
+    (params (fd i32) (source ptr) (start i64) (length i64)) (returns void))
+  (extern weave_surface_loop_write_let_end_head
+    (params (fd i32) (id i32)) (returns void))
+  (extern weave_surface_loop_write_while_and_open (params (fd i32)) (returns void))
+  (extern weave_surface_loop_write_while_open (params (fd i32)) (returns void))
+  (extern weave_surface_loop_write_while_do (params (fd i32)) (returns void))
+  (extern weave_surface_loop_write_close2 (params (fd i32)) (returns void))
+  (extern weave_surface_loop_write_and_close_do (params (fd i32)) (returns void))
+  (extern weave_surface_loop_write_inc_if_open (params (fd i32)) (returns void))
+  (extern weave_surface_loop_write_inc_if_then (params (fd i32)) (returns void))
+  (extern weave_surface_loop_write_inc_if_close (params (fd i32)) (returns void))
   (extern weave_surface_match_write_then_do (params (fd i32)) (returns void))
   (extern weave_surface_match_write_else_do (params (fd i32)) (returns void))
   (extern weave_surface_match_write_close2 (params (fd i32)) (returns void))

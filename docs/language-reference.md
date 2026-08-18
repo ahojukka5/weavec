@@ -371,6 +371,18 @@ A `while` loop is:
     statements...))
 ```
 
+A counted `for` binds a name over a half-open integer range `[START, END)`:
+
+```weave
+(for (range i 0 n)
+  (do
+    statements...))
+```
+
+`i` is `i32`. `START` and `END` must be `i32`. `(break)` leaves the nearest
+loop. `(continue)` skips the rest of the current iteration; a `for` still
+advances the index. Both are rejected outside a loop.
+
 `return` takes one expression for a typed function. Void functions use:
 
 ```weave

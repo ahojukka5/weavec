@@ -384,6 +384,48 @@
               (return_void)))
             (else (do)))
           (if
+            (condition (ne_i32 (call_i32 loop_is_for
+              (param_get tree) (param_get source) (param_get node))
+              (const_i32 0)))
+            (then (do
+              (call_void loop_emit_for
+                (param_get fd) (param_get source) (param_get tree)
+                (param_get node))
+              (return_void)))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 loop_is_while
+              (param_get tree) (param_get source) (param_get node))
+              (const_i32 0)))
+            (then (do
+              (if
+                (condition (ne_i32 (call_i32 loop_emit_while
+                  (param_get fd) (param_get source) (param_get tree)
+                  (param_get node)) (const_i32 0)))
+                (then (do (return_void)))
+                (else (do)))))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 loop_is_break
+              (param_get tree) (param_get source) (param_get node))
+              (const_i32 0)))
+            (then (do
+              (call_void loop_emit_break
+                (param_get fd) (param_get source) (param_get tree)
+                (param_get node))
+              (return_void)))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 loop_is_continue
+              (param_get tree) (param_get source) (param_get node))
+              (const_i32 0)))
+            (then (do
+              (call_void loop_emit_continue
+                (param_get fd) (param_get source) (param_get tree)
+                (param_get node))
+              (return_void)))
+            (else (do)))
+          (if
             (condition (ne_i32 (call_i32 surface_is_wir_call_node
               (param_get tree) (param_get source) (param_get node))
               (const_i32 0)))

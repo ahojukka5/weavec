@@ -15,6 +15,9 @@ surface-language contract stabilises.
 
 ### Added
 
+- Counted `(for (range NAME START END) (do ...))` over a half-open `i32`
+  range, plus `(break)` and `(continue)` in `for` and `while`. They
+  lower to ordinary WIR `while`.
 - `(let NAME EXPR)` when the initializer has one authoritative type.
   A bare integer is `i32` and a decimal is `f64`. Unknown or void
   initializers still require `(let NAME TYPE EXPR)`.

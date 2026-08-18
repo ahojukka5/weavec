@@ -1,0 +1,412 @@
+; SPDX-License-Identifier: Apache-2.0
+; loop.weave — for, break, and continue
+;
+; (for (range NAME START END) (do ...)) counts NAME from START inclusive
+; to END exclusive. break and continue are statements only inside a loop.
+; They lower to flags around ordinary WIR while.
+
+(program
+  (name "loop")
+  (version "0.1")
+
+  (fn lp_error
+    (params (tree ptr) (source ptr) (node i64) (detail ptr))
+    (returns i32)
+    (do
+      (call_void surface_error_prefix (const_string_ptr "loop"))
+      (call_void write_cstr (const_i32 2) (param_get detail))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (call_void sdiag_record
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "frontend.loop.invalid")
+        (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+        (const_i32 -1) (const_i32 -1) (const_i32 -1)
+        (const_string_ptr "loop") (const_i64 -1) (const_i32 0))
+      (return (const_i32 1))))
+
+  (fn lp_is_head
+    (params (tree ptr) (source ptr) (node i64) (lp_hname ptr) (lp_hlen i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get tree) (param_get node)) (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 head_equals
+        (param_get tree) (param_get source) (param_get node)
+        (param_get lp_hname) (param_get lp_hlen)))))
+
+  (fn loop_is_for
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (return (call_i32 lp_is_head
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "for") (const_i64 3)))))
+
+  (fn loop_is_while
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (return (call_i32 lp_is_head
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "while") (const_i64 5)))))
+
+  (fn loop_is_break
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (return (call_i32 lp_is_head
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "break") (const_i64 5)))))
+
+  (fn loop_is_continue
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (return (call_i32 lp_is_head
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "continue") (const_i64 8)))))
+
+  (fn lp_has_ctl
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get tree) (param_get node)) (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 loop_is_break
+            (param_get tree) (param_get source) (param_get node))
+            (const_i32 0))
+          (ne_i32 (call_i32 loop_is_continue
+            (param_get tree) (param_get source) (param_get node))
+            (const_i32 0))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 loop_is_for
+            (param_get tree) (param_get source) (param_get node))
+            (const_i32 0))
+          (ne_i32 (call_i32 loop_is_while
+            (param_get tree) (param_get source) (param_get node))
+            (const_i32 0))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let lp_ch i64 (call_i64 node_first_child
+        (param_get tree) (param_get node)))
+      (while
+        (condition (ne_i64 (local_get lp_ch) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 lp_has_ctl
+              (param_get tree) (param_get source) (local_get lp_ch))
+              (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (set lp_ch (call_i64 node_next_sibling
+            (param_get tree) (local_get lp_ch)))))
+      (return (const_i32 0))))
+
+  (fn loop_emit_break
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (let lp_id i32 (call_i32 weave_surface_loop_id))
+      (if
+        (condition (lt_i32 (local_get lp_id) (const_i32 0)))
+        (then (do
+          (let lp_m1 ptr (const_string_ptr "break outside a loop"))
+          (call_void lp_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get lp_m1))
+          (return_void)))
+        (else (do)))
+      (call_void weave_surface_loop_write_set_flag
+        (param_get fd) (local_get lp_id)
+        (const_string_ptr "run") (const_i32 0))
+      (return_void)))
+
+  (fn loop_emit_continue
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (let lp_id2 i32 (call_i32 weave_surface_loop_id))
+      (if
+        (condition (lt_i32 (local_get lp_id2) (const_i32 0)))
+        (then (do
+          (let lp_m2 ptr (const_string_ptr "continue outside a loop"))
+          (call_void lp_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get lp_m2))
+          (return_void)))
+        (else (do)))
+      (call_void weave_surface_loop_write_set_flag
+        (param_get fd) (local_get lp_id2)
+        (const_string_ptr "skip") (const_i32 1))
+      (return_void)))
+
+  (fn lp_emit_gated_do
+    (params (fd i32) (source ptr) (tree ptr) (do_node i64) (id i32))
+    (returns void)
+    (do
+      (call_void write_cstr (param_get fd) (const_string_ptr "(do "))
+      (call_void weave_surface_loop_write_set_flag
+        (param_get fd) (param_get id)
+        (const_string_ptr "skip") (const_i32 0))
+      (let lp_stmt i64 (call_i64 node_first_child
+        (param_get tree) (param_get do_node)))
+      (set lp_stmt (call_i64 node_next_sibling
+        (param_get tree) (local_get lp_stmt)))
+      (while
+        (condition (ne_i64 (local_get lp_stmt) (const_i64 -1)))
+        (do
+          (call_void write_byte (param_get fd) (const_i32 32))
+          (call_void weave_surface_loop_write_gate_open
+            (param_get fd) (param_get id))
+          (call_void emit_node
+            (param_get fd) (param_get source) (param_get tree)
+            (local_get lp_stmt))
+          (call_void weave_surface_loop_write_gate_close (param_get fd))
+          (set lp_stmt (call_i64 node_next_sibling
+            (param_get tree) (local_get lp_stmt)))))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (return_void)))
+
+  (fn loop_emit_while
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get tree) (param_get node)) (const_i64 3)))
+        (then (do
+          (let lp_m3 ptr (const_string_ptr "while needs a condition and a body"))
+          (call_void lp_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get lp_m3))
+          (return (const_i32 1))))
+        (else (do)))
+      (let lp_cond i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 1)))
+      (let lp_body i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 2)))
+      (if
+        (condition (eq_i32 (call_i32 lp_has_ctl
+          (param_get tree) (param_get source) (local_get lp_body))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let lp_id3 i32 (call_i32 weave_surface_loop_push))
+      (if
+        (condition (lt_i32 (local_get lp_id3) (const_i32 0)))
+        (then (do
+          (let lp_m4 ptr (const_string_ptr "too many nested loops"))
+          (call_void lp_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get lp_m4))
+          (return (const_i32 1))))
+        (else (do)))
+      (call_void weave_surface_loop_write_let_flag
+        (param_get fd) (local_get lp_id3)
+        (const_string_ptr "run") (const_i32 1))
+      (call_void write_byte (param_get fd) (const_i32 10))
+      (call_void weave_surface_loop_write_let_flag
+        (param_get fd) (local_get lp_id3)
+        (const_string_ptr "skip") (const_i32 0))
+      (call_void write_byte (param_get fd) (const_i32 10))
+      (call_void weave_surface_loop_write_while_and_open (param_get fd))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree)
+        (call_i64 nth_child (param_get tree) (local_get lp_cond) (const_i64 1))
+        (call_i32 surface_type_bool))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void weave_surface_loop_write_run_live
+        (param_get fd) (local_get lp_id3))
+      (call_void weave_surface_loop_write_and_close_do (param_get fd))
+      (call_void lp_emit_gated_do
+        (param_get fd) (param_get source) (param_get tree)
+        (local_get lp_body) (local_get lp_id3))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (call_void weave_surface_loop_pop)
+      (return (const_i32 1))))
+
+  (fn loop_emit_for
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get tree) (param_get node)) (const_i64 3)))
+        (then (do
+          (let lp_m5 ptr (const_string_ptr "for needs a range and a body"))
+          (call_void lp_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get lp_m5))
+          (return_void)))
+        (else (do)))
+      (let lp_range i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 1)))
+      (let lp_body2 i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 2)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 lp_is_head
+            (param_get tree) (param_get source) (local_get lp_range)
+            (const_string_ptr "range") (const_i64 5)) (const_i32 0))
+          (ne_i64 (call_i64 count_children
+            (param_get tree) (local_get lp_range)) (const_i64 4))))
+        (then (do
+          (let lp_m6 ptr (const_string_ptr "range needs a name, start, and end"))
+          (call_void lp_error
+            (param_get tree) (param_get source) (local_get lp_range)
+            (local_get lp_m6))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 lp_is_head
+          (param_get tree) (param_get source) (local_get lp_body2)
+          (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
+        (then (do
+          (let lp_m7 ptr (const_string_ptr "for body must be a do"))
+          (call_void lp_error
+            (param_get tree) (param_get source) (local_get lp_body2)
+            (local_get lp_m7))
+          (return_void)))
+        (else (do)))
+      (let lp_name i64 (call_i64 nth_child
+        (param_get tree) (local_get lp_range) (const_i64 1)))
+      (let lp_start i64 (call_i64 nth_child
+        (param_get tree) (local_get lp_range) (const_i64 2)))
+      (let lp_end i64 (call_i64 nth_child
+        (param_get tree) (local_get lp_range) (const_i64 3)))
+      (if
+        (condition (eq_i32 (call_i32 node_kind
+          (param_get tree) (local_get lp_name)) (call_i32 node_ident)))
+        (then (do))
+        (else (do
+          (let lp_m8 ptr (const_string_ptr "range name must be an identifier"))
+          (call_void lp_error
+            (param_get tree) (param_get source) (local_get lp_name)
+            (local_get lp_m8))
+          (return_void))))
+      (let lp_sty i32 (call_i32 sop_expr_type
+        (param_get tree) (param_get source) (local_get lp_start)
+        (call_i32 surface_type_i32)))
+      (let lp_ety i32 (call_i32 sop_expr_type
+        (param_get tree) (param_get source) (local_get lp_end)
+        (call_i32 surface_type_i32)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 weave_semantic_types_compatible
+            (call_i32 surface_type_i32) (local_get lp_sty)) (const_i32 0))
+          (eq_i32 (call_i32 weave_semantic_types_compatible
+            (call_i32 surface_type_i32) (local_get lp_ety)) (const_i32 0))))
+        (then (do
+          (let lp_m9 ptr (const_string_ptr "range bounds must be i32"))
+          (call_void lp_error
+            (param_get tree) (param_get source) (local_get lp_range)
+            (local_get lp_m9))
+          (return_void)))
+        (else (do)))
+      (let lp_id4 i32 (call_i32 weave_surface_loop_push))
+      (if
+        (condition (lt_i32 (local_get lp_id4) (const_i32 0)))
+        (then (do
+          (let lp_m10 ptr (const_string_ptr "too many nested loops"))
+          (call_void lp_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get lp_m10))
+          (return_void)))
+        (else (do)))
+      (call_void write_cstr (param_get fd) (const_string_ptr "(let "))
+      (call_void emit_node
+        (param_get fd) (param_get source) (param_get tree) (local_get lp_name))
+      (call_void write_cstr (param_get fd) (const_string_ptr " i32 "))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree)
+        (local_get lp_start) (call_i32 surface_type_i32))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (call_void write_byte (param_get fd) (const_i32 10))
+      (call_i32 weave_surface_local_add
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get lp_name))
+        (call_i64 node_text_len (param_get tree) (local_get lp_name))
+        (call_i32 surface_type_i32))
+      (call_void weave_surface_loop_write_let_end_head
+        (param_get fd) (local_get lp_id4))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree)
+        (local_get lp_end) (call_i32 surface_type_i32))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (call_void write_byte (param_get fd) (const_i32 10))
+      (let lp_ctl i32 (call_i32 lp_has_ctl
+        (param_get tree) (param_get source) (local_get lp_body2)))
+      (if
+        (condition (ne_i32 (local_get lp_ctl) (const_i32 0)))
+        (then (do
+          (call_void weave_surface_loop_write_let_flag
+            (param_get fd) (local_get lp_id4)
+            (const_string_ptr "run") (const_i32 1))
+          (call_void write_byte (param_get fd) (const_i32 10))
+          (call_void weave_surface_loop_write_let_flag
+            (param_get fd) (local_get lp_id4)
+            (const_string_ptr "skip") (const_i32 0))
+          (call_void write_byte (param_get fd) (const_i32 10))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (local_get lp_ctl) (const_i32 0)))
+        (then (do
+          (call_void weave_surface_loop_write_while_and_open (param_get fd))
+          (call_void weave_surface_loop_write_lt_name
+            (param_get fd) (param_get source)
+            (call_i64 node_text_start (param_get tree) (local_get lp_name))
+            (call_i64 node_text_len (param_get tree) (local_get lp_name))
+            (local_get lp_id4))
+          (call_void write_byte (param_get fd) (const_i32 32))
+          (call_void weave_surface_loop_write_run_live
+            (param_get fd) (local_get lp_id4))
+          (call_void weave_surface_loop_write_and_close_do (param_get fd))))
+        (else (do
+          (call_void weave_surface_loop_write_while_open (param_get fd))
+          (call_void weave_surface_loop_write_lt_name
+            (param_get fd) (param_get source)
+            (call_i64 node_text_start (param_get tree) (local_get lp_name))
+            (call_i64 node_text_len (param_get tree) (local_get lp_name))
+            (local_get lp_id4))
+          (call_void weave_surface_loop_write_while_do (param_get fd)))))
+      (if
+        (condition (ne_i32 (local_get lp_ctl) (const_i32 0)))
+        (then (do
+          (call_void lp_emit_gated_do
+            (param_get fd) (param_get source) (param_get tree)
+            (local_get lp_body2) (local_get lp_id4))
+          (call_void write_byte (param_get fd) (const_i32 32))
+          (call_void weave_surface_loop_write_inc_if_open (param_get fd))
+          (call_void weave_surface_loop_write_run_live
+            (param_get fd) (local_get lp_id4))
+          (call_void weave_surface_loop_write_inc_if_then (param_get fd))
+          (call_void weave_surface_loop_write_inc_name
+            (param_get fd) (param_get source)
+            (call_i64 node_text_start (param_get tree) (local_get lp_name))
+            (call_i64 node_text_len (param_get tree) (local_get lp_name)))
+          (call_void weave_surface_loop_write_inc_if_close (param_get fd))
+          (call_void write_byte (param_get fd) (const_i32 41))))
+        (else (do
+          (call_void emit_do_body
+            (param_get fd) (param_get source) (param_get tree)
+            (local_get lp_body2))
+          (call_void write_byte (param_get fd) (const_i32 32))
+          (call_void weave_surface_loop_write_inc_name
+            (param_get fd) (param_get source)
+            (call_i64 node_text_start (param_get tree) (local_get lp_name))
+            (call_i64 node_text_len (param_get tree) (local_get lp_name)))
+          (call_void weave_surface_loop_write_close2 (param_get fd)))))
+      (call_void weave_surface_loop_pop)
+      (return_void)))
+)
