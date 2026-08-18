@@ -112,6 +112,26 @@
     (params (source ptr) (start i64) (len i64) (type i32)) (returns i32))
   (extern weave_surface_local_type
     (params (source ptr) (start i64) (len i64)) (returns i32))
+  (extern weave_surface_local_count_get (params) (returns i32))
+  (extern weave_surface_local_push
+    (params (source ptr) (start i64) (len i64) (type i32)) (returns i32))
+  (extern weave_surface_local_truncate (params (count i32)) (returns void))
+  (extern weave_surface_match_temp_next (params) (returns i32))
+  (extern weave_surface_match_write_temp
+    (params (fd i32) (temp i32)) (returns void))
+  (extern weave_surface_match_write_local_get
+    (params (fd i32) (temp i32)) (returns void))
+  (extern weave_surface_match_write_let_head
+    (params (fd i32) (temp i32)) (returns void))
+  (extern weave_surface_match_write_cond
+    (params (fd i32) (prefix ptr) (temp i32) (tag i32)) (returns void))
+  (extern weave_surface_match_write_open_if (params (fd i32)) (returns void))
+  (extern weave_surface_match_write_then_do (params (fd i32)) (returns void))
+  (extern weave_surface_match_write_else_do (params (fd i32)) (returns void))
+  (extern weave_surface_match_write_close2 (params (fd i32)) (returns void))
+  (extern weave_surface_match_write_close3 (params (fd i32)) (returns void))
+  (extern weave_surface_match_write_dummy
+    (params (fd i32) (wir_type ptr)) (returns void))
   (extern weave_surface_set_return_type (params (type i32)) (returns void))
   (extern weave_surface_get_return_type (params) (returns i32))
   (extern weave_surface_set_error (params) (returns void))

@@ -161,6 +161,26 @@ The concrete layout is a 16-byte heap object: an `i32` tag at offset 0 and an
 8-byte payload slot at offset 8. Generic templates are not emitted; each
 distinct type-argument list produces one specialized helper family.
 
+## Exhaustive match
+
+`match` is an expression over a tagged enum. Each `case` names a constructor.
+A payload constructor binds one name. `_` is an explicit wildcard for the
+remaining constructors and must be last. A missing constructor without `_`,
+and a `_` after every constructor, are errors. There is no silent default.
+
+```weave
+(return (match Color value
+  (case Red 0)
+  (case Blue x x)))
+
+(let n i32 (match Option some
+  (case None 0)
+  (case Some x x)))
+```
+
+`match` initializes a `let` or is returned. Arm order does not change tags.
+The frontend lowers the form to ordinary WIR tag tests before emission.
+
 ## Semantic structs
 
 Struct declarations introduce nominal surface types. Source construction and

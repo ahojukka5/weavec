@@ -15,6 +15,10 @@ surface-language contract stabilises.
 
 ### Added
 
+- Exhaustive `match` over tagged enums: `(match ENUM VALUE (case CTOR
+  [BIND] EXPR)*)`, with `_` as an explicit last-arm wildcard. Missing,
+  duplicate, and unreachable arms fail with exact diagnostics. The form
+  lowers to ordinary WIR tag tests.
 - Tagged `enum` declarations with optional payloads, explicit
   `(variant ...)`, `(variant-tag ...)`, and `(variant-payload ...)`
   forms, and deterministic 16-byte tag-plus-payload lowering. Generic

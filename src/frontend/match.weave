@@ -1,0 +1,969 @@
+; SPDX-License-Identifier: Apache-2.0
+; match.weave — exhaustive tagged-variant match
+;
+; (match ENUM VALUE (case CTOR [BIND] EXPR)* ) with an optional final
+; (case _ EXPR) wildcard. Missing constructors without a wildcard, and a
+; wildcard after every constructor, are errors. Lowering is an if-chain
+; over variant tags; match is an expression only as a let initializer or
+; a returned value.
+
+(program
+  (name "match")
+  (version "0.1")
+
+  (fn mat_error
+    (params (tree ptr) (source ptr) (node i64) (detail ptr))
+    (returns i32)
+    (do
+      (call_void surface_error_prefix (const_string_ptr "match"))
+      (call_void write_cstr (const_i32 2) (param_get detail))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (call_void sdiag_record
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "frontend.match.invalid")
+        (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+        (const_i32 -1) (const_i32 -1) (const_i32 -1)
+        (const_string_ptr "match") (const_i64 -1) (const_i32 0))
+      (return (const_i32 1))))
+
+  (fn mat_is_case
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (return (call_i32 head_equals
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "case") (const_i64 4)))))
+
+  (fn mat_is_wild
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 mat_is_case
+          (param_get tree) (param_get source) (param_get node))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (lt_i64 (call_i64 count_children
+          (param_get tree) (param_get node)) (const_i64 3)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 ident_equals
+        (param_get tree) (param_get source)
+        (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1))
+        (const_string_ptr "_") (const_i64 1)))))
+
+  (fn mat_ctor_node
+    (params (tree ptr) (node i64))
+    (returns i64)
+    (do
+      (return (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 1)))))
+
+  (fn mat_bind_node
+    (params (tree ptr) (node i64))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_i64 (call_i64 count_children
+          (param_get tree) (param_get node)) (const_i64 4)))
+        (then (do
+          (return (call_i64 nth_child
+            (param_get tree) (param_get node) (const_i64 2)))))
+        (else (do (return (const_i64 -1)))))))
+
+  (fn mat_body_node
+    (params (tree ptr) (node i64))
+    (returns i64)
+    (do
+      (let ml_n_5 i64 (call_i64 count_children
+        (param_get tree) (param_get node)))
+      (if
+        (condition (lt_i64 (local_get ml_n_5) (const_i64 3)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 nth_child
+        (param_get tree) (param_get node)
+        (sub_i64 (local_get ml_n_5) (const_i64 1))))))
+
+  (fn mat_enum_index
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (let ml_name_6 i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 1)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get tree) (local_get ml_name_6)) (const_i32 0)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (return (call_i32 weave_surface_enum_index
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ml_name_6))
+        (call_i64 node_text_len (param_get tree) (local_get ml_name_6))))))
+
+  (fn mat_tag_bit
+    (params (tag i32))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i32 (param_get tag) (const_i32 0))
+          (ge_i32 (param_get tag) (const_i32 32))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let mi_bit_7 i32 (const_i32 1))
+      (let mi_i_7 i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get mi_i_7) (param_get tag)))
+        (do
+          (set mi_bit_7 (add_i32 (local_get mi_bit_7) (local_get mi_bit_7)))
+          (set mi_i_7 (add_i32 (local_get mi_i_7) (const_i32 1)))))
+      (return (local_get mi_bit_7))))
+
+  (fn mat_all_bits
+    (params (count i32))
+    (returns i32)
+    (do
+      (if
+        (condition (le_i32 (param_get count) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ge_i32 (param_get count) (const_i32 32)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (return (sub_i32 (call_i32 mat_tag_bit (param_get count)) (const_i32 1)))))
+
+  (fn mat_validate_shape
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (lt_i64 (call_i64 count_children
+          (param_get tree) (param_get node)) (const_i64 4)))
+        (then (do
+          (let mp_msg_9_1 ptr (const_string_ptr "match needs an enum, a value, and at least one case"))
+          (return (call_i32 mat_error
+            (param_get tree) (param_get source) (param_get node)
+            (local_get mp_msg_9_1)))))
+        (else (do)))
+      (if
+        (condition (lt_i32 (call_i32 mat_enum_index
+          (param_get tree) (param_get source) (param_get node))
+          (const_i32 0)))
+        (then (do
+          (let mp_msg_9_2 ptr (const_string_ptr "unknown enum"))
+          (return (call_i32 mat_error
+            (param_get tree) (param_get source)
+            (call_i64 nth_child
+              (param_get tree) (param_get node) (const_i64 1))
+            (local_get mp_msg_9_2)))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn mat_validate_one_arm
+    (params
+      (tree ptr) (source ptr) (arm i64) (enum_index i32)
+      (seen i32) (had_wild i32))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (param_get had_wild) (const_i32 0)))
+        (then (do
+          (let mp_msg_10_1 ptr (const_string_ptr "unreachable match arm"))
+            (return (call_i32 mat_error
+            (param_get tree) (param_get source) (param_get arm)
+            (local_get mp_msg_10_1)))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 mat_is_case
+          (param_get tree) (param_get source) (param_get arm))
+          (const_i32 0)))
+        (then (do
+          (let mp_msg_10_2 ptr (const_string_ptr "match arm must be a case"))
+            (return (call_i32 mat_error
+            (param_get tree) (param_get source) (param_get arm)
+            (local_get mp_msg_10_2)))))
+        (else (do)))
+      (let ml_n_10 i64 (call_i64 count_children
+        (param_get tree) (param_get arm)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get ml_n_10) (const_i64 3))
+          (gt_i64 (local_get ml_n_10) (const_i64 4))))
+        (then (do
+          (let mp_msg_10_3 ptr (const_string_ptr "malformed match case"))
+            (return (call_i32 mat_error
+            (param_get tree) (param_get source) (param_get arm)
+            (local_get mp_msg_10_3)))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get tree)
+          (call_i64 mat_ctor_node (param_get tree) (param_get arm)))
+          (const_i32 0)))
+        (then (do
+          (let mp_msg_10_4 ptr (const_string_ptr "match constructor must be a name"))
+            (return (call_i32 mat_error
+            (param_get tree) (param_get source) (param_get arm)
+            (local_get mp_msg_10_4)))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn mat_validate_ctor
+    (params
+      (tree ptr) (source ptr) (arm i64) (enum_index i32) (seen i32))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 mat_is_wild
+          (param_get tree) (param_get source) (param_get arm))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let ml_ctor_11 i64 (call_i64 mat_ctor_node
+        (param_get tree) (param_get arm)))
+      (let mi_v_11 i32 (call_i32 weave_surface_enum_find_variant
+        (param_get enum_index) (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ml_ctor_11))
+        (call_i64 node_text_len (param_get tree) (local_get ml_ctor_11))))
+      (if
+        (condition (lt_i32 (local_get mi_v_11) (const_i32 0)))
+        (then (do
+          (let mp_msg_11_1 ptr (const_string_ptr "unknown variant constructor"))
+            (return (call_i32 mat_error
+            (param_get tree) (param_get source) (local_get ml_ctor_11)
+            (local_get mp_msg_11_1)))))
+        (else (do)))
+      (let mi_tag i32 (call_i32 weave_surface_enum_variant_tag
+        (param_get enum_index) (local_get mi_v_11)))
+      (let mi_bit_11 i32 (call_i32 mat_tag_bit (local_get mi_tag)))
+      (if
+        (condition (ne_i32 (and_i32 (param_get seen) (local_get mi_bit_11))
+          (const_i32 0)))
+        (then (do
+          (let mp_msg_11_2 ptr (const_string_ptr "duplicate match arm"))
+            (return (call_i32 mat_error
+            (param_get tree) (param_get source) (local_get ml_ctor_11)
+            (local_get mp_msg_11_2)))))
+        (else (do)))
+      (let mi_payload_11 i32 (call_i32 weave_surface_enum_variant_payload
+        (param_get enum_index) (local_get mi_v_11)))
+      (let ml_bind_11 i64 (call_i64 mat_bind_node
+        (param_get tree) (param_get arm)))
+      (if
+        (condition (and_bool
+          (gt_i32 (local_get mi_payload_11) (const_i32 0))
+          (eq_i64 (local_get ml_bind_11) (const_i64 -1))))
+        (then (do
+          (let mp_msg_11_3 ptr (const_string_ptr "match case expects a payload"))
+            (return (call_i32 mat_error
+            (param_get tree) (param_get source) (param_get arm)
+            (local_get mp_msg_11_3)))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (le_i32 (local_get mi_payload_11) (const_i32 0))
+          (ne_i64 (local_get ml_bind_11) (const_i64 -1))))
+        (then (do
+          (let mp_msg_11_4 ptr (const_string_ptr "match case takes no payload"))
+            (return (call_i32 mat_error
+            (param_get tree) (param_get source) (param_get arm)
+            (local_get mp_msg_11_4)))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn mat_first_missing
+    (params (enum_index i32) (seen i32))
+    (returns ptr)
+    (do
+      (let mi_n i32 (call_i32 weave_surface_enum_variant_count
+        (param_get enum_index)))
+      (let mi_i_12 i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get mi_i_12) (local_get mi_n)))
+        (do
+          (let mi_bit_12 i32 (call_i32 mat_tag_bit
+            (call_i32 weave_surface_enum_variant_tag
+              (param_get enum_index) (local_get mi_i_12))))
+          (if
+            (condition (eq_i32 (and_i32 (param_get seen) (local_get mi_bit_12))
+              (const_i32 0)))
+            (then (do
+              (return (call_ptr weave_surface_enum_variant_name
+                (param_get enum_index) (local_get mi_i_12)))))
+            (else (do)))
+          (set mi_i_12 (add_i32 (local_get mi_i_12) (const_i32 1)))))
+      (return (const_null))))
+
+  (fn mat_cover_ctor
+    (params (tree ptr) (source ptr) (arm i64) (enum_index i32) (seen i32))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 mat_validate_ctor
+          (param_get tree) (param_get source) (param_get arm)
+          (param_get enum_index) (param_get seen))
+          (const_i32 0)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (let ml_ctor_13 i64 (call_i64 mat_ctor_node
+        (param_get tree) (param_get arm)))
+      (let mi_v_13 i32 (call_i32 weave_surface_enum_find_variant
+        (param_get enum_index) (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ml_ctor_13))
+        (call_i64 node_text_len (param_get tree) (local_get ml_ctor_13))))
+      (return (or_i32 (param_get seen)
+        (call_i32 mat_tag_bit
+          (call_i32 weave_surface_enum_variant_tag
+            (param_get enum_index) (local_get mi_v_13)))))))
+
+  (fn mat_validate
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 mat_validate_shape
+          (param_get tree) (param_get source) (param_get node))
+          (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let mi_enum_14 i32 (call_i32 mat_enum_index
+        (param_get tree) (param_get source) (param_get node)))
+      (let mi_seen i32 (const_i32 0))
+      (let mi_wild i32 (const_i32 0))
+      (let ml_arm_14 i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 3)))
+      (while
+        (condition (ne_i64 (local_get ml_arm_14) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 mat_validate_one_arm
+              (param_get tree) (param_get source) (local_get ml_arm_14)
+              (local_get mi_enum_14) (local_get mi_seen) (local_get mi_wild))
+              (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 mat_is_wild
+              (param_get tree) (param_get source) (local_get ml_arm_14))
+              (const_i32 0)))
+            (then (do
+              (if
+                (condition (eq_i64 (call_i64 mat_bind_node
+                  (param_get tree) (local_get ml_arm_14)) (const_i64 -1)))
+                (then (do (set mi_wild (const_i32 1))))
+                (else (do
+                  (let mp_msg_14_1 ptr (const_string_ptr "wildcard takes no payload"))
+                  (return (call_i32 mat_error
+                    (param_get tree) (param_get source) (local_get ml_arm_14)
+                    (local_get mp_msg_14_1))))))))
+            (else (do
+              (set mi_seen (call_i32 mat_cover_ctor
+                (param_get tree) (param_get source) (local_get ml_arm_14)
+                (local_get mi_enum_14) (local_get mi_seen)))
+              (if
+                (condition (lt_i32 (local_get mi_seen) (const_i32 0)))
+                (then (do (return (const_i32 1))))
+                (else (do))))))
+          (set ml_arm_14 (call_i64 node_next_sibling
+            (param_get tree) (local_get ml_arm_14)))))
+      (let mi_all i32 (call_i32 mat_all_bits
+        (call_i32 weave_surface_enum_variant_count (local_get mi_enum_14))))
+      (if
+        (condition (eq_i32 (local_get mi_wild) (const_i32 0)))
+        (then (do
+          (if
+            (condition (ne_i32 (local_get mi_seen) (local_get mi_all)))
+            (then (do
+              (call_void surface_error_prefix (const_string_ptr "match"))
+              (call_void write_cstr
+                (const_i32 2) (const_string_ptr "non-exhaustive match"))
+              (let mp_miss ptr (call_ptr mat_first_missing
+                (local_get mi_enum_14) (local_get mi_seen)))
+              (if
+                (condition (ne_ptr (local_get mp_miss) (const_null)))
+                (then (do
+                  (call_void write_cstr (const_i32 2) (const_string_ptr ": missing "))
+                  (call_void write_cstr (const_i32 2) (local_get mp_miss))))
+                (else (do)))
+              (call_void write_byte (const_i32 2) (const_i32 10))
+              (call_void sdiag_record
+                (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "frontend.match.invalid")
+                (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+                (const_i32 -1) (const_i32 -1) (const_i32 -1)
+                (const_string_ptr "match") (const_i64 -1) (const_i32 0))
+              (return (const_i32 1))))
+            (else (do)))))
+        (else (do
+          (if
+            (condition (eq_i32 (local_get mi_seen) (local_get mi_all)))
+            (then (do
+              (let mp_msg_14_2 ptr (const_string_ptr "unreachable wildcard"))
+                (return (call_i32 mat_error
+                (param_get tree) (param_get source) (param_get node)
+                (local_get mp_msg_14_2)))))
+            (else (do))))))
+      (return (const_i32 0))))
+
+  (fn match_expr_type
+    (params (tree ptr) (source ptr) (node i64) (expected i32))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (param_get expected) (call_i32 surface_type_unknown)))
+        (then (do (return (param_get expected))))
+        (else (do)))
+      (if
+        (condition (lt_i64 (call_i64 count_children
+          (param_get tree) (param_get node)) (const_i64 4)))
+        (then (do (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (let ml_arm_15 i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 3)))
+      (let ml_body_15 i64 (call_i64 mat_body_node
+        (param_get tree) (local_get ml_arm_15)))
+      (if
+        (condition (eq_i64 (local_get ml_body_15) (const_i64 -1)))
+        (then (do (return (call_i32 surface_type_unknown))))
+        (else (do)))
+      (return (call_i32 sst_expr_type
+        (param_get tree) (param_get source) (local_get ml_body_15)
+        (param_get expected)))))
+
+  (fn mat_check_arm_types
+    (params (tree ptr) (source ptr) (node i64) (expected i32))
+    (returns i32)
+    (do
+      (let ml_arm_16 i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 3)))
+      (while
+        (condition (ne_i64 (local_get ml_arm_16) (const_i64 -1)))
+        (do
+          (let ml_body_16 i64 (call_i64 mat_body_node
+            (param_get tree) (local_get ml_arm_16)))
+          (if
+            (condition (eq_i64 (local_get ml_body_16) (const_i64 -1)))
+            (then (do
+              (let mp_msg_16_1 ptr (const_string_ptr "malformed match case"))
+                (return (call_i32 mat_error
+                (param_get tree) (param_get source) (local_get ml_arm_16)
+                (local_get mp_msg_16_1)))))
+            (else (do)))
+          (let mi_actual i32 (call_i32 sst_expr_type
+            (param_get tree) (param_get source) (local_get ml_body_16)
+            (param_get expected)))
+          (if
+            (condition (and_bool
+              (ne_i32 (param_get expected) (call_i32 surface_type_unknown))
+              (and_bool
+                (ne_i32 (local_get mi_actual) (call_i32 surface_type_unknown))
+                (eq_i32 (call_i32 weave_semantic_types_compatible
+                  (param_get expected) (local_get mi_actual))
+                  (const_i32 0)))))
+            (then (do
+              (let mp_msg_16_2 ptr (const_string_ptr "match arm types disagree"))
+                (return (call_i32 mat_error
+                (param_get tree) (param_get source) (local_get ml_body_16)
+                (local_get mp_msg_16_2)))))
+            (else (do)))
+          (set ml_arm_16 (call_i64 node_next_sibling
+            (param_get tree) (local_get ml_arm_16)))))
+      (return (const_i32 0))))
+
+  (fn mat_intern_prefix
+    (params (tree ptr) (source ptr) (node i64))
+    (returns ptr)
+    (do
+      (let mi_enum_17 i32 (call_i32 mat_enum_index
+        (param_get tree) (param_get source) (param_get node)))
+      (if
+        (condition (lt_i32 (local_get mi_enum_17) (const_i32 0)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let mi_arity_17 i32 (call_i32 weave_surface_enum_type_param_count
+        (local_get mi_enum_17)))
+      (if
+        (condition (eq_i32 (local_get mi_arity_17) (const_i32 0)))
+        (then (do
+          (return (call_ptr weave_surface_enum_name (local_get mi_enum_17)))))
+        (else (do)))
+      (let mi_value_type_17 i32 (call_i32 sst_expr_type
+        (param_get tree) (param_get source)
+        (call_i64 nth_child (param_get tree) (param_get node) (const_i64 2))
+        (call_i32 surface_type_unknown)))
+      (let mp_graph_17 ptr (call_ptr semantic_graph))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get mp_graph_17) (const_null))
+          (ne_i32 (call_i32 type_graph_kind
+            (local_get mp_graph_17) (local_get mi_value_type_17))
+            (call_i32 type_kind_application))))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let ml_n_17 i64 (call_i64 type_graph_child_count
+        (local_get mp_graph_17) (local_get mi_value_type_17)))
+      (if
+        (condition (le_i64 (local_get ml_n_17) (const_i64 1)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let mi_argc_17 i32 (cast_i64_to_i32 (sub_i64 (local_get ml_n_17) (const_i64 1))))
+      (if
+        (condition (ne_i32 (local_get mi_argc_17) (local_get mi_arity_17)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let mp_args_17 ptr (call_ptr malloc
+        (mul_i64 (cast_i32_to_i64 (local_get mi_argc_17)) (const_i64 4))))
+      (if
+        (condition (eq_ptr (local_get mp_args_17) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let mi_ai_17 i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get mi_ai_17) (local_get mi_argc_17)))
+        (do
+          (store_i32
+            (ptr_add (local_get mp_args_17)
+              (mul_i64 (cast_i32_to_i64 (local_get mi_ai_17)) (const_i64 4)))
+            (call_i32 type_graph_child
+              (local_get mp_graph_17) (local_get mi_value_type_17)
+              (add_i64 (cast_i32_to_i64 (local_get mi_ai_17)) (const_i64 1))))
+          (set mi_ai_17 (add_i32 (local_get mi_ai_17) (const_i32 1)))))
+      (let ml_name_17 i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 1)))
+      (let mp_key ptr (call_ptr spec_build_key
+        (local_get mp_args_17) (local_get mi_argc_17)))
+      (let mp_sname ptr (call_ptr spec_build_name
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ml_name_17))
+        (call_i64 node_text_len (param_get tree) (local_get ml_name_17))
+        (local_get mp_args_17) (local_get mi_argc_17)))
+      (let mi_spec i32 (call_i32 weave_surface_enum_spec_intern
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ml_name_17))
+        (call_i64 node_text_len (param_get tree) (local_get ml_name_17))
+        (local_get mp_key) (local_get mp_sname)))
+      (if
+        (condition (ge_i32 (local_get mi_spec) (const_i32 0)))
+        (then (do
+          (call_i32 weave_surface_enum_spec_set_args
+            (local_get mi_spec) (local_get mp_args_17) (local_get mi_argc_17))))
+        (else (do)))
+      (call_void free (local_get mp_key))
+      (call_void free (local_get mp_sname))
+      (call_void free (local_get mp_args_17))
+      (if
+        (condition (lt_i32 (local_get mi_spec) (const_i32 0)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (return (call_ptr weave_surface_enum_spec_name (local_get mi_spec)))))
+
+  (fn mat_payload_type
+    (params (tree ptr) (source ptr) (node i64) (arm i64))
+    (returns i32)
+    (do
+      (let mi_enum_18 i32 (call_i32 mat_enum_index
+        (param_get tree) (param_get source) (param_get node)))
+      (let ml_ctor_18 i64 (call_i64 mat_ctor_node
+        (param_get tree) (param_get arm)))
+      (let mi_v_18 i32 (call_i32 weave_surface_enum_find_variant
+        (local_get mi_enum_18) (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ml_ctor_18))
+        (call_i64 node_text_len (param_get tree) (local_get ml_ctor_18))))
+      (if
+        (condition (lt_i32 (local_get mi_v_18) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let mi_raw i32 (call_i32 weave_surface_enum_variant_payload
+        (local_get mi_enum_18) (local_get mi_v_18)))
+      (let mi_arity_18 i32 (call_i32 weave_surface_enum_type_param_count
+        (local_get mi_enum_18)))
+      (if
+        (condition (eq_i32 (local_get mi_arity_18) (const_i32 0)))
+        (then (do (return (local_get mi_raw))))
+        (else (do)))
+      (let mi_value_type_18 i32 (call_i32 sst_expr_type
+        (param_get tree) (param_get source)
+        (call_i64 nth_child (param_get tree) (param_get node) (const_i64 2))
+        (call_i32 surface_type_unknown)))
+      (let mp_graph_18 ptr (call_ptr semantic_graph))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get mp_graph_18) (const_null))
+          (ne_i32 (call_i32 type_graph_kind
+            (local_get mp_graph_18) (local_get mi_value_type_18))
+            (call_i32 type_kind_application))))
+        (then (do (return (local_get mi_raw))))
+        (else (do)))
+      (let ml_n_18 i64 (call_i64 type_graph_child_count
+        (local_get mp_graph_18) (local_get mi_value_type_18)))
+      (let mi_argc_18 i32 (cast_i64_to_i32 (sub_i64 (local_get ml_n_18) (const_i64 1))))
+      (if
+        (condition (le_i32 (local_get mi_argc_18) (const_i32 0)))
+        (then (do (return (local_get mi_raw))))
+        (else (do)))
+      (let mp_args_18 ptr (call_ptr malloc
+        (mul_i64 (cast_i32_to_i64 (local_get mi_argc_18)) (const_i64 4))))
+      (if
+        (condition (eq_ptr (local_get mp_args_18) (const_null)))
+        (then (do (return (local_get mi_raw))))
+        (else (do)))
+      (let mi_ai_18 i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get mi_ai_18) (local_get mi_argc_18)))
+        (do
+          (store_i32
+            (ptr_add (local_get mp_args_18)
+              (mul_i64 (cast_i32_to_i64 (local_get mi_ai_18)) (const_i64 4)))
+            (call_i32 type_graph_child
+              (local_get mp_graph_18) (local_get mi_value_type_18)
+              (add_i64 (cast_i32_to_i64 (local_get mi_ai_18)) (const_i64 1))))
+          (set mi_ai_18 (add_i32 (local_get mi_ai_18) (const_i32 1)))))
+      (let mi_done i32 (call_i32 spec_instantiate_type
+        (local_get mi_raw) (local_get mp_args_18) (local_get mi_argc_18)))
+      (call_void free (local_get mp_args_18))
+      (return (local_get mi_done))))
+
+  (fn mat_emit_payload_bind
+    (params
+      (fd i32) (source ptr) (tree ptr) (node i64)
+      (arm i64) (prefix ptr) (temp i32))
+    (returns i32)
+    (do
+      (let ml_bind_19 i64 (call_i64 mat_bind_node
+        (param_get tree) (param_get arm)))
+      (if
+        (condition (eq_i64 (local_get ml_bind_19) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let mi_payload_19 i32 (call_i32 mat_payload_type
+        (param_get tree) (param_get source) (param_get node) (param_get arm)))
+      (if
+        (condition (le_i32 (local_get mi_payload_19) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let mp_wir ptr (call_ptr weave_semantic_type_wir (local_get mi_payload_19)))
+      (call_void write_byte (param_get fd) (const_i32 40))
+      (call_void write_cstr (param_get fd) (const_string_ptr "let "))
+      (call_void emit_node_text
+        (param_get fd) (param_get source) (param_get tree) (local_get ml_bind_19))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void write_cstr (param_get fd) (local_get mp_wir))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void write_byte (param_get fd) (const_i32 40))
+      (call_void write_cstr (param_get fd) (const_string_ptr "call_"))
+      (call_void write_cstr (param_get fd) (local_get mp_wir))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void write_cstr (param_get fd) (param_get prefix))
+      (call_void write_cstr (param_get fd) (const_string_ptr "_payload_"))
+      (call_void emit_node_text
+        (param_get fd) (param_get source) (param_get tree)
+        (call_i64 mat_ctor_node (param_get tree) (param_get arm)))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void weave_surface_match_write_local_get
+        (param_get fd) (param_get temp))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_i32 weave_surface_local_push
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ml_bind_19))
+        (call_i64 node_text_len (param_get tree) (local_get ml_bind_19))
+        (local_get mi_payload_19))
+      (return (const_i32 1))))
+
+  (fn mat_emit_return_body
+    (params
+      (fd i32) (source ptr) (tree ptr) (node i64)
+      (arm i64) (expected i32) (prefix ptr) (temp i32))
+    (returns void)
+    (do
+      (let mi_saved_20 i32 (call_i32 weave_surface_local_count_get))
+      (call_i32 mat_emit_payload_bind
+        (param_get fd) (param_get source) (param_get tree) (param_get node)
+        (param_get arm) (param_get prefix) (param_get temp))
+      (call_void write_byte (param_get fd) (const_i32 40))
+      (call_void write_cstr (param_get fd) (const_string_ptr "return "))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree)
+        (call_i64 mat_body_node (param_get tree) (param_get arm))
+        (param_get expected))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (call_void weave_surface_local_truncate (local_get mi_saved_20))
+      (return_void)))
+
+  (fn mat_emit_set_body
+    (params
+      (fd i32) (source ptr) (tree ptr) (node i64)
+      (arm i64) (expected i32) (prefix ptr) (temp i32)
+      (dest ptr) (dest_len i64))
+    (returns void)
+    (do
+      (let mi_saved_21 i32 (call_i32 weave_surface_local_count_get))
+      (call_i32 mat_emit_payload_bind
+        (param_get fd) (param_get source) (param_get tree) (param_get node)
+        (param_get arm) (param_get prefix) (param_get temp))
+      (call_void write_byte (param_get fd) (const_i32 40))
+      (call_void write_cstr (param_get fd) (const_string_ptr "set "))
+      (call_void write_bytes
+        (param_get fd) (param_get dest) (param_get dest_len))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree)
+        (call_i64 mat_body_node (param_get tree) (param_get arm))
+        (param_get expected))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (call_void weave_surface_local_truncate (local_get mi_saved_21))
+      (return_void)))
+
+  (fn mat_arm_tag
+    (params (tree ptr) (source ptr) (node i64) (arm i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 mat_is_wild
+          (param_get tree) (param_get source) (param_get arm))
+          (const_i32 0)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (let mi_enum_22 i32 (call_i32 mat_enum_index
+        (param_get tree) (param_get source) (param_get node)))
+      (let ml_ctor_22 i64 (call_i64 mat_ctor_node
+        (param_get tree) (param_get arm)))
+      (let mi_v_22 i32 (call_i32 weave_surface_enum_find_variant
+        (local_get mi_enum_22) (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ml_ctor_22))
+        (call_i64 node_text_len (param_get tree) (local_get ml_ctor_22))))
+      (if
+        (condition (lt_i32 (local_get mi_v_22) (const_i32 0)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (return (call_i32 weave_surface_enum_variant_tag
+        (local_get mi_enum_22) (local_get mi_v_22)))))
+
+  (fn mat_emit_return_from
+    (params
+      (fd i32) (source ptr) (tree ptr) (node i64)
+      (arm i64) (expected i32) (prefix ptr) (temp i32))
+    (returns void)
+    (do
+      (let ml_next_23 i64 (call_i64 node_next_sibling
+        (param_get tree) (param_get arm)))
+      (if
+        (condition (eq_i64 (local_get ml_next_23) (const_i64 -1)))
+        (then (do
+          (call_void mat_emit_return_body
+            (param_get fd) (param_get source) (param_get tree)
+            (param_get node) (param_get arm) (param_get expected)
+            (param_get prefix) (param_get temp))
+          (return_void)))
+        (else (do)))
+      (call_void weave_surface_match_write_open_if (param_get fd))
+      (call_void weave_surface_match_write_cond
+        (param_get fd) (param_get prefix) (param_get temp)
+        (call_i32 mat_arm_tag
+          (param_get tree) (param_get source) (param_get node)
+          (param_get arm)))
+      (call_void weave_surface_match_write_then_do (param_get fd))
+      (call_void mat_emit_return_body
+        (param_get fd) (param_get source) (param_get tree)
+        (param_get node) (param_get arm) (param_get expected)
+        (param_get prefix) (param_get temp))
+      (call_void weave_surface_match_write_else_do (param_get fd))
+      (call_void mat_emit_return_from
+        (param_get fd) (param_get source) (param_get tree)
+        (param_get node) (local_get ml_next_23) (param_get expected)
+        (param_get prefix) (param_get temp))
+      (call_void weave_surface_match_write_close3 (param_get fd))
+      (return_void)))
+
+  (fn mat_emit_set_from
+    (params
+      (fd i32) (source ptr) (tree ptr) (node i64)
+      (arm i64) (expected i32) (prefix ptr) (temp i32)
+      (dest ptr) (dest_len i64))
+    (returns void)
+    (do
+      (let ml_next_24 i64 (call_i64 node_next_sibling
+        (param_get tree) (param_get arm)))
+      (if
+        (condition (eq_i64 (local_get ml_next_24) (const_i64 -1)))
+        (then (do
+          (call_void mat_emit_set_body
+            (param_get fd) (param_get source) (param_get tree)
+            (param_get node) (param_get arm) (param_get expected)
+            (param_get prefix) (param_get temp)
+            (param_get dest) (param_get dest_len))
+          (return_void)))
+        (else (do)))
+      (call_void weave_surface_match_write_open_if (param_get fd))
+      (call_void weave_surface_match_write_cond
+        (param_get fd) (param_get prefix) (param_get temp)
+        (call_i32 mat_arm_tag
+          (param_get tree) (param_get source) (param_get node)
+          (param_get arm)))
+      (call_void weave_surface_match_write_then_do (param_get fd))
+      (call_void mat_emit_set_body
+        (param_get fd) (param_get source) (param_get tree)
+        (param_get node) (param_get arm) (param_get expected)
+        (param_get prefix) (param_get temp)
+        (param_get dest) (param_get dest_len))
+      (call_void weave_surface_match_write_else_do (param_get fd))
+      (call_void mat_emit_set_from
+        (param_get fd) (param_get source) (param_get tree)
+        (param_get node) (local_get ml_next_24) (param_get expected)
+        (param_get prefix) (param_get temp)
+        (param_get dest) (param_get dest_len))
+      (call_void weave_surface_match_write_close3 (param_get fd))
+      (return_void)))
+
+  (fn mat_emit_scrutinee
+    (params (fd i32) (source ptr) (tree ptr) (node i64) (temp i32))
+    (returns void)
+    (do
+      (let mi_enum_type i32 (call_i32 weave_surface_enum_lookup
+        (param_get source)
+        (call_i64 node_text_start
+          (param_get tree)
+          (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
+        (call_i64 node_text_len
+          (param_get tree)
+          (call_i64 nth_child
+            (param_get tree) (param_get node) (const_i64 1)))))
+      (call_void weave_surface_match_write_let_head
+        (param_get fd) (param_get temp))
+      (call_void surface_emit_expr_expected
+        (param_get fd) (param_get source) (param_get tree)
+        (call_i64 nth_child (param_get tree) (param_get node) (const_i64 2))
+        (local_get mi_enum_type))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (call_void write_byte (param_get fd) (const_i32 10))
+      (return_void)))
+
+  (fn match_emit_return
+    (params (fd i32) (source ptr) (tree ptr) (match_node i64) (expected i32))
+    (returns void)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 mat_validate
+          (param_get tree) (param_get source) (param_get match_node))
+          (const_i32 0)))
+        (then (do (return_void)))
+        (else (do)))
+      (call_i32 mat_check_arm_types
+        (param_get tree) (param_get source) (param_get match_node)
+        (param_get expected))
+      (let mp_prefix_26 ptr (call_ptr mat_intern_prefix
+        (param_get tree) (param_get source) (param_get match_node)))
+      (if
+        (condition (eq_ptr (local_get mp_prefix_26) (const_null)))
+        (then (do
+          (call_void mat_error
+            (param_get tree) (param_get source) (param_get match_node)
+            (const_string_ptr "cannot specialize generic match"))
+          (return_void)))
+        (else (do)))
+      (let mi_temp_26 i32 (call_i32 weave_surface_match_temp_next))
+      (call_void mat_emit_scrutinee
+        (param_get fd) (param_get source) (param_get tree)
+        (param_get match_node) (local_get mi_temp_26))
+      (call_void mat_emit_return_from
+        (param_get fd) (param_get source) (param_get tree)
+        (param_get match_node)
+        (call_i64 nth_child
+          (param_get tree) (param_get match_node) (const_i64 3))
+        (param_get expected) (local_get mp_prefix_26) (local_get mi_temp_26))
+      (return_void)))
+
+  (fn match_emit_let
+    (params (fd i32) (source ptr) (tree ptr) (let_node i64))
+    (returns void)
+    (do
+      (let ml_name_27 i64 (call_i64 nth_child
+        (param_get tree) (param_get let_node) (const_i64 1)))
+      (let ml_type i64 (call_i64 nth_child
+        (param_get tree) (param_get let_node) (const_i64 2)))
+      (let ml_match i64 (call_i64 nth_child
+        (param_get tree) (param_get let_node) (const_i64 3)))
+      (let mi_type i32 (call_i32 sst_type_code
+        (param_get tree) (param_get source) (local_get ml_type)))
+      (if
+        (condition (ne_i32 (call_i32 mat_validate
+          (param_get tree) (param_get source) (local_get ml_match))
+          (const_i32 0)))
+        (then (do (return_void)))
+        (else (do)))
+      (call_i32 mat_check_arm_types
+        (param_get tree) (param_get source) (local_get ml_match)
+        (local_get mi_type))
+      (let mp_prefix_27 ptr (call_ptr mat_intern_prefix
+        (param_get tree) (param_get source) (local_get ml_match)))
+      (if
+        (condition (eq_ptr (local_get mp_prefix_27) (const_null)))
+        (then (do
+          (call_void mat_error
+            (param_get tree) (param_get source) (local_get ml_match)
+            (const_string_ptr "cannot specialize generic match"))
+          (return_void)))
+        (else (do)))
+      (call_void write_byte (param_get fd) (const_i32 40))
+      (call_void write_cstr (param_get fd) (const_string_ptr "let "))
+      (call_void emit_node
+        (param_get fd) (param_get source) (param_get tree) (local_get ml_name_27))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void sst_emit_declared_wir_type
+        (param_get fd) (param_get source) (param_get tree)
+        (local_get ml_type) (local_get mi_type))
+      (call_void write_byte (param_get fd) (const_i32 32))
+      (call_void weave_surface_match_write_dummy
+        (param_get fd) (call_ptr weave_semantic_type_wir (local_get mi_type)))
+      (call_void write_byte (param_get fd) (const_i32 41))
+      (call_void write_byte (param_get fd) (const_i32 10))
+      (call_i32 weave_surface_local_add
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (local_get ml_name_27))
+        (call_i64 node_text_len (param_get tree) (local_get ml_name_27))
+        (local_get mi_type))
+      (let mi_temp_27 i32 (call_i32 weave_surface_match_temp_next))
+      (call_void mat_emit_scrutinee
+        (param_get fd) (param_get source) (param_get tree)
+        (local_get ml_match) (local_get mi_temp_27))
+      (call_void mat_emit_set_from
+        (param_get fd) (param_get source) (param_get tree)
+        (local_get ml_match)
+        (call_i64 nth_child
+          (param_get tree) (local_get ml_match) (const_i64 3))
+        (local_get mi_type) (local_get mp_prefix_27) (local_get mi_temp_27)
+        (ptr_add
+          (param_get source)
+          (call_i64 node_text_start (param_get tree) (local_get ml_name_27)))
+        (call_i64 node_text_len (param_get tree) (local_get ml_name_27)))
+      (return_void)))
+
+  (fn match_is_node
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get tree) (param_get node)) (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 head_equals
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "match") (const_i64 5)))))
+
+  (fn match_emit
+    (params (fd i32) (source ptr) (tree ptr) (node i64))
+    (returns void)
+    (do
+      (call_void mat_error
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "match must initialize a let or be returned"))
+      (call_void weave_surface_match_write_dummy
+        (param_get fd) (const_string_ptr "i32"))
+      (return_void)))
+)

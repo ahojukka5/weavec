@@ -111,8 +111,20 @@ nullary variant has only a tag; a payload variant stores one value in a fixed
 (return (variant-tag Result ok))
 ```
 
-Pattern matching is a later step. Invalid constructors and payload types are
-rejected with exact diagnostics.
+`match` is exhaustive over that enum. Each `case` names a constructor; a
+payload constructor binds one name in the arm. `_` is an explicit wildcard
+for constructors not listed, must be last, and is rejected when every
+constructor is already covered. Missing constructors without `_` are
+rejected. Arm result types must agree. `match` initializes a `let` or is
+returned.
+
+```weave
+(return (match Result value
+  (case Ok x x)
+  (case Err e 0)))
+```
+
+Invalid constructors and payload types are rejected with exact diagnostics.
 
 Duplicate, empty, reserved, and unknown type-parameter names are rejected with
 exact diagnostics. Applying a non-generic type, or applying a generic type with

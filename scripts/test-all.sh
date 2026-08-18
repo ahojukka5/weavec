@@ -204,6 +204,9 @@ bash "$ROOT/test/generic-monomorphization/test.sh"
 log 'tagged variants'
 bash "$ROOT/test/tagged-variants/test.sh"
 
+log 'exhaustive match'
+bash "$ROOT/test/variant-match/test.sh"
+
 log 'struct forms'
 bash "$ROOT/test/struct-forms/test.sh"
 
