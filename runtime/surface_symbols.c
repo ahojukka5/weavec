@@ -1827,6 +1827,57 @@ void weave_surface_match_write_close3(int32_t fd) {
     weave_surface_enum_write(fd, ")))");
 }
 
+void weave_surface_try_write_set_ok(
+    int32_t fd,
+    const char *dest,
+    int64_t dest_len,
+    const char *prefix,
+    const char *wir_type,
+    int32_t temp) {
+    char line[256];
+    if (prefix == NULL) {
+        prefix = "";
+    }
+    if (wir_type == NULL) {
+        wir_type = "i32";
+    }
+    weave_surface_enum_write(fd, "(set ");
+    if (dest != NULL && dest_len > 0) {
+        write(fd, dest, (size_t)dest_len);
+    }
+    snprintf(
+        line,
+        sizeof(line),
+        " (call_%s %s_payload_Ok (local_get __m%d)))",
+        wir_type,
+        prefix,
+        temp);
+    weave_surface_enum_write(fd, line);
+}
+
+void weave_surface_try_write_return_err(
+    int32_t fd,
+    const char *prefix,
+    const char *wir_type,
+    int32_t temp) {
+    char line[256];
+    if (prefix == NULL) {
+        prefix = "";
+    }
+    if (wir_type == NULL) {
+        wir_type = "i32";
+    }
+    snprintf(
+        line,
+        sizeof(line),
+        "(return (call_ptr %s_new_Err (call_%s %s_payload_Err (local_get __m%d))))",
+        prefix,
+        wir_type,
+        prefix,
+        temp);
+    weave_surface_enum_write(fd, line);
+}
+
 void weave_surface_match_write_dummy(int32_t fd, const char *wir_type) {
     if (wir_type != NULL && strcmp(wir_type, "ptr") == 0) {
         weave_surface_enum_write(fd, "(const_null)");

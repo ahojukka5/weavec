@@ -1,0 +1,14 @@
+; SPDX-License-Identifier: Apache-2.0
+; Canonical Option type for a present or absent value.
+;
+; Absence is a tagged variant, not a null pointer. Pass this file with the
+; program that uses Option.
+
+(program
+  (name "std.option")
+  (version "0.1")
+
+  (enum Option
+    (type-params T)
+    (variant None)
+    (variant Some T)))

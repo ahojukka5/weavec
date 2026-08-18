@@ -132,6 +132,15 @@
   (extern weave_surface_match_write_close3 (params (fd i32)) (returns void))
   (extern weave_surface_match_write_dummy
     (params (fd i32) (wir_type ptr)) (returns void))
+  (extern weave_surface_try_write_set_ok
+    (params
+      (fd i32) (dest ptr) (dest_len i64)
+      (prefix ptr) (wir_type ptr) (temp i32))
+    (returns void))
+  (extern weave_surface_try_write_return_err
+    (params
+      (fd i32) (prefix ptr) (wir_type ptr) (temp i32))
+    (returns void))
   (extern weave_surface_set_return_type (params (type i32)) (returns void))
   (extern weave_surface_get_return_type (params) (returns i32))
   (extern weave_surface_set_error (params) (returns void))

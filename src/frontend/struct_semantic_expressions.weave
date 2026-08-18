@@ -108,6 +108,18 @@
               (param_get sst_tree) (param_get sst_source)
               (param_get sst_node) (param_get sst_expected)))))
           (else (do)))
+        (if
+          (condition (and_bool
+            (eq_i32 (call_i32 node_kind
+              (param_get sst_tree) (param_get sst_node)) (call_i32 node_list))
+            (ne_i32 (call_i32 head_equals
+              (param_get sst_tree) (param_get sst_source) (param_get sst_node)
+              (const_string_ptr "try") (const_i64 3)) (const_i32 0))))
+          (then (do
+            (return (call_i32 try_expr_type
+              (param_get sst_tree) (param_get sst_source)
+              (param_get sst_node) (param_get sst_expected)))))
+          (else (do)))
         (return (call_i32 surface_expr_type
           (param_get sst_tree) (param_get sst_source) (param_get sst_node)
           (param_get sst_expected)))))
