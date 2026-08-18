@@ -50,8 +50,14 @@ A type annotation is a bare name or an explicit type application:
 
 ```weave
 (let count i32 0)
+(let n 1)
 (let box (type-app Box i32) ...)
 ```
+
+`(let NAME EXPR)` is accepted when EXPR has exactly one known type. A bare
+integer is `i32`. A decimal such as `1.5` is `f64`. An initializer whose type
+is unknown, void, or not unique still requires an explicit annotation.
+`(let NAME TYPE EXPR)` remains valid.
 
 Other parenthesised types such as `(owned Vec3)` are rejected wherever they
 appear — in a binding, a parameter, or a return declaration:

@@ -283,7 +283,11 @@ static char *weave_si_find_local_type_in_node(
     const char *fallback = NULL;
     if (weave_si_head_equals(source, node, "let")) {
         name_node = weave_si_nth_child(source->tree, node, 1);
-        type_node = weave_si_nth_child(source->tree, node, 2);
+        if (weave_si_nth_child(source->tree, node, 3) >= 0) {
+            type_node = weave_si_nth_child(source->tree, node, 2);
+        } else {
+            fallback = "inferred";
+        }
     } else if (weave_si_head_equals(source, node, "case") &&
                weave_si_nth_child(source->tree, node, 3) >= 0) {
         name_node = weave_si_nth_child(source->tree, node, 2);
@@ -307,9 +311,11 @@ static char *weave_si_find_local_type_in_node(
                 : form_end <= use_start && start >= *best_start;
         }
         if (in_scope) {
-            result = type_node >= 0
-                ? weave_si_node_text(source, type_node)
-                : weave_si_copy(fallback, strlen(fallback));
+            if (type_node >= 0) {
+                result = weave_si_node_text(source, type_node);
+            } else if (fallback != NULL) {
+                result = weave_si_copy(fallback, strlen(fallback));
+            }
             if (result != NULL) *best_start = start;
         }
         free(candidate);

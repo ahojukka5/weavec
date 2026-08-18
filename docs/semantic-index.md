@@ -91,6 +91,9 @@ binding use, and the containing callable definition supplies its scope.
 Consumers must distinguish this case from an unresolved reference by checking
 `status`; a null symbol ID alone does not mean failure.
 
+A `(let NAME EXPR)` binding without a written type is still in scope; the
+index records the binding without a source type annotation.
+
 The body collector covers the canonical surface forms advertised by
 `weavec capabilities --json`, including bare identifier reads, `let`, `set`,
 `cast`, `new`, `field-get`, `field-set`, quantum operands, typed expression

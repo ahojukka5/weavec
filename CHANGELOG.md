@@ -15,6 +15,9 @@ surface-language contract stabilises.
 
 ### Added
 
+- `(let NAME EXPR)` when the initializer has one authoritative type.
+  A bare integer is `i32` and a decimal is `f64`. Unknown or void
+  initializers still require `(let NAME TYPE EXPR)`.
 - Expression-valued `if`: `(if (condition EXPR) (then EXPR) (else EXPR))`
   as a `let` initializer or returned value. Else is required and the
   branch types must agree. Statement `if` is unchanged.
