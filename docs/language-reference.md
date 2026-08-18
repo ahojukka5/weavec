@@ -348,6 +348,14 @@ An `if` statement is:
     statements...)))
 ```
 
+The else clause may be omitted on a statement `if`. An `if` whose `then` and
+`else` are expressions is a value; else is required and the branch types must
+agree. It initializes a `let` or is returned:
+
+```weave
+(let n i32 (if (condition flag) (then 1) (else 2)))
+```
+
 A `while` loop is:
 
 ```weave

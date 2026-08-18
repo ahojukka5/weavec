@@ -273,6 +273,18 @@ The short form is normalized to the explicit one, so both spellings lower to the
 same WIR and the explicit form remains valid. An `if` without an else can fall
 through, so it never satisfies the returning rule below.
 
+An `if` whose `then` and `else` are expressions is a value. Else is required,
+and the two expressions must have the same type. It may initialize a `let` or
+be returned, the same way `match` is:
+
+```weave
+(let n i32 (if (condition flag) (then 1) (else 2)))
+(return (if (condition flag) (then 1) (else 2)))
+```
+
+A statement `if` still uses `(then (do ...))`. Mixing the two — an expression
+`if` as a statement, or a `do` body as a value — is rejected.
+
 ## Returning
 
 Every function body must transfer control out on every path. A body that can

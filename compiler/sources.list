@@ -55,6 +55,7 @@ src/frontend/specialize.weave
 src/frontend/variants.weave
 src/frontend/match.weave
 src/frontend/try.weave
+src/frontend/if_expr.weave
 src/frontend/emit_helpers.weave
 src/frontend/emit.weave
 src/frontend/contract_canonical.weave

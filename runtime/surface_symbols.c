@@ -1811,6 +1811,30 @@ void weave_surface_match_write_open_if(int32_t fd) {
     weave_surface_enum_write(fd, "(if (condition ");
 }
 
+void weave_surface_if_write_then_return(int32_t fd) {
+    weave_surface_enum_write(fd, ") (then (do (return ");
+}
+
+void weave_surface_if_write_else_return(int32_t fd) {
+    weave_surface_enum_write(fd, "))) (else (do (return ");
+}
+
+void weave_surface_if_write_end_return(int32_t fd) {
+    weave_surface_enum_write(fd, "))))");
+}
+
+void weave_surface_if_write_then_set(int32_t fd) {
+    weave_surface_enum_write(fd, ") (then (do (set ");
+}
+
+void weave_surface_if_write_else_set(int32_t fd) {
+    weave_surface_enum_write(fd, "))) (else (do (set ");
+}
+
+void weave_surface_if_write_end_set(int32_t fd) {
+    weave_surface_enum_write(fd, "))))");
+}
+
 void weave_surface_match_write_then_do(int32_t fd) {
     weave_surface_enum_write(fd, ") (then (do ");
 }
