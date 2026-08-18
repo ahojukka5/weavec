@@ -254,6 +254,57 @@ static int weave_si_call_edge_compare(
     return left->callee_symbol_index < right->callee_symbol_index ? -1 : 1;
 }
 
+static int weave_si_specialization_compare(
+    const weave_si_specialization *left,
+    const weave_si_specialization *right) {
+    int kind = strcmp(left->kind, right->kind);
+    if (kind != 0) return kind;
+    int generic = strcmp(left->generic_name, right->generic_name);
+    if (generic != 0) return generic;
+    return strcmp(left->specialized_name, right->specialized_name);
+}
+
+static void weave_si_sort_specializations(weave_si_model *model) {
+    for (size_t outer = 1; outer < model->specialization_count; ++outer) {
+        weave_si_specialization value = model->specializations[outer];
+        size_t inner = outer;
+        while (inner > 0 &&
+               weave_si_specialization_compare(
+                   &value, &model->specializations[inner - 1]) < 0) {
+            model->specializations[inner] = model->specializations[inner - 1];
+            --inner;
+        }
+        model->specializations[inner] = value;
+    }
+}
+
+static int weave_si_match_compare(
+    const weave_si_match *left,
+    const weave_si_match *right) {
+    if (left->source_index != right->source_index) {
+        return left->source_index < right->source_index ? -1 : 1;
+    }
+    if (left->start != right->start) {
+        return left->start < right->start ? -1 : 1;
+    }
+    if (left->end == right->end) return 0;
+    return left->end < right->end ? -1 : 1;
+}
+
+static void weave_si_sort_matches(weave_si_model *model) {
+    for (size_t outer = 1; outer < model->match_count; ++outer) {
+        weave_si_match value = model->matches[outer];
+        size_t inner = outer;
+        while (inner > 0 &&
+               weave_si_match_compare(
+                   &value, &model->matches[inner - 1]) < 0) {
+            model->matches[inner] = model->matches[inner - 1];
+            --inner;
+        }
+        model->matches[inner] = value;
+    }
+}
+
 static void weave_si_sort_call_edges(weave_si_model *model) {
     for (size_t outer = 1; outer < model->call_edge_count; ++outer) {
         weave_si_call_edge value = model->call_edges[outer];

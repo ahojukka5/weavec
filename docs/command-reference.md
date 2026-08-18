@@ -195,7 +195,8 @@ weavec analyze [--project <directory-or-manifest>]
 Project analysis uses the same manifest selection, source admission, dependency
 order, and module identities as `weavec build`. The semantic index keeps its
 existing module, symbol, import, export, reference, call-edge, public nominal type,
-and interface-hash facts and adds the shared `weavec-project-facts-v1` context.
+specialization, match, and interface-hash facts and adds the shared
+`weavec-project-facts-v1` context.
 Project-relative logical source paths are relocation-stable; documented physical
 paths remain observational.
 

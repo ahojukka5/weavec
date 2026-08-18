@@ -15,6 +15,9 @@ surface-language contract stabilises.
 
 ### Added
 
+- Semantic-index facts for enums, variant constructors, match patterns,
+  and concrete function and enum specializations. Existing
+  `weavec-semantic-index-v1` documents remain valid.
 - Canonical `Option` and `Result` types in `stdlib/option.weave` and
   `stdlib/result.weave`, plus `(try EXPR)` to unwrap `Ok` or return
   `Err` from a Result-returning function.

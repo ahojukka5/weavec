@@ -70,6 +70,11 @@ static int weave_si_collect_source_declarations(
                         model, source_index, module_index, child, "struct", 0)) {
                     return 0;
                 }
+            } else if (weave_si_head_equals(source, child, "enum")) {
+                if (!weave_si_collect_symbol(
+                        model, source_index, module_index, child, "enum", 0)) {
+                    return 0;
+                }
             } else if (weave_si_head_equals(source, child, "import")) {
                 int64_t module_node = weave_si_nth_child(source->tree, child, 1);
                 int64_t list_node = weave_si_nth_child(source->tree, child, 2);

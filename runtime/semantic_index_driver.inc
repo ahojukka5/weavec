@@ -25,6 +25,19 @@ static void weave_si_free_model(weave_si_model *model) {
     for (size_t index = 0; index < model->export_count; ++index) {
         free(model->exports[index].name);
     }
+    for (size_t index = 0; index < model->specialization_count; ++index) {
+        free(model->specializations[index].kind);
+        free(model->specializations[index].generic_name);
+        free(model->specializations[index].specialized_name);
+        if (model->specializations[index].arguments != NULL) {
+            for (size_t arg = 0;
+                 arg < model->specializations[index].argument_count;
+                 ++arg) {
+                free(model->specializations[index].arguments[arg]);
+            }
+            free(model->specializations[index].arguments);
+        }
+    }
     free(model->sources);
     free(model->modules);
     free(model->symbols);
@@ -32,6 +45,8 @@ static void weave_si_free_model(weave_si_model *model) {
     free(model->exports);
     free(model->references);
     free(model->call_edges);
+    free(model->specializations);
+    free(model->matches);
     memset(model, 0, sizeof(*model));
 }
 
@@ -116,9 +131,12 @@ static int weave_si_build_model(weave_si_model *model) {
         if (!weave_si_collect_source_declarations(model, index)) return 0;
     }
     if (!weave_si_resolve_interfaces(model)) return 0;
+    if (!weave_si_collect_specializations(model)) return 0;
     if (!weave_si_collect_calls(model)) return 0;
     if (!weave_si_sort_references(model)) return 0;
     weave_si_sort_call_edges(model);
+    weave_si_sort_specializations(model);
+    weave_si_sort_matches(model);
     if (!weave_si_compute_interface_hashes(model)) return 0;
     return 1;
 }
@@ -141,24 +159,43 @@ static void weave_si_clear_graph(weave_si_model *model) {
     for (size_t index = 0; index < model->export_count; ++index) {
         free(model->exports[index].name);
     }
+    for (size_t index = 0; index < model->specialization_count; ++index) {
+        free(model->specializations[index].kind);
+        free(model->specializations[index].generic_name);
+        free(model->specializations[index].specialized_name);
+        if (model->specializations[index].arguments != NULL) {
+            for (size_t arg = 0;
+                 arg < model->specializations[index].argument_count;
+                 ++arg) {
+                free(model->specializations[index].arguments[arg]);
+            }
+            free(model->specializations[index].arguments);
+        }
+    }
     free(model->modules);
     free(model->symbols);
     free(model->imports);
     free(model->exports);
     free(model->references);
     free(model->call_edges);
+    free(model->specializations);
+    free(model->matches);
     model->modules = NULL;
     model->symbols = NULL;
     model->imports = NULL;
     model->exports = NULL;
     model->references = NULL;
     model->call_edges = NULL;
+    model->specializations = NULL;
+    model->matches = NULL;
     model->module_count = model->module_capacity = 0;
     model->symbol_count = model->symbol_capacity = 0;
     model->import_count = model->import_capacity = 0;
     model->export_count = model->export_capacity = 0;
     model->reference_count = model->reference_capacity = 0;
     model->call_edge_count = model->call_edge_capacity = 0;
+    model->specialization_count = model->specialization_capacity = 0;
+    model->match_count = model->match_capacity = 0;
 }
 
 static void weave_si_usage(void) {
