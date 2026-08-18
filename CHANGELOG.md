@@ -10,6 +10,9 @@ surface-language contract stabilises.
 
 ### Added
 
+- Deterministic monomorphization of generic functions: `(call identity
+  (type-args i32) 1)` emits one concrete WIR function per distinct
+  instantiation and reuses it for later calls.
 - Explicit generic type parameters and type applications as surface and
   semantic forms: `(type-params T E)` on functions and structs, and
   `(type-app CONSTRUCTOR ARG...)` in type positions. Declarations resolve onto

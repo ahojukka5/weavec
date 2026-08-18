@@ -84,9 +84,18 @@ name. Type applications name the constructor and its arguments:
   ...)
 ```
 
-Generic declarations are surface and semantic facts. They do not appear in WIR;
-calling a generic function or constructing a generic struct requires a later
-specialization step. `entry` and `extern` cannot take type parameters.
+Generic declarations are surface templates. A call to a generic function must
+supply explicit type arguments; the compiler emits one concrete WIR function
+per distinct instantiation and reuses it for later calls:
+
+```weave
+(return (call identity (type-args i32) 1))
+```
+
+The specialized name is deterministic from the source name and the type-argument
+identities, so file order does not change it. `entry` and `extern` cannot take
+type parameters. Constructing a generic struct still requires a later
+specialization of `new`.
 
 Duplicate, empty, reserved, and unknown type-parameter names are rejected with
 exact diagnostics. Applying a non-generic type, or applying a generic type with

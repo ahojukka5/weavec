@@ -168,7 +168,15 @@ int32_t weave_surface_symbol_begin(
     weave_surface_symbols[index].name_length = length;
     weave_surface_symbols[index].return_type = return_type;
     weave_surface_symbols[index].parameter_count = 0;
+    weave_surface_symbols[index].type_param_count = 0;
     weave_surface_symbols[index].module_index = weave_surface_current_module;
+    weave_surface_symbols[index].source_path = NULL;
+    if (weave_surface_current_source_path != NULL) {
+        size_t path_len = strlen(weave_surface_current_source_path);
+        weave_surface_symbols[index].source_path =
+            weave_surface_copy_slice(
+                weave_surface_current_source_path, 0, (int64_t)path_len);
+    }
     weave_surface_symbol_being_built = index;
     return index;
 }

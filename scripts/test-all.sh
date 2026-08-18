@@ -198,6 +198,9 @@ bash "$ROOT/test/type-annotations/test.sh"
 log 'explicit generic type parameters'
 bash "$ROOT/test/generic-type-params/test.sh"
 
+log 'generic monomorphization'
+bash "$ROOT/test/generic-monomorphization/test.sh"
+
 log 'struct forms'
 bash "$ROOT/test/struct-forms/test.sh"
 

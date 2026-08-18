@@ -134,4 +134,27 @@
     (params (flat_type i32) (count i32)) (returns i32))
   (extern weave_surface_struct_type_param_count_storage
     (params (flat_type i32)) (returns i32))
+  (extern weave_surface_set_current_source_path
+    (params (path ptr)) (returns void))
+  (extern weave_surface_get_current_source_path (params) (returns ptr))
+  (extern weave_surface_symbol_type_param_type
+    (params (source ptr) (start i64) (length i64) (parameter_index i32))
+    (returns i32))
+  (extern weave_surface_symbol_source_path
+    (params (source ptr) (start i64) (length i64)) (returns ptr))
+  (extern weave_surface_spec_count (params) (returns i32))
+  (extern weave_surface_spec_intern
+    (params
+      (source ptr) (start i64) (length i64) (key ptr) (spec_name ptr))
+    (returns i32))
+  (extern weave_surface_spec_name (params (index i32)) (returns ptr))
+  (extern weave_surface_spec_generic_name (params (index i32)) (returns ptr))
+  (extern weave_surface_spec_source_path (params (index i32)) (returns ptr))
+  (extern weave_surface_spec_emitted (params (index i32)) (returns i32))
+  (extern weave_surface_spec_mark_emitted (params (index i32)) (returns void))
+  (extern weave_surface_spec_set_args
+    (params (index i32) (args ptr) (count i32)) (returns i32))
+  (extern weave_surface_spec_arg_count (params (index i32)) (returns i32))
+  (extern weave_surface_spec_arg_type
+    (params (index i32) (arg_index i32)) (returns i32))
 )
