@@ -15,6 +15,10 @@ surface-language contract stabilises.
 
 ### Added
 
+- `(interp PIECE...)` concatenates string literals with admitted `i32`,
+  `i64`, `bool`, and text-pointer values into one `ptr`. Floating,
+  void, null, and unknown pieces are rejected. The form lowers to
+  ordinary WIR helper calls.
 - Raw `#"..."` and multiline `"""..."""` string literals, including the
   combined `#"""..."""` spelling. They keep exact source bytes, do not
   interpolate, and lower to one existing `const_string_ptr`. Ordinary

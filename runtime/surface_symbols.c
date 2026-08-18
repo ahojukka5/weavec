@@ -171,6 +171,7 @@ static char *weave_surface_current_source_path;
 static int32_t weave_surface_loop_stack[WEAVEC_SURFACE_MAX_LOOPS];
 static int32_t weave_surface_loop_depth;
 static int32_t weave_surface_loop_next;
+static int32_t weave_surface_interp_used;
 
 static char *weave_surface_copy_slice(
     const char *source,
@@ -363,6 +364,7 @@ static int32_t weave_surface_symbol_find_in_module_stored(
 void weave_surface_symbols_reset(void) {
     weave_surface_loop_depth = 0;
     weave_surface_loop_next = 0;
+    weave_surface_interp_used = 0;
     for (int32_t index = 0; index < weave_surface_symbol_count; ++index) {
         free(weave_surface_symbols[index].name);
         free(weave_surface_symbols[index].source_path);
@@ -2081,6 +2083,130 @@ void weave_surface_try_write_return_err(
         prefix,
         temp);
     weave_surface_enum_write(fd, line);
+}
+
+void weave_surface_interp_mark(void) {
+    weave_surface_interp_used = 1;
+}
+
+void weave_surface_interp_write_empty(int32_t fd) {
+    weave_surface_enum_write(fd, "(const_string_ptr \"\")");
+}
+
+void weave_surface_interp_write_concat_open(int32_t fd) {
+    weave_surface_enum_write(fd, "(call_ptr __weave_interp_concat ");
+}
+
+void weave_surface_interp_write_call_i32(int32_t fd) {
+    weave_surface_enum_write(fd, "(call_ptr __weave_interp_i32 ");
+}
+
+void weave_surface_interp_write_call_i64(int32_t fd) {
+    weave_surface_enum_write(fd, "(call_ptr __weave_interp_i64 ");
+}
+
+void weave_surface_interp_write_call_bool(int32_t fd) {
+    weave_surface_enum_write(fd, "(call_ptr __weave_interp_bool ");
+}
+
+void weave_surface_interp_write_close(int32_t fd) {
+    weave_surface_enum_write(fd, ")");
+}
+
+void weave_surface_interp_write_space(int32_t fd) {
+    weave_surface_enum_write(fd, " ");
+}
+
+void weave_surface_interp_write_helpers(int32_t fd) {
+    if (!weave_surface_interp_used) {
+        return;
+    }
+    weave_surface_enum_write(fd,
+        "    (fn __weave_interp_concat\n"
+        "      (params (left ptr) (right ptr))\n"
+        "      (returns ptr)\n"
+        "      (do\n"
+        "        (let li i64 (const_i64 0))\n"
+        "        (while\n"
+        "          (condition (ne_i32 (load_u8 (ptr_add (param_get left) (local_get li))) (const_i32 0)))\n"
+        "          (do (set li (add_i64 (local_get li) (const_i64 1)))))\n"
+        "        (let ri i64 (const_i64 0))\n"
+        "        (while\n"
+        "          (condition (ne_i32 (load_u8 (ptr_add (param_get right) (local_get ri))) (const_i32 0)))\n"
+        "          (do (set ri (add_i64 (local_get ri) (const_i64 1)))))\n"
+        "        (let out ptr (call_ptr malloc (add_i64 (add_i64 (local_get li) (local_get ri)) (const_i64 1))))\n"
+        "        (let ci i64 (const_i64 0))\n"
+        "        (while\n"
+        "          (condition (lt_i64 (local_get ci) (local_get li)))\n"
+        "          (do\n"
+        "            (store_i8 (ptr_add (local_get out) (local_get ci)) (load_u8 (ptr_add (param_get left) (local_get ci))))\n"
+        "            (set ci (add_i64 (local_get ci) (const_i64 1)))))\n"
+        "        (let cj i64 (const_i64 0))\n"
+        "        (while\n"
+        "          (condition (lt_i64 (local_get cj) (local_get ri)))\n"
+        "          (do\n"
+        "            (store_i8 (ptr_add (local_get out) (add_i64 (local_get li) (local_get cj))) (load_u8 (ptr_add (param_get right) (local_get cj))))\n"
+        "            (set cj (add_i64 (local_get cj) (const_i64 1)))))\n"
+        "        (store_i8 (ptr_add (local_get out) (add_i64 (local_get li) (local_get ri))) (const_i32 0))\n"
+        "        (return (local_get out))))\n");
+    weave_surface_enum_write(fd,
+        "    (fn __weave_interp_i64\n"
+        "      (params (value i64))\n"
+        "      (returns ptr)\n"
+        "      (do\n"
+        "        (if\n"
+        "          (condition (eq_i64 (param_get value) (const_i64 0)))\n"
+        "          (then (do (return (const_string_ptr \"0\"))))\n"
+        "          (else (do)))\n"
+        "        (let n i64 (param_get value))\n"
+        "        (let neg i32 (const_i32 0))\n"
+        "        (if\n"
+        "          (condition (lt_i64 (local_get n) (const_i64 0)))\n"
+        "          (then (do\n"
+        "            (set neg (const_i32 1))\n"
+        "            (set n (sub_i64 (const_i64 0) (local_get n)))))\n"
+        "          (else (do)))\n"
+        "        (if\n"
+        "          (condition (lt_i64 (local_get n) (const_i64 0)))\n"
+        "          (then (do (return (const_string_ptr \"-9223372036854775808\"))))\n"
+        "          (else (do)))\n"
+        "        (let digits i64 (const_i64 0))\n"
+        "        (let t i64 (local_get n))\n"
+        "        (while\n"
+        "          (condition (ne_i64 (local_get t) (const_i64 0)))\n"
+        "          (do\n"
+        "            (set digits (add_i64 (local_get digits) (const_i64 1)))\n"
+        "            (set t (div_i64 (local_get t) (const_i64 10)))))\n"
+        "        (let total i64 (add_i64 (local_get digits) (cast_i32_to_i64 (local_get neg))))\n"
+        "        (let out ptr (call_ptr malloc (add_i64 (local_get total) (const_i64 1))))\n"
+        "        (store_i8 (ptr_add (local_get out) (local_get total)) (const_i32 0))\n"
+        "        (let pos i64 (local_get total))\n"
+        "        (set t (local_get n))\n"
+        "        (while\n"
+        "          (condition (ne_i64 (local_get t) (const_i64 0)))\n"
+        "          (do\n"
+        "            (set pos (sub_i64 (local_get pos) (const_i64 1)))\n"
+        "            (store_i8 (ptr_add (local_get out) (local_get pos)) (add_i32 (const_i32 48) (cast_i64_to_i32 (mod_i64 (local_get t) (const_i64 10)))))\n"
+        "            (set t (div_i64 (local_get t) (const_i64 10)))))\n"
+        "        (if\n"
+        "          (condition (ne_i32 (local_get neg) (const_i32 0)))\n"
+        "          (then (do (store_i8 (local_get out) (const_i32 45))))\n"
+        "          (else (do)))\n"
+        "        (return (local_get out))))\n");
+    weave_surface_enum_write(fd,
+        "    (fn __weave_interp_i32\n"
+        "      (params (value i32))\n"
+        "      (returns ptr)\n"
+        "      (do (return (call_ptr __weave_interp_i64 (cast_i32_to_i64 (param_get value))))))\n");
+    weave_surface_enum_write(fd,
+        "    (fn __weave_interp_bool\n"
+        "      (params (value bool))\n"
+        "      (returns ptr)\n"
+        "      (do\n"
+        "        (if\n"
+        "          (condition (param_get value))\n"
+        "          (then (do (return (const_string_ptr \"true\"))))\n"
+        "          (else (do (return (const_string_ptr \"false\")))))))\n");
 }
 
 void weave_surface_match_write_dummy(int32_t fd, const char *wir_type) {

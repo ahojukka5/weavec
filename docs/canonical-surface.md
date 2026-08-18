@@ -261,6 +261,7 @@ Examples:
 (call consume-multiline """
 line
 """)
+(interp "count=" n)
 (op add count 1)
 (op add 1.5 2.25)
 (new Record (count 42) (flag true))

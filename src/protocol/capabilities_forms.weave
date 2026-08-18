@@ -316,6 +316,12 @@
         (const_string_ptr "none") (const_string_ptr "loop-control") (const_null))
       (call_void cap_form_finish (param_get cf_writer))
 
+      (call_void cap_form_begin (param_get cf_writer) (const_string_ptr "interp")
+        (const_string_ptr "experimental") (const_i64 0) (const_i64 -1)
+        (const_string_ptr "semantic") (const_string_ptr "string-interpolation") (const_null))
+      (call_void cap_write_role (param_get cf_writer) (const_string_ptr "pieces") (const_i64 0) (const_string_ptr "zero-or-more") (const_string_ptr "expression"))
+      (call_void cap_form_finish (param_get cf_writer))
+
       (call_void cap_form_begin (param_get cf_writer) (const_string_ptr "return")
         (const_string_ptr "canonical") (const_i64 1) (const_i64 1)
         (const_string_ptr "contextual") (const_string_ptr "typed-surface-elaboration") (const_null))
