@@ -193,6 +193,13 @@
       (store_i64 (ptr_add (param_get ctx) (const_i64 40)) (const_i64 0))
       (return_void)))
 
+  ; Current string-global counter. After pass 1 this is the emitted count.
+  (fn ctx_str_count
+    (params (ctx ptr))
+    (returns i64)
+    (do
+      (return (load_i64 (ptr_add (param_get ctx) (const_i64 40))))))
+
   (fn ctx_get_n_locals
     (params (ctx ptr))
     (returns i64)
