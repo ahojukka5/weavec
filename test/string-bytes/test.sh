@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Owned String and Bytes (#243). User source concatenates text without
-# naming ptr. Out-of-range get returns None.
+# naming ptr. Out-of-range get returns None. #266: string_from_text
+# must release its temporary Bytes; string_append must not release
+# left and grown, which alias.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -54,6 +56,47 @@ grep -Fq '(call_ptr string_from_text (const_string_ptr "hello"))' "$TMP/app.wir"
 grep -Fq '(call_ptr string_append' "$TMP/app.wir"
 grep -Fq '(call_ptr string_get s (const_i32 99))' "$TMP/app.wir"
 grep -Fq 'Option__s__i32_new_None' "$TMP/app.wir"
+
+python3 - "$TMP/app.wir" "$ROOT/stdlib/string.weave" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+wir = Path(sys.argv[1]).read_text(encoding="utf-8")
+src = Path(sys.argv[2]).read_text(encoding="utf-8")
+
+
+def fn_body(text, name):
+    match = re.search(
+        rf"\(fn {re.escape(name)}\b.*?(?=\n    \(fn |\n    \(entry |\Z)",
+        text,
+        re.S,
+    )
+    assert match, f"missing function {name}"
+    return match.group(0)
+
+
+from_text = fn_body(wir, "string_from_text")
+append = fn_body(wir, "string_append")
+src_from_text = fn_body(src, "string_from_text")
+src_append = fn_body(src, "string_append")
+
+assert "bytes_from_text" in from_text, "string_from_text lost bytes_from_text"
+assert "bytes_release" in from_text, (
+    "string_from_text leaked the bytes_from_text temporary"
+)
+assert "bytes_release" in src_from_text, (
+    "string_from_text source no longer releases src"
+)
+
+assert "bytes_release (local_get right)" in src_append
+assert "bytes_release (local_get grown)" in src_append
+assert "bytes_release (local_get left)" not in src_append, (
+    "string_append released left and grown; they alias and that is a double free"
+)
+assert "bytes_release" in append, "string_append WIR lost bytes_release"
+print("string-bytes: leak-check passed")
+PY
 
 if grep -Eq '\bptr\b|\bextern\b|ptr_add|load_|store_|weave_rt_|malloc|free' \
     "$TMP/app.weave"; then
