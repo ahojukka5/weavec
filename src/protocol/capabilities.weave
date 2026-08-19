@@ -161,7 +161,7 @@
       (call_void protocol_json_key_bool
         (param_get cap_writer) (const_string_ptr "case_sensitive") (const_i32 1))
       (call_void protocol_json_key_i64
-        (param_get cap_writer) (const_string_ptr "wir_core_version") (const_i64 2))
+        (param_get cap_writer) (const_string_ptr "wir_core_version") (const_i64 3))
       (call_i32 weave_host_json_object_end (param_get cap_writer))
 
       (call_i32 weave_host_json_key (param_get cap_writer) (const_string_ptr "protocols"))

@@ -149,7 +149,7 @@ assert {
     "weavec-build-manifest-v1",
     "weavec-diagnostics-v1",
     "weavec-compilation-trace-v1",
-    "weave-wir-core-v2",
+    "weave-wir-core-v3",
 }.issubset(protocol_ids)
 assert {
     "capabilities",
@@ -184,7 +184,7 @@ for form in actual["surface"]["forms"]:
 
 for family in actual["surface"]["compatibility_families"]:
     assert family["status"] == "compatibility"
-    assert family["grammar_reference"] == "weave-wir-core-v2"
+    assert family["grammar_reference"] == "weave-wir-core-v3"
 
 serialized = json.dumps(actual, sort_keys=True)
 for forbidden in ("weavec0", "weavec1", "weavec-bootstrap"):
@@ -193,7 +193,7 @@ for forbidden in ("weavec0", "weavec1", "weavec-bootstrap"):
 assert actual["compiler"]["public_variant"] == "final"
 assert actual["language"]["syntax"] == "s-expression"
 assert actual["language"]["case_sensitive"] is True
-assert actual["language"]["wir_core_version"] == 2
+assert actual["language"]["wir_core_version"] == 3
 assert actual["surface"]["child_count_excludes_head"] is True
 PY
 
