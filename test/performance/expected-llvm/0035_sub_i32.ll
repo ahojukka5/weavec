@@ -8,7 +8,7 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = sub i32 50, 8
-  ret i32 %t0
+  %.t0 = sub i32 50, 8
+  ret i32 %.t0
 }
 

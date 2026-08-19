@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @trailing_zeros(i32 96)
-  ret i32 %t0
+  %.t0 = call i32 @trailing_zeros(i32 96)
+  ret i32 %.t0
 }
 
 ; function: trailing_zeros
@@ -26,27 +26,27 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %n.addr
-  %t1 = icmp sgt i32 %t0, 0
-  %t2 = load i32, ptr %n.addr
-  %t3 = srem i32 %t2, 2
-  %t4 = icmp eq i32 %t3, 0
-  %t5 = and i1 %t1, %t4
-  br i1 %t5, label %while.body, label %while.end
+  %.t0 = load i32, ptr %n.addr
+  %.t1 = icmp sgt i32 %.t0, 0
+  %.t2 = load i32, ptr %n.addr
+  %.t3 = srem i32 %.t2, 2
+  %.t4 = icmp eq i32 %.t3, 0
+  %.t5 = and i1 %.t1, %.t4
+  br i1 %.t5, label %while.body, label %while.end
 while.body:
   ; while body
   ; set count
-  %t6 = load i32, ptr %count.addr
-  %t7 = add i32 %t6, 1
-  store i32 %t7, ptr %count.addr
+  %.t6 = load i32, ptr %count.addr
+  %.t7 = add i32 %.t6, 1
+  store i32 %.t7, ptr %count.addr
   ; set n
-  %t8 = load i32, ptr %n.addr
-  %t9 = sdiv i32 %t8, 2
-  store i32 %t9, ptr %n.addr
+  %.t8 = load i32, ptr %n.addr
+  %.t9 = sdiv i32 %.t8, 2
+  store i32 %.t9, ptr %n.addr
   br label %while.cond
 while.end:
   ; return
-  %t10 = load i32, ptr %count.addr
-  ret i32 %t10
+  %.t10 = load i32, ptr %count.addr
+  ret i32 %.t10
 }
 

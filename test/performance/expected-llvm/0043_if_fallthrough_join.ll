@@ -11,8 +11,8 @@ entry:
   ; let x
   store i32 0, ptr %x.addr
   ; if condition
-  %t0 = icmp slt i32 1, 2
-  br i1 %t0, label %then, label %else
+  %.t0 = icmp slt i32 1, 2
+  br i1 %.t0, label %then, label %else
 then:
   ; then
   ; set x
@@ -25,7 +25,7 @@ else:
   br label %endif
 endif:
   ; return
-  %t1 = load i32, ptr %x.addr
-  ret i32 %t1
+  %.t1 = load i32, ptr %x.addr
+  ret i32 %.t1
 }
 

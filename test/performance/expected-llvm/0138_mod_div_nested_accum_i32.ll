@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @run()
-  ret i32 %t0
+  %.t0 = call i32 @run()
+  ret i32 %.t0
 }
 
 ; function: run
@@ -26,61 +26,61 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp sle i32 %t0, 200
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp sle i32 %.t0, 200
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
-  %t2 = load i32, ptr %i.addr
-  %t3 = srem i32 %t2, 7
+  %.t2 = load i32, ptr %i.addr
+  %.t3 = srem i32 %.t2, 7
   ; let r7
-  %t4 = load i32, ptr %i.addr
-  %t5 = sdiv i32 %t4, 7
+  %.t4 = load i32, ptr %i.addr
+  %.t5 = sdiv i32 %.t4, 7
   ; let q7
-  %t6 = load i32, ptr %i.addr
-  %t7 = srem i32 %t6, 13
+  %.t6 = load i32, ptr %i.addr
+  %.t7 = srem i32 %.t6, 13
   ; let r13
   ; if condition
-  %t8 = icmp eq i32 %t3, 0
-  br i1 %t8, label %then1, label %else1
+  %.t8 = icmp eq i32 %.t3, 0
+  br i1 %.t8, label %then1, label %else1
 then1:
   ; then
   ; set acc
-  %t9 = load i32, ptr %acc.addr
-  %t10 = add i32 %t9, %t5
-  store i32 %t10, ptr %acc.addr
+  %.t9 = load i32, ptr %acc.addr
+  %.t10 = add i32 %.t9, %.t5
+  store i32 %.t10, ptr %acc.addr
   br label %endif1
 else1:
   ; else
   ; if condition
-  %t11 = icmp eq i32 %t7, 0
-  br i1 %t11, label %then2, label %else2
+  %.t11 = icmp eq i32 %.t7, 0
+  br i1 %.t11, label %then2, label %else2
 then2:
   ; then
   ; set acc
-  %t12 = load i32, ptr %acc.addr
-  %t13 = sub i32 %t12, %t3
-  store i32 %t13, ptr %acc.addr
+  %.t12 = load i32, ptr %acc.addr
+  %.t13 = sub i32 %.t12, %.t3
+  store i32 %.t13, ptr %acc.addr
   br label %endif2
 else2:
   ; else
   ; set acc
-  %t14 = load i32, ptr %acc.addr
-  %t15 = add i32 %t3, %t7
-  %t16 = add i32 %t14, %t15
-  store i32 %t16, ptr %acc.addr
+  %.t14 = load i32, ptr %acc.addr
+  %.t15 = add i32 %.t3, %.t7
+  %.t16 = add i32 %.t14, %.t15
+  store i32 %.t16, ptr %acc.addr
   br label %endif2
 endif2:
   br label %endif1
 endif1:
   ; set i
-  %t17 = load i32, ptr %i.addr
-  %t18 = add i32 %t17, 1
-  store i32 %t18, ptr %i.addr
+  %.t17 = load i32, ptr %i.addr
+  %.t18 = add i32 %.t17, 1
+  store i32 %.t18, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t19 = load i32, ptr %acc.addr
-  ret i32 %t19
+  %.t19 = load i32, ptr %acc.addr
+  ret i32 %.t19
 }
 

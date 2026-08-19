@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @is_pow2(i32 64)
-  ret i32 %t0
+  %.t0 = call i32 @is_pow2(i32 64)
+  ret i32 %.t0
 }
 
 ; function: is_pow2
@@ -19,8 +19,8 @@ define i32 @is_pow2(i32 %n) {
 entry:
   %v.addr = alloca i32
   ; if condition
-  %t0 = icmp sle i32 %n, 0
-  br i1 %t0, label %then, label %endif
+  %.t0 = icmp sle i32 %n, 0
+  br i1 %.t0, label %then, label %endif
 then:
   ; then
   ; return
@@ -31,25 +31,25 @@ endif:
   ; while condition
   br label %while.cond1
 while.cond1:
-  %t1 = load i32, ptr %v.addr
-  %t2 = icmp sgt i32 %t1, 1
-  %t3 = load i32, ptr %v.addr
-  %t4 = srem i32 %t3, 2
-  %t5 = icmp eq i32 %t4, 0
-  %t6 = and i1 %t2, %t5
-  br i1 %t6, label %while.body1, label %while.end1
+  %.t1 = load i32, ptr %v.addr
+  %.t2 = icmp sgt i32 %.t1, 1
+  %.t3 = load i32, ptr %v.addr
+  %.t4 = srem i32 %.t3, 2
+  %.t5 = icmp eq i32 %.t4, 0
+  %.t6 = and i1 %.t2, %.t5
+  br i1 %.t6, label %while.body1, label %while.end1
 while.body1:
   ; while body
   ; set v
-  %t7 = load i32, ptr %v.addr
-  %t8 = sdiv i32 %t7, 2
-  store i32 %t8, ptr %v.addr
+  %.t7 = load i32, ptr %v.addr
+  %.t8 = sdiv i32 %.t7, 2
+  store i32 %.t8, ptr %v.addr
   br label %while.cond1
 while.end1:
   ; if condition
-  %t9 = load i32, ptr %v.addr
-  %t10 = icmp eq i32 %t9, 1
-  br i1 %t10, label %then2, label %else2
+  %.t9 = load i32, ptr %v.addr
+  %.t10 = icmp eq i32 %.t9, 1
+  br i1 %.t10, label %then2, label %else2
 then2:
   ; then
   ; return

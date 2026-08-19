@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @sum_evens_to(i32 20)
-  ret i32 %t0
+  %.t0 = call i32 @sum_evens_to(i32 20)
+  ret i32 %.t0
 }
 
 ; function: sum_evens_to
@@ -26,24 +26,24 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %v.addr
-  %t1 = icmp sle i32 %t0, %n
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %v.addr
+  %.t1 = icmp sle i32 %.t0, %n
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; set total
-  %t2 = load i32, ptr %total.addr
-  %t3 = load i32, ptr %v.addr
-  %t4 = add i32 %t2, %t3
-  store i32 %t4, ptr %total.addr
+  %.t2 = load i32, ptr %total.addr
+  %.t3 = load i32, ptr %v.addr
+  %.t4 = add i32 %.t2, %.t3
+  store i32 %.t4, ptr %total.addr
   ; set v
-  %t5 = load i32, ptr %v.addr
-  %t6 = add i32 %t5, 2
-  store i32 %t6, ptr %v.addr
+  %.t5 = load i32, ptr %v.addr
+  %.t6 = add i32 %.t5, 2
+  store i32 %.t6, ptr %v.addr
   br label %while.cond
 while.end:
   ; return
-  %t7 = load i32, ptr %total.addr
-  ret i32 %t7
+  %.t7 = load i32, ptr %total.addr
+  ret i32 %.t7
 }
 

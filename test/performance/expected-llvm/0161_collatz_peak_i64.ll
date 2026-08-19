@@ -16,32 +16,32 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %k.addr
-  %t1 = icmp sle i32 %t0, 40
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %k.addr
+  %.t1 = icmp sle i32 %.t0, 40
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
-  %t2 = load i32, ptr %k.addr
-  %t3 = sext i32 %t2 to i64
-  %t4 = mul i64 %t3, 37
-  %t5 = add i64 %t4, 100
+  %.t2 = load i32, ptr %k.addr
+  %.t3 = sext i32 %.t2 to i64
+  %.t4 = mul i64 %.t3, 37
+  %.t5 = add i64 %.t4, 100
   ; let start
   ; set acc
-  %t6 = load i64, ptr %acc.addr
-  %t7 = call i64 @collatz_peak(i64 %t5)
-  %t8 = add i64 %t6, %t7
-  store i64 %t8, ptr %acc.addr
+  %.t6 = load i64, ptr %acc.addr
+  %.t7 = call i64 @collatz_peak(i64 %.t5)
+  %.t8 = add i64 %.t6, %.t7
+  store i64 %.t8, ptr %acc.addr
   ; set k
-  %t9 = load i32, ptr %k.addr
-  %t10 = add i32 %t9, 1
-  store i32 %t10, ptr %k.addr
+  %.t9 = load i32, ptr %k.addr
+  %.t10 = add i32 %.t9, 1
+  store i32 %.t10, ptr %k.addr
   br label %while.cond
 while.end:
   ; return
-  %t11 = load i64, ptr %acc.addr
-  %t12 = srem i64 %t11, 1000000007
-  %t13 = trunc i64 %t12 to i32
-  ret i32 %t13
+  %.t11 = load i64, ptr %acc.addr
+  %.t12 = srem i64 %.t11, 1000000007
+  %.t13 = trunc i64 %.t12 to i32
+  ret i32 %.t13
 }
 
 ; function: collatz_peak
@@ -61,55 +61,55 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i64, ptr %n.addr
-  %t1 = icmp ne i64 %t0, 1
-  %t2 = load i64, ptr %steps.addr
-  %t3 = icmp slt i64 %t2, 200
-  %t4 = and i1 %t1, %t3
-  br i1 %t4, label %while.body, label %while.end
+  %.t0 = load i64, ptr %n.addr
+  %.t1 = icmp ne i64 %.t0, 1
+  %.t2 = load i64, ptr %steps.addr
+  %.t3 = icmp slt i64 %.t2, 200
+  %.t4 = and i1 %.t1, %.t3
+  br i1 %.t4, label %while.body, label %while.end
 while.body:
   ; while body
   ; if condition
-  %t5 = load i64, ptr %n.addr
-  %t6 = srem i64 %t5, 2
-  %t7 = icmp eq i64 %t6, 0
-  br i1 %t7, label %then1, label %else1
+  %.t5 = load i64, ptr %n.addr
+  %.t6 = srem i64 %.t5, 2
+  %.t7 = icmp eq i64 %.t6, 0
+  br i1 %.t7, label %then1, label %else1
 then1:
   ; then
   ; set n
-  %t8 = load i64, ptr %n.addr
-  %t9 = sdiv i64 %t8, 2
-  store i64 %t9, ptr %n.addr
+  %.t8 = load i64, ptr %n.addr
+  %.t9 = sdiv i64 %.t8, 2
+  store i64 %.t9, ptr %n.addr
   br label %endif1
 else1:
   ; else
   ; set n
-  %t10 = load i64, ptr %n.addr
-  %t11 = mul i64 %t10, 3
-  %t12 = add i64 %t11, 1
-  store i64 %t12, ptr %n.addr
+  %.t10 = load i64, ptr %n.addr
+  %.t11 = mul i64 %.t10, 3
+  %.t12 = add i64 %.t11, 1
+  store i64 %.t12, ptr %n.addr
   br label %endif1
 endif1:
   ; if condition
-  %t13 = load i64, ptr %n.addr
-  %t14 = load i64, ptr %peak.addr
-  %t15 = icmp sgt i64 %t13, %t14
-  br i1 %t15, label %then2, label %endif2
+  %.t13 = load i64, ptr %n.addr
+  %.t14 = load i64, ptr %peak.addr
+  %.t15 = icmp sgt i64 %.t13, %.t14
+  br i1 %.t15, label %then2, label %endif2
 then2:
   ; then
   ; set peak
-  %t16 = load i64, ptr %n.addr
-  store i64 %t16, ptr %peak.addr
+  %.t16 = load i64, ptr %n.addr
+  store i64 %.t16, ptr %peak.addr
   br label %endif2
 endif2:
   ; set steps
-  %t17 = load i64, ptr %steps.addr
-  %t18 = add i64 %t17, 1
-  store i64 %t18, ptr %steps.addr
+  %.t17 = load i64, ptr %steps.addr
+  %.t18 = add i64 %.t17, 1
+  store i64 %.t18, ptr %steps.addr
   br label %while.cond
 while.end:
   ; return
-  %t19 = load i64, ptr %peak.addr
-  ret i64 %t19
+  %.t19 = load i64, ptr %peak.addr
+  ret i64 %.t19
 }
 

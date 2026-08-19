@@ -12,35 +12,35 @@ declare void @free(ptr)
 ; returns: i32
 define i32 @main() {
 entry:
-  %t0 = call ptr @malloc(i64 48)
+  %.t0 = call ptr @malloc(i64 48)
   ; let a
   ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
+  %.t1 = icmp eq ptr %.t0, null
+  br i1 %.t1, label %then, label %endif
 then:
   ; then
   ; return
   ret i32 0
 endif:
-  %t2 = call ptr @elem(ptr %t0, i32 0)
-  store i64 1500, ptr %t2
-  %t3 = call ptr @elem(ptr %t0, i32 1)
-  store i64 2500, ptr %t3
-  %t4 = call ptr @elem(ptr %t0, i32 2)
-  store i64 3500, ptr %t4
-  %t5 = call ptr @elem(ptr %t0, i32 3)
-  store i64 4500, ptr %t5
-  %t6 = call ptr @elem(ptr %t0, i32 4)
-  store i64 5500, ptr %t6
-  %t7 = call ptr @elem(ptr %t0, i32 5)
-  store i64 6500, ptr %t7
-  %t8 = call i64 @mean_scaled(ptr %t0, i32 6)
+  %.t2 = call ptr @elem(ptr %.t0, i32 0)
+  store i64 1500, ptr %.t2
+  %.t3 = call ptr @elem(ptr %.t0, i32 1)
+  store i64 2500, ptr %.t3
+  %.t4 = call ptr @elem(ptr %.t0, i32 2)
+  store i64 3500, ptr %.t4
+  %.t5 = call ptr @elem(ptr %.t0, i32 3)
+  store i64 4500, ptr %.t5
+  %.t6 = call ptr @elem(ptr %.t0, i32 4)
+  store i64 5500, ptr %.t6
+  %.t7 = call ptr @elem(ptr %.t0, i32 5)
+  store i64 6500, ptr %.t7
+  %.t8 = call i64 @mean_scaled(ptr %.t0, i32 6)
   ; let avg
-  call void @free(ptr %t0)
+  call void @free(ptr %.t0)
   ; return
-  %t9 = sdiv i64 %t8, 10
-  %t10 = trunc i64 %t9 to i32
-  ret i32 %t10
+  %.t9 = sdiv i64 %.t8, 10
+  %.t10 = trunc i64 %.t9 to i32
+  ret i32 %.t10
 }
 
 ; function: elem
@@ -49,9 +49,9 @@ endif:
 define ptr @elem(ptr %a, i32 %idx) {
 entry:
   ; return
-  %t0 = sext i32 %idx to i64
-  %t1 = getelementptr i64, ptr %a, i64 %t0
-  ret ptr %t1
+  %.t0 = sext i32 %idx to i64
+  %.t1 = getelementptr i64, ptr %a, i64 %.t0
+  ret ptr %.t1
 }
 
 ; function: mean_scaled
@@ -68,28 +68,28 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp slt i32 %t0, %count
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp slt i32 %.t0, %count
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; set sum
-  %t2 = load i64, ptr %sum.addr
-  %t3 = load i32, ptr %i.addr
-  %t4 = call ptr @elem(ptr %a, i32 %t3)
-  %t5 = load i64, ptr %t4
-  %t6 = add i64 %t2, %t5
-  store i64 %t6, ptr %sum.addr
+  %.t2 = load i64, ptr %sum.addr
+  %.t3 = load i32, ptr %i.addr
+  %.t4 = call ptr @elem(ptr %a, i32 %.t3)
+  %.t5 = load i64, ptr %.t4
+  %.t6 = add i64 %.t2, %.t5
+  store i64 %.t6, ptr %sum.addr
   ; set i
-  %t7 = load i32, ptr %i.addr
-  %t8 = add i32 %t7, 1
-  store i32 %t8, ptr %i.addr
+  %.t7 = load i32, ptr %i.addr
+  %.t8 = add i32 %.t7, 1
+  store i32 %.t8, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t9 = load i64, ptr %sum.addr
-  %t10 = sext i32 %count to i64
-  %t11 = sdiv i64 %t9, %t10
-  ret i64 %t11
+  %.t9 = load i64, ptr %sum.addr
+  %.t10 = sext i32 %count to i64
+  %.t11 = sdiv i64 %.t9, %.t10
+  ret i64 %.t11
 }
 

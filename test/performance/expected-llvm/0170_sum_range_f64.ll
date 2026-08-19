@@ -11,32 +11,32 @@ entry:
   %sum.addr = alloca double
   ; let i
   store i32 1, ptr %i.addr
-  %t0 = sitofp i32 0 to double
+  %.t0 = sitofp i32 0 to double
   ; let sum
-  store double %t0, ptr %sum.addr
+  store double %.t0, ptr %sum.addr
   ; while condition
   br label %while.cond
 while.cond:
-  %t1 = load i32, ptr %i.addr
-  %t2 = icmp sle i32 %t1, 120
-  br i1 %t2, label %while.body, label %while.end
+  %.t1 = load i32, ptr %i.addr
+  %.t2 = icmp sle i32 %.t1, 120
+  br i1 %.t2, label %while.body, label %while.end
 while.body:
   ; while body
   ; set sum
-  %t3 = load double, ptr %sum.addr
-  %t4 = load i32, ptr %i.addr
-  %t5 = sitofp i32 %t4 to double
-  %t6 = fadd double %t3, %t5
-  store double %t6, ptr %sum.addr
+  %.t3 = load double, ptr %sum.addr
+  %.t4 = load i32, ptr %i.addr
+  %.t5 = sitofp i32 %.t4 to double
+  %.t6 = fadd double %.t3, %.t5
+  store double %.t6, ptr %sum.addr
   ; set i
-  %t7 = load i32, ptr %i.addr
-  %t8 = add i32 %t7, 1
-  store i32 %t8, ptr %i.addr
+  %.t7 = load i32, ptr %i.addr
+  %.t8 = add i32 %.t7, 1
+  store i32 %.t8, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t9 = load double, ptr %sum.addr
-  %t10 = fptosi double %t9 to i32
-  ret i32 %t10
+  %.t9 = load double, ptr %sum.addr
+  %.t10 = fptosi double %.t9 to i32
+  ret i32 %.t10
 }
 

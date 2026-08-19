@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @harmonic_scaled(i32 10)
-  ret i32 %t0
+  %.t0 = call i32 @harmonic_scaled(i32 10)
+  ret i32 %.t0
 }
 
 ; function: harmonic_scaled
@@ -26,25 +26,25 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp sle i32 %t0, %n
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp sle i32 %.t0, %n
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; set total
-  %t2 = load i32, ptr %total.addr
-  %t3 = load i32, ptr %i.addr
-  %t4 = sdiv i32 1000, %t3
-  %t5 = add i32 %t2, %t4
-  store i32 %t5, ptr %total.addr
+  %.t2 = load i32, ptr %total.addr
+  %.t3 = load i32, ptr %i.addr
+  %.t4 = sdiv i32 1000, %.t3
+  %.t5 = add i32 %.t2, %.t4
+  store i32 %.t5, ptr %total.addr
   ; set i
-  %t6 = load i32, ptr %i.addr
-  %t7 = add i32 %t6, 1
-  store i32 %t7, ptr %i.addr
+  %.t6 = load i32, ptr %i.addr
+  %.t7 = add i32 %.t6, 1
+  store i32 %.t7, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t8 = load i32, ptr %total.addr
-  ret i32 %t8
+  %.t8 = load i32, ptr %total.addr
+  ret i32 %.t8
 }
 

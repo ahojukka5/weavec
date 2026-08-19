@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @escape_count(i32 1000, i32 0, i32 16)
-  ret i32 %t0
+  %.t0 = call i32 @escape_count(i32 1000, i32 0, i32 16)
+  ret i32 %.t0
 }
 
 ; function: escape_count
@@ -32,29 +32,29 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %iter.addr
-  %t1 = icmp slt i32 %t0, %max_iter
-  %t2 = load i32, ptr %active.addr
-  %t3 = icmp ne i32 %t2, 0
-  %t4 = and i1 %t1, %t3
-  br i1 %t4, label %while.body, label %while.end
+  %.t0 = load i32, ptr %iter.addr
+  %.t1 = icmp slt i32 %.t0, %max_iter
+  %.t2 = load i32, ptr %active.addr
+  %.t3 = icmp ne i32 %.t2, 0
+  %.t4 = and i1 %.t1, %.t3
+  br i1 %.t4, label %while.body, label %while.end
 while.body:
   ; while body
-  %t5 = load i32, ptr %zx.addr
-  %t6 = load i32, ptr %zx.addr
-  %t7 = mul i32 %t5, %t6
-  %t8 = sdiv i32 %t7, 1000
+  %.t5 = load i32, ptr %zx.addr
+  %.t6 = load i32, ptr %zx.addr
+  %.t7 = mul i32 %.t5, %.t6
+  %.t8 = sdiv i32 %.t7, 1000
   ; let zx2
-  %t9 = load i32, ptr %zy.addr
-  %t10 = load i32, ptr %zy.addr
-  %t11 = mul i32 %t9, %t10
-  %t12 = sdiv i32 %t11, 1000
+  %.t9 = load i32, ptr %zy.addr
+  %.t10 = load i32, ptr %zy.addr
+  %.t11 = mul i32 %.t9, %.t10
+  %.t12 = sdiv i32 %.t11, 1000
   ; let zy2
-  %t13 = add i32 %t8, %t12
+  %.t13 = add i32 %.t8, %.t12
   ; let radius2
   ; if condition
-  %t14 = icmp sgt i32 %t13, 4000
-  br i1 %t14, label %then1, label %else1
+  %.t14 = icmp sgt i32 %.t13, 4000
+  br i1 %.t14, label %then1, label %else1
 then1:
   ; then
   ; set active
@@ -62,29 +62,29 @@ then1:
   br label %endif1
 else1:
   ; else
-  %t15 = load i32, ptr %zx.addr
-  %t16 = mul i32 2, %t15
-  %t17 = load i32, ptr %zy.addr
-  %t18 = mul i32 %t16, %t17
-  %t19 = sdiv i32 %t18, 1000
+  %.t15 = load i32, ptr %zx.addr
+  %.t16 = mul i32 2, %.t15
+  %.t17 = load i32, ptr %zy.addr
+  %.t18 = mul i32 %.t16, %.t17
+  %.t19 = sdiv i32 %.t18, 1000
   ; let two_zx_zy
   ; set zy
-  %t20 = add i32 %t19, %cy
-  store i32 %t20, ptr %zy.addr
+  %.t20 = add i32 %.t19, %cy
+  store i32 %.t20, ptr %zy.addr
   ; set zx
-  %t21 = sub i32 %t8, %t12
-  %t22 = add i32 %t21, %cx
-  store i32 %t22, ptr %zx.addr
+  %.t21 = sub i32 %.t8, %.t12
+  %.t22 = add i32 %.t21, %cx
+  store i32 %.t22, ptr %zx.addr
   ; set iter
-  %t23 = load i32, ptr %iter.addr
-  %t24 = add i32 %t23, 1
-  store i32 %t24, ptr %iter.addr
+  %.t23 = load i32, ptr %iter.addr
+  %.t24 = add i32 %.t23, 1
+  store i32 %.t24, ptr %iter.addr
   br label %endif1
 endif1:
   br label %while.cond
 while.end:
   ; return
-  %t25 = load i32, ptr %iter.addr
-  ret i32 %t25
+  %.t25 = load i32, ptr %iter.addr
+  ret i32 %.t25
 }
 

@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @sign_i32(i32 -7)
-  ret i32 %t0
+  %.t0 = call i32 @sign_i32(i32 -7)
+  ret i32 %.t0
 }
 
 ; function: sign_i32
@@ -18,16 +18,16 @@ entry:
 define i32 @sign_i32(i32 %x) {
 entry:
   ; if condition
-  %t0 = icmp slt i32 %x, 0
-  br i1 %t0, label %then, label %endif
+  %.t0 = icmp slt i32 %x, 0
+  br i1 %.t0, label %then, label %endif
 then:
   ; then
   ; return
   ret i32 -1
 endif:
   ; if condition
-  %t1 = icmp sgt i32 %x, 0
-  br i1 %t1, label %then1, label %else1
+  %.t1 = icmp sgt i32 %x, 0
+  br i1 %.t1, label %then1, label %else1
 then1:
   ; then
   ; return

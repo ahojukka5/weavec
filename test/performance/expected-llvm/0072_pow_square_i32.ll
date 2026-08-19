@@ -8,9 +8,9 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @pow_i32(i32 3, i32 3)
-  %t1 = add i32 %t0, 15
-  ret i32 %t1
+  %.t0 = call i32 @pow_i32(i32 3, i32 3)
+  %.t1 = add i32 %.t0, 15
+  ret i32 %.t1
 }
 
 ; function: pow_i32
@@ -30,38 +30,38 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %exp.addr
-  %t1 = icmp sgt i32 %t0, 0
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %exp.addr
+  %.t1 = icmp sgt i32 %.t0, 0
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; if condition
-  %t2 = load i32, ptr %exp.addr
-  %t3 = srem i32 %t2, 2
-  %t4 = icmp ne i32 %t3, 0
-  br i1 %t4, label %then1, label %endif1
+  %.t2 = load i32, ptr %exp.addr
+  %.t3 = srem i32 %.t2, 2
+  %.t4 = icmp ne i32 %.t3, 0
+  br i1 %.t4, label %then1, label %endif1
 then1:
   ; then
   ; set result
-  %t5 = load i32, ptr %result.addr
-  %t6 = load i32, ptr %base.addr
-  %t7 = mul i32 %t5, %t6
-  store i32 %t7, ptr %result.addr
+  %.t5 = load i32, ptr %result.addr
+  %.t6 = load i32, ptr %base.addr
+  %.t7 = mul i32 %.t5, %.t6
+  store i32 %.t7, ptr %result.addr
   br label %endif1
 endif1:
   ; set base
-  %t8 = load i32, ptr %base.addr
-  %t9 = load i32, ptr %base.addr
-  %t10 = mul i32 %t8, %t9
-  store i32 %t10, ptr %base.addr
+  %.t8 = load i32, ptr %base.addr
+  %.t9 = load i32, ptr %base.addr
+  %.t10 = mul i32 %.t8, %.t9
+  store i32 %.t10, ptr %base.addr
   ; set exp
-  %t11 = load i32, ptr %exp.addr
-  %t12 = sdiv i32 %t11, 2
-  store i32 %t12, ptr %exp.addr
+  %.t11 = load i32, ptr %exp.addr
+  %.t12 = sdiv i32 %.t11, 2
+  store i32 %.t12, ptr %exp.addr
   br label %while.cond
 while.end:
   ; return
-  %t13 = load i32, ptr %result.addr
-  ret i32 %t13
+  %.t13 = load i32, ptr %result.addr
+  ret i32 %.t13
 }
 

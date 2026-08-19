@@ -8,13 +8,13 @@
 define i32 @main() {
 entry:
   ; if condition
-  %t0 = icmp eq ptr null, null
-  br i1 %t0, label %then, label %else
+  %.t0 = icmp eq ptr null, null
+  br i1 %.t0, label %then, label %else
 then:
   ; then
   ; if condition
-  %t1 = icmp ne ptr null, null
-  br i1 %t1, label %then1, label %else1
+  %.t1 = icmp ne ptr null, null
+  br i1 %.t1, label %then1, label %else1
 then1:
   ; then
   ; return

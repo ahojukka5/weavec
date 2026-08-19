@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @product_range(i32 6)
-  ret i32 %t0
+  %.t0 = call i32 @product_range(i32 6)
+  ret i32 %.t0
 }
 
 ; function: product_range
@@ -26,24 +26,24 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp sle i32 %t0, %n
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp sle i32 %.t0, %n
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; set acc
-  %t2 = load i32, ptr %acc.addr
-  %t3 = load i32, ptr %i.addr
-  %t4 = mul i32 %t2, %t3
-  store i32 %t4, ptr %acc.addr
+  %.t2 = load i32, ptr %acc.addr
+  %.t3 = load i32, ptr %i.addr
+  %.t4 = mul i32 %.t2, %.t3
+  store i32 %.t4, ptr %acc.addr
   ; set i
-  %t5 = load i32, ptr %i.addr
-  %t6 = add i32 %t5, 1
-  store i32 %t6, ptr %i.addr
+  %.t5 = load i32, ptr %i.addr
+  %.t6 = add i32 %.t5, 1
+  store i32 %.t6, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t7 = load i32, ptr %acc.addr
-  ret i32 %t7
+  %.t7 = load i32, ptr %acc.addr
+  ret i32 %.t7
 }
 

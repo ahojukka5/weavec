@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @trace_mul2(i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8)
-  ret i32 %t0
+  %.t0 = call i32 @trace_mul2(i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8)
+  ret i32 %.t0
 }
 
 ; function: trace_mul2
@@ -17,16 +17,16 @@ entry:
 ; returns: i32
 define i32 @trace_mul2(i32 %a00, i32 %a01, i32 %a10, i32 %a11, i32 %b00, i32 %b01, i32 %b10, i32 %b11) {
 entry:
-  %t0 = mul i32 %a00, %b00
-  %t1 = mul i32 %a01, %b10
-  %t2 = add i32 %t0, %t1
+  %.t0 = mul i32 %a00, %b00
+  %.t1 = mul i32 %a01, %b10
+  %.t2 = add i32 %.t0, %.t1
   ; let c00
-  %t3 = mul i32 %a10, %b01
-  %t4 = mul i32 %a11, %b11
-  %t5 = add i32 %t3, %t4
+  %.t3 = mul i32 %a10, %b01
+  %.t4 = mul i32 %a11, %b11
+  %.t5 = add i32 %.t3, %.t4
   ; let c11
   ; return
-  %t6 = add i32 %t2, %t5
-  ret i32 %t6
+  %.t6 = add i32 %.t2, %.t5
+  ret i32 %.t6
 }
 

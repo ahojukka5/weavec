@@ -12,18 +12,18 @@ declare void @free(ptr)
 ; returns: i32
 define i32 @main() {
 entry:
-  %t0 = call ptr @make_ptr()
+  %.t0 = call ptr @make_ptr()
   ; let p
   ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %else
+  %.t1 = icmp eq ptr %.t0, null
+  br i1 %.t1, label %then, label %else
 then:
   ; then
   ; return
   ret i32 0
 else:
   ; else
-  call void @free(ptr %t0)
+  call void @free(ptr %.t0)
   ; return
   ret i32 42
 }
@@ -34,7 +34,7 @@ else:
 define ptr @make_ptr() {
 entry:
   ; return
-  %t0 = call ptr @malloc(i64 8)
-  ret ptr %t0
+  %.t0 = call ptr @malloc(i64 8)
+  ret ptr %.t0
 }
 

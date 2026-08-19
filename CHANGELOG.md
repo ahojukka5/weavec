@@ -23,6 +23,10 @@ surface-language contract stabilises.
 - Functions with more than 64 locals or parameters now fail with a
   diagnostic instead of overflowing the binding tables. Call argument
   arrays are sized from the actual argument count.
+- Sibling `let` names are scoped per `do` block. Duplicate names in
+  one block are rejected. Unknown local and parameter lookups are
+  errors instead of silent `i32`. Temps emit as `%.tN` so a parameter
+  named `t0` cannot collide.
 
 ### Added
 

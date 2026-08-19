@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; if condition
-  %t0 = icmp eq i32 42, 42
-  br i1 %t0, label %then, label %else
+  %.t0 = icmp eq i32 42, 42
+  br i1 %.t0, label %then, label %else
 then:
   ; then
   br label %endif
@@ -19,8 +19,8 @@ else:
   ret i32 0
 endif:
   ; if condition
-  %t1 = icmp ne i32 42, 0
-  br i1 %t1, label %then1, label %else1
+  %.t1 = icmp ne i32 42, 0
+  br i1 %.t1, label %then1, label %else1
 then1:
   ; then
   br label %endif1
@@ -30,8 +30,8 @@ else1:
   ret i32 0
 endif1:
   ; if condition
-  %t2 = icmp slt i32 1, 2
-  br i1 %t2, label %then2, label %else2
+  %.t2 = icmp slt i32 1, 2
+  br i1 %.t2, label %then2, label %else2
 then2:
   ; then
   br label %endif2
@@ -41,8 +41,8 @@ else2:
   ret i32 0
 endif2:
   ; if condition
-  %t3 = icmp sle i32 2, 2
-  br i1 %t3, label %then3, label %else3
+  %.t3 = icmp sle i32 2, 2
+  br i1 %.t3, label %then3, label %else3
 then3:
   ; then
   br label %endif3
@@ -52,8 +52,8 @@ else3:
   ret i32 0
 endif3:
   ; if condition
-  %t4 = icmp sgt i32 3, 2
-  br i1 %t4, label %then4, label %else4
+  %.t4 = icmp sgt i32 3, 2
+  br i1 %.t4, label %then4, label %else4
 then4:
   ; then
   br label %endif4
@@ -63,8 +63,8 @@ else4:
   ret i32 0
 endif4:
   ; if condition
-  %t5 = icmp sge i32 4, 4
-  br i1 %t5, label %then5, label %else5
+  %.t5 = icmp sge i32 4, 4
+  br i1 %.t5, label %then5, label %else5
 then5:
   ; then
   ; return

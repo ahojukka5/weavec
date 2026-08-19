@@ -16,21 +16,21 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp slt i32 %t0, 5
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp slt i32 %.t0, 5
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; set sum
   store i32 0, ptr %sum.addr
   ; set i
-  %t2 = load i32, ptr %i.addr
-  %t3 = add i32 %t2, 1
-  store i32 %t3, ptr %i.addr
+  %.t2 = load i32, ptr %i.addr
+  %.t3 = add i32 %.t2, 1
+  store i32 %.t3, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t4 = load i32, ptr %sum.addr
-  ret i32 %t4
+  %.t4 = load i32, ptr %sum.addr
+  ret i32 %.t4
 }
 

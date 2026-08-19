@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @popcount(i32 29)
-  ret i32 %t0
+  %.t0 = call i32 @popcount(i32 29)
+  ret i32 %.t0
 }
 
 ; function: popcount
@@ -26,32 +26,32 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %n.addr
-  %t1 = icmp sgt i32 %t0, 0
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %n.addr
+  %.t1 = icmp sgt i32 %.t0, 0
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; if condition
-  %t2 = load i32, ptr %n.addr
-  %t3 = srem i32 %t2, 2
-  %t4 = icmp ne i32 %t3, 0
-  br i1 %t4, label %then1, label %endif1
+  %.t2 = load i32, ptr %n.addr
+  %.t3 = srem i32 %.t2, 2
+  %.t4 = icmp ne i32 %.t3, 0
+  br i1 %.t4, label %then1, label %endif1
 then1:
   ; then
   ; set bits
-  %t5 = load i32, ptr %bits.addr
-  %t6 = add i32 %t5, 1
-  store i32 %t6, ptr %bits.addr
+  %.t5 = load i32, ptr %bits.addr
+  %.t6 = add i32 %.t5, 1
+  store i32 %.t6, ptr %bits.addr
   br label %endif1
 endif1:
   ; set n
-  %t7 = load i32, ptr %n.addr
-  %t8 = sdiv i32 %t7, 2
-  store i32 %t8, ptr %n.addr
+  %.t7 = load i32, ptr %n.addr
+  %.t8 = sdiv i32 %.t7, 2
+  store i32 %.t8, ptr %n.addr
   br label %while.cond
 while.end:
   ; return
-  %t9 = load i32, ptr %bits.addr
-  ret i32 %t9
+  %.t9 = load i32, ptr %bits.addr
+  ret i32 %.t9
 }
 

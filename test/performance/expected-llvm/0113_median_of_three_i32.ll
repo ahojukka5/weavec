@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @median3(i32 30, i32 10, i32 20)
-  ret i32 %t0
+  %.t0 = call i32 @median3(i32 30, i32 10, i32 20)
+  ret i32 %.t0
 }
 
 ; function: min3
@@ -21,9 +21,9 @@ entry:
   ; let m
   store i32 %a, ptr %m.addr
   ; if condition
-  %t0 = load i32, ptr %m.addr
-  %t1 = icmp slt i32 %b, %t0
-  br i1 %t1, label %then, label %endif
+  %.t0 = load i32, ptr %m.addr
+  %.t1 = icmp slt i32 %b, %.t0
+  br i1 %.t1, label %then, label %endif
 then:
   ; then
   ; set m
@@ -31,9 +31,9 @@ then:
   br label %endif
 endif:
   ; if condition
-  %t2 = load i32, ptr %m.addr
-  %t3 = icmp slt i32 %c, %t2
-  br i1 %t3, label %then1, label %endif1
+  %.t2 = load i32, ptr %m.addr
+  %.t3 = icmp slt i32 %c, %.t2
+  br i1 %.t3, label %then1, label %endif1
 then1:
   ; then
   ; set m
@@ -41,8 +41,8 @@ then1:
   br label %endif1
 endif1:
   ; return
-  %t4 = load i32, ptr %m.addr
-  ret i32 %t4
+  %.t4 = load i32, ptr %m.addr
+  ret i32 %.t4
 }
 
 ; function: max3
@@ -54,9 +54,9 @@ entry:
   ; let m
   store i32 %a, ptr %m.addr
   ; if condition
-  %t0 = load i32, ptr %m.addr
-  %t1 = icmp sgt i32 %b, %t0
-  br i1 %t1, label %then, label %endif
+  %.t0 = load i32, ptr %m.addr
+  %.t1 = icmp sgt i32 %b, %.t0
+  br i1 %.t1, label %then, label %endif
 then:
   ; then
   ; set m
@@ -64,9 +64,9 @@ then:
   br label %endif
 endif:
   ; if condition
-  %t2 = load i32, ptr %m.addr
-  %t3 = icmp sgt i32 %c, %t2
-  br i1 %t3, label %then1, label %endif1
+  %.t2 = load i32, ptr %m.addr
+  %.t3 = icmp sgt i32 %c, %.t2
+  br i1 %.t3, label %then1, label %endif1
 then1:
   ; then
   ; set m
@@ -74,8 +74,8 @@ then1:
   br label %endif1
 endif1:
   ; return
-  %t4 = load i32, ptr %m.addr
-  ret i32 %t4
+  %.t4 = load i32, ptr %m.addr
+  ret i32 %.t4
 }
 
 ; function: median3
@@ -84,12 +84,12 @@ endif1:
 define i32 @median3(i32 %a, i32 %b, i32 %c) {
 entry:
   ; return
-  %t0 = add i32 %a, %b
-  %t1 = add i32 %t0, %c
-  %t2 = call i32 @min3(i32 %a, i32 %b, i32 %c)
-  %t3 = sub i32 %t1, %t2
-  %t4 = call i32 @max3(i32 %a, i32 %b, i32 %c)
-  %t5 = sub i32 %t3, %t4
-  ret i32 %t5
+  %.t0 = add i32 %a, %b
+  %.t1 = add i32 %.t0, %c
+  %.t2 = call i32 @min3(i32 %a, i32 %b, i32 %c)
+  %.t3 = sub i32 %.t1, %.t2
+  %.t4 = call i32 @max3(i32 %a, i32 %b, i32 %c)
+  %.t5 = sub i32 %.t3, %.t4
+  ret i32 %.t5
 }
 

@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @clamp(i32 150, i32 10, i32 99)
-  ret i32 %t0
+  %.t0 = call i32 @clamp(i32 150, i32 10, i32 99)
+  ret i32 %.t0
 }
 
 ; function: clamp
@@ -21,9 +21,9 @@ entry:
   ; let out
   store i32 %v, ptr %out.addr
   ; if condition
-  %t0 = load i32, ptr %out.addr
-  %t1 = icmp slt i32 %t0, %lo
-  br i1 %t1, label %then, label %endif
+  %.t0 = load i32, ptr %out.addr
+  %.t1 = icmp slt i32 %.t0, %lo
+  br i1 %.t1, label %then, label %endif
 then:
   ; then
   ; set out
@@ -31,9 +31,9 @@ then:
   br label %endif
 endif:
   ; if condition
-  %t2 = load i32, ptr %out.addr
-  %t3 = icmp sgt i32 %t2, %hi
-  br i1 %t3, label %then1, label %endif1
+  %.t2 = load i32, ptr %out.addr
+  %.t3 = icmp sgt i32 %.t2, %hi
+  br i1 %.t3, label %then1, label %endif1
 then1:
   ; then
   ; set out
@@ -41,7 +41,7 @@ then1:
   br label %endif1
 endif1:
   ; return
-  %t4 = load i32, ptr %out.addr
-  ret i32 %t4
+  %.t4 = load i32, ptr %out.addr
+  ret i32 %.t4
 }
 

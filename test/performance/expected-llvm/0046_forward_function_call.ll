@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @answer()
-  ret i32 %t0
+  %.t0 = call i32 @answer()
+  ret i32 %.t0
 }
 
 ; function: answer

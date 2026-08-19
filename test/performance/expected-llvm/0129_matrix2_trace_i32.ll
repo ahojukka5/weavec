@@ -12,29 +12,29 @@ declare void @free(ptr)
 ; returns: i32
 define i32 @main() {
 entry:
-  %t0 = call ptr @malloc(i64 16)
+  %.t0 = call ptr @malloc(i64 16)
   ; let m
   ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
+  %.t1 = icmp eq ptr %.t0, null
+  br i1 %.t1, label %then, label %endif
 then:
   ; then
   ; return
   ret i32 0
 endif:
-  %t2 = call ptr @elem_ptr(ptr %t0, i32 0)
-  store i32 11, ptr %t2
-  %t3 = call ptr @elem_ptr(ptr %t0, i32 1)
-  store i32 2, ptr %t3
-  %t4 = call ptr @elem_ptr(ptr %t0, i32 2)
-  store i32 3, ptr %t4
-  %t5 = call ptr @elem_ptr(ptr %t0, i32 3)
-  store i32 17, ptr %t5
-  %t6 = call i32 @trace2x2(ptr %t0)
+  %.t2 = call ptr @elem_ptr(ptr %.t0, i32 0)
+  store i32 11, ptr %.t2
+  %.t3 = call ptr @elem_ptr(ptr %.t0, i32 1)
+  store i32 2, ptr %.t3
+  %.t4 = call ptr @elem_ptr(ptr %.t0, i32 2)
+  store i32 3, ptr %.t4
+  %.t5 = call ptr @elem_ptr(ptr %.t0, i32 3)
+  store i32 17, ptr %.t5
+  %.t6 = call i32 @trace2x2(ptr %.t0)
   ; let t
-  call void @free(ptr %t0)
+  call void @free(ptr %.t0)
   ; return
-  ret i32 %t6
+  ret i32 %.t6
 }
 
 ; function: elem_ptr
@@ -43,9 +43,9 @@ endif:
 define ptr @elem_ptr(ptr %base, i32 %index) {
 entry:
   ; return
-  %t0 = sext i32 %index to i64
-  %t1 = getelementptr i32, ptr %base, i64 %t0
-  ret ptr %t1
+  %.t0 = sext i32 %index to i64
+  %.t1 = getelementptr i32, ptr %base, i64 %.t0
+  ret ptr %.t1
 }
 
 ; function: trace2x2
@@ -54,11 +54,11 @@ entry:
 define i32 @trace2x2(ptr %m) {
 entry:
   ; return
-  %t0 = call ptr @elem_ptr(ptr %m, i32 0)
-  %t1 = load i32, ptr %t0
-  %t2 = call ptr @elem_ptr(ptr %m, i32 3)
-  %t3 = load i32, ptr %t2
-  %t4 = add i32 %t1, %t3
-  ret i32 %t4
+  %.t0 = call ptr @elem_ptr(ptr %m, i32 0)
+  %.t1 = load i32, ptr %.t0
+  %.t2 = call ptr @elem_ptr(ptr %m, i32 3)
+  %.t3 = load i32, ptr %.t2
+  %.t4 = add i32 %.t1, %.t3
+  ret i32 %.t4
 }
 

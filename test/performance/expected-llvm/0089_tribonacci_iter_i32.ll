@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @trib(i32 10)
-  ret i32 %t0
+  %.t0 = call i32 @trib(i32 10)
+  ret i32 %.t0
 }
 
 ; function: trib
@@ -22,16 +22,16 @@ entry:
   %c.addr = alloca i32
   %i.addr = alloca i32
   ; if condition
-  %t0 = icmp sle i32 %n, 1
-  br i1 %t0, label %then, label %endif
+  %.t0 = icmp sle i32 %n, 1
+  br i1 %.t0, label %then, label %endif
 then:
   ; then
   ; return
   ret i32 %n
 endif:
   ; if condition
-  %t1 = icmp eq i32 %n, 2
-  br i1 %t1, label %then1, label %endif1
+  %.t1 = icmp eq i32 %n, 2
+  br i1 %.t1, label %then1, label %endif1
 then1:
   ; then
   ; return
@@ -48,33 +48,33 @@ endif1:
   ; while condition
   br label %while.cond2
 while.cond2:
-  %t2 = load i32, ptr %i.addr
-  %t3 = icmp sle i32 %t2, %n
-  br i1 %t3, label %while.body2, label %while.end2
+  %.t2 = load i32, ptr %i.addr
+  %.t3 = icmp sle i32 %.t2, %n
+  br i1 %.t3, label %while.body2, label %while.end2
 while.body2:
   ; while body
-  %t4 = load i32, ptr %a.addr
-  %t5 = load i32, ptr %b.addr
-  %t6 = add i32 %t4, %t5
-  %t7 = load i32, ptr %c.addr
-  %t8 = add i32 %t6, %t7
+  %.t4 = load i32, ptr %a.addr
+  %.t5 = load i32, ptr %b.addr
+  %.t6 = add i32 %.t4, %.t5
+  %.t7 = load i32, ptr %c.addr
+  %.t8 = add i32 %.t6, %.t7
   ; let next
   ; set a
-  %t9 = load i32, ptr %b.addr
-  store i32 %t9, ptr %a.addr
+  %.t9 = load i32, ptr %b.addr
+  store i32 %.t9, ptr %a.addr
   ; set b
-  %t10 = load i32, ptr %c.addr
-  store i32 %t10, ptr %b.addr
+  %.t10 = load i32, ptr %c.addr
+  store i32 %.t10, ptr %b.addr
   ; set c
-  store i32 %t8, ptr %c.addr
+  store i32 %.t8, ptr %c.addr
   ; set i
-  %t11 = load i32, ptr %i.addr
-  %t12 = add i32 %t11, 1
-  store i32 %t12, ptr %i.addr
+  %.t11 = load i32, ptr %i.addr
+  %.t12 = add i32 %.t11, 1
+  store i32 %.t12, ptr %i.addr
   br label %while.cond2
 while.end2:
   ; return
-  %t13 = load i32, ptr %c.addr
-  ret i32 %t13
+  %.t13 = load i32, ptr %c.addr
+  ret i32 %.t13
 }
 

@@ -12,21 +12,21 @@ declare void @free(ptr)
 ; returns: i32
 define i32 @main() {
 entry:
-  %t0 = call ptr @malloc(i64 196)
+  %.t0 = call ptr @malloc(i64 196)
   ; let t
   ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
+  %.t1 = icmp eq ptr %.t0, null
+  br i1 %.t1, label %then, label %endif
 then:
   ; then
   ; return
   ret i32 0
 endif:
-  %t2 = call i32 @edit6(ptr %t0)
+  %.t2 = call i32 @edit6(ptr %.t0)
   ; let dist
-  call void @free(ptr %t0)
+  call void @free(ptr %.t0)
   ; return
-  ret i32 %t2
+  ret i32 %.t2
 }
 
 ; function: at
@@ -35,11 +35,11 @@ endif:
 define ptr @at(ptr %t, i32 %i, i32 %j) {
 entry:
   ; return
-  %t0 = mul i32 %i, 7
-  %t1 = add i32 %t0, %j
-  %t2 = sext i32 %t1 to i64
-  %t3 = getelementptr i32, ptr %t, i64 %t2
-  ret ptr %t3
+  %.t0 = mul i32 %i, 7
+  %.t1 = add i32 %.t0, %j
+  %.t2 = sext i32 %.t1 to i64
+  %.t3 = getelementptr i32, ptr %t, i64 %.t2
+  ret ptr %.t3
 }
 
 ; function: cost
@@ -48,10 +48,10 @@ entry:
 define i32 @cost(i32 %i, i32 %j) {
 entry:
   ; if condition
-  %t0 = add i32 %i, %j
-  %t1 = srem i32 %t0, 3
-  %t2 = icmp eq i32 %t1, 0
-  br i1 %t2, label %then, label %else
+  %.t0 = add i32 %i, %j
+  %.t1 = srem i32 %.t0, 3
+  %.t2 = icmp eq i32 %.t1, 0
+  br i1 %.t2, label %then, label %else
 then:
   ; then
   ; return
@@ -74,9 +74,9 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp sle i32 %t0, 6
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp sle i32 %.t0, 6
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; let j
@@ -84,61 +84,61 @@ while.body:
   ; while condition
   br label %while.cond1
 while.cond1:
-  %t2 = load i32, ptr %j.addr
-  %t3 = icmp sle i32 %t2, 6
-  br i1 %t3, label %while.body1, label %while.end1
+  %.t2 = load i32, ptr %j.addr
+  %.t3 = icmp sle i32 %.t2, 6
+  br i1 %.t3, label %while.body1, label %while.end1
 while.body1:
   ; while body
   ; if condition
-  %t4 = load i32, ptr %i.addr
-  %t5 = icmp eq i32 %t4, 0
-  %t6 = load i32, ptr %j.addr
-  %t7 = icmp eq i32 %t6, 0
-  %t8 = or i1 %t5, %t7
-  br i1 %t8, label %then2, label %else2
+  %.t4 = load i32, ptr %i.addr
+  %.t5 = icmp eq i32 %.t4, 0
+  %.t6 = load i32, ptr %j.addr
+  %.t7 = icmp eq i32 %.t6, 0
+  %.t8 = or i1 %.t5, %.t7
+  br i1 %.t8, label %then2, label %else2
 then2:
   ; then
-  %t9 = load i32, ptr %i.addr
-  %t10 = load i32, ptr %j.addr
-  %t11 = call ptr @at(ptr %t, i32 %t9, i32 %t10)
-  %t12 = load i32, ptr %i.addr
-  %t13 = load i32, ptr %j.addr
-  %t14 = add i32 %t12, %t13
-  store i32 %t14, ptr %t11
+  %.t9 = load i32, ptr %i.addr
+  %.t10 = load i32, ptr %j.addr
+  %.t11 = call ptr @at(ptr %t, i32 %.t9, i32 %.t10)
+  %.t12 = load i32, ptr %i.addr
+  %.t13 = load i32, ptr %j.addr
+  %.t14 = add i32 %.t12, %.t13
+  store i32 %.t14, ptr %.t11
   br label %endif2
 else2:
   ; else
-  %t15 = load i32, ptr %i.addr
-  %t16 = sub i32 %t15, 1
-  %t17 = load i32, ptr %j.addr
-  %t18 = call ptr @at(ptr %t, i32 %t16, i32 %t17)
-  %t19 = load i32, ptr %t18
-  %t20 = add i32 %t19, 1
+  %.t15 = load i32, ptr %i.addr
+  %.t16 = sub i32 %.t15, 1
+  %.t17 = load i32, ptr %j.addr
+  %.t18 = call ptr @at(ptr %t, i32 %.t16, i32 %.t17)
+  %.t19 = load i32, ptr %.t18
+  %.t20 = add i32 %.t19, 1
   ; let del
-  %t21 = load i32, ptr %i.addr
-  %t22 = load i32, ptr %j.addr
-  %t23 = sub i32 %t22, 1
-  %t24 = call ptr @at(ptr %t, i32 %t21, i32 %t23)
-  %t25 = load i32, ptr %t24
-  %t26 = add i32 %t25, 1
+  %.t21 = load i32, ptr %i.addr
+  %.t22 = load i32, ptr %j.addr
+  %.t23 = sub i32 %.t22, 1
+  %.t24 = call ptr @at(ptr %t, i32 %.t21, i32 %.t23)
+  %.t25 = load i32, ptr %.t24
+  %.t26 = add i32 %.t25, 1
   ; let ins
-  %t27 = load i32, ptr %i.addr
-  %t28 = load i32, ptr %j.addr
-  %t29 = call i32 @cost(i32 %t27, i32 %t28)
+  %.t27 = load i32, ptr %i.addr
+  %.t28 = load i32, ptr %j.addr
+  %.t29 = call i32 @cost(i32 %.t27, i32 %.t28)
   ; let sub_cost
-  %t30 = load i32, ptr %i.addr
-  %t31 = sub i32 %t30, 1
-  %t32 = load i32, ptr %j.addr
-  %t33 = sub i32 %t32, 1
-  %t34 = call ptr @at(ptr %t, i32 %t31, i32 %t33)
-  %t35 = load i32, ptr %t34
-  %t36 = add i32 %t35, %t29
-  %t37 = add i32 %t36, 0
+  %.t30 = load i32, ptr %i.addr
+  %.t31 = sub i32 %.t30, 1
+  %.t32 = load i32, ptr %j.addr
+  %.t33 = sub i32 %.t32, 1
+  %.t34 = call ptr @at(ptr %t, i32 %.t31, i32 %.t33)
+  %.t35 = load i32, ptr %.t34
+  %.t36 = add i32 %.t35, %.t29
+  %.t37 = add i32 %.t36, 0
   ; let rep
   ; let best
   ; if condition
-  %t38 = icmp sgt i32 %t26, %t20
-  br i1 %t38, label %then3, label %else3
+  %.t38 = icmp sgt i32 %.t26, %.t20
+  br i1 %.t38, label %then3, label %else3
 then3:
   ; then
   ; let best
@@ -146,8 +146,8 @@ then3:
 else3:
   ; else
   ; if condition
-  %t39 = icmp sgt i32 %t37, %t20
-  br i1 %t39, label %then4, label %endif4
+  %.t39 = icmp sgt i32 %.t37, %.t20
+  br i1 %.t39, label %then4, label %endif4
 then4:
   ; then
   ; let best
@@ -155,27 +155,27 @@ then4:
 endif4:
   br label %endif3
 endif3:
-  %t40 = load i32, ptr %i.addr
-  %t41 = load i32, ptr %j.addr
-  %t42 = call ptr @at(ptr %t, i32 %t40, i32 %t41)
-  store i32 %t20, ptr %t42
+  %.t40 = load i32, ptr %i.addr
+  %.t41 = load i32, ptr %j.addr
+  %.t42 = call ptr @at(ptr %t, i32 %.t40, i32 %.t41)
+  store i32 %.t20, ptr %.t42
   br label %endif2
 endif2:
   ; set j
-  %t43 = load i32, ptr %j.addr
-  %t44 = add i32 %t43, 1
-  store i32 %t44, ptr %j.addr
+  %.t43 = load i32, ptr %j.addr
+  %.t44 = add i32 %.t43, 1
+  store i32 %.t44, ptr %j.addr
   br label %while.cond1
 while.end1:
   ; set i
-  %t45 = load i32, ptr %i.addr
-  %t46 = add i32 %t45, 1
-  store i32 %t46, ptr %i.addr
+  %.t45 = load i32, ptr %i.addr
+  %.t46 = add i32 %.t45, 1
+  store i32 %.t46, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t47 = call ptr @at(ptr %t, i32 6, i32 6)
-  %t48 = load i32, ptr %t47
-  ret i32 %t48
+  %.t47 = call ptr @at(ptr %t, i32 6, i32 6)
+  %.t48 = load i32, ptr %.t47
+  ret i32 %.t48
 }
 

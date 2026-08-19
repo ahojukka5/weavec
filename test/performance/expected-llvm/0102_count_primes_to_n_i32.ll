@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @count_primes_to(i32 30)
-  ret i32 %t0
+  %.t0 = call i32 @count_primes_to(i32 30)
+  ret i32 %.t0
 }
 
 ; function: is_prime
@@ -20,8 +20,8 @@ entry:
   %d.addr = alloca i32
   %ok.addr = alloca i32
   ; if condition
-  %t0 = icmp sle i32 %v, 1
-  br i1 %t0, label %then, label %endif
+  %.t0 = icmp sle i32 %v, 1
+  br i1 %.t0, label %then, label %endif
 then:
   ; then
   ; return
@@ -34,21 +34,21 @@ endif:
   ; while condition
   br label %while.cond1
 while.cond1:
-  %t1 = load i32, ptr %d.addr
-  %t2 = load i32, ptr %d.addr
-  %t3 = mul i32 %t1, %t2
-  %t4 = icmp sle i32 %t3, %v
-  %t5 = load i32, ptr %ok.addr
-  %t6 = icmp ne i32 %t5, 0
-  %t7 = and i1 %t4, %t6
-  br i1 %t7, label %while.body1, label %while.end1
+  %.t1 = load i32, ptr %d.addr
+  %.t2 = load i32, ptr %d.addr
+  %.t3 = mul i32 %.t1, %.t2
+  %.t4 = icmp sle i32 %.t3, %v
+  %.t5 = load i32, ptr %ok.addr
+  %.t6 = icmp ne i32 %.t5, 0
+  %.t7 = and i1 %.t4, %.t6
+  br i1 %.t7, label %while.body1, label %while.end1
 while.body1:
   ; while body
   ; if condition
-  %t8 = load i32, ptr %d.addr
-  %t9 = srem i32 %v, %t8
-  %t10 = icmp eq i32 %t9, 0
-  br i1 %t10, label %then2, label %endif2
+  %.t8 = load i32, ptr %d.addr
+  %.t9 = srem i32 %v, %.t8
+  %.t10 = icmp eq i32 %.t9, 0
+  br i1 %.t10, label %then2, label %endif2
 then2:
   ; then
   ; set ok
@@ -56,14 +56,14 @@ then2:
   br label %endif2
 endif2:
   ; set d
-  %t11 = load i32, ptr %d.addr
-  %t12 = add i32 %t11, 1
-  store i32 %t12, ptr %d.addr
+  %.t11 = load i32, ptr %d.addr
+  %.t12 = add i32 %.t11, 1
+  store i32 %.t12, ptr %d.addr
   br label %while.cond1
 while.end1:
   ; return
-  %t13 = load i32, ptr %ok.addr
-  ret i32 %t13
+  %.t13 = load i32, ptr %ok.addr
+  ret i32 %.t13
 }
 
 ; function: count_primes_to
@@ -80,32 +80,32 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %v.addr
-  %t1 = icmp sle i32 %t0, %n
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %v.addr
+  %.t1 = icmp sle i32 %.t0, %n
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; if condition
-  %t2 = load i32, ptr %v.addr
-  %t3 = call i32 @is_prime(i32 %t2)
-  %t4 = icmp ne i32 %t3, 0
-  br i1 %t4, label %then1, label %endif1
+  %.t2 = load i32, ptr %v.addr
+  %.t3 = call i32 @is_prime(i32 %.t2)
+  %.t4 = icmp ne i32 %.t3, 0
+  br i1 %.t4, label %then1, label %endif1
 then1:
   ; then
   ; set count
-  %t5 = load i32, ptr %count.addr
-  %t6 = add i32 %t5, 1
-  store i32 %t6, ptr %count.addr
+  %.t5 = load i32, ptr %count.addr
+  %.t6 = add i32 %.t5, 1
+  store i32 %.t6, ptr %count.addr
   br label %endif1
 endif1:
   ; set v
-  %t7 = load i32, ptr %v.addr
-  %t8 = add i32 %t7, 1
-  store i32 %t8, ptr %v.addr
+  %.t7 = load i32, ptr %v.addr
+  %.t8 = add i32 %.t7, 1
+  store i32 %.t8, ptr %v.addr
   br label %while.cond
 while.end:
   ; return
-  %t9 = load i32, ptr %count.addr
-  ret i32 %t9
+  %.t9 = load i32, ptr %count.addr
+  ret i32 %.t9
 }
 

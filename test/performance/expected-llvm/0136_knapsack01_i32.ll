@@ -12,21 +12,21 @@ declare void @free(ptr)
 ; returns: i32
 define i32 @main() {
 entry:
-  %t0 = call ptr @malloc(i64 288)
+  %.t0 = call ptr @malloc(i64 288)
   ; let dp
   ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
+  %.t1 = icmp eq ptr %.t0, null
+  br i1 %.t1, label %then, label %endif
 then:
   ; then
   ; return
   ret i32 0
 endif:
-  %t2 = call i32 @knapsack5(ptr %t0)
+  %.t2 = call i32 @knapsack5(ptr %.t0)
   ; let best
-  call void @free(ptr %t0)
+  call void @free(ptr %.t0)
   ; return
-  ret i32 %t2
+  ret i32 %.t2
 }
 
 ; function: dp_at
@@ -35,11 +35,11 @@ endif:
 define ptr @dp_at(ptr %dp, i32 %i, i32 %w) {
 entry:
   ; return
-  %t0 = mul i32 %i, 12
-  %t1 = add i32 %t0, %w
-  %t2 = sext i32 %t1 to i64
-  %t3 = getelementptr i32, ptr %dp, i64 %t2
-  ret ptr %t3
+  %.t0 = mul i32 %i, 12
+  %.t1 = add i32 %.t0, %w
+  %.t2 = sext i32 %.t1 to i64
+  %.t3 = getelementptr i32, ptr %dp, i64 %.t2
+  ret ptr %.t3
 }
 
 ; function: weight_of
@@ -48,32 +48,32 @@ entry:
 define i32 @weight_of(i32 %item) {
 entry:
   ; if condition
-  %t0 = icmp eq i32 %item, 0
-  br i1 %t0, label %then, label %endif
+  %.t0 = icmp eq i32 %item, 0
+  br i1 %.t0, label %then, label %endif
 then:
   ; then
   ; return
   ret i32 2
 endif:
   ; if condition
-  %t1 = icmp eq i32 %item, 1
-  br i1 %t1, label %then1, label %endif1
+  %.t1 = icmp eq i32 %item, 1
+  br i1 %.t1, label %then1, label %endif1
 then1:
   ; then
   ; return
   ret i32 3
 endif1:
   ; if condition
-  %t2 = icmp eq i32 %item, 2
-  br i1 %t2, label %then2, label %endif2
+  %.t2 = icmp eq i32 %item, 2
+  br i1 %.t2, label %then2, label %endif2
 then2:
   ; then
   ; return
   ret i32 4
 endif2:
   ; if condition
-  %t3 = icmp eq i32 %item, 3
-  br i1 %t3, label %then3, label %endif3
+  %.t3 = icmp eq i32 %item, 3
+  br i1 %.t3, label %then3, label %endif3
 then3:
   ; then
   ; return
@@ -89,32 +89,32 @@ endif3:
 define i32 @value_of(i32 %item) {
 entry:
   ; if condition
-  %t0 = icmp eq i32 %item, 0
-  br i1 %t0, label %then, label %endif
+  %.t0 = icmp eq i32 %item, 0
+  br i1 %.t0, label %then, label %endif
 then:
   ; then
   ; return
   ret i32 3
 endif:
   ; if condition
-  %t1 = icmp eq i32 %item, 1
-  br i1 %t1, label %then1, label %endif1
+  %.t1 = icmp eq i32 %item, 1
+  br i1 %.t1, label %then1, label %endif1
 then1:
   ; then
   ; return
   ret i32 4
 endif1:
   ; if condition
-  %t2 = icmp eq i32 %item, 2
-  br i1 %t2, label %then2, label %endif2
+  %.t2 = icmp eq i32 %item, 2
+  br i1 %.t2, label %then2, label %endif2
 then2:
   ; then
   ; return
   ret i32 5
 endif2:
   ; if condition
-  %t3 = icmp eq i32 %item, 3
-  br i1 %t3, label %then3, label %endif3
+  %.t3 = icmp eq i32 %item, 3
+  br i1 %.t3, label %then3, label %endif3
 then3:
   ; then
   ; return
@@ -136,9 +136,9 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp sle i32 %t0, 5
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp sle i32 %.t0, 5
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; let w
@@ -146,89 +146,89 @@ while.body:
   ; while condition
   br label %while.cond1
 while.cond1:
-  %t2 = load i32, ptr %w.addr
-  %t3 = icmp sle i32 %t2, 11
-  br i1 %t3, label %while.body1, label %while.end1
+  %.t2 = load i32, ptr %w.addr
+  %.t3 = icmp sle i32 %.t2, 11
+  br i1 %.t3, label %while.body1, label %while.end1
 while.body1:
   ; while body
   ; if condition
-  %t4 = load i32, ptr %i.addr
-  %t5 = icmp eq i32 %t4, 0
-  br i1 %t5, label %then2, label %else2
+  %.t4 = load i32, ptr %i.addr
+  %.t5 = icmp eq i32 %.t4, 0
+  br i1 %.t5, label %then2, label %else2
 then2:
   ; then
-  %t6 = load i32, ptr %i.addr
-  %t7 = load i32, ptr %w.addr
-  %t8 = call ptr @dp_at(ptr %dp, i32 %t6, i32 %t7)
-  store i32 0, ptr %t8
+  %.t6 = load i32, ptr %i.addr
+  %.t7 = load i32, ptr %w.addr
+  %.t8 = call ptr @dp_at(ptr %dp, i32 %.t6, i32 %.t7)
+  store i32 0, ptr %.t8
   br label %endif2
 else2:
   ; else
-  %t9 = load i32, ptr %i.addr
-  %t10 = sub i32 %t9, 1
-  %t11 = call i32 @weight_of(i32 %t10)
+  %.t9 = load i32, ptr %i.addr
+  %.t10 = sub i32 %.t9, 1
+  %.t11 = call i32 @weight_of(i32 %.t10)
   ; let wt
-  %t12 = load i32, ptr %i.addr
-  %t13 = sub i32 %t12, 1
-  %t14 = load i32, ptr %w.addr
-  %t15 = call ptr @dp_at(ptr %dp, i32 %t13, i32 %t14)
-  %t16 = load i32, ptr %t15
+  %.t12 = load i32, ptr %i.addr
+  %.t13 = sub i32 %.t12, 1
+  %.t14 = load i32, ptr %w.addr
+  %.t15 = call ptr @dp_at(ptr %dp, i32 %.t13, i32 %.t14)
+  %.t16 = load i32, ptr %.t15
   ; let skip
   ; let take
   ; if condition
-  %t17 = load i32, ptr %w.addr
-  %t18 = icmp sge i32 %t17, %t11
-  br i1 %t18, label %then3, label %endif3
+  %.t17 = load i32, ptr %w.addr
+  %.t18 = icmp sge i32 %.t17, %.t11
+  br i1 %.t18, label %then3, label %endif3
 then3:
   ; then
-  %t19 = load i32, ptr %i.addr
-  %t20 = sub i32 %t19, 1
-  %t21 = call i32 @value_of(i32 %t20)
-  %t22 = load i32, ptr %i.addr
-  %t23 = sub i32 %t22, 1
-  %t24 = load i32, ptr %w.addr
-  %t25 = sub i32 %t24, %t11
-  %t26 = call ptr @dp_at(ptr %dp, i32 %t23, i32 %t25)
-  %t27 = load i32, ptr %t26
-  %t28 = add i32 %t21, %t27
+  %.t19 = load i32, ptr %i.addr
+  %.t20 = sub i32 %.t19, 1
+  %.t21 = call i32 @value_of(i32 %.t20)
+  %.t22 = load i32, ptr %i.addr
+  %.t23 = sub i32 %.t22, 1
+  %.t24 = load i32, ptr %w.addr
+  %.t25 = sub i32 %.t24, %.t11
+  %.t26 = call ptr @dp_at(ptr %dp, i32 %.t23, i32 %.t25)
+  %.t27 = load i32, ptr %.t26
+  %.t28 = add i32 %.t21, %.t27
   ; let take
   br label %endif3
 endif3:
   ; if condition
-  %t29 = icmp sgt i32 0, %t16
-  br i1 %t29, label %then4, label %else4
+  %.t29 = icmp sgt i32 0, %.t16
+  br i1 %.t29, label %then4, label %else4
 then4:
   ; then
-  %t30 = load i32, ptr %i.addr
-  %t31 = load i32, ptr %w.addr
-  %t32 = call ptr @dp_at(ptr %dp, i32 %t30, i32 %t31)
-  store i32 0, ptr %t32
+  %.t30 = load i32, ptr %i.addr
+  %.t31 = load i32, ptr %w.addr
+  %.t32 = call ptr @dp_at(ptr %dp, i32 %.t30, i32 %.t31)
+  store i32 0, ptr %.t32
   br label %endif4
 else4:
   ; else
-  %t33 = load i32, ptr %i.addr
-  %t34 = load i32, ptr %w.addr
-  %t35 = call ptr @dp_at(ptr %dp, i32 %t33, i32 %t34)
-  store i32 %t16, ptr %t35
+  %.t33 = load i32, ptr %i.addr
+  %.t34 = load i32, ptr %w.addr
+  %.t35 = call ptr @dp_at(ptr %dp, i32 %.t33, i32 %.t34)
+  store i32 %.t16, ptr %.t35
   br label %endif4
 endif4:
   br label %endif2
 endif2:
   ; set w
-  %t36 = load i32, ptr %w.addr
-  %t37 = add i32 %t36, 1
-  store i32 %t37, ptr %w.addr
+  %.t36 = load i32, ptr %w.addr
+  %.t37 = add i32 %.t36, 1
+  store i32 %.t37, ptr %w.addr
   br label %while.cond1
 while.end1:
   ; set i
-  %t38 = load i32, ptr %i.addr
-  %t39 = add i32 %t38, 1
-  store i32 %t39, ptr %i.addr
+  %.t38 = load i32, ptr %i.addr
+  %.t39 = add i32 %.t38, 1
+  store i32 %.t39, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t40 = call ptr @dp_at(ptr %dp, i32 5, i32 11)
-  %t41 = load i32, ptr %t40
-  ret i32 %t41
+  %.t40 = call ptr @dp_at(ptr %dp, i32 5, i32 11)
+  %.t41 = load i32, ptr %.t40
+  ret i32 %.t41
 }
 

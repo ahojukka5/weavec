@@ -11,34 +11,34 @@ entry:
   %acc.addr = alloca float
   ; let i
   store i32 0, ptr %i.addr
-  %t0 = sitofp i32 0 to float
+  %.t0 = sitofp i32 0 to float
   ; let acc
-  store float %t0, ptr %acc.addr
+  store float %.t0, ptr %acc.addr
   ; while condition
   br label %while.cond
 while.cond:
-  %t1 = load i32, ptr %i.addr
-  %t2 = icmp slt i32 %t1, 8
-  br i1 %t2, label %while.body, label %while.end
+  %.t1 = load i32, ptr %i.addr
+  %.t2 = icmp slt i32 %.t1, 8
+  br i1 %.t2, label %while.body, label %while.end
 while.body:
   ; while body
   ; set acc
-  %t3 = load float, ptr %acc.addr
-  %t4 = sitofp i32 3 to float
-  %t5 = fmul float %t3, %t4
-  %t6 = load i32, ptr %i.addr
-  %t7 = sitofp i32 %t6 to float
-  %t8 = fadd float %t5, %t7
-  store float %t8, ptr %acc.addr
+  %.t3 = load float, ptr %acc.addr
+  %.t4 = sitofp i32 3 to float
+  %.t5 = fmul float %.t3, %.t4
+  %.t6 = load i32, ptr %i.addr
+  %.t7 = sitofp i32 %.t6 to float
+  %.t8 = fadd float %.t5, %.t7
+  store float %.t8, ptr %acc.addr
   ; set i
-  %t9 = load i32, ptr %i.addr
-  %t10 = add i32 %t9, 1
-  store i32 %t10, ptr %i.addr
+  %.t9 = load i32, ptr %i.addr
+  %.t10 = add i32 %.t9, 1
+  store i32 %.t10, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t11 = load float, ptr %acc.addr
-  %t12 = fptosi float %t11 to i32
-  ret i32 %t12
+  %.t11 = load float, ptr %acc.addr
+  %.t12 = fptosi float %.t11 to i32
+  ret i32 %.t12
 }
 

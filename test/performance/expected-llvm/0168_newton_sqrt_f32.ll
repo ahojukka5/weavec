@@ -8,12 +8,12 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = sitofp i32 2 to float
-  %t1 = call float @sqrt_newton(float %t0)
-  %t2 = sitofp i32 1000 to float
-  %t3 = fmul float %t1, %t2
-  %t4 = fptosi float %t3 to i32
-  ret i32 %t4
+  %.t0 = sitofp i32 2 to float
+  %.t1 = call float @sqrt_newton(float %.t0)
+  %.t2 = sitofp i32 1000 to float
+  %.t3 = fmul float %.t1, %.t2
+  %.t4 = fptosi float %.t3 to i32
+  ret i32 %.t4
 }
 
 ; function: sqrt_newton
@@ -23,38 +23,38 @@ define float @sqrt_newton(float %x) {
 entry:
   %guess.addr = alloca float
   %i.addr = alloca i32
-  %t0 = sitofp i32 1 to float
-  %t1 = fadd float %x, %t0
-  %t2 = sitofp i32 2 to float
-  %t3 = fdiv float %t1, %t2
+  %.t0 = sitofp i32 1 to float
+  %.t1 = fadd float %x, %.t0
+  %.t2 = sitofp i32 2 to float
+  %.t3 = fdiv float %.t1, %.t2
   ; let guess
-  store float %t3, ptr %guess.addr
+  store float %.t3, ptr %guess.addr
   ; let i
   store i32 0, ptr %i.addr
   ; while condition
   br label %while.cond
 while.cond:
-  %t4 = load i32, ptr %i.addr
-  %t5 = icmp slt i32 %t4, 8
-  br i1 %t5, label %while.body, label %while.end
+  %.t4 = load i32, ptr %i.addr
+  %.t5 = icmp slt i32 %.t4, 8
+  br i1 %.t5, label %while.body, label %while.end
 while.body:
   ; while body
   ; set guess
-  %t6 = load float, ptr %guess.addr
-  %t7 = load float, ptr %guess.addr
-  %t8 = fdiv float %x, %t7
-  %t9 = fadd float %t6, %t8
-  %t10 = sitofp i32 2 to float
-  %t11 = fdiv float %t9, %t10
-  store float %t11, ptr %guess.addr
+  %.t6 = load float, ptr %guess.addr
+  %.t7 = load float, ptr %guess.addr
+  %.t8 = fdiv float %x, %.t7
+  %.t9 = fadd float %.t6, %.t8
+  %.t10 = sitofp i32 2 to float
+  %.t11 = fdiv float %.t9, %.t10
+  store float %.t11, ptr %guess.addr
   ; set i
-  %t12 = load i32, ptr %i.addr
-  %t13 = add i32 %t12, 1
-  store i32 %t13, ptr %i.addr
+  %.t12 = load i32, ptr %i.addr
+  %.t13 = add i32 %.t12, 1
+  store i32 %.t13, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t14 = load float, ptr %guess.addr
-  ret float %t14
+  %.t14 = load float, ptr %guess.addr
+  ret float %.t14
 }
 

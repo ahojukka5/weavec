@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @count_divisors(i32 36)
-  ret i32 %t0
+  %.t0 = call i32 @count_divisors(i32 36)
+  ret i32 %.t0
 }
 
 ; function: count_divisors
@@ -26,34 +26,34 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %d.addr
-  %t1 = load i32, ptr %d.addr
-  %t2 = mul i32 %t0, %t1
-  %t3 = icmp sle i32 %t2, %n
-  br i1 %t3, label %while.body, label %while.end
+  %.t0 = load i32, ptr %d.addr
+  %.t1 = load i32, ptr %d.addr
+  %.t2 = mul i32 %.t0, %.t1
+  %.t3 = icmp sle i32 %.t2, %n
+  br i1 %.t3, label %while.body, label %while.end
 while.body:
   ; while body
   ; if condition
-  %t4 = load i32, ptr %d.addr
-  %t5 = srem i32 %n, %t4
-  %t6 = icmp eq i32 %t5, 0
-  br i1 %t6, label %then1, label %endif1
+  %.t4 = load i32, ptr %d.addr
+  %.t5 = srem i32 %n, %.t4
+  %.t6 = icmp eq i32 %.t5, 0
+  br i1 %.t6, label %then1, label %endif1
 then1:
   ; then
   ; set count
-  %t7 = load i32, ptr %count.addr
-  %t8 = add i32 %t7, 1
-  store i32 %t8, ptr %count.addr
+  %.t7 = load i32, ptr %count.addr
+  %.t8 = add i32 %.t7, 1
+  store i32 %.t8, ptr %count.addr
   br label %endif1
 endif1:
   ; set d
-  %t9 = load i32, ptr %d.addr
-  %t10 = add i32 %t9, 1
-  store i32 %t10, ptr %d.addr
+  %.t9 = load i32, ptr %d.addr
+  %.t10 = add i32 %.t9, 1
+  store i32 %.t10, ptr %d.addr
   br label %while.cond
 while.end:
   ; return
-  %t11 = load i32, ptr %count.addr
-  ret i32 %t11
+  %.t11 = load i32, ptr %count.addr
+  ret i32 %.t11
 }
 

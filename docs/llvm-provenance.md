@@ -53,7 +53,7 @@ the role:
 
 - `%name.addr` for mutable stack storage;
 - `while.*`, `then*`, `else*`, and `endif*` for control-flow blocks;
-- `%tN` only for short-lived expression temporaries.
+- `%.tN` only for short-lived expression temporaries.
 
 This keeps the pre-optimization IR reviewable. A provenance comment establishes
 the surface and WIR context; semantic block names and stable local slots then make the lowering

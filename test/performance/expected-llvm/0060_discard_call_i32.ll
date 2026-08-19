@@ -11,12 +11,12 @@ declare ptr @malloc(i64)
 ; returns: i32
 define i32 @main() {
 entry:
-  %t0 = call ptr @malloc(i64 4)
+  %.t0 = call ptr @malloc(i64 4)
   ; let p
-  %t1 = call i32 @touch(ptr %t0)
+  %.t1 = call i32 @touch(ptr %.t0)
   ; return
-  %t2 = load i32, ptr %t0
-  ret i32 %t2
+  %.t2 = load i32, ptr %.t0
+  ret i32 %.t2
 }
 
 ; function: touch

@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @inc(i32 41)
-  ret i32 %t0
+  %.t0 = call i32 @inc(i32 41)
+  ret i32 %.t0
 }
 
 ; function: inc
@@ -18,7 +18,7 @@ entry:
 define i32 @inc(i32 %x) {
 entry:
   ; return
-  %t0 = add i32 %x, 1
-  ret i32 %t0
+  %.t0 = add i32 %x, 1
+  ret i32 %.t0
 }
 

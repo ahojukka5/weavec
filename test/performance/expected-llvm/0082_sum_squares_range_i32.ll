@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @sum_squares(i32 7)
-  ret i32 %t0
+  %.t0 = call i32 @sum_squares(i32 7)
+  ret i32 %.t0
 }
 
 ; function: sum_squares
@@ -26,26 +26,26 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp sle i32 %t0, %n
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp sle i32 %.t0, %n
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; set total
-  %t2 = load i32, ptr %total.addr
-  %t3 = load i32, ptr %i.addr
-  %t4 = load i32, ptr %i.addr
-  %t5 = mul i32 %t3, %t4
-  %t6 = add i32 %t2, %t5
-  store i32 %t6, ptr %total.addr
+  %.t2 = load i32, ptr %total.addr
+  %.t3 = load i32, ptr %i.addr
+  %.t4 = load i32, ptr %i.addr
+  %.t5 = mul i32 %.t3, %.t4
+  %.t6 = add i32 %.t2, %.t5
+  store i32 %.t6, ptr %total.addr
   ; set i
-  %t7 = load i32, ptr %i.addr
-  %t8 = add i32 %t7, 1
-  store i32 %t8, ptr %i.addr
+  %.t7 = load i32, ptr %i.addr
+  %.t8 = add i32 %.t7, 1
+  store i32 %.t8, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t9 = load i32, ptr %total.addr
-  ret i32 %t9
+  %.t9 = load i32, ptr %total.addr
+  ret i32 %.t9
 }
 

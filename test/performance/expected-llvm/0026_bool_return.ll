@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; if condition
-  %t0 = call i1 @same(i1 true)
-  br i1 %t0, label %then, label %else
+  %.t0 = call i1 @same(i1 true)
+  br i1 %.t0, label %then, label %else
 then:
   ; then
   ; return

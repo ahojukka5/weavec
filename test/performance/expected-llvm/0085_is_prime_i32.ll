@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @is_prime(i32 97)
-  ret i32 %t0
+  %.t0 = call i32 @is_prime(i32 97)
+  ret i32 %.t0
 }
 
 ; function: is_prime
@@ -20,8 +20,8 @@ entry:
   %d.addr = alloca i32
   %prime.addr = alloca i32
   ; if condition
-  %t0 = icmp sle i32 %n, 1
-  br i1 %t0, label %then, label %endif
+  %.t0 = icmp sle i32 %n, 1
+  br i1 %.t0, label %then, label %endif
 then:
   ; then
   ; return
@@ -34,21 +34,21 @@ endif:
   ; while condition
   br label %while.cond1
 while.cond1:
-  %t1 = load i32, ptr %d.addr
-  %t2 = load i32, ptr %d.addr
-  %t3 = mul i32 %t1, %t2
-  %t4 = icmp sle i32 %t3, %n
-  %t5 = load i32, ptr %prime.addr
-  %t6 = icmp ne i32 %t5, 0
-  %t7 = and i1 %t4, %t6
-  br i1 %t7, label %while.body1, label %while.end1
+  %.t1 = load i32, ptr %d.addr
+  %.t2 = load i32, ptr %d.addr
+  %.t3 = mul i32 %.t1, %.t2
+  %.t4 = icmp sle i32 %.t3, %n
+  %.t5 = load i32, ptr %prime.addr
+  %.t6 = icmp ne i32 %.t5, 0
+  %.t7 = and i1 %.t4, %.t6
+  br i1 %.t7, label %while.body1, label %while.end1
 while.body1:
   ; while body
   ; if condition
-  %t8 = load i32, ptr %d.addr
-  %t9 = srem i32 %n, %t8
-  %t10 = icmp eq i32 %t9, 0
-  br i1 %t10, label %then2, label %endif2
+  %.t8 = load i32, ptr %d.addr
+  %.t9 = srem i32 %n, %.t8
+  %.t10 = icmp eq i32 %.t9, 0
+  br i1 %.t10, label %then2, label %endif2
 then2:
   ; then
   ; set prime
@@ -56,13 +56,13 @@ then2:
   br label %endif2
 endif2:
   ; set d
-  %t11 = load i32, ptr %d.addr
-  %t12 = add i32 %t11, 1
-  store i32 %t12, ptr %d.addr
+  %.t11 = load i32, ptr %d.addr
+  %.t12 = add i32 %.t11, 1
+  store i32 %.t12, ptr %d.addr
   br label %while.cond1
 while.end1:
   ; return
-  %t13 = load i32, ptr %prime.addr
-  ret i32 %t13
+  %.t13 = load i32, ptr %prime.addr
+  ret i32 %.t13
 }
 

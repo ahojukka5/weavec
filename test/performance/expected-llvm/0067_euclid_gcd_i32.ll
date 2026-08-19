@@ -8,9 +8,9 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @gcd(i32 462, i32 1071)
-  %t1 = add i32 %t0, 21
-  ret i32 %t1
+  %.t0 = call i32 @gcd(i32 462, i32 1071)
+  %.t1 = add i32 %.t0, 21
+  ret i32 %.t1
 }
 
 ; function: gcd
@@ -27,24 +27,24 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %y.addr
-  %t1 = icmp ne i32 %t0, 0
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %y.addr
+  %.t1 = icmp ne i32 %.t0, 0
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
-  %t2 = load i32, ptr %x.addr
-  %t3 = load i32, ptr %y.addr
-  %t4 = srem i32 %t2, %t3
+  %.t2 = load i32, ptr %x.addr
+  %.t3 = load i32, ptr %y.addr
+  %.t4 = srem i32 %.t2, %.t3
   ; let r
   ; set x
-  %t5 = load i32, ptr %y.addr
-  store i32 %t5, ptr %x.addr
+  %.t5 = load i32, ptr %y.addr
+  store i32 %.t5, ptr %x.addr
   ; set y
-  store i32 %t4, ptr %y.addr
+  store i32 %.t4, ptr %y.addr
   br label %while.cond
 while.end:
   ; return
-  %t6 = load i32, ptr %x.addr
-  ret i32 %t6
+  %.t6 = load i32, ptr %x.addr
+  ret i32 %.t6
 }
 

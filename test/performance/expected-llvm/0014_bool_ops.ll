@@ -8,9 +8,9 @@
 define i32 @main() {
 entry:
   ; if condition
-  %t0 = or i1 false, true
-  %t1 = and i1 true, %t0
-  br i1 %t1, label %then, label %else
+  %.t0 = or i1 false, true
+  %.t1 = and i1 true, %.t0
+  br i1 %.t1, label %then, label %else
 then:
   ; then
   ; return

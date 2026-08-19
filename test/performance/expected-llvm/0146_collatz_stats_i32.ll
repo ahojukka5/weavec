@@ -19,39 +19,39 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %n.addr
-  %t1 = icmp sle i32 %t0, 80
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %n.addr
+  %.t1 = icmp sle i32 %.t0, 80
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
-  %t2 = load i32, ptr %n.addr
-  %t3 = call i32 @collatz_steps(i32 %t2)
+  %.t2 = load i32, ptr %n.addr
+  %.t3 = call i32 @collatz_steps(i32 %.t2)
   ; let s
   ; if condition
-  %t4 = load i32, ptr %max_steps.addr
-  %t5 = icmp sgt i32 %t3, %t4
-  br i1 %t5, label %then1, label %endif1
+  %.t4 = load i32, ptr %max_steps.addr
+  %.t5 = icmp sgt i32 %.t3, %.t4
+  br i1 %.t5, label %then1, label %endif1
 then1:
   ; then
   ; set max_steps
-  store i32 %t3, ptr %max_steps.addr
+  store i32 %.t3, ptr %max_steps.addr
   br label %endif1
 endif1:
   ; set sum_steps
-  %t6 = load i32, ptr %sum_steps.addr
-  %t7 = add i32 %t6, %t3
-  store i32 %t7, ptr %sum_steps.addr
+  %.t6 = load i32, ptr %sum_steps.addr
+  %.t7 = add i32 %.t6, %.t3
+  store i32 %.t7, ptr %sum_steps.addr
   ; set n
-  %t8 = load i32, ptr %n.addr
-  %t9 = add i32 %t8, 1
-  store i32 %t9, ptr %n.addr
+  %.t8 = load i32, ptr %n.addr
+  %.t9 = add i32 %.t8, 1
+  store i32 %.t9, ptr %n.addr
   br label %while.cond
 while.end:
   ; return
-  %t10 = load i32, ptr %max_steps.addr
-  %t11 = load i32, ptr %sum_steps.addr
-  %t12 = add i32 %t10, %t11
-  ret i32 %t12
+  %.t10 = load i32, ptr %max_steps.addr
+  %.t11 = load i32, ptr %sum_steps.addr
+  %.t12 = add i32 %.t10, %.t11
+  ret i32 %.t12
 }
 
 ; function: collatz_steps
@@ -68,40 +68,40 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %x.addr
-  %t1 = icmp ne i32 %t0, 1
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %x.addr
+  %.t1 = icmp ne i32 %.t0, 1
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; if condition
-  %t2 = load i32, ptr %x.addr
-  %t3 = srem i32 %t2, 2
-  %t4 = icmp eq i32 %t3, 0
-  br i1 %t4, label %then1, label %else1
+  %.t2 = load i32, ptr %x.addr
+  %.t3 = srem i32 %.t2, 2
+  %.t4 = icmp eq i32 %.t3, 0
+  br i1 %.t4, label %then1, label %else1
 then1:
   ; then
   ; set x
-  %t5 = load i32, ptr %x.addr
-  %t6 = sdiv i32 %t5, 2
-  store i32 %t6, ptr %x.addr
+  %.t5 = load i32, ptr %x.addr
+  %.t6 = sdiv i32 %.t5, 2
+  store i32 %.t6, ptr %x.addr
   br label %endif1
 else1:
   ; else
   ; set x
-  %t7 = load i32, ptr %x.addr
-  %t8 = mul i32 %t7, 3
-  %t9 = add i32 %t8, 1
-  store i32 %t9, ptr %x.addr
+  %.t7 = load i32, ptr %x.addr
+  %.t8 = mul i32 %.t7, 3
+  %.t9 = add i32 %.t8, 1
+  store i32 %.t9, ptr %x.addr
   br label %endif1
 endif1:
   ; set steps
-  %t10 = load i32, ptr %steps.addr
-  %t11 = add i32 %t10, 1
-  store i32 %t11, ptr %steps.addr
+  %.t10 = load i32, ptr %steps.addr
+  %.t11 = add i32 %.t10, 1
+  store i32 %.t11, ptr %steps.addr
   br label %while.cond
 while.end:
   ; return
-  %t12 = load i32, ptr %steps.addr
-  ret i32 %t12
+  %.t12 = load i32, ptr %steps.addr
+  ret i32 %.t12
 }
 

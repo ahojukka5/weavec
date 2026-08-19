@@ -8,10 +8,10 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = sitofp i32 2 to double
-  %t1 = sitofp i32 3 to double
-  %t2 = fadd double %t0, %t1
-  %t3 = fptosi double %t2 to i32
-  ret i32 %t3
+  %.t0 = sitofp i32 2 to double
+  %.t1 = sitofp i32 3 to double
+  %.t2 = fadd double %.t0, %.t1
+  %.t3 = fptosi double %.t2 to i32
+  ret i32 %.t3
 }
 

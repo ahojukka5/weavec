@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @fib(i32 10)
-  ret i32 %t0
+  %.t0 = call i32 @fib(i32 10)
+  ret i32 %.t0
 }
 
 ; function: fib
@@ -21,8 +21,8 @@ entry:
   %curr.addr = alloca i32
   %i.addr = alloca i32
   ; if condition
-  %t0 = icmp sle i32 %n, 1
-  br i1 %t0, label %then, label %endif
+  %.t0 = icmp sle i32 %n, 1
+  br i1 %.t0, label %then, label %endif
 then:
   ; then
   ; return
@@ -37,28 +37,28 @@ endif:
   ; while condition
   br label %while.cond1
 while.cond1:
-  %t1 = load i32, ptr %i.addr
-  %t2 = icmp sle i32 %t1, %n
-  br i1 %t2, label %while.body1, label %while.end1
+  %.t1 = load i32, ptr %i.addr
+  %.t2 = icmp sle i32 %.t1, %n
+  br i1 %.t2, label %while.body1, label %while.end1
 while.body1:
   ; while body
-  %t3 = load i32, ptr %prev.addr
-  %t4 = load i32, ptr %curr.addr
-  %t5 = add i32 %t3, %t4
+  %.t3 = load i32, ptr %prev.addr
+  %.t4 = load i32, ptr %curr.addr
+  %.t5 = add i32 %.t3, %.t4
   ; let next
   ; set prev
-  %t6 = load i32, ptr %curr.addr
-  store i32 %t6, ptr %prev.addr
+  %.t6 = load i32, ptr %curr.addr
+  store i32 %.t6, ptr %prev.addr
   ; set curr
-  store i32 %t5, ptr %curr.addr
+  store i32 %.t5, ptr %curr.addr
   ; set i
-  %t7 = load i32, ptr %i.addr
-  %t8 = add i32 %t7, 1
-  store i32 %t8, ptr %i.addr
+  %.t7 = load i32, ptr %i.addr
+  %.t8 = add i32 %.t7, 1
+  store i32 %.t8, ptr %i.addr
   br label %while.cond1
 while.end1:
   ; return
-  %t9 = load i32, ptr %curr.addr
-  ret i32 %t9
+  %.t9 = load i32, ptr %curr.addr
+  ret i32 %.t9
 }
 

@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @same_ptr(ptr null, ptr null)
-  ret i32 %t0
+  %.t0 = call i32 @same_ptr(ptr null, ptr null)
+  ret i32 %.t0
 }
 
 ; function: same_ptr
@@ -18,8 +18,8 @@ entry:
 define i32 @same_ptr(ptr %a, ptr %b) {
 entry:
   ; if condition
-  %t0 = icmp eq ptr %a, %b
-  br i1 %t0, label %then, label %else
+  %.t0 = icmp eq ptr %a, %b
+  br i1 %.t0, label %then, label %else
 then:
   ; then
   ; return

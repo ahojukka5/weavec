@@ -12,14 +12,14 @@ declare void @free(ptr)
 ; returns: i32
 define i32 @main() {
 entry:
-  %t0 = call ptr @malloc(i64 20)
+  %.t0 = call ptr @malloc(i64 20)
   ; let buffer
-  call void @write_values(ptr %t0, i32 5)
-  %t1 = call i32 @sum_values(ptr %t0, i32 5)
+  call void @write_values(ptr %.t0, i32 5)
+  %.t1 = call i32 @sum_values(ptr %.t0, i32 5)
   ; let result
-  call void @free(ptr %t0)
+  call void @free(ptr %.t0)
   ; return
-  ret i32 %t1
+  ret i32 %.t1
 }
 
 ; function: write_values
@@ -33,22 +33,22 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp slt i32 %t0, %count
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp slt i32 %.t0, %count
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
-  %t2 = load i32, ptr %i.addr
-  %t3 = sext i32 %t2 to i64
-  %t4 = mul i64 %t3, 4
-  %t5 = getelementptr i8, ptr %buffer, i64 %t4
-  %t6 = load i32, ptr %i.addr
-  %t7 = mul i32 %t6, 10
-  store i32 %t7, ptr %t5
+  %.t2 = load i32, ptr %i.addr
+  %.t3 = sext i32 %.t2 to i64
+  %.t4 = mul i64 %.t3, 4
+  %.t5 = getelementptr i8, ptr %buffer, i64 %.t4
+  %.t6 = load i32, ptr %i.addr
+  %.t7 = mul i32 %.t6, 10
+  store i32 %.t7, ptr %.t5
   ; set i
-  %t8 = load i32, ptr %i.addr
-  %t9 = add i32 %t8, 1
-  store i32 %t9, ptr %i.addr
+  %.t8 = load i32, ptr %i.addr
+  %.t9 = add i32 %.t8, 1
+  store i32 %.t9, ptr %i.addr
   br label %while.cond
 while.end:
   ret void
@@ -68,28 +68,28 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp slt i32 %t0, %count
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp slt i32 %.t0, %count
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; set sum
-  %t2 = load i32, ptr %sum.addr
-  %t3 = load i32, ptr %i.addr
-  %t4 = sext i32 %t3 to i64
-  %t5 = mul i64 %t4, 4
-  %t6 = getelementptr i8, ptr %buffer, i64 %t5
-  %t7 = load i32, ptr %t6
-  %t8 = add i32 %t2, %t7
-  store i32 %t8, ptr %sum.addr
+  %.t2 = load i32, ptr %sum.addr
+  %.t3 = load i32, ptr %i.addr
+  %.t4 = sext i32 %.t3 to i64
+  %.t5 = mul i64 %.t4, 4
+  %.t6 = getelementptr i8, ptr %buffer, i64 %.t5
+  %.t7 = load i32, ptr %.t6
+  %.t8 = add i32 %.t2, %.t7
+  store i32 %.t8, ptr %sum.addr
   ; set i
-  %t9 = load i32, ptr %i.addr
-  %t10 = add i32 %t9, 1
-  store i32 %t10, ptr %i.addr
+  %.t9 = load i32, ptr %i.addr
+  %.t10 = add i32 %.t9, 1
+  store i32 %.t10, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t11 = load i32, ptr %sum.addr
-  ret i32 %t11
+  %.t11 = load i32, ptr %sum.addr
+  ret i32 %.t11
 }
 

@@ -12,30 +12,30 @@ declare void @free(ptr)
 ; returns: i32
 define i32 @main() {
 entry:
-  %t0 = call ptr @malloc(i64 16)
+  %.t0 = call ptr @malloc(i64 16)
   ; let items
   ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
+  %.t1 = icmp eq ptr %.t0, null
+  br i1 %.t1, label %then, label %endif
 then:
   ; then
   ; return
   ret i32 0
 endif:
-  %t2 = call ptr @elem_ptr(ptr %t0, i32 0)
-  store i32 4, ptr %t2
-  %t3 = call ptr @elem_ptr(ptr %t0, i32 1)
-  store i32 2, ptr %t3
-  %t4 = call ptr @elem_ptr(ptr %t0, i32 2)
-  store i32 3, ptr %t4
-  %t5 = call ptr @elem_ptr(ptr %t0, i32 3)
-  store i32 1, ptr %t5
-  %t6 = call i32 @bubble4(ptr %t0)
+  %.t2 = call ptr @elem_ptr(ptr %.t0, i32 0)
+  store i32 4, ptr %.t2
+  %.t3 = call ptr @elem_ptr(ptr %.t0, i32 1)
+  store i32 2, ptr %.t3
+  %.t4 = call ptr @elem_ptr(ptr %.t0, i32 2)
+  store i32 3, ptr %.t4
+  %.t5 = call ptr @elem_ptr(ptr %.t0, i32 3)
+  store i32 1, ptr %.t5
+  %.t6 = call i32 @bubble4(ptr %.t0)
   ; let last
-  call void @free(ptr %t0)
+  call void @free(ptr %.t0)
   ; return
-  %t7 = add i32 %t6, 40
-  ret i32 %t7
+  %.t7 = add i32 %.t6, 40
+  ret i32 %.t7
 }
 
 ; function: elem_ptr
@@ -44,9 +44,9 @@ endif:
 define ptr @elem_ptr(ptr %base, i32 %index) {
 entry:
   ; return
-  %t0 = sext i32 %index to i64
-  %t1 = getelementptr i32, ptr %base, i64 %t0
-  ret ptr %t1
+  %.t0 = sext i32 %index to i64
+  %.t1 = getelementptr i32, ptr %base, i64 %.t0
+  ret ptr %.t1
 }
 
 ; function: bubble4
@@ -61,9 +61,9 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %pass.addr
-  %t1 = icmp slt i32 %t0, 3
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %pass.addr
+  %.t1 = icmp slt i32 %.t0, 3
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; let j
@@ -71,52 +71,52 @@ while.body:
   ; while condition
   br label %while.cond1
 while.cond1:
-  %t2 = load i32, ptr %j.addr
-  %t3 = add i32 %t2, 1
-  %t4 = load i32, ptr %pass.addr
-  %t5 = sub i32 3, %t4
-  %t6 = icmp slt i32 %t3, %t5
-  br i1 %t6, label %while.body1, label %while.end1
+  %.t2 = load i32, ptr %j.addr
+  %.t3 = add i32 %.t2, 1
+  %.t4 = load i32, ptr %pass.addr
+  %.t5 = sub i32 3, %.t4
+  %.t6 = icmp slt i32 %.t3, %.t5
+  br i1 %.t6, label %while.body1, label %while.end1
 while.body1:
   ; while body
-  %t7 = load i32, ptr %j.addr
-  %t8 = call ptr @elem_ptr(ptr %items, i32 %t7)
-  %t9 = load i32, ptr %t8
+  %.t7 = load i32, ptr %j.addr
+  %.t8 = call ptr @elem_ptr(ptr %items, i32 %.t7)
+  %.t9 = load i32, ptr %.t8
   ; let left
-  %t10 = load i32, ptr %j.addr
-  %t11 = add i32 %t10, 1
-  %t12 = call ptr @elem_ptr(ptr %items, i32 %t11)
-  %t13 = load i32, ptr %t12
+  %.t10 = load i32, ptr %j.addr
+  %.t11 = add i32 %.t10, 1
+  %.t12 = call ptr @elem_ptr(ptr %items, i32 %.t11)
+  %.t13 = load i32, ptr %.t12
   ; let right
   ; if condition
-  %t14 = icmp sgt i32 %t9, %t13
-  br i1 %t14, label %then2, label %endif2
+  %.t14 = icmp sgt i32 %.t9, %.t13
+  br i1 %.t14, label %then2, label %endif2
 then2:
   ; then
-  %t15 = load i32, ptr %j.addr
-  %t16 = call ptr @elem_ptr(ptr %items, i32 %t15)
-  store i32 %t13, ptr %t16
-  %t17 = load i32, ptr %j.addr
-  %t18 = add i32 %t17, 1
-  %t19 = call ptr @elem_ptr(ptr %items, i32 %t18)
-  store i32 %t9, ptr %t19
+  %.t15 = load i32, ptr %j.addr
+  %.t16 = call ptr @elem_ptr(ptr %items, i32 %.t15)
+  store i32 %.t13, ptr %.t16
+  %.t17 = load i32, ptr %j.addr
+  %.t18 = add i32 %.t17, 1
+  %.t19 = call ptr @elem_ptr(ptr %items, i32 %.t18)
+  store i32 %.t9, ptr %.t19
   br label %endif2
 endif2:
   ; set j
-  %t20 = load i32, ptr %j.addr
-  %t21 = add i32 %t20, 1
-  store i32 %t21, ptr %j.addr
+  %.t20 = load i32, ptr %j.addr
+  %.t21 = add i32 %.t20, 1
+  store i32 %.t21, ptr %j.addr
   br label %while.cond1
 while.end1:
   ; set pass
-  %t22 = load i32, ptr %pass.addr
-  %t23 = add i32 %t22, 1
-  store i32 %t23, ptr %pass.addr
+  %.t22 = load i32, ptr %pass.addr
+  %.t23 = add i32 %.t22, 1
+  store i32 %.t23, ptr %pass.addr
   br label %while.cond
 while.end:
   ; return
-  %t24 = call ptr @elem_ptr(ptr %items, i32 3)
-  %t25 = load i32, ptr %t24
-  ret i32 %t25
+  %.t24 = call ptr @elem_ptr(ptr %items, i32 3)
+  %.t25 = load i32, ptr %.t24
+  ret i32 %.t25
 }
 

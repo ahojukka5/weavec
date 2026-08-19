@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; if condition
-  %t0 = call i1 @is_answer(i32 42)
-  br i1 %t0, label %then, label %else
+  %.t0 = call i1 @is_answer(i32 42)
+  br i1 %.t0, label %then, label %else
 then:
   ; then
   ; return
@@ -26,7 +26,7 @@ else:
 define i1 @is_answer(i32 %x) {
 entry:
   ; return
-  %t0 = icmp eq i32 %x, 42
-  ret i1 %t0
+  %.t0 = icmp eq i32 %x, 42
+  ret i1 %.t0
 }
 
