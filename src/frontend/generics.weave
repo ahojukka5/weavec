@@ -506,6 +506,57 @@
           (set arg_node (call_i64 node_next_sibling
             (param_get tree) (local_get arg_node)))
           (set gen_arg_index (add_i64 (local_get gen_arg_index) (const_i64 1)))))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 ident_equals
+            (param_get tree) (param_get source) (local_get ctor_node)
+            (const_string_ptr "Vec") (const_i64 3)) (const_i32 0))
+          (ne_i32 (call_i32 ident_equals
+            (param_get tree) (param_get source) (local_get ctor_node)
+            (const_string_ptr "Slice") (const_i64 5)) (const_i32 0))))
+        (then (do
+          (if
+            (condition (lt_i64 (local_get actual_arity) (const_i64 1)))
+            (then (do
+              (call_void free (local_get args))
+              (call_void surface_error_prefix (const_string_ptr "type-app"))
+              (call_void write_cstr
+                (const_i32 2)
+                (const_string_ptr "Vec element type must be i32"))
+              (call_void write_byte (const_i32 2) (const_i32 10))
+              (return (call_i32 surface_type_unknown))))
+            (else (do)))
+          (let vec_elem i32 (load_i32 (local_get args)))
+          (let vec_graph ptr (call_ptr semantic_graph))
+          (let vec_ok i32 (const_i32 0))
+          (if
+            (condition (eq_i32 (local_get vec_elem) (call_i32 surface_type_i32)))
+            (then (do (set vec_ok (const_i32 1))))
+            (else (do)))
+          (if
+            (condition (and_bool
+              (eq_i32 (local_get vec_ok) (const_i32 0))
+              (ne_ptr (local_get vec_graph) (const_null))))
+            (then (do
+              (if
+                (condition (eq_i32 (call_i32 type_graph_kind
+                  (local_get vec_graph) (local_get vec_elem))
+                  (call_i32 type_kind_generic_parameter)))
+                (then (do (set vec_ok (const_i32 1))))
+                (else (do)))))
+            (else (do)))
+          (if
+            (condition (eq_i32 (local_get vec_ok) (const_i32 0)))
+            (then (do
+              (call_void free (local_get args))
+              (call_void surface_error_prefix (const_string_ptr "type-app"))
+              (call_void write_cstr
+                (const_i32 2)
+                (const_string_ptr "Vec element type must be i32"))
+              (call_void write_byte (const_i32 2) (const_i32 10))
+              (return (call_i32 surface_type_unknown))))
+            (else (do)))))
+        (else (do)))
       (let applied i32 (call_i32 weave_semantic_type_application
         (local_get ctor_type) (local_get args) (local_get actual_arity)))
       (call_void free (local_get args))
