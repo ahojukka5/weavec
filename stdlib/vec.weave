@@ -1,7 +1,7 @@
 ; SPDX-License-Identifier: Apache-2.0
 ; Generic Vec and borrowed Slice with bounds-checked indexing.
 ;
-; The first admitted element type is i32. Out-of-range get returns None
+; The only admitted element type is i32. Out-of-range get returns None
 ; and set returns false. They do not abort. Slices are a data type, not
 ; a borrow checker. std.memory and std.option must be earlier in the
 ; build. std.vector remains the fixed Vec3 module.

@@ -106,6 +106,34 @@ assert "slice_get" in names
 print("vec-slice: semantic index passed")
 PY
 
+cat > "$TMP/f64.weave" <<'EOF'
+(program
+  (name "vec-f64")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let v (call vec_new (type-args f64)))
+      (return 0))))
+EOF
+set +e
+"$WEAVEC" --frontend "$TMP/f64.wir" "${SOURCES[@]}" "$TMP/f64.weave" \
+  >"$TMP/f64.stdout" 2>"$TMP/f64.stderr"
+f64_status="$?"
+set -e
+if [[ "$f64_status" -eq 0 ]]; then
+  printf 'vec-slice: Vec f64 was accepted\n' >&2
+  exit 1
+fi
+[[ ! -e "$TMP/f64.wir" ]] || {
+  if grep -Fq 'vec_new__s__f64' "$TMP/f64.wir"; then
+    printf 'vec-slice: Vec f64 still specialized\n' >&2
+    exit 1
+  fi
+}
+grep -Fq 'Vec element type must be i32' "$TMP/f64.stderr"
+
 if command -v llc >/dev/null 2>&1; then
   "$WEAVEC" build "${SOURCES[@]}" "$TMP/app.weave" -o "$TMP/app"
   set +e

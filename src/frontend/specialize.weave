@@ -338,11 +338,84 @@
           (set spec_i (add_i32 (local_get spec_i) (const_i32 1)))))
       (return (call_ptr type_buffer_take (local_get spec_key_buf)))))
 
+  ; std.vec / std.slice still hardcode a 4-byte stride. Reject other
+  ; element types until layout-aware monomorphization exists (#269).
+  (fn spec_name_has_prefix
+    (params (source ptr) (start i64) (len i64) (prefix ptr) (plen i64))
+    (returns i32)
+    (do
+      (if
+        (condition (lt_i64 (param_get len) (param_get plen)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let snp_i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get snp_i) (param_get plen)))
+        (do
+          (let snp_got i32 (load_u8 (ptr_add (param_get source)
+            (add_i64 (param_get start) (local_get snp_i)))))
+          (let snp_exp i32 (load_u8
+            (ptr_add (param_get prefix) (local_get snp_i))))
+          (if
+            (condition (ne_i32 (local_get snp_got) (local_get snp_exp)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set snp_i (add_i64 (local_get snp_i) (const_i64 1)))))
+      (return (const_i32 1))))
+
+  (fn spec_is_vec_family
+    (params (source ptr) (start i64) (len i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 spec_name_has_prefix
+          (param_get source) (param_get start) (param_get len)
+          (const_string_ptr "vec_") (const_i64 4)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (call_i32 spec_name_has_prefix
+        (param_get source) (param_get start) (param_get len)
+        (const_string_ptr "slice_") (const_i64 6)))))
+
+  (fn spec_args_are_i32
+    (params (args ptr) (count i32))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get args) (const_null))
+          (le_i32 (param_get count) (const_i32 0))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sai_i i32 (const_i32 0))
+      (let sai_i32 i32 (call_i32 surface_type_i32))
+      (while
+        (condition (lt_i32 (local_get sai_i) (param_get count)))
+        (do
+          (let sai_ty i32 (load_i32 (ptr_add
+            (param_get args)
+            (mul_i64 (cast_i32_to_i64 (local_get sai_i)) (const_i64 4)))))
+          (if
+            (condition (ne_i32 (local_get sai_ty) (local_get sai_i32)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set sai_i (add_i32 (local_get sai_i) (const_i32 1)))))
+      (return (const_i32 1))))
+
   (fn spec_intern_fn
     (params
       (source ptr) (name_start i64) (name_len i64) (args ptr) (count i32))
     (returns i32)
     (do
+      (if
+        (condition (and_bool
+          (ne_i32 (call_i32 spec_is_vec_family
+            (param_get source) (param_get name_start) (param_get name_len))
+            (const_i32 0))
+          (eq_i32 (call_i32 spec_args_are_i32
+            (param_get args) (param_get count)) (const_i32 0))))
+        (then (do (return (const_i32 -3))))
+        (else (do)))
       (let spec_key ptr (call_ptr spec_build_key
         (param_get args) (param_get count)))
       (let spec_name ptr (call_ptr spec_build_name

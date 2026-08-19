@@ -175,7 +175,7 @@ range. They do not abort. Convert with `string_from_bytes` and
 `bytes_from_string`.
 
 `Vec` and `Slice` are the generic growable vector and a view over its
-buffer in `stdlib/vec.weave`. The first admitted element type is `i32`.
+buffer in `stdlib/vec.weave`. The only admitted element type is `i32`.
 Application source constructs, grows, and indexes without naming `ptr`:
 
 ```weave

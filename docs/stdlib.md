@@ -49,7 +49,7 @@ library tree. Do not give a standard module a name that is not `std.<id>`.
 | `stdlib/file.weave` | `std.file` | Reading a small text file as lines. |
 | `stdlib/bytes.weave` | `std.bytes` | Owned byte buffer: length, append, get. |
 | `stdlib/string.weave` | `std.string` | Owned text buffer: length, append, get. |
-| `stdlib/vec.weave` | `std.vec` | Generic `Vec` and `Slice`, first for `i32`. |
+| `stdlib/vec.weave` | `std.vec` | Generic `Vec` and `Slice`, currently `i32` only. |
 | `stdlib/convert.weave` | `std.convert` | Format and parse `i32`, `i64`, `f64`, and `bool`. |
 
 `std.bytes` and `std.string` are owned buffers. Indexing uses `bytes_get`
@@ -59,10 +59,11 @@ them. `std.bytes` must appear before `std.string`.
 
 `std.vec` is the generic growable vector. `vec_get` and `slice_get`
 return `None` when the index is out of range; `vec_set` and `slice_set`
-return false. They do not abort. The first admitted element type is
-`i32`. A `Slice` shares the vector buffer; it is a data type, not a
-borrow checker. `std.memory` and `std.option` must appear before
-`std.vec`. `std.vector` remains the existing three-component `Vec3`.
+return false. They do not abort. The only admitted element type is
+`i32` until layout-aware monomorphization exists. A `Slice` shares the
+vector buffer; it is a data type, not a borrow checker. `std.memory`
+and `std.option` must appear before `std.vec`. `std.vector` remains
+the existing three-component `Vec3`.
 
 `std.convert` formats admitted primitives to an owned `String` and
 parses text into `Result`. There is no locale and no printf. `format_f64`
