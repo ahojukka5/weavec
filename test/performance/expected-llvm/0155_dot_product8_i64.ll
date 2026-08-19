@@ -12,59 +12,59 @@ declare void @free(ptr)
 ; returns: i32
 define i32 @main() {
 entry:
-  %t0 = call ptr @malloc(i64 64)
+  %.t0 = call ptr @malloc(i64 64)
   ; let a
-  %t1 = call ptr @malloc(i64 64)
+  %.t1 = call ptr @malloc(i64 64)
   ; let b
   ; if condition
-  %t2 = icmp eq ptr %t0, null
-  %t3 = icmp eq ptr %t1, null
-  %t4 = or i1 %t2, %t3
-  br i1 %t4, label %then, label %endif
+  %.t2 = icmp eq ptr %.t0, null
+  %.t3 = icmp eq ptr %.t1, null
+  %.t4 = or i1 %.t2, %.t3
+  br i1 %.t4, label %then, label %endif
 then:
   ; then
   ; return
   ret i32 0
 endif:
-  %t5 = call ptr @elem(ptr %t0, i32 0)
-  store i64 1, ptr %t5
-  %t6 = call ptr @elem(ptr %t0, i32 1)
-  store i64 2, ptr %t6
-  %t7 = call ptr @elem(ptr %t0, i32 2)
-  store i64 3, ptr %t7
-  %t8 = call ptr @elem(ptr %t0, i32 3)
-  store i64 4, ptr %t8
-  %t9 = call ptr @elem(ptr %t0, i32 4)
-  store i64 5, ptr %t9
-  %t10 = call ptr @elem(ptr %t0, i32 5)
-  store i64 6, ptr %t10
-  %t11 = call ptr @elem(ptr %t0, i32 6)
-  store i64 7, ptr %t11
-  %t12 = call ptr @elem(ptr %t0, i32 7)
-  store i64 8, ptr %t12
-  %t13 = call ptr @elem(ptr %t1, i32 0)
-  store i64 8, ptr %t13
-  %t14 = call ptr @elem(ptr %t1, i32 1)
-  store i64 7, ptr %t14
-  %t15 = call ptr @elem(ptr %t1, i32 2)
-  store i64 6, ptr %t15
-  %t16 = call ptr @elem(ptr %t1, i32 3)
-  store i64 5, ptr %t16
-  %t17 = call ptr @elem(ptr %t1, i32 4)
-  store i64 4, ptr %t17
-  %t18 = call ptr @elem(ptr %t1, i32 5)
-  store i64 3, ptr %t18
-  %t19 = call ptr @elem(ptr %t1, i32 6)
-  store i64 2, ptr %t19
-  %t20 = call ptr @elem(ptr %t1, i32 7)
-  store i64 1, ptr %t20
-  %t21 = call i64 @dot8(ptr %t0, ptr %t1)
+  %.t5 = call ptr @elem(ptr %.t0, i32 0)
+  store i64 1, ptr %.t5
+  %.t6 = call ptr @elem(ptr %.t0, i32 1)
+  store i64 2, ptr %.t6
+  %.t7 = call ptr @elem(ptr %.t0, i32 2)
+  store i64 3, ptr %.t7
+  %.t8 = call ptr @elem(ptr %.t0, i32 3)
+  store i64 4, ptr %.t8
+  %.t9 = call ptr @elem(ptr %.t0, i32 4)
+  store i64 5, ptr %.t9
+  %.t10 = call ptr @elem(ptr %.t0, i32 5)
+  store i64 6, ptr %.t10
+  %.t11 = call ptr @elem(ptr %.t0, i32 6)
+  store i64 7, ptr %.t11
+  %.t12 = call ptr @elem(ptr %.t0, i32 7)
+  store i64 8, ptr %.t12
+  %.t13 = call ptr @elem(ptr %.t1, i32 0)
+  store i64 8, ptr %.t13
+  %.t14 = call ptr @elem(ptr %.t1, i32 1)
+  store i64 7, ptr %.t14
+  %.t15 = call ptr @elem(ptr %.t1, i32 2)
+  store i64 6, ptr %.t15
+  %.t16 = call ptr @elem(ptr %.t1, i32 3)
+  store i64 5, ptr %.t16
+  %.t17 = call ptr @elem(ptr %.t1, i32 4)
+  store i64 4, ptr %.t17
+  %.t18 = call ptr @elem(ptr %.t1, i32 5)
+  store i64 3, ptr %.t18
+  %.t19 = call ptr @elem(ptr %.t1, i32 6)
+  store i64 2, ptr %.t19
+  %.t20 = call ptr @elem(ptr %.t1, i32 7)
+  store i64 1, ptr %.t20
+  %.t21 = call i64 @dot8(ptr %.t0, ptr %.t1)
   ; let sum
-  call void @free(ptr %t0)
-  call void @free(ptr %t1)
+  call void @free(ptr %.t0)
+  call void @free(ptr %.t1)
   ; return
-  %t22 = trunc i64 %t21 to i32
-  ret i32 %t22
+  %.t22 = trunc i64 %.t21 to i32
+  ret i32 %.t22
 }
 
 ; function: elem
@@ -73,9 +73,9 @@ endif:
 define ptr @elem(ptr %a, i32 %idx) {
 entry:
   ; return
-  %t0 = sext i32 %idx to i64
-  %t1 = getelementptr i64, ptr %a, i64 %t0
-  ret ptr %t1
+  %.t0 = sext i32 %idx to i64
+  %.t1 = getelementptr i64, ptr %a, i64 %.t0
+  ret ptr %.t1
 }
 
 ; function: dot8
@@ -92,32 +92,32 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp slt i32 %t0, 8
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp slt i32 %.t0, 8
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
-  %t2 = load i32, ptr %i.addr
-  %t3 = call ptr @elem(ptr %a, i32 %t2)
-  %t4 = load i64, ptr %t3
+  %.t2 = load i32, ptr %i.addr
+  %.t3 = call ptr @elem(ptr %a, i32 %.t2)
+  %.t4 = load i64, ptr %.t3
   ; let va
-  %t5 = load i32, ptr %i.addr
-  %t6 = call ptr @elem(ptr %b, i32 %t5)
-  %t7 = load i64, ptr %t6
+  %.t5 = load i32, ptr %i.addr
+  %.t6 = call ptr @elem(ptr %b, i32 %.t5)
+  %.t7 = load i64, ptr %.t6
   ; let vb
   ; set sum
-  %t8 = load i64, ptr %sum.addr
-  %t9 = mul i64 %t4, %t7
-  %t10 = add i64 %t8, %t9
-  store i64 %t10, ptr %sum.addr
+  %.t8 = load i64, ptr %sum.addr
+  %.t9 = mul i64 %.t4, %.t7
+  %.t10 = add i64 %.t8, %.t9
+  store i64 %.t10, ptr %sum.addr
   ; set i
-  %t11 = load i32, ptr %i.addr
-  %t12 = add i32 %t11, 1
-  store i32 %t12, ptr %i.addr
+  %.t11 = load i32, ptr %i.addr
+  %.t12 = add i32 %.t11, 1
+  store i32 %.t12, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t13 = load i64, ptr %sum.addr
-  ret i64 %t13
+  %.t13 = load i64, ptr %sum.addr
+  ret i64 %.t13
 }
 

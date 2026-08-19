@@ -8,9 +8,9 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i64 @pow_mod(i64 3, i32 13, i64 1000000007)
-  %t1 = trunc i64 %t0 to i32
-  ret i32 %t1
+  %.t0 = call i64 @pow_mod(i64 3, i32 13, i64 1000000007)
+  %.t1 = trunc i64 %.t0 to i32
+  ret i32 %.t1
 }
 
 ; function: pow_mod
@@ -23,48 +23,48 @@ entry:
   %e.addr = alloca i32
   ; let result
   store i64 1, ptr %result.addr
-  %t0 = srem i64 %base, %modulus
+  %.t0 = srem i64 %base, %modulus
   ; let b
-  store i64 %t0, ptr %b.addr
+  store i64 %.t0, ptr %b.addr
   ; let e
   store i32 %exp, ptr %e.addr
   ; while condition
   br label %while.cond
 while.cond:
-  %t1 = load i32, ptr %e.addr
-  %t2 = icmp sgt i32 %t1, 0
-  br i1 %t2, label %while.body, label %while.end
+  %.t1 = load i32, ptr %e.addr
+  %.t2 = icmp sgt i32 %.t1, 0
+  br i1 %.t2, label %while.body, label %while.end
 while.body:
   ; while body
   ; if condition
-  %t3 = load i32, ptr %e.addr
-  %t4 = srem i32 %t3, 2
-  %t5 = icmp eq i32 %t4, 1
-  br i1 %t5, label %then1, label %endif1
+  %.t3 = load i32, ptr %e.addr
+  %.t4 = srem i32 %.t3, 2
+  %.t5 = icmp eq i32 %.t4, 1
+  br i1 %.t5, label %then1, label %endif1
 then1:
   ; then
   ; set result
-  %t6 = load i64, ptr %result.addr
-  %t7 = load i64, ptr %b.addr
-  %t8 = mul i64 %t6, %t7
-  %t9 = srem i64 %t8, %modulus
-  store i64 %t9, ptr %result.addr
+  %.t6 = load i64, ptr %result.addr
+  %.t7 = load i64, ptr %b.addr
+  %.t8 = mul i64 %.t6, %.t7
+  %.t9 = srem i64 %.t8, %modulus
+  store i64 %.t9, ptr %result.addr
   br label %endif1
 endif1:
   ; set b
-  %t10 = load i64, ptr %b.addr
-  %t11 = load i64, ptr %b.addr
-  %t12 = mul i64 %t10, %t11
-  %t13 = srem i64 %t12, %modulus
-  store i64 %t13, ptr %b.addr
+  %.t10 = load i64, ptr %b.addr
+  %.t11 = load i64, ptr %b.addr
+  %.t12 = mul i64 %.t10, %.t11
+  %.t13 = srem i64 %.t12, %modulus
+  store i64 %.t13, ptr %b.addr
   ; set e
-  %t14 = load i32, ptr %e.addr
-  %t15 = sdiv i32 %t14, 2
-  store i32 %t15, ptr %e.addr
+  %.t14 = load i32, ptr %e.addr
+  %.t15 = sdiv i32 %.t14, 2
+  store i32 %.t15, ptr %e.addr
   br label %while.cond
 while.end:
   ; return
-  %t16 = load i64, ptr %result.addr
-  ret i64 %t16
+  %.t16 = load i64, ptr %result.addr
+  ret i64 %.t16
 }
 

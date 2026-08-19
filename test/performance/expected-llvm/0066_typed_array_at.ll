@@ -12,60 +12,60 @@ declare void @free(ptr)
 ; returns: i32
 define i32 @main() {
 entry:
-  %t0 = call ptr @malloc(i64 4)
+  %.t0 = call ptr @malloc(i64 4)
   ; let values
   ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
+  %.t1 = icmp eq ptr %.t0, null
+  br i1 %.t1, label %then, label %endif
 then:
   ; then
   ; return
   ret i32 0
 endif:
-  %t2 = call ptr @malloc(i64 8)
+  %.t2 = call ptr @malloc(i64 8)
   ; let wide
   ; if condition
-  %t3 = icmp eq ptr %t2, null
-  br i1 %t3, label %then1, label %endif1
+  %.t3 = icmp eq ptr %.t2, null
+  br i1 %.t3, label %then1, label %endif1
 then1:
   ; then
-  call void @free(ptr %t0)
+  call void @free(ptr %.t0)
   ; return
   ret i32 0
 endif1:
-  %t4 = call ptr @malloc(i64 8)
+  %.t4 = call ptr @malloc(i64 8)
   ; let slots
   ; if condition
-  %t5 = icmp eq ptr %t4, null
-  br i1 %t5, label %then2, label %endif2
+  %.t5 = icmp eq ptr %.t4, null
+  br i1 %.t5, label %then2, label %endif2
 then2:
   ; then
-  call void @free(ptr %t2)
-  call void @free(ptr %t0)
+  call void @free(ptr %.t2)
+  call void @free(ptr %.t0)
   ; return
   ret i32 0
 endif2:
-  %t6 = getelementptr i32, ptr %t0, i64 0
-  store i32 40, ptr %t6
-  %t7 = getelementptr i64, ptr %t2, i64 0
-  store i64 2, ptr %t7
-  %t8 = getelementptr ptr, ptr %t4, i64 0
-  store ptr %t0, ptr %t8
-  %t9 = getelementptr ptr, ptr %t4, i64 0
-  %t10 = load ptr, ptr %t9
+  %.t6 = getelementptr i32, ptr %.t0, i64 0
+  store i32 40, ptr %.t6
+  %.t7 = getelementptr i64, ptr %.t2, i64 0
+  store i64 2, ptr %.t7
+  %.t8 = getelementptr ptr, ptr %.t4, i64 0
+  store ptr %.t0, ptr %.t8
+  %.t9 = getelementptr ptr, ptr %.t4, i64 0
+  %.t10 = load ptr, ptr %.t9
   ; let loaded_values
-  %t11 = getelementptr i32, ptr %t10, i64 0
-  %t12 = load i32, ptr %t11
+  %.t11 = getelementptr i32, ptr %.t10, i64 0
+  %.t12 = load i32, ptr %.t11
   ; let a
-  %t13 = getelementptr i64, ptr %t2, i64 0
-  %t14 = load i64, ptr %t13
+  %.t13 = getelementptr i64, ptr %.t2, i64 0
+  %.t14 = load i64, ptr %.t13
   ; let b
-  call void @free(ptr %t4)
-  call void @free(ptr %t2)
-  call void @free(ptr %t0)
+  call void @free(ptr %.t4)
+  call void @free(ptr %.t2)
+  call void @free(ptr %.t0)
   ; return
-  %t15 = trunc i64 %t14 to i32
-  %t16 = add i32 %t12, %t15
-  ret i32 %t16
+  %.t15 = trunc i64 %.t14 to i32
+  %.t16 = add i32 %.t12, %.t15
+  ret i32 %.t16
 }
 

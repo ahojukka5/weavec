@@ -9,7 +9,7 @@ define i32 @main() {
 entry:
   ; let x
   ; return
-  %t0 = trunc i64 42 to i32
-  ret i32 %t0
+  %.t0 = trunc i64 42 to i32
+  ret i32 %.t0
 }
 

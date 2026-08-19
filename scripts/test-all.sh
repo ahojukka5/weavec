@@ -135,6 +135,9 @@ bash "$ROOT/test/backend-call-arg/test.sh"
 log 'backend table limits'
 bash "$ROOT/test/backend-table-limits/test.sh"
 
+log 'backend binding soundness'
+bash "$ROOT/test/backend-binding-soundness/test.sh"
+
 log 'surface elaboration'
 bash "$ROOT/test/surface-elaboration/test.sh"
 

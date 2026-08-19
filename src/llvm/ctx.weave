@@ -1,7 +1,7 @@
 ; SPDX-License-Identifier: Apache-2.0
 ; ctx.weave — emission context for weavec
 ;
-; Layout (96 bytes):
+; Layout (112 bytes):
 ;   offset  0: out_fd    i64  (output fd as i64 for alignment)
 ;   offset  8: source    ptr  (source bytes)
 ;   offset 16: tree      ptr  (s-expression tree)
@@ -14,6 +14,8 @@
 ;   offset 72: params    ptr  (array of binding records)
 ;   offset 80: fn_has_set i64 (1 when current function contains set)
 ;   offset 88: fn_body   i64  (current function body node)
+;   offset 96: n_scopes  i64  (do-block scope depth)
+;   offset 104: scopes   ptr  (n_locals watermarks, 32 slots)
 ;
 ; Each binding record is 40 bytes:
 ;   {name_start i64, name_len i64, type i64, value_id i64, mode i64}.
@@ -41,7 +43,7 @@
     (params (fd i32) (source ptr) (tree ptr))
     (returns ptr)
     (do
-      (let ctx ptr (call_ptr malloc (const_i64 96)))
+      (let ctx ptr (call_ptr malloc (const_i64 112)))
       (if
         (condition (eq_ptr (local_get ctx) (const_null)))
         (then (do (return (const_null))))
@@ -61,6 +63,15 @@
           (call_void free (local_get ctx))
           (return (const_null))))
         (else (do)))
+      (let scopes_buf ptr (call_ptr malloc (mul_i64 (const_i64 32) (const_i64 8))))
+      (if
+        (condition (eq_ptr (local_get scopes_buf) (const_null)))
+        (then (do
+          (call_void free (local_get params_buf))
+          (call_void free (local_get locals))
+          (call_void free (local_get ctx))
+          (return (const_null))))
+        (else (do)))
       (store_i64 (local_get ctx) (cast_i32_to_i64 (param_get fd)))
       (store_ptr (ptr_add (local_get ctx) (const_i64 8)) (param_get source))
       (store_ptr (ptr_add (local_get ctx) (const_i64 16)) (param_get tree))
@@ -73,6 +84,8 @@
       (store_ptr (ptr_add (local_get ctx) (const_i64 72)) (local_get params_buf))
       (store_i64 (ptr_add (local_get ctx) (const_i64 80)) (const_i64 0))
       (store_i64 (ptr_add (local_get ctx) (const_i64 88)) (const_i64 -1))
+      (store_i64 (ptr_add (local_get ctx) (const_i64 96)) (const_i64 0))
+      (store_ptr (ptr_add (local_get ctx) (const_i64 104)) (local_get scopes_buf))
       (return (local_get ctx))))
 
   (fn ctx_free
@@ -85,6 +98,7 @@
         (else (do)))
       (let locals ptr (load_ptr (ptr_add (param_get ctx) (const_i64 56))))
       (let params_buf ptr (load_ptr (ptr_add (param_get ctx) (const_i64 72))))
+      (let scopes_buf ptr (load_ptr (ptr_add (param_get ctx) (const_i64 104))))
       (if
         (condition (ne_ptr (local_get locals) (const_null)))
         (then (do (call_void free (local_get locals))))
@@ -92,6 +106,10 @@
       (if
         (condition (ne_ptr (local_get params_buf) (const_null)))
         (then (do (call_void free (local_get params_buf))))
+        (else (do)))
+      (if
+        (condition (ne_ptr (local_get scopes_buf) (const_null)))
+        (then (do (call_void free (local_get scopes_buf))))
         (else (do)))
       (call_void free (param_get ctx))
       (return_void)))
@@ -252,6 +270,55 @@
       (store_i64 (ptr_add (param_get ctx) (const_i64 64)) (const_i64 0))
       (store_i64 (ptr_add (param_get ctx) (const_i64 80)) (const_i64 0))
       (store_i64 (ptr_add (param_get ctx) (const_i64 88)) (const_i64 -1))
+      (store_i64 (ptr_add (param_get ctx) (const_i64 96)) (const_i64 0))
+      (return_void)))
+
+  (fn ctx_scope_watermark
+    (params (ctx ptr))
+    (returns i64)
+    (do
+      (let sc_n i64 (load_i64 (ptr_add (param_get ctx) (const_i64 96))))
+      (if
+        (condition (eq_i64 (local_get sc_n) (const_i64 0)))
+        (then (do (return (const_i64 0))))
+        (else (do)))
+      (let sc_base ptr (load_ptr (ptr_add (param_get ctx) (const_i64 104))))
+      (return (load_i64 (ptr_add (local_get sc_base)
+        (mul_i64 (sub_i64 (local_get sc_n) (const_i64 1)) (const_i64 8)))))))
+
+  (fn ctx_push_scope
+    (params (ctx ptr))
+    (returns i32)
+    (do
+      (let sc_n i64 (load_i64 (ptr_add (param_get ctx) (const_i64 96))))
+      (if
+        (condition (ge_i64 (local_get sc_n) (const_i64 32)))
+        (then (do
+          (call_void diag_prefix)
+          (call_void write_cstr (const_i32 2) (const_string_ptr "too many nested scopes"))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i32 1))))
+        (else (do)))
+      (let sc_base ptr (load_ptr (ptr_add (param_get ctx) (const_i64 104))))
+      (store_i64 (ptr_add (local_get sc_base) (mul_i64 (local_get sc_n) (const_i64 8)))
+        (call_i64 ctx_get_n_locals (param_get ctx)))
+      (store_i64 (ptr_add (param_get ctx) (const_i64 96)) (add_i64 (local_get sc_n) (const_i64 1)))
+      (return (const_i32 0))))
+
+  (fn ctx_pop_scope
+    (params (ctx ptr))
+    (returns void)
+    (do
+      (let sc_n i64 (load_i64 (ptr_add (param_get ctx) (const_i64 96))))
+      (if
+        (condition (eq_i64 (local_get sc_n) (const_i64 0)))
+        (then (do (return_void)))
+        (else (do)))
+      (let sc_prev i64 (sub_i64 (local_get sc_n) (const_i64 1)))
+      (let sc_base ptr (load_ptr (ptr_add (param_get ctx) (const_i64 104))))
+      (call_void ctx_set_n_locals (param_get ctx)
+        (load_i64 (ptr_add (local_get sc_base) (mul_i64 (local_get sc_prev) (const_i64 8)))))
+      (store_i64 (ptr_add (param_get ctx) (const_i64 96)) (local_get sc_prev))
       (return_void)))
 
 

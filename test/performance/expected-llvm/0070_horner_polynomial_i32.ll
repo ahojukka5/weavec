@@ -8,9 +8,9 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @horner3(i32 3)
-  %t1 = sub i32 %t0, 11
-  ret i32 %t1
+  %.t0 = call i32 @horner3(i32 3)
+  %.t1 = sub i32 %.t0, 11
+  ret i32 %.t1
 }
 
 ; function: horner3
@@ -27,25 +27,25 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp slt i32 %t0, 3
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp slt i32 %.t0, 3
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
-  %t2 = load i32, ptr %acc.addr
-  %t3 = mul i32 %t2, %x
-  %t4 = add i32 %t3, 2
+  %.t2 = load i32, ptr %acc.addr
+  %.t3 = mul i32 %.t2, %x
+  %.t4 = add i32 %.t3, 2
   ; let next
   ; set acc
-  store i32 %t4, ptr %acc.addr
+  store i32 %.t4, ptr %acc.addr
   ; set i
-  %t5 = load i32, ptr %i.addr
-  %t6 = add i32 %t5, 1
-  store i32 %t6, ptr %i.addr
+  %.t5 = load i32, ptr %i.addr
+  %.t6 = add i32 %.t5, 1
+  store i32 %.t6, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t7 = load i32, ptr %acc.addr
-  ret i32 %t7
+  %.t7 = load i32, ptr %acc.addr
+  ret i32 %.t7
 }
 

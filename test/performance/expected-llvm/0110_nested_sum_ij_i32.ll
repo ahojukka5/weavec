@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @nested_sum(i32 4)
-  ret i32 %t0
+  %.t0 = call i32 @nested_sum(i32 4)
+  ret i32 %.t0
 }
 
 ; function: nested_sum
@@ -27,9 +27,9 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp sle i32 %t0, %n
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp sle i32 %.t0, %n
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; let j
@@ -37,32 +37,32 @@ while.body:
   ; while condition
   br label %while.cond1
 while.cond1:
-  %t2 = load i32, ptr %j.addr
-  %t3 = icmp sle i32 %t2, %n
-  br i1 %t3, label %while.body1, label %while.end1
+  %.t2 = load i32, ptr %j.addr
+  %.t3 = icmp sle i32 %.t2, %n
+  br i1 %.t3, label %while.body1, label %while.end1
 while.body1:
   ; while body
   ; set total
-  %t4 = load i32, ptr %total.addr
-  %t5 = load i32, ptr %i.addr
-  %t6 = load i32, ptr %j.addr
-  %t7 = mul i32 %t5, %t6
-  %t8 = add i32 %t4, %t7
-  store i32 %t8, ptr %total.addr
+  %.t4 = load i32, ptr %total.addr
+  %.t5 = load i32, ptr %i.addr
+  %.t6 = load i32, ptr %j.addr
+  %.t7 = mul i32 %.t5, %.t6
+  %.t8 = add i32 %.t4, %.t7
+  store i32 %.t8, ptr %total.addr
   ; set j
-  %t9 = load i32, ptr %j.addr
-  %t10 = add i32 %t9, 1
-  store i32 %t10, ptr %j.addr
+  %.t9 = load i32, ptr %j.addr
+  %.t10 = add i32 %.t9, 1
+  store i32 %.t10, ptr %j.addr
   br label %while.cond1
 while.end1:
   ; set i
-  %t11 = load i32, ptr %i.addr
-  %t12 = add i32 %t11, 1
-  store i32 %t12, ptr %i.addr
+  %.t11 = load i32, ptr %i.addr
+  %.t12 = add i32 %.t11, 1
+  store i32 %.t12, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t13 = load i32, ptr %total.addr
-  ret i32 %t13
+  %.t13 = load i32, ptr %total.addr
+  ret i32 %.t13
 }
 

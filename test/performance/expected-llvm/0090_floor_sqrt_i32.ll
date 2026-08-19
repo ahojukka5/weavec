@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @floor_sqrt(i32 200)
-  ret i32 %t0
+  %.t0 = call i32 @floor_sqrt(i32 200)
+  ret i32 %.t0
 }
 
 ; function: floor_sqrt
@@ -26,24 +26,24 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %t.addr
-  %t1 = load i32, ptr %t.addr
-  %t2 = mul i32 %t0, %t1
-  %t3 = icmp sle i32 %t2, %n
-  br i1 %t3, label %while.body, label %while.end
+  %.t0 = load i32, ptr %t.addr
+  %.t1 = load i32, ptr %t.addr
+  %.t2 = mul i32 %.t0, %.t1
+  %.t3 = icmp sle i32 %.t2, %n
+  br i1 %.t3, label %while.body, label %while.end
 while.body:
   ; while body
   ; set r
-  %t4 = load i32, ptr %t.addr
-  store i32 %t4, ptr %r.addr
+  %.t4 = load i32, ptr %t.addr
+  store i32 %.t4, ptr %r.addr
   ; set t
-  %t5 = load i32, ptr %t.addr
-  %t6 = add i32 %t5, 1
-  store i32 %t6, ptr %t.addr
+  %.t5 = load i32, ptr %t.addr
+  %.t6 = add i32 %.t5, 1
+  store i32 %.t6, ptr %t.addr
   br label %while.cond
 while.end:
   ; return
-  %t7 = load i32, ptr %r.addr
-  ret i32 %t7
+  %.t7 = load i32, ptr %r.addr
+  ret i32 %.t7
 }
 

@@ -9,12 +9,12 @@ define i32 @main() {
 entry:
   ; let a
   ; let b
-  %t0 = mul i64 2, 11
+  %.t0 = mul i64 2, 11
   ; let c
-  %t1 = add i64 20, %t0
+  %.t1 = add i64 20, %.t0
   ; let d
   ; return
-  %t2 = trunc i64 %t1 to i32
-  ret i32 %t2
+  %.t2 = trunc i64 %.t1 to i32
+  ret i32 %.t2
 }
 

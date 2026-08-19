@@ -13,17 +13,17 @@ declare void @free(ptr)
 ; returns: i32
 define i32 @main() {
 entry:
-  %t0 = call ptr @malloc(i64 8)
+  %.t0 = call ptr @malloc(i64 8)
   ; let p
   ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
+  %.t1 = icmp eq ptr %.t0, null
+  br i1 %.t1, label %then, label %endif
 then:
   ; then
   ; return
   ret i32 0
 endif:
-  call void @free(ptr %t0)
+  call void @free(ptr %.t0)
   ; return
   ret i32 42
 }

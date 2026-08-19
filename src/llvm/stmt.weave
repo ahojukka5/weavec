@@ -194,15 +194,15 @@
         (condition (eq_i32 (param_get type_id) (const_i32 3)))
         (then (do
           (let byte i64 (call_i64 ctx_alloc_temp (param_get ctx)))
-          (call_void write_cstr (local_get fd) (const_string_ptr "  %t"))
+          (call_void write_cstr (local_get fd) (const_string_ptr "  %.t"))
           (call_void write_i64_dec (local_get fd) (local_get byte))
           (call_void write_cstr (local_get fd) (const_string_ptr " = zext i1 "))
           (call_void emit_operand (param_get ctx) (local_get val_node) (local_get vv))
           (call_void write_cstr (local_get fd) (const_string_ptr " to i8"))
           (call_void write_byte (local_get fd) (const_i32 10))
-          (call_void write_cstr (local_get fd) (const_string_ptr "  store i8 %t"))
+          (call_void write_cstr (local_get fd) (const_string_ptr "  store i8 %.t"))
           (call_void write_i64_dec (local_get fd) (local_get byte))
-          (call_void write_cstr (local_get fd) (const_string_ptr ", ptr %t"))
+          (call_void write_cstr (local_get fd) (const_string_ptr ", ptr %.t"))
           (call_void write_i64_dec (local_get fd) (local_get address))
           (call_void write_byte (local_get fd) (const_i32 10))
           (return (const_i32 0))))
@@ -211,7 +211,7 @@
       (call_void emit_type (local_get fd) (param_get type_id))
       (call_void write_byte (local_get fd) (const_i32 32))
       (call_void emit_operand (param_get ctx) (local_get val_node) (local_get vv))
-      (call_void write_cstr (local_get fd) (const_string_ptr ", ptr %t"))
+      (call_void write_cstr (local_get fd) (const_string_ptr ", ptr %.t"))
       (call_void write_i64_dec (local_get fd) (local_get address))
       (call_void write_byte (local_get fd) (const_i32 10))
       (return (const_i32 0))))
@@ -245,13 +245,13 @@
           (const_string_ptr "store_i8") (const_i64 8)) (const_i32 0)))
         (then (do
           (let t i64 (call_i64 ctx_alloc_temp (param_get ctx)))
-          (call_void write_cstr (local_get fd) (const_string_ptr "  %t"))
+          (call_void write_cstr (local_get fd) (const_string_ptr "  %.t"))
           (call_void write_i64_dec (local_get fd) (local_get t))
           (call_void write_cstr (local_get fd) (const_string_ptr " = trunc i32 "))
           (call_void emit_operand (param_get ctx) (local_get val_node) (local_get vv))
           (call_void write_cstr (local_get fd) (const_string_ptr " to i8"))
           (call_void write_byte (local_get fd) (const_i32 10))
-          (call_void write_cstr (local_get fd) (const_string_ptr "  store i8 %t"))
+          (call_void write_cstr (local_get fd) (const_string_ptr "  store i8 %.t"))
           (call_void write_i64_dec (local_get fd) (local_get t))
           (call_void write_cstr (local_get fd) (const_string_ptr ", ptr "))
           (call_void emit_operand (param_get ctx) (local_get ptr_node) (local_get pv))
@@ -539,6 +539,12 @@
       (let ns i64 (call_i64 node_text_start (local_get tree) (local_get name_node)))
       (let nl i64 (call_i64 node_text_len (local_get tree) (local_get name_node)))
       (let type_id i32 (call_i32 lookup_local_type (param_get ctx) (local_get ns) (local_get nl)))
+      (if
+        (condition (eq_i32 (local_get type_id) (const_i32 0)))
+        (then (do
+          (call_void diag_unknown_identifier (param_get ctx) (local_get name_node))
+          (return (const_i32 1))))
+        (else (do)))
       (call_void write_cstr (local_get fd) (const_string_ptr "  ; set "))
       (call_void emit_node_text (local_get fd) (local_get source) (local_get tree) (local_get name_node))
       (call_void write_byte (local_get fd) (const_i32 10))
@@ -764,7 +770,7 @@
         (condition (ne_i32 (local_get cond_type_if) (const_i32 3)))
         (then (do
           (let conv_t_if i64 (call_i64 ctx_alloc_temp (param_get ctx)))
-          (call_void write_cstr (local_get fd) (const_string_ptr "  %t"))
+          (call_void write_cstr (local_get fd) (const_string_ptr "  %.t"))
           (call_void write_i64_dec (local_get fd) (local_get conv_t_if))
           (call_void write_cstr (local_get fd) (const_string_ptr " = icmp ne "))
           (call_void emit_type (local_get fd) (local_get cond_type_if))
@@ -881,7 +887,7 @@
         (condition (ne_i32 (local_get cond_type_while) (const_i32 3)))
         (then (do
           (let conv_t_while i64 (call_i64 ctx_alloc_temp (param_get ctx)))
-          (call_void write_cstr (local_get fd) (const_string_ptr "  %t"))
+          (call_void write_cstr (local_get fd) (const_string_ptr "  %.t"))
           (call_void write_i64_dec (local_get fd) (local_get conv_t_while))
           (call_void write_cstr (local_get fd) (const_string_ptr " = icmp ne "))
           (call_void emit_type (local_get fd) (local_get cond_type_while))
@@ -1125,6 +1131,10 @@
           (call_void diag_unknown_expression (param_get ctx) (param_get node))
           (return (const_i32 1))))
         (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ctx_push_scope (param_get ctx)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
       ; skip "do" keyword (first child), iterate rest
       (let child i64 (call_i64 node_first_child (local_get tree) (param_get node)))
       ; skip "do" ident
@@ -1133,13 +1143,17 @@
         (then (do
           (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
         (else (do)))
+      (let do_st i32 (const_i32 0))
       (while
-        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (condition (and_bool
+          (eq_i32 (local_get do_st) (const_i32 0))
+          (ne_i64 (local_get child) (const_i64 -1))))
         (do
           (if
             (condition (ne_i32 (call_i32 emit_stmt (param_get ctx) (local_get child) (param_get ret_type_id)) (const_i32 0)))
-            (then (do (return (const_i32 1))))
+            (then (do (set do_st (const_i32 1))))
             (else (do)))
           (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
-      (return (const_i32 0))))
+      (call_void ctx_pop_scope (param_get ctx))
+      (return (local_get do_st))))
 )

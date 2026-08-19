@@ -12,70 +12,70 @@ declare void @free(ptr)
 ; returns: i32
 define i32 @main() {
 entry:
-  %t0 = call ptr @malloc(i64 36)
+  %.t0 = call ptr @malloc(i64 36)
   ; let m
-  %t1 = call ptr @malloc(i64 12)
+  %.t1 = call ptr @malloc(i64 12)
   ; let v
   ; if condition
-  %t2 = icmp eq ptr %t0, null
-  br i1 %t2, label %then, label %endif
+  %.t2 = icmp eq ptr %.t0, null
+  br i1 %.t2, label %then, label %endif
 then:
   ; then
   ; return
   ret i32 0
 endif:
   ; if condition
-  %t3 = icmp eq ptr %t1, null
-  br i1 %t3, label %then1, label %endif1
+  %.t3 = icmp eq ptr %.t1, null
+  br i1 %.t3, label %then1, label %endif1
 then1:
   ; then
-  call void @free(ptr %t0)
+  call void @free(ptr %.t0)
   ; return
   ret i32 0
 endif1:
-  %t4 = getelementptr i8, ptr %t0, i64 0
-  %t5 = sitofp i32 1 to float
-  store float %t5, ptr %t4
-  %t6 = getelementptr i8, ptr %t0, i64 4
-  %t7 = sitofp i32 0 to float
-  store float %t7, ptr %t6
-  %t8 = getelementptr i8, ptr %t0, i64 8
-  %t9 = sitofp i32 0 to float
-  store float %t9, ptr %t8
-  %t10 = getelementptr i8, ptr %t0, i64 12
-  %t11 = sitofp i32 0 to float
-  store float %t11, ptr %t10
-  %t12 = getelementptr i8, ptr %t0, i64 16
-  %t13 = sitofp i32 1 to float
-  store float %t13, ptr %t12
-  %t14 = getelementptr i8, ptr %t0, i64 20
-  %t15 = sitofp i32 0 to float
-  store float %t15, ptr %t14
-  %t16 = getelementptr i8, ptr %t0, i64 24
-  %t17 = sitofp i32 0 to float
-  store float %t17, ptr %t16
-  %t18 = getelementptr i8, ptr %t0, i64 28
-  %t19 = sitofp i32 0 to float
-  store float %t19, ptr %t18
-  %t20 = getelementptr i8, ptr %t0, i64 32
-  %t21 = sitofp i32 1 to float
-  store float %t21, ptr %t20
-  %t22 = getelementptr i8, ptr %t1, i64 0
-  %t23 = sitofp i32 1 to float
-  store float %t23, ptr %t22
-  %t24 = getelementptr i8, ptr %t1, i64 4
-  %t25 = sitofp i32 2 to float
-  store float %t25, ptr %t24
-  %t26 = getelementptr i8, ptr %t1, i64 8
-  %t27 = sitofp i32 3 to float
-  store float %t27, ptr %t26
-  %t28 = call float @matvec3(ptr %t0, ptr %t1)
+  %.t4 = getelementptr i8, ptr %.t0, i64 0
+  %.t5 = sitofp i32 1 to float
+  store float %.t5, ptr %.t4
+  %.t6 = getelementptr i8, ptr %.t0, i64 4
+  %.t7 = sitofp i32 0 to float
+  store float %.t7, ptr %.t6
+  %.t8 = getelementptr i8, ptr %.t0, i64 8
+  %.t9 = sitofp i32 0 to float
+  store float %.t9, ptr %.t8
+  %.t10 = getelementptr i8, ptr %.t0, i64 12
+  %.t11 = sitofp i32 0 to float
+  store float %.t11, ptr %.t10
+  %.t12 = getelementptr i8, ptr %.t0, i64 16
+  %.t13 = sitofp i32 1 to float
+  store float %.t13, ptr %.t12
+  %.t14 = getelementptr i8, ptr %.t0, i64 20
+  %.t15 = sitofp i32 0 to float
+  store float %.t15, ptr %.t14
+  %.t16 = getelementptr i8, ptr %.t0, i64 24
+  %.t17 = sitofp i32 0 to float
+  store float %.t17, ptr %.t16
+  %.t18 = getelementptr i8, ptr %.t0, i64 28
+  %.t19 = sitofp i32 0 to float
+  store float %.t19, ptr %.t18
+  %.t20 = getelementptr i8, ptr %.t0, i64 32
+  %.t21 = sitofp i32 1 to float
+  store float %.t21, ptr %.t20
+  %.t22 = getelementptr i8, ptr %.t1, i64 0
+  %.t23 = sitofp i32 1 to float
+  store float %.t23, ptr %.t22
+  %.t24 = getelementptr i8, ptr %.t1, i64 4
+  %.t25 = sitofp i32 2 to float
+  store float %.t25, ptr %.t24
+  %.t26 = getelementptr i8, ptr %.t1, i64 8
+  %.t27 = sitofp i32 3 to float
+  store float %.t27, ptr %.t26
+  %.t28 = call float @matvec3(ptr %.t0, ptr %.t1)
   ; let out
-  call void @free(ptr %t0)
-  call void @free(ptr %t1)
+  call void @free(ptr %.t0)
+  call void @free(ptr %.t1)
   ; return
-  %t29 = fptosi float %t28 to i32
-  ret i32 %t29
+  %.t29 = fptosi float %.t28 to i32
+  ret i32 %.t29
 }
 
 ; function: matvec3
@@ -83,25 +83,25 @@ endif1:
 ; returns: float
 define float @matvec3(ptr %m, ptr %v) {
 entry:
-  %t0 = getelementptr i8, ptr %m, i64 0
-  %t1 = load float, ptr %t0
-  %t2 = getelementptr i8, ptr %v, i64 0
-  %t3 = load float, ptr %t2
-  %t4 = fmul float %t1, %t3
-  %t5 = getelementptr i8, ptr %m, i64 4
-  %t6 = load float, ptr %t5
-  %t7 = getelementptr i8, ptr %v, i64 4
-  %t8 = load float, ptr %t7
-  %t9 = fmul float %t6, %t8
-  %t10 = getelementptr i8, ptr %m, i64 8
-  %t11 = load float, ptr %t10
-  %t12 = getelementptr i8, ptr %v, i64 8
-  %t13 = load float, ptr %t12
-  %t14 = fmul float %t11, %t13
-  %t15 = fadd float %t9, %t14
-  %t16 = fadd float %t4, %t15
+  %.t0 = getelementptr i8, ptr %m, i64 0
+  %.t1 = load float, ptr %.t0
+  %.t2 = getelementptr i8, ptr %v, i64 0
+  %.t3 = load float, ptr %.t2
+  %.t4 = fmul float %.t1, %.t3
+  %.t5 = getelementptr i8, ptr %m, i64 4
+  %.t6 = load float, ptr %.t5
+  %.t7 = getelementptr i8, ptr %v, i64 4
+  %.t8 = load float, ptr %.t7
+  %.t9 = fmul float %.t6, %.t8
+  %.t10 = getelementptr i8, ptr %m, i64 8
+  %.t11 = load float, ptr %.t10
+  %.t12 = getelementptr i8, ptr %v, i64 8
+  %.t13 = load float, ptr %.t12
+  %.t14 = fmul float %.t11, %.t13
+  %.t15 = fadd float %.t9, %.t14
+  %.t16 = fadd float %.t4, %.t15
   ; let r0
   ; return
-  ret float %t16
+  ret float %.t16
 }
 

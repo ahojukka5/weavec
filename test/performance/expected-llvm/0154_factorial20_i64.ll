@@ -16,27 +16,27 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %n.addr
-  %t1 = icmp sle i32 %t0, 20
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %n.addr
+  %.t1 = icmp sle i32 %.t0, 20
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; set fact
-  %t2 = load i64, ptr %fact.addr
-  %t3 = load i32, ptr %n.addr
-  %t4 = sext i32 %t3 to i64
-  %t5 = mul i64 %t2, %t4
-  store i64 %t5, ptr %fact.addr
+  %.t2 = load i64, ptr %fact.addr
+  %.t3 = load i32, ptr %n.addr
+  %.t4 = sext i32 %.t3 to i64
+  %.t5 = mul i64 %.t2, %.t4
+  store i64 %.t5, ptr %fact.addr
   ; set n
-  %t6 = load i32, ptr %n.addr
-  %t7 = add i32 %t6, 1
-  store i32 %t7, ptr %n.addr
+  %.t6 = load i32, ptr %n.addr
+  %.t7 = add i32 %.t6, 1
+  store i32 %.t7, ptr %n.addr
   br label %while.cond
 while.end:
   ; return
-  %t8 = load i64, ptr %fact.addr
-  %t9 = srem i64 %t8, 1000000007
-  %t10 = trunc i64 %t9 to i32
-  ret i32 %t10
+  %.t8 = load i64, ptr %fact.addr
+  %.t9 = srem i64 %.t8, 1000000007
+  %.t10 = trunc i64 %.t9 to i32
+  ret i32 %.t10
 }
 

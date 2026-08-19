@@ -8,10 +8,10 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i64 @horner6(i64 11)
-  %t1 = srem i64 %t0, 1000000007
-  %t2 = trunc i64 %t1 to i32
-  ret i32 %t2
+  %.t0 = call i64 @horner6(i64 11)
+  %.t1 = srem i64 %.t0, 1000000007
+  %.t2 = trunc i64 %.t1 to i32
+  ret i32 %.t2
 }
 
 ; function: horner6
@@ -28,27 +28,27 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp slt i32 %t0, 6
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp slt i32 %.t0, 6
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; set acc
-  %t2 = load i64, ptr %acc.addr
-  %t3 = mul i64 %t2, %x
-  %t4 = load i32, ptr %i.addr
-  %t5 = sext i32 %t4 to i64
-  %t6 = add i64 1, %t5
-  %t7 = add i64 %t3, %t6
-  store i64 %t7, ptr %acc.addr
+  %.t2 = load i64, ptr %acc.addr
+  %.t3 = mul i64 %.t2, %x
+  %.t4 = load i32, ptr %i.addr
+  %.t5 = sext i32 %.t4 to i64
+  %.t6 = add i64 1, %.t5
+  %.t7 = add i64 %.t3, %.t6
+  store i64 %.t7, ptr %acc.addr
   ; set i
-  %t8 = load i32, ptr %i.addr
-  %t9 = add i32 %t8, 1
-  store i32 %t9, ptr %i.addr
+  %.t8 = load i32, ptr %i.addr
+  %.t9 = add i32 %.t8, 1
+  store i32 %.t9, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t10 = load i64, ptr %acc.addr
-  ret i64 %t10
+  %.t10 = load i64, ptr %acc.addr
+  ret i64 %.t10
 }
 

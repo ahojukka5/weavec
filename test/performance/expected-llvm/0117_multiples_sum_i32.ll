@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @sum_multiples_below(i32 20)
-  ret i32 %t0
+  %.t0 = call i32 @sum_multiples_below(i32 20)
+  ret i32 %.t0
 }
 
 ; function: sum_multiples_below
@@ -26,37 +26,37 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp slt i32 %t0, %n
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp slt i32 %.t0, %n
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; if condition
-  %t2 = load i32, ptr %i.addr
-  %t3 = srem i32 %t2, 3
-  %t4 = icmp eq i32 %t3, 0
-  %t5 = load i32, ptr %i.addr
-  %t6 = srem i32 %t5, 5
-  %t7 = icmp eq i32 %t6, 0
-  %t8 = or i1 %t4, %t7
-  br i1 %t8, label %then1, label %endif1
+  %.t2 = load i32, ptr %i.addr
+  %.t3 = srem i32 %.t2, 3
+  %.t4 = icmp eq i32 %.t3, 0
+  %.t5 = load i32, ptr %i.addr
+  %.t6 = srem i32 %.t5, 5
+  %.t7 = icmp eq i32 %.t6, 0
+  %.t8 = or i1 %.t4, %.t7
+  br i1 %.t8, label %then1, label %endif1
 then1:
   ; then
   ; set total
-  %t9 = load i32, ptr %total.addr
-  %t10 = load i32, ptr %i.addr
-  %t11 = add i32 %t9, %t10
-  store i32 %t11, ptr %total.addr
+  %.t9 = load i32, ptr %total.addr
+  %.t10 = load i32, ptr %i.addr
+  %.t11 = add i32 %.t9, %.t10
+  store i32 %.t11, ptr %total.addr
   br label %endif1
 endif1:
   ; set i
-  %t12 = load i32, ptr %i.addr
-  %t13 = add i32 %t12, 1
-  store i32 %t13, ptr %i.addr
+  %.t12 = load i32, ptr %i.addr
+  %.t13 = add i32 %.t12, 1
+  store i32 %.t13, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t14 = load i32, ptr %total.addr
-  ret i32 %t14
+  %.t14 = load i32, ptr %total.addr
+  ret i32 %.t14
 }
 

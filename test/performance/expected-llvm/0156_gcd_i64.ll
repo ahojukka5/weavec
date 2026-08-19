@@ -8,9 +8,9 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i64 @gcd_i64(i64 462, i64 1071)
-  %t1 = trunc i64 %t0 to i32
-  ret i32 %t1
+  %.t0 = call i64 @gcd_i64(i64 462, i64 1071)
+  %.t1 = trunc i64 %.t0 to i32
+  ret i32 %.t1
 }
 
 ; function: gcd_i64
@@ -27,24 +27,24 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i64, ptr %y.addr
-  %t1 = icmp ne i64 %t0, 0
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i64, ptr %y.addr
+  %.t1 = icmp ne i64 %.t0, 0
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
-  %t2 = load i64, ptr %x.addr
-  %t3 = load i64, ptr %y.addr
-  %t4 = srem i64 %t2, %t3
+  %.t2 = load i64, ptr %x.addr
+  %.t3 = load i64, ptr %y.addr
+  %.t4 = srem i64 %.t2, %.t3
   ; let r
   ; set x
-  %t5 = load i64, ptr %y.addr
-  store i64 %t5, ptr %x.addr
+  %.t5 = load i64, ptr %y.addr
+  store i64 %.t5, ptr %x.addr
   ; set y
-  store i64 %t4, ptr %y.addr
+  store i64 %.t4, ptr %y.addr
   br label %while.cond
 while.end:
   ; return
-  %t6 = load i64, ptr %x.addr
-  ret i64 %t6
+  %.t6 = load i64, ptr %x.addr
+  ret i64 %.t6
 }
 

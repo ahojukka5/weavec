@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @hailstone_peak(i32 27)
-  ret i32 %t0
+  %.t0 = call i32 @hailstone_peak(i32 27)
+  ret i32 %.t0
 }
 
 ; function: hailstone_peak
@@ -26,48 +26,48 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %n.addr
-  %t1 = icmp ne i32 %t0, 1
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %n.addr
+  %.t1 = icmp ne i32 %.t0, 1
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; if condition
-  %t2 = load i32, ptr %n.addr
-  %t3 = load i32, ptr %peak.addr
-  %t4 = icmp sgt i32 %t2, %t3
-  br i1 %t4, label %then1, label %endif1
+  %.t2 = load i32, ptr %n.addr
+  %.t3 = load i32, ptr %peak.addr
+  %.t4 = icmp sgt i32 %.t2, %.t3
+  br i1 %.t4, label %then1, label %endif1
 then1:
   ; then
   ; set peak
-  %t5 = load i32, ptr %n.addr
-  store i32 %t5, ptr %peak.addr
+  %.t5 = load i32, ptr %n.addr
+  store i32 %.t5, ptr %peak.addr
   br label %endif1
 endif1:
   ; if condition
-  %t6 = load i32, ptr %n.addr
-  %t7 = srem i32 %t6, 2
-  %t8 = icmp eq i32 %t7, 0
-  br i1 %t8, label %then2, label %else2
+  %.t6 = load i32, ptr %n.addr
+  %.t7 = srem i32 %.t6, 2
+  %.t8 = icmp eq i32 %.t7, 0
+  br i1 %.t8, label %then2, label %else2
 then2:
   ; then
   ; set n
-  %t9 = load i32, ptr %n.addr
-  %t10 = sdiv i32 %t9, 2
-  store i32 %t10, ptr %n.addr
+  %.t9 = load i32, ptr %n.addr
+  %.t10 = sdiv i32 %.t9, 2
+  store i32 %.t10, ptr %n.addr
   br label %endif2
 else2:
   ; else
   ; set n
-  %t11 = load i32, ptr %n.addr
-  %t12 = mul i32 %t11, 3
-  %t13 = add i32 %t12, 1
-  store i32 %t13, ptr %n.addr
+  %.t11 = load i32, ptr %n.addr
+  %.t12 = mul i32 %.t11, 3
+  %.t13 = add i32 %.t12, 1
+  store i32 %.t13, ptr %n.addr
   br label %endif2
 endif2:
   br label %while.cond
 while.end:
   ; return
-  %t14 = load i32, ptr %peak.addr
-  ret i32 %t14
+  %.t14 = load i32, ptr %peak.addr
+  ret i32 %.t14
 }
 

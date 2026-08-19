@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @is_palindrome(i32 1221)
-  ret i32 %t0
+  %.t0 = call i32 @is_palindrome(i32 1221)
+  ret i32 %.t0
 }
 
 ; function: reverse_digits
@@ -26,27 +26,27 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %x.addr
-  %t1 = icmp sgt i32 %t0, 0
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %x.addr
+  %.t1 = icmp sgt i32 %.t0, 0
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; set rev
-  %t2 = load i32, ptr %rev.addr
-  %t3 = mul i32 %t2, 10
-  %t4 = load i32, ptr %x.addr
-  %t5 = srem i32 %t4, 10
-  %t6 = add i32 %t3, %t5
-  store i32 %t6, ptr %rev.addr
+  %.t2 = load i32, ptr %rev.addr
+  %.t3 = mul i32 %.t2, 10
+  %.t4 = load i32, ptr %x.addr
+  %.t5 = srem i32 %.t4, 10
+  %.t6 = add i32 %.t3, %.t5
+  store i32 %.t6, ptr %rev.addr
   ; set x
-  %t7 = load i32, ptr %x.addr
-  %t8 = sdiv i32 %t7, 10
-  store i32 %t8, ptr %x.addr
+  %.t7 = load i32, ptr %x.addr
+  %.t8 = sdiv i32 %.t7, 10
+  store i32 %.t8, ptr %x.addr
   br label %while.cond
 while.end:
   ; return
-  %t9 = load i32, ptr %rev.addr
-  ret i32 %t9
+  %.t9 = load i32, ptr %rev.addr
+  ret i32 %.t9
 }
 
 ; function: is_palindrome
@@ -55,9 +55,9 @@ while.end:
 define i32 @is_palindrome(i32 %n) {
 entry:
   ; if condition
-  %t0 = call i32 @reverse_digits(i32 %n)
-  %t1 = icmp eq i32 %n, %t0
-  br i1 %t1, label %then, label %else
+  %.t0 = call i32 @reverse_digits(i32 %n)
+  %.t1 = icmp eq i32 %n, %.t0
+  br i1 %.t1, label %then, label %else
 then:
   ; then
   ; return

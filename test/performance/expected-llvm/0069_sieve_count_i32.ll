@@ -12,22 +12,22 @@ declare void @free(ptr)
 ; returns: i32
 define i32 @main() {
 entry:
-  %t0 = call ptr @malloc(i64 68)
+  %.t0 = call ptr @malloc(i64 68)
   ; let flags
   ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
+  %.t1 = icmp eq ptr %.t0, null
+  br i1 %.t1, label %then, label %endif
 then:
   ; then
   ; return
   ret i32 0
 endif:
-  %t2 = call i32 @count_primes16(ptr %t0)
+  %.t2 = call i32 @count_primes16(ptr %.t0)
   ; let count
-  call void @free(ptr %t0)
+  call void @free(ptr %.t0)
   ; return
-  %t3 = add i32 %t2, 36
-  ret i32 %t3
+  %.t3 = add i32 %.t2, 36
+  ret i32 %.t3
 }
 
 ; function: elem_ptr
@@ -36,9 +36,9 @@ endif:
 define ptr @elem_ptr(ptr %base, i32 %index) {
 entry:
   ; return
-  %t0 = sext i32 %index to i64
-  %t1 = getelementptr i32, ptr %base, i64 %t0
-  ret ptr %t1
+  %.t0 = sext i32 %index to i64
+  %.t1 = getelementptr i32, ptr %base, i64 %.t0
+  ret ptr %.t1
 }
 
 ; function: count_primes16
@@ -55,73 +55,73 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp sle i32 %t0, 16
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp sle i32 %.t0, 16
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
-  %t2 = load i32, ptr %i.addr
-  %t3 = call ptr @elem_ptr(ptr %flags, i32 %t2)
-  store i32 1, ptr %t3
+  %.t2 = load i32, ptr %i.addr
+  %.t3 = call ptr @elem_ptr(ptr %flags, i32 %.t2)
+  store i32 1, ptr %.t3
   ; set i
-  %t4 = load i32, ptr %i.addr
-  %t5 = add i32 %t4, 1
-  store i32 %t5, ptr %i.addr
+  %.t4 = load i32, ptr %i.addr
+  %.t5 = add i32 %.t4, 1
+  store i32 %.t5, ptr %i.addr
   br label %while.cond
 while.end:
-  %t6 = call ptr @elem_ptr(ptr %flags, i32 0)
-  store i32 0, ptr %t6
-  %t7 = call ptr @elem_ptr(ptr %flags, i32 1)
-  store i32 0, ptr %t7
+  %.t6 = call ptr @elem_ptr(ptr %flags, i32 0)
+  store i32 0, ptr %.t6
+  %.t7 = call ptr @elem_ptr(ptr %flags, i32 1)
+  store i32 0, ptr %.t7
   ; let p
   store i32 2, ptr %p.addr
   ; while condition
   br label %while.cond1
 while.cond1:
-  %t8 = load i32, ptr %p.addr
-  %t9 = load i32, ptr %p.addr
-  %t10 = mul i32 %t8, %t9
-  %t11 = icmp sle i32 %t10, 16
-  br i1 %t11, label %while.body1, label %while.end1
+  %.t8 = load i32, ptr %p.addr
+  %.t9 = load i32, ptr %p.addr
+  %.t10 = mul i32 %.t8, %.t9
+  %.t11 = icmp sle i32 %.t10, 16
+  br i1 %.t11, label %while.body1, label %while.end1
 while.body1:
   ; while body
   ; if condition
-  %t12 = load i32, ptr %p.addr
-  %t13 = call ptr @elem_ptr(ptr %flags, i32 %t12)
-  %t14 = load i32, ptr %t13
-  %t15 = icmp ne i32 %t14, 0
-  br i1 %t15, label %then2, label %endif2
+  %.t12 = load i32, ptr %p.addr
+  %.t13 = call ptr @elem_ptr(ptr %flags, i32 %.t12)
+  %.t14 = load i32, ptr %.t13
+  %.t15 = icmp ne i32 %.t14, 0
+  br i1 %.t15, label %then2, label %endif2
 then2:
   ; then
-  %t16 = load i32, ptr %p.addr
-  %t17 = load i32, ptr %p.addr
-  %t18 = mul i32 %t16, %t17
+  %.t16 = load i32, ptr %p.addr
+  %.t17 = load i32, ptr %p.addr
+  %.t18 = mul i32 %.t16, %.t17
   ; let multiple
-  store i32 %t18, ptr %multiple.addr
+  store i32 %.t18, ptr %multiple.addr
   ; while condition
   br label %while.cond3
 while.cond3:
-  %t19 = load i32, ptr %multiple.addr
-  %t20 = icmp sle i32 %t19, 16
-  br i1 %t20, label %while.body3, label %while.end3
+  %.t19 = load i32, ptr %multiple.addr
+  %.t20 = icmp sle i32 %.t19, 16
+  br i1 %.t20, label %while.body3, label %while.end3
 while.body3:
   ; while body
-  %t21 = load i32, ptr %multiple.addr
-  %t22 = call ptr @elem_ptr(ptr %flags, i32 %t21)
-  store i32 0, ptr %t22
+  %.t21 = load i32, ptr %multiple.addr
+  %.t22 = call ptr @elem_ptr(ptr %flags, i32 %.t21)
+  store i32 0, ptr %.t22
   ; set multiple
-  %t23 = load i32, ptr %multiple.addr
-  %t24 = load i32, ptr %p.addr
-  %t25 = add i32 %t23, %t24
-  store i32 %t25, ptr %multiple.addr
+  %.t23 = load i32, ptr %multiple.addr
+  %.t24 = load i32, ptr %p.addr
+  %.t25 = add i32 %.t23, %.t24
+  store i32 %.t25, ptr %multiple.addr
   br label %while.cond3
 while.end3:
   br label %endif2
 endif2:
   ; set p
-  %t26 = load i32, ptr %p.addr
-  %t27 = add i32 %t26, 1
-  store i32 %t27, ptr %p.addr
+  %.t26 = load i32, ptr %p.addr
+  %.t27 = add i32 %.t26, 1
+  store i32 %.t27, ptr %p.addr
   br label %while.cond1
 while.end1:
   ; let count
@@ -131,26 +131,26 @@ while.end1:
   ; while condition
   br label %while.cond4
 while.cond4:
-  %t28 = load i32, ptr %i.addr
-  %t29 = icmp sle i32 %t28, 16
-  br i1 %t29, label %while.body4, label %while.end4
+  %.t28 = load i32, ptr %i.addr
+  %.t29 = icmp sle i32 %.t28, 16
+  br i1 %.t29, label %while.body4, label %while.end4
 while.body4:
   ; while body
   ; set count
-  %t30 = load i32, ptr %count.addr
-  %t31 = load i32, ptr %i.addr
-  %t32 = call ptr @elem_ptr(ptr %flags, i32 %t31)
-  %t33 = load i32, ptr %t32
-  %t34 = add i32 %t30, %t33
-  store i32 %t34, ptr %count.addr
+  %.t30 = load i32, ptr %count.addr
+  %.t31 = load i32, ptr %i.addr
+  %.t32 = call ptr @elem_ptr(ptr %flags, i32 %.t31)
+  %.t33 = load i32, ptr %.t32
+  %.t34 = add i32 %.t30, %.t33
+  store i32 %.t34, ptr %count.addr
   ; set i
-  %t35 = load i32, ptr %i.addr
-  %t36 = add i32 %t35, 1
-  store i32 %t36, ptr %i.addr
+  %.t35 = load i32, ptr %i.addr
+  %.t36 = add i32 %.t35, 1
+  store i32 %.t36, ptr %i.addr
   br label %while.cond4
 while.end4:
   ; return
-  %t37 = load i32, ptr %count.addr
-  ret i32 %t37
+  %.t37 = load i32, ptr %count.addr
+  ret i32 %.t37
 }
 

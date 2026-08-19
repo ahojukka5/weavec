@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; if condition
-  %t0 = icmp sgt i64 10, 9
-  br i1 %t0, label %then, label %else
+  %.t0 = icmp sgt i64 10, 9
+  br i1 %.t0, label %then, label %else
 then:
   ; then
   br label %endif
@@ -19,8 +19,8 @@ else:
   ret i32 0
 endif:
   ; if condition
-  %t1 = icmp sge i64 10, 10
-  br i1 %t1, label %then1, label %else1
+  %.t1 = icmp sge i64 10, 10
+  br i1 %.t1, label %then1, label %else1
 then1:
   ; then
   ; return

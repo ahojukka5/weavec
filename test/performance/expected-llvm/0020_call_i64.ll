@@ -8,9 +8,9 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i64 @answer64()
-  %t1 = trunc i64 %t0 to i32
-  ret i32 %t1
+  %.t0 = call i64 @answer64()
+  %.t1 = trunc i64 %.t0 to i32
+  ret i32 %.t1
 }
 
 ; function: answer64

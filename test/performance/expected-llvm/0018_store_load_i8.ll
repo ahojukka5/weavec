@@ -12,23 +12,23 @@ declare void @free(ptr)
 ; returns: i32
 define i32 @main() {
 entry:
-  %t0 = call ptr @malloc(i64 1)
+  %.t0 = call ptr @malloc(i64 1)
   ; let p
   ; if condition
-  %t1 = icmp eq ptr %t0, null
-  br i1 %t1, label %then, label %endif
+  %.t1 = icmp eq ptr %.t0, null
+  br i1 %.t1, label %then, label %endif
 then:
   ; then
   ; return
   ret i32 0
 endif:
-  %t2 = trunc i32 42 to i8
-  store i8 %t2, ptr %t0
-  %t3 = load i8, ptr %t0
-  %t4 = zext i8 %t3 to i32
+  %.t2 = trunc i32 42 to i8
+  store i8 %.t2, ptr %.t0
+  %.t3 = load i8, ptr %.t0
+  %.t4 = zext i8 %.t3 to i32
   ; let x
-  call void @free(ptr %t0)
+  call void @free(ptr %.t0)
   ; return
-  ret i32 %t4
+  ret i32 %.t4
 }
 

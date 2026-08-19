@@ -16,34 +16,34 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %k.addr
-  %t1 = icmp slt i32 %t0, 12
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %k.addr
+  %.t1 = icmp slt i32 %.t0, 12
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
-  %t2 = load i32, ptr %k.addr
-  %t3 = mul i32 %t2, 37
-  %t4 = add i32 %t3, 100
+  %.t2 = load i32, ptr %k.addr
+  %.t3 = mul i32 %.t2, 37
+  %.t4 = add i32 %.t3, 100
   ; let a
-  %t5 = load i32, ptr %k.addr
-  %t6 = mul i32 %t5, 53
-  %t7 = add i32 %t6, 200
+  %.t5 = load i32, ptr %k.addr
+  %.t6 = mul i32 %.t5, 53
+  %.t7 = add i32 %.t6, 200
   ; let b
-  %t8 = call i32 @gcd_pair(i32 %t4, i32 %t7)
+  %.t8 = call i32 @gcd_pair(i32 %.t4, i32 %.t7)
   ; let g
   ; set acc
-  %t9 = load i32, ptr %acc.addr
-  %t10 = add i32 %t9, %t8
-  store i32 %t10, ptr %acc.addr
+  %.t9 = load i32, ptr %acc.addr
+  %.t10 = add i32 %.t9, %.t8
+  store i32 %.t10, ptr %acc.addr
   ; set k
-  %t11 = load i32, ptr %k.addr
-  %t12 = add i32 %t11, 1
-  store i32 %t12, ptr %k.addr
+  %.t11 = load i32, ptr %k.addr
+  %.t12 = add i32 %.t11, 1
+  store i32 %.t12, ptr %k.addr
   br label %while.cond
 while.end:
   ; return
-  %t13 = load i32, ptr %acc.addr
-  ret i32 %t13
+  %.t13 = load i32, ptr %acc.addr
+  ret i32 %.t13
 }
 
 ; function: gcd_pair
@@ -60,24 +60,24 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %y.addr
-  %t1 = icmp ne i32 %t0, 0
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %y.addr
+  %.t1 = icmp ne i32 %.t0, 0
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
-  %t2 = load i32, ptr %x.addr
-  %t3 = load i32, ptr %y.addr
-  %t4 = srem i32 %t2, %t3
+  %.t2 = load i32, ptr %x.addr
+  %.t3 = load i32, ptr %y.addr
+  %.t4 = srem i32 %.t2, %.t3
   ; let r
   ; set x
-  %t5 = load i32, ptr %y.addr
-  store i32 %t5, ptr %x.addr
+  %.t5 = load i32, ptr %y.addr
+  store i32 %.t5, ptr %x.addr
   ; set y
-  store i32 %t4, ptr %y.addr
+  store i32 %.t4, ptr %y.addr
   br label %while.cond
 while.end:
   ; return
-  %t6 = load i32, ptr %x.addr
-  ret i32 %t6
+  %.t6 = load i32, ptr %x.addr
+  ret i32 %.t6
 }
 

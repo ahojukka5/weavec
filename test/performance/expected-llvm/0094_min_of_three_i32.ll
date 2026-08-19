@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @min3(i32 17, i32 4, i32 23)
-  ret i32 %t0
+  %.t0 = call i32 @min3(i32 17, i32 4, i32 23)
+  ret i32 %.t0
 }
 
 ; function: min3
@@ -21,9 +21,9 @@ entry:
   ; let m
   store i32 %a, ptr %m.addr
   ; if condition
-  %t0 = load i32, ptr %m.addr
-  %t1 = icmp slt i32 %b, %t0
-  br i1 %t1, label %then, label %endif
+  %.t0 = load i32, ptr %m.addr
+  %.t1 = icmp slt i32 %b, %.t0
+  br i1 %.t1, label %then, label %endif
 then:
   ; then
   ; set m
@@ -31,9 +31,9 @@ then:
   br label %endif
 endif:
   ; if condition
-  %t2 = load i32, ptr %m.addr
-  %t3 = icmp slt i32 %c, %t2
-  br i1 %t3, label %then1, label %endif1
+  %.t2 = load i32, ptr %m.addr
+  %.t3 = icmp slt i32 %c, %.t2
+  br i1 %.t3, label %then1, label %endif1
 then1:
   ; then
   ; set m
@@ -41,7 +41,7 @@ then1:
   br label %endif1
 endif1:
   ; return
-  %t4 = load i32, ptr %m.addr
-  ret i32 %t4
+  %.t4 = load i32, ptr %m.addr
+  ret i32 %.t4
 }
 

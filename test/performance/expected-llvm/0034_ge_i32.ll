@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; if condition
-  %t0 = icmp sge i32 42, 42
-  br i1 %t0, label %then, label %else
+  %.t0 = icmp sge i32 42, 42
+  br i1 %.t0, label %then, label %else
 then:
   ; then
   ; return

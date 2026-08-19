@@ -69,13 +69,13 @@ expect_ir 'offset of code (48)'    'getelementptr i8, ptr %m, i64 48'
 expect_ir 'offset of total (24)'   'getelementptr i8, ptr %m, i64 24'
 expect_ir 'offset of count (8)'    'getelementptr i8, ptr %m, i64 8'
 expect_ir 'offset of flag (0)'     'getelementptr i8, ptr %m, i64 0'
-expect_ir 'typed field load'       '= load double, ptr %t[0-9]+'
-expect_ir 'typed field store'      'store i64 %v, ptr %t[0-9]+'
+expect_ir 'typed field load'       '= load double, ptr %.t[0-9]+'
+expect_ir 'typed field store'      'store i64 %v, ptr %.t[0-9]+'
 # A bool field occupies one byte and narrows on read, widens on write.
-expect_ir 'bool field load'        '= load i8, ptr %t[0-9]+'
-expect_ir 'bool narrowing'         '= icmp ne i8 %t[0-9]+, 0'
+expect_ir 'bool field load'        '= load i8, ptr %.t[0-9]+'
+expect_ir 'bool narrowing'         '= icmp ne i8 %.t[0-9]+, 0'
 expect_ir 'bool widening'          '= zext i1 %v to i8'
-expect_ir 'bool field store'       'store i8 %t[0-9]+, ptr %t[0-9]+'
+expect_ir 'bool field store'       'store i8 %.t[0-9]+, ptr %.t[0-9]+'
 
 # The layout must not leak back into WIR.
 if grep -Eq 'ptr_add|const_i64 (8|24|48|56)' "$TMP/mixed.wir"; then
@@ -234,8 +234,8 @@ expect_nested 'offset of n (24)'      'getelementptr i8, ptr %o, i64 24'
 
 # The composition claim the representation was designed around: a nested field
 # is reached by chaining field_addr, with no path form and no grammar change.
-expect_nested 'composed nested read'  'getelementptr i8, ptr %t[0-9]+, i64 8'
-expect_nested 'composed nested write' 'store double %v, ptr %t[0-9]+'
+expect_nested 'composed nested read'  'getelementptr i8, ptr %.t[0-9]+, i64 8'
+expect_nested 'composed nested write' 'store double %v, ptr %.t[0-9]+'
 
 if command -v llvm-as >/dev/null 2>&1; then
   llvm-as "$TMP/nested.ll" -o "$TMP/nested.bc" || {

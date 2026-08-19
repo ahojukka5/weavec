@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @is_perfect(i32 28)
-  ret i32 %t0
+  %.t0 = call i32 @is_perfect(i32 28)
+  ret i32 %.t0
 }
 
 ; function: is_perfect
@@ -26,35 +26,35 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %d.addr
-  %t1 = icmp slt i32 %t0, %n
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %d.addr
+  %.t1 = icmp slt i32 %.t0, %n
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
   ; if condition
-  %t2 = load i32, ptr %d.addr
-  %t3 = srem i32 %n, %t2
-  %t4 = icmp eq i32 %t3, 0
-  br i1 %t4, label %then1, label %endif1
+  %.t2 = load i32, ptr %d.addr
+  %.t3 = srem i32 %n, %.t2
+  %.t4 = icmp eq i32 %.t3, 0
+  br i1 %.t4, label %then1, label %endif1
 then1:
   ; then
   ; set sum
-  %t5 = load i32, ptr %sum.addr
-  %t6 = load i32, ptr %d.addr
-  %t7 = add i32 %t5, %t6
-  store i32 %t7, ptr %sum.addr
+  %.t5 = load i32, ptr %sum.addr
+  %.t6 = load i32, ptr %d.addr
+  %.t7 = add i32 %.t5, %.t6
+  store i32 %.t7, ptr %sum.addr
   br label %endif1
 endif1:
   ; set d
-  %t8 = load i32, ptr %d.addr
-  %t9 = add i32 %t8, 1
-  store i32 %t9, ptr %d.addr
+  %.t8 = load i32, ptr %d.addr
+  %.t9 = add i32 %.t8, 1
+  store i32 %.t9, ptr %d.addr
   br label %while.cond
 while.end:
   ; if condition
-  %t10 = load i32, ptr %sum.addr
-  %t11 = icmp eq i32 %t10, %n
-  br i1 %t11, label %then2, label %else2
+  %.t10 = load i32, ptr %sum.addr
+  %.t11 = icmp eq i32 %.t10, %n
+  br i1 %.t11, label %then2, label %else2
 then2:
   ; then
   ; return

@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @gcd_sub(i32 54, i32 24)
-  ret i32 %t0
+  %.t0 = call i32 @gcd_sub(i32 54, i32 24)
+  ret i32 %.t0
 }
 
 ; function: gcd_sub
@@ -26,38 +26,38 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %x.addr
-  %t1 = load i32, ptr %y.addr
-  %t2 = icmp ne i32 %t0, %t1
-  br i1 %t2, label %while.body, label %while.end
+  %.t0 = load i32, ptr %x.addr
+  %.t1 = load i32, ptr %y.addr
+  %.t2 = icmp ne i32 %.t0, %.t1
+  br i1 %.t2, label %while.body, label %while.end
 while.body:
   ; while body
   ; if condition
-  %t3 = load i32, ptr %x.addr
-  %t4 = load i32, ptr %y.addr
-  %t5 = icmp sgt i32 %t3, %t4
-  br i1 %t5, label %then1, label %else1
+  %.t3 = load i32, ptr %x.addr
+  %.t4 = load i32, ptr %y.addr
+  %.t5 = icmp sgt i32 %.t3, %.t4
+  br i1 %.t5, label %then1, label %else1
 then1:
   ; then
   ; set x
-  %t6 = load i32, ptr %x.addr
-  %t7 = load i32, ptr %y.addr
-  %t8 = sub i32 %t6, %t7
-  store i32 %t8, ptr %x.addr
+  %.t6 = load i32, ptr %x.addr
+  %.t7 = load i32, ptr %y.addr
+  %.t8 = sub i32 %.t6, %.t7
+  store i32 %.t8, ptr %x.addr
   br label %endif1
 else1:
   ; else
   ; set y
-  %t9 = load i32, ptr %y.addr
-  %t10 = load i32, ptr %x.addr
-  %t11 = sub i32 %t9, %t10
-  store i32 %t11, ptr %y.addr
+  %.t9 = load i32, ptr %y.addr
+  %.t10 = load i32, ptr %x.addr
+  %.t11 = sub i32 %.t9, %.t10
+  store i32 %.t11, ptr %y.addr
   br label %endif1
 endif1:
   br label %while.cond
 while.end:
   ; return
-  %t12 = load i32, ptr %x.addr
-  ret i32 %t12
+  %.t12 = load i32, ptr %x.addr
+  ret i32 %.t12
 }
 

@@ -8,8 +8,8 @@
 define i32 @main() {
 entry:
   ; return
-  %t0 = call i32 @calculate(i32 5)
-  ret i32 %t0
+  %.t0 = call i32 @calculate(i32 5)
+  ret i32 %.t0
 }
 
 ; function: calculate
@@ -18,10 +18,10 @@ entry:
 define i32 @calculate(i32 %x) {
 entry:
   ; return
-  %t0 = call i32 @helper_double(i32 %x)
-  %t1 = call i32 @helper_square(i32 %x)
-  %t2 = add i32 %t0, %t1
-  ret i32 %t2
+  %.t0 = call i32 @helper_double(i32 %x)
+  %.t1 = call i32 @helper_square(i32 %x)
+  %.t2 = add i32 %.t0, %.t1
+  ret i32 %.t2
 }
 
 ; function: helper_double
@@ -30,8 +30,8 @@ entry:
 define i32 @helper_double(i32 %n) {
 entry:
   ; return
-  %t0 = mul i32 %n, 2
-  ret i32 %t0
+  %.t0 = mul i32 %n, 2
+  ret i32 %.t0
 }
 
 ; function: helper_square
@@ -40,7 +40,7 @@ entry:
 define i32 @helper_square(i32 %n) {
 entry:
   ; return
-  %t0 = mul i32 %n, %n
-  ret i32 %t0
+  %.t0 = mul i32 %n, %n
+  ret i32 %.t0
 }
 

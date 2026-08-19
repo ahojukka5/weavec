@@ -19,30 +19,30 @@ entry:
   ; while condition
   br label %while.cond
 while.cond:
-  %t0 = load i32, ptr %i.addr
-  %t1 = icmp sle i32 %t0, 30
-  br i1 %t1, label %while.body, label %while.end
+  %.t0 = load i32, ptr %i.addr
+  %.t1 = icmp sle i32 %.t0, 30
+  br i1 %.t1, label %while.body, label %while.end
 while.body:
   ; while body
-  %t2 = load i64, ptr %prev.addr
-  %t3 = load i64, ptr %cur.addr
-  %t4 = add i64 %t2, %t3
+  %.t2 = load i64, ptr %prev.addr
+  %.t3 = load i64, ptr %cur.addr
+  %.t4 = add i64 %.t2, %.t3
   ; let next
   ; set prev
-  %t5 = load i64, ptr %cur.addr
-  store i64 %t5, ptr %prev.addr
+  %.t5 = load i64, ptr %cur.addr
+  store i64 %.t5, ptr %prev.addr
   ; set cur
-  store i64 %t4, ptr %cur.addr
+  store i64 %.t4, ptr %cur.addr
   ; set i
-  %t6 = load i32, ptr %i.addr
-  %t7 = add i32 %t6, 1
-  store i32 %t7, ptr %i.addr
+  %.t6 = load i32, ptr %i.addr
+  %.t7 = add i32 %.t6, 1
+  store i32 %.t7, ptr %i.addr
   br label %while.cond
 while.end:
   ; return
-  %t8 = load i64, ptr %cur.addr
-  %t9 = srem i64 %t8, 1000000007
-  %t10 = trunc i64 %t9 to i32
-  ret i32 %t10
+  %.t8 = load i64, ptr %cur.addr
+  %.t9 = srem i64 %.t8, 1000000007
+  %.t10 = trunc i64 %.t9 to i32
+  ret i32 %.t10
 }
 

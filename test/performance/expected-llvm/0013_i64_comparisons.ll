@@ -8,18 +8,18 @@
 define i32 @main() {
 entry:
   ; if condition
-  %t0 = icmp slt i64 1, 2
-  br i1 %t0, label %then, label %else
+  %.t0 = icmp slt i64 1, 2
+  br i1 %.t0, label %then, label %else
 then:
   ; then
   ; if condition
-  %t1 = icmp sle i64 2, 2
-  br i1 %t1, label %then1, label %else1
+  %.t1 = icmp sle i64 2, 2
+  br i1 %.t1, label %then1, label %else1
 then1:
   ; then
   ; if condition
-  %t2 = icmp ne i64 3, 4
-  br i1 %t2, label %then2, label %else2
+  %.t2 = icmp ne i64 3, 4
+  br i1 %.t2, label %then2, label %else2
 then2:
   ; then
   ; return
