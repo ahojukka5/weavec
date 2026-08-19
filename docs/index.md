@@ -11,6 +11,9 @@ names used when they were released.
 
 ## Start here
 
+- [Language design principles](design-principles.md) — the decision
+  framework for evaluating language-design proposals: priority classes, twelve
+  principles, worked trade-offs, standing exclusions, and the review template.
 - [Architecture](architecture.md) — compiler layers, source-to-executable flow,
   bootstrap boundary, runtime ownership, self-hosting, and verification model.
 - [Runtime implementation boundary](runtime-boundary.md) — Weave-first portable
