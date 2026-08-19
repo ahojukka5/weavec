@@ -144,7 +144,11 @@
       (let ret_type_node i64 (call_i64 nth_child (local_get tree) (local_get returns_node) (const_i64 1)))
       (let ret_type_id i32 (call_i32 parse_type (local_get tree) (local_get source) (local_get ret_type_node)))
       ; Build params table for type lookups
-      (call_void build_params (param_get ctx) (local_get params_node))
+      (if
+        (condition (ne_i32 (call_i32 build_params
+          (param_get ctx) (local_get params_node)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
       (call_void ctx_set_fn_has_set
         (param_get ctx)
         (cast_i32_to_i64 (call_i32 node_contains_set (param_get ctx) (local_get do_node))))
@@ -227,7 +231,11 @@
       (if
         (condition (ne_i64 (call_i64 ctx_get_fn_has_set (param_get ctx)) (const_i64 0)))
         (then (do
-          (call_void emit_stack_allocas (param_get ctx) (local_get do_node))))
+          (if
+            (condition (ne_i32 (call_i32 emit_stack_allocas
+              (param_get ctx) (local_get do_node)) (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))))
         (else (do)))
       ; Emit body
       (if

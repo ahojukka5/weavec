@@ -930,13 +930,20 @@
       (let name_node i64 (call_i64 nth_child (local_get tree) (param_get node) (const_i64 1)))
       ; count args (children after name)
       (let arg_count i64 (sub_i64 (call_i64 count_children (local_get tree) (param_get node)) (const_i64 2)))
-      ; allocate temp array for arg values (max 32 args)
-      (let arg_vals ptr (call_ptr malloc (mul_i64 (const_i64 32) (const_i64 8))))
-      (let arg_nodes ptr (call_ptr malloc (mul_i64 (const_i64 32) (const_i64 8))))
+      (let arg_vals ptr (const_null))
+      (let arg_nodes ptr (const_null))
       (if
-        (condition (or_bool
-          (eq_ptr (local_get arg_vals) (const_null))
-          (eq_ptr (local_get arg_nodes) (const_null))))
+        (condition (gt_i64 (local_get arg_count) (const_i64 0)))
+        (then (do
+          (set arg_vals (call_ptr malloc (mul_i64 (local_get arg_count) (const_i64 8))))
+          (set arg_nodes (call_ptr malloc (mul_i64 (local_get arg_count) (const_i64 8))))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (gt_i64 (local_get arg_count) (const_i64 0))
+          (or_bool
+            (eq_ptr (local_get arg_vals) (const_null))
+            (eq_ptr (local_get arg_nodes) (const_null)))))
         (then (do
           (if
             (condition (ne_ptr (local_get arg_vals) (const_null)))
