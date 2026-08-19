@@ -18,6 +18,8 @@ surface-language contract stabilises.
 - Decimal `const_f32` and `const_f64` now emit a `bitcast` of the IEEE
   bits instead of `fadd` with a spliced decimal token. LLVM no longer
   rejects values such as `0.1`, and `-0.0` keeps its sign.
+- A failed call-argument expression now stops backend emission instead
+  of becoming `%t-1` in published LLVM. The original diagnostic is kept.
 
 ### Added
 
