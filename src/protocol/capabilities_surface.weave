@@ -310,7 +310,7 @@
       (call_void protocol_json_key_string (param_get cs_writer) (const_string_ptr "head_pattern") (param_get cs_pattern))
       (call_void protocol_json_key_nullable_string (param_get cs_writer) (const_string_ptr "canonical_replacement") (param_get cs_replacement))
       (call_void protocol_json_key_string (param_get cs_writer) (const_string_ptr "type_information") (param_get cs_type_info))
-      (call_void protocol_json_key_string (param_get cs_writer) (const_string_ptr "grammar_reference") (const_string_ptr "weave-wir-core-v2"))
+      (call_void protocol_json_key_string (param_get cs_writer) (const_string_ptr "grammar_reference") (const_string_ptr "weave-wir-core-v3"))
       (call_i32 weave_host_json_key (param_get cs_writer) (const_string_ptr "members"))
       (call_i32 weave_host_json_array_begin (param_get cs_writer))
       (return_void)))

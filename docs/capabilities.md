@@ -50,7 +50,10 @@ case sensitivity, and the WIR core version emitted by the frontend.
 - `weavec-build-manifest-v1`;
 - `weavec-diagnostics-v1`;
 - `weavec-compilation-trace-v1`;
-- `weave-wir-core-v2`.
+- `weave-wir-core-v3`.
+
+This compiler refuses `weave-wir-core-v2`. That identifier names the frozen
+seed boundary (`weavec-bootstrap` / `weavec1`), not the self-hosted contract.
 
 `commands` lists supported command spellings, their intended audience, stability,
 and any versioned protocols they emit or consume.

@@ -5,7 +5,7 @@ compiler-owned representation that generic, variant, standard-library, and
 ownership work share. Issue
 [#144](https://github.com/ahojukka5/weavec/issues/144) moves the production
 primitive and nominal semantic paths onto that representation without changing
-surface syntax or WIR v2.
+surface syntax or the self-hosted WIR envelope.
 
 ## Ownership rule
 
@@ -123,7 +123,7 @@ integer conventions:
 - concrete WIR type lowering; and
 - semantic compatibility.
 
-Nominal structs continue to lower to `ptr` in WIR v2, and generated struct helper
+Nominal structs continue to lower to `ptr` in WIR v3, and generated struct helper
 names keep the established module-qualified mangling. Human diagnostics keep the
 source struct name. A nominal value may still flow to an explicit low-level `ptr`
 parameter, while the reverse conversion and conversion between distinct nominal
@@ -144,8 +144,8 @@ keep synchronized with the self-hosted compiler.
 ## WIR and compatibility boundary
 
 The migration does not change surface Weave, `weave.project`, generated symbol
-names, the ABI, diagnostics, or frozen WIR core version 2. Existing programs keep
-their established lowering.
+names, the ABI, diagnostics, or the self-hosted WIR envelope. Frozen seed stages
+remain at core version 2. Existing programs keep their established lowering.
 
 `Qubit` continues to resolve to the current concrete `i64` semantic type. The
 source-aware frontend retains the `lower-qubit-to-i64` compilation-trace event,

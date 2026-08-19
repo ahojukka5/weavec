@@ -1,7 +1,7 @@
 # Application-language roadmap
 
 `weavec` has a mature compiler-product foundation: reproducible self-hosting,
-WIR-v2 frontend/backend compatibility, native builds, deterministic formatting,
+WIR-v3 frontend/backend compatibility, native builds, deterministic formatting,
 structured diagnostics, manifests, compilation traces, semantic indexing,
 release packages, and deep fixed-point qualification.
 
@@ -99,7 +99,7 @@ Before implementation begins for an epic:
    subissue body.
 3. Give each subissue one independently reviewable outcome. Do not combine an
    entire epic into one pull request.
-4. State whether the subissue changes only surface lowering over WIR v2 or needs
+4. State whether the subissue changes only surface lowering over WIR v3 or needs
    a coordinated intermediate-format decision.
 5. Define positive, negative, determinism, cross-module, package, and self-host
    validation before implementation.
@@ -111,7 +111,7 @@ acceptance example works from an extracted release package.
 
 ## Compatibility principles
 
-- Prefer surface-language changes that lower through frozen WIR v2.
+- Prefer surface-language changes that lower through existing WIR v3.
 - Preserve legacy `program` roots and explicit source-list builds until a
   documented migration removes them.
 - Keep the compiler as the semantic authority; tools must consume capabilities,

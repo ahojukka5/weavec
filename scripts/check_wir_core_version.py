@@ -113,6 +113,9 @@ CURRENT_DOCS = (
     # The contract document itself. Omitting it let the whole file describe a
     # superseded version while docs/index.md linked it under the current one.
     ROOT / "docs/wir.md",
+    ROOT / "docs/capabilities.md",
+    ROOT / "docs/roadmap.md",
+    ROOT / "docs/structured-type-graph.md",
 )
 
 # Words that make a superseded-version mention legitimate: either it is
@@ -332,6 +335,32 @@ def audit() -> list[str]:
     index_text = (ROOT / "docs/index.md").read_text(encoding="utf-8")
     if f"[WIR core version {CURRENT_CORE_VERSION}](wir.md)" not in index_text:
         errors.append("docs/index.md does not link the current WIR contract")
+
+    cap_emitters = (
+        ROOT / "src/protocol/capabilities.weave",
+        ROOT / "src/protocol/capabilities_registry.weave",
+        ROOT / "src/protocol/capabilities_surface.weave",
+    )
+    live_v3 = f"weave-wir-core-v{CURRENT_CORE_VERSION}"
+    for path in cap_emitters:
+        text = path.read_text(encoding="utf-8")
+        for version in SUPERSEDED_CORE_VERSIONS:
+            if f"weave-wir-core-v{version}" in text:
+                errors.append(
+                    f"{relative(path)} still publishes weave-wir-core-v{version}"
+                )
+            if f'wir_core_version") (const_i64 {version})' in text:
+                errors.append(
+                    f"{relative(path)} still claims wir_core_version {version}"
+                )
+        if path.name == "capabilities.weave":
+            if f'wir_core_version") (const_i64 {CURRENT_CORE_VERSION})' not in text:
+                errors.append(
+                    f"{relative(path)} does not publish wir_core_version "
+                    f"{CURRENT_CORE_VERSION}"
+                )
+        elif live_v3 not in text:
+            errors.append(f"{relative(path)} does not publish {live_v3}")
 
     return errors
 

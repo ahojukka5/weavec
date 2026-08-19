@@ -62,7 +62,7 @@ output file. A valid input must:
 
 1. have `core-module` as the root form;
 2. contain exactly one `core-version` declaration;
-3. declare the integer version token `2` as its only value;
+3. declare the integer version token `3` as its only value;
 4. contain a `decls` form;
 5. satisfy the existing declaration and call-target checks.
 
