@@ -17,7 +17,7 @@
 ;
 ; Each binding record is 40 bytes:
 ;   {name_start i64, name_len i64, type i64, value_id i64, mode i64}.
-; MAX_BINDINGS = 64.
+; MAX_BINDINGS = 64. add_local and add_param reject a 65th record.
 
 (program
   (name "ctx")

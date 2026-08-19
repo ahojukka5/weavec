@@ -132,6 +132,9 @@ bash "$ROOT/test/backend-call-validation/test.sh"
 log 'backend call-argument errors'
 bash "$ROOT/test/backend-call-arg/test.sh"
 
+log 'backend table limits'
+bash "$ROOT/test/backend-table-limits/test.sh"
+
 log 'surface elaboration'
 bash "$ROOT/test/surface-elaboration/test.sh"
 

@@ -20,6 +20,9 @@ surface-language contract stabilises.
   rejects values such as `0.1`, and `-0.0` keeps its sign.
 - A failed call-argument expression now stops backend emission instead
   of becoming `%t-1` in published LLVM. The original diagnostic is kept.
+- Functions with more than 64 locals or parameters now fail with a
+  diagnostic instead of overflowing the binding tables. Call argument
+  arrays are sized from the actual argument count.
 
 ### Added
 

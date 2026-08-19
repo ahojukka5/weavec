@@ -10,12 +10,30 @@
   (name "locals")
   (version "0.1")
 
+  (fn diag_binding_limit
+    (params (kind ptr) (limit i64))
+    (returns void)
+    (do
+      (call_void diag_prefix)
+      (call_void write_cstr (const_i32 2) (const_string_ptr "function exceeds "))
+      (call_void write_i64_dec (const_i32 2) (param_get limit))
+      (call_void write_cstr (const_i32 2) (const_string_ptr " "))
+      (call_void write_cstr (const_i32 2) (param_get kind))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (return_void)))
+
   ; Add a local binding to the context's locals table.
   (fn add_local
     (params (ctx ptr) (name_start i64) (name_len i64) (type_id i32) (value_id i64) (mode i64))
-    (returns void)
+    (returns i32)
     (do
       (let n i64 (call_i64 ctx_get_n_locals (param_get ctx)))
+      (if
+        (condition (ge_i64 (local_get n) (const_i64 64)))
+        (then (do
+          (call_void diag_binding_limit (const_string_ptr "locals") (const_i64 64))
+          (return (const_i32 1))))
+        (else (do)))
       (let base ptr (call_ptr ctx_get_locals (param_get ctx)))
       (let rec ptr (ptr_add (local_get base) (mul_i64 (local_get n) (const_i64 40))))
       (store_i64 (local_get rec) (param_get name_start))
@@ -24,14 +42,20 @@
       (store_i64 (ptr_add (local_get rec) (const_i64 24)) (param_get value_id))
       (store_i64 (ptr_add (local_get rec) (const_i64 32)) (param_get mode))
       (call_void ctx_set_n_locals (param_get ctx) (add_i64 (local_get n) (const_i64 1)))
-      (return_void)))
+      (return (const_i32 0))))
 
   ; Add a parameter binding to the context's params table.
   (fn add_param
     (params (ctx ptr) (name_start i64) (name_len i64) (type_id i32))
-    (returns void)
+    (returns i32)
     (do
       (let n i64 (call_i64 ctx_get_n_params (param_get ctx)))
+      (if
+        (condition (ge_i64 (local_get n) (const_i64 64)))
+        (then (do
+          (call_void diag_binding_limit (const_string_ptr "parameters") (const_i64 64))
+          (return (const_i32 1))))
+        (else (do)))
       (let base ptr (call_ptr ctx_get_params (param_get ctx)))
       (let rec ptr (ptr_add (local_get base) (mul_i64 (local_get n) (const_i64 40))))
       (store_i64 (local_get rec) (param_get name_start))
@@ -40,7 +64,7 @@
       (store_i64 (ptr_add (local_get rec) (const_i64 24)) (const_i64 -1))
       (store_i64 (ptr_add (local_get rec) (const_i64 32)) (const_i64 0))
       (call_void ctx_set_n_params (param_get ctx) (add_i64 (local_get n) (const_i64 1)))
-      (return_void)))
+      (return (const_i32 0))))
 
   ; Look up a local's type by name. Returns type_id or 1 (i32) if not found.
   (fn lookup_local_type
@@ -267,7 +291,7 @@
   ; Also populates ctx's param table for type lookup.
   (fn build_params
     (params (ctx ptr) (params_list i64))
-    (returns void)
+    (returns i32)
     (do
       (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
       (let source ptr (call_ptr ctx_get_source (param_get ctx)))
@@ -293,8 +317,12 @@
               (let ns i64 (call_i64 node_text_start (local_get tree) (local_get name_node)))
               (let nl i64 (call_i64 node_text_len (local_get tree) (local_get name_node)))
               (let tid i32 (call_i32 parse_type (local_get tree) (local_get source) (local_get type_node)))
-              (call_void add_param (param_get ctx) (local_get ns) (local_get nl) (local_get tid))))
+              (if
+                (condition (ne_i32 (call_i32 add_param
+                  (param_get ctx) (local_get ns) (local_get nl) (local_get tid)) (const_i32 0)))
+                (then (do (return (const_i32 1))))
+                (else (do)))))
             (else (do)))
           (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
-      (return_void)))
+      (return (const_i32 0))))
 )

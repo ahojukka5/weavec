@@ -86,18 +86,18 @@
   ; Emit stack slots for mutable lets before body code.
   (fn emit_stack_allocas
     (params (ctx ptr) (node i64))
-    (returns void)
+    (returns i32)
     (do
       (let fd i32 (call_i32 ctx_get_fd (param_get ctx)))
       (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
       (let source ptr (call_ptr ctx_get_source (param_get ctx)))
       (if
         (condition (eq_i64 (param_get node) (const_i64 -1)))
-        (then (do (return_void)))
+        (then (do (return (const_i32 0))))
         (else (do)))
       (if
         (condition (ne_i32 (call_i32 node_kind (local_get tree) (param_get node)) (call_i32 node_list)))
-        (then (do (return_void)))
+        (then (do (return (const_i32 0))))
         (else (do)))
       (if
         (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
@@ -121,8 +121,11 @@
                 (condition (eq_i32 (call_i32 local_binding_exists
                   (param_get ctx) (local_get ns0) (local_get nl0)) (const_i32 0)))
                 (then (do
-                  (call_void add_local
-                    (param_get ctx) (local_get ns0) (local_get nl0) (local_get type_id) (const_i64 -1) (const_i64 0))))
+                  (if
+                    (condition (ne_i32 (call_i32 add_local
+                      (param_get ctx) (local_get ns0) (local_get nl0) (local_get type_id) (const_i64 -1) (const_i64 0)) (const_i32 0)))
+                    (then (do (return (const_i32 1))))
+                    (else (do)))))
                 (else (do)))))
             (else (do)))))
         (else (do)))
@@ -130,9 +133,13 @@
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
         (do
-          (call_void emit_stack_allocas (param_get ctx) (local_get child))
+          (if
+            (condition (ne_i32 (call_i32 emit_stack_allocas
+              (param_get ctx) (local_get child)) (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
           (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
-      (return_void)))
+      (return (const_i32 0))))
 
   (fn emit_blk_suffix
     (params (fd i32) (blk i64))
@@ -299,12 +306,20 @@
         (else (do)))
       (let name_node i64 (call_i64 nth_child (local_get tree) (param_get node) (const_i64 1)))
       (let arg_count i64 (sub_i64 (call_i64 count_children (local_get tree) (param_get node)) (const_i64 2)))
-      (let arg_vals ptr (call_ptr malloc (mul_i64 (const_i64 32) (const_i64 8))))
-      (let arg_nodes ptr (call_ptr malloc (mul_i64 (const_i64 32) (const_i64 8))))
+      (let arg_vals ptr (const_null))
+      (let arg_nodes ptr (const_null))
       (if
-        (condition (or_bool
-          (eq_ptr (local_get arg_vals) (const_null))
-          (eq_ptr (local_get arg_nodes) (const_null))))
+        (condition (gt_i64 (local_get arg_count) (const_i64 0)))
+        (then (do
+          (set arg_vals (call_ptr malloc (mul_i64 (local_get arg_count) (const_i64 8))))
+          (set arg_nodes (call_ptr malloc (mul_i64 (local_get arg_count) (const_i64 8))))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (gt_i64 (local_get arg_count) (const_i64 0))
+          (or_bool
+            (eq_ptr (local_get arg_vals) (const_null))
+            (eq_ptr (local_get arg_nodes) (const_null)))))
         (then (do
           (if
             (condition (ne_ptr (local_get arg_vals) (const_null)))
@@ -453,7 +468,11 @@
           (eq_i32 (local_get is_set_local) (const_i32 0))
           (ge_i64 (local_get ev) (const_i64 0))))
         (then (do
-          (call_void add_local (param_get ctx) (local_get ns) (local_get nl) (local_get type_id) (local_get ev) (const_i64 1))
+          (if
+            (condition (ne_i32 (call_i32 add_local
+              (param_get ctx) (local_get ns) (local_get nl) (local_get type_id) (local_get ev) (const_i64 1)) (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
           (return (const_i32 0))))
         (else (do)))
       (if
@@ -461,13 +480,21 @@
           (eq_i32 (local_get is_set_local) (const_i32 0))
           (eq_i64 (local_get ev) (const_i64 -2))))
         (then (do
-          (call_void add_local (param_get ctx) (local_get ns) (local_get nl) (local_get type_id) (local_get expr_node) (const_i64 2))
+          (if
+            (condition (ne_i32 (call_i32 add_local
+              (param_get ctx) (local_get ns) (local_get nl) (local_get type_id) (local_get expr_node) (const_i64 2)) (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
           (return (const_i32 0))))
         (else (do)))
       (if
         (condition (eq_i32 (call_i32 local_binding_exists (param_get ctx) (local_get ns) (local_get nl)) (const_i32 0)))
         (then (do
-          (call_void add_local (param_get ctx) (local_get ns) (local_get nl) (local_get type_id) (const_i64 -1) (const_i64 0))))
+          (if
+            (condition (ne_i32 (call_i32 add_local
+              (param_get ctx) (local_get ns) (local_get nl) (local_get type_id) (const_i64 -1) (const_i64 0)) (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))))
         (else (do
           (call_void set_local_value
             (param_get ctx) (local_get ns) (local_get nl) (local_get ev) (const_i64 0)))))
