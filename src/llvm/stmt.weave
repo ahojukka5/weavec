@@ -927,6 +927,61 @@
       (call_void write_byte (local_get fd) (const_i32 10))
       (return (const_i32 0))))
 
+  ; Value-returning call_* used as a statement. call_void is handled
+  ; separately. Any call_ suffix is accepted so a new return type cannot
+  ; be forgotten here.
+  (fn stmt_is_value_call
+    (params (svc_ctx ptr) (svc_node i64))
+    (returns i32)
+    (do
+      (let svc_tree ptr (call_ptr ctx_get_tree (param_get svc_ctx)))
+      (let svc_source ptr (call_ptr ctx_get_source (param_get svc_ctx)))
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (local_get svc_tree) (param_get svc_node)) (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let svc_head i64 (call_i64 node_first_child
+        (local_get svc_tree) (param_get svc_node)))
+      (if
+        (condition (eq_i64 (local_get svc_head) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (local_get svc_tree) (local_get svc_head)) (call_i32 node_ident)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 node_text_equals
+          (local_get svc_tree) (local_get svc_source) (local_get svc_head)
+          (const_string_ptr "call_void") (const_i64 9)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let svc_len i64 (call_i64 node_text_len
+        (local_get svc_tree) (local_get svc_head)))
+      (if
+        (condition (lt_i64 (local_get svc_len) (const_i64 6)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let svc_start i64 (call_i64 node_text_start
+        (local_get svc_tree) (local_get svc_head)))
+      (let svc_want ptr (const_string_ptr "call_"))
+      (let svc_i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get svc_i) (const_i64 5)))
+        (do
+          (let svc_got i32 (load_u8 (ptr_add (local_get svc_source)
+            (add_i64 (local_get svc_start) (local_get svc_i)))))
+          (let svc_exp i32 (load_u8
+            (ptr_add (local_get svc_want) (local_get svc_i))))
+          (if
+            (condition (ne_i32 (local_get svc_got) (local_get svc_exp)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set svc_i (add_i64 (local_get svc_i) (const_i64 1)))))
+      (return (const_i32 1))))
+
   ; Emit a single statement node. Returns 0 on success.
   (fn emit_stmt
     (params (ctx ptr) (node i64) (ret_type_id i32))
@@ -1050,38 +1105,8 @@
         (else (do)))
       ; Value-returning call used only for side effects.
       (if
-        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
-          (const_string_ptr "call_i32") (const_i64 8)) (const_i32 0)))
-        (then (do
-          (if
-            (condition (eq_i64 (call_i64 emit_expr (param_get ctx) (param_get node)) (const_i64 -1)))
-            (then (do (return (const_i32 1))))
-            (else (do)))
-          (return (const_i32 0))))
-        (else (do)))
-      (if
-        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
-          (const_string_ptr "call_i64") (const_i64 8)) (const_i32 0)))
-        (then (do
-          (if
-            (condition (eq_i64 (call_i64 emit_expr (param_get ctx) (param_get node)) (const_i64 -1)))
-            (then (do (return (const_i32 1))))
-            (else (do)))
-          (return (const_i32 0))))
-        (else (do)))
-      (if
-        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
-          (const_string_ptr "call_ptr") (const_i64 8)) (const_i32 0)))
-        (then (do
-          (if
-            (condition (eq_i64 (call_i64 emit_expr (param_get ctx) (param_get node)) (const_i64 -1)))
-            (then (do (return (const_i32 1))))
-            (else (do)))
-          (return (const_i32 0))))
-        (else (do)))
-      (if
-        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
-          (const_string_ptr "call_bool") (const_i64 9)) (const_i32 0)))
+        (condition (ne_i32 (call_i32 stmt_is_value_call
+          (param_get ctx) (param_get node)) (const_i32 0)))
         (then (do
           (if
             (condition (eq_i64 (call_i64 emit_expr (param_get ctx) (param_get node)) (const_i64 -1)))

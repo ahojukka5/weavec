@@ -138,6 +138,9 @@ bash "$ROOT/test/backend-table-limits/test.sh"
 log 'backend binding soundness'
 bash "$ROOT/test/backend-binding-soundness/test.sh"
 
+log 'backend statement-position float calls'
+bash "$ROOT/test/backend-stmt-call-float/test.sh"
+
 log 'surface elaboration'
 bash "$ROOT/test/surface-elaboration/test.sh"
 
