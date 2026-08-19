@@ -6,6 +6,10 @@ weavec-bootstrap-cat v0.3.1 silently drops a source file when it cannot find the
 closing parenthesis of that file's outer ``(program ...)`` form. The compiler
 build must fail at the malformed source instead of discovering the omission
 later as an unrelated undefined-symbol error.
+
+weavec1 v0.3.2 leaks a local's type across functions in one file. A local
+name bound at two types in one compiler source is rejected here rather than
+discovered later as an llvm-link type error.
 """
 
 from __future__ import annotations
@@ -15,10 +19,88 @@ import sys
 from pathlib import Path
 
 
+IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+LET_BINDING = re.compile(
+    r"\(\s*let\s+(" + IDENT.pattern + r")\s+(" + IDENT.pattern + r")\b"
+)
+
+
 def fail(path: str, line: int | None, message: str) -> bool:
     where = f"{path}:{line}" if line is not None else path
     print(f"weavec compiler source: {where}: {message}", file=sys.stderr)
     return False
+
+
+def source_without_comments_or_strings(text: str) -> str:
+    """Replace comments and strings with spaces, keeping newlines."""
+    chars: list[str] = []
+    i = 0
+    n = len(text)
+    in_string = False
+    while i < n:
+        char = text[i]
+        if in_string:
+            if char == "\\" and i + 1 < n:
+                chars.append(" ")
+                if text[i + 1] == "\n":
+                    chars.append("\n")
+                else:
+                    chars.append(" ")
+                i += 2
+                continue
+            if char == '"':
+                in_string = False
+            chars.append("\n" if char == "\n" else " ")
+            i += 1
+            continue
+        if char == ";":
+            newline = text.find("\n", i)
+            if newline == -1:
+                chars.extend(" " * (n - i))
+                break
+            chars.extend(" " * (newline - i))
+            chars.append("\n")
+            i = newline + 1
+            continue
+        if char == '"':
+            in_string = True
+            chars.append(" ")
+            i += 1
+            continue
+        chars.append(char)
+        i += 1
+    return "".join(chars)
+
+
+def check_local_type_collisions(path: str, text: str) -> bool:
+    """Reject a local name bound at two types in one file.
+
+    weavec1 v0.3.2 leaks local-name type facts across functions. A later
+    function that reuses the name at a different type miscompiles.
+    """
+    body = source_without_comments_or_strings(text)
+    types: dict[str, dict[str, int]] = {}
+    for match in LET_BINDING.finditer(body):
+        name, ty = match.group(1), match.group(2)
+        line = body.count("\n", 0, match.start()) + 1
+        types.setdefault(name, {})[ty] = line
+    ok = True
+    for name, by_type in sorted(types.items()):
+        if len(by_type) < 2:
+            continue
+        detail = ", ".join(
+            f"{ty} (line {by_type[ty]})" for ty in sorted(by_type)
+        )
+        ok = (
+            fail(
+                path,
+                None,
+                f"local {name!r} is bound as {detail}; "
+                "weavec1 v0.3.2 leaks local types across functions",
+            )
+            and ok
+        )
+    return ok
 
 
 def validate_source(path: str) -> bool:
@@ -107,7 +189,7 @@ def validate_source(path: str) -> bool:
             "weavec-bootstrap-cat v0.3.1 would extract the wrong region",
         )
 
-    return True
+    return check_local_type_collisions(path, text)
 
 
 def main(argv: list[str]) -> int:

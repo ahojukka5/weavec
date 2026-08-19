@@ -61,6 +61,14 @@ Function and local names use lowercase snake_case. Choose names that expose the
 representation or role when useful, such as `name_node`, `source_ref`,
 `decls_node`, or `expected_exit`.
 
+Published weavec1 v0.3.2 leaks a local's type across functions in the same
+file ([#214](https://github.com/ahojukka5/weavec/issues/214),
+[weavec1#16](https://github.com/ahojukka5/weavec1/issues/16)). The seed
+build still goes through that backend, so a local name must not be bound
+at two different types in one compiler source file. Prefix locals when a
+generic name would collide (`sst_`, `stl_`, `spec_`).
+`scripts/validate-compiler-source.py` rejects a colliding pair.
+
 Add a short preceding comment for exported helpers, recursive traversals,
 portability-sensitive behavior, and code-generation invariants:
 
