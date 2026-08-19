@@ -47,6 +47,15 @@
       (call_void write_byte (const_i32 2) (const_i32 10))
       (return_void)))
 
+  (fn diag_out_of_memory
+    (params)
+    (returns void)
+    (do
+      (call_void diag_prefix)
+      (call_void write_cstr (const_i32 2) (const_string_ptr "out of memory"))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (return_void)))
+
   (fn diag_unknown_expression
     (params (ctx ptr) (node i64))
     (returns void)
@@ -924,6 +933,22 @@
       ; allocate temp array for arg values (max 32 args)
       (let arg_vals ptr (call_ptr malloc (mul_i64 (const_i64 32) (const_i64 8))))
       (let arg_nodes ptr (call_ptr malloc (mul_i64 (const_i64 32) (const_i64 8))))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get arg_vals) (const_null))
+          (eq_ptr (local_get arg_nodes) (const_null))))
+        (then (do
+          (if
+            (condition (ne_ptr (local_get arg_vals) (const_null)))
+            (then (do (call_void free (local_get arg_vals))))
+            (else (do)))
+          (if
+            (condition (ne_ptr (local_get arg_nodes) (const_null)))
+            (then (do (call_void free (local_get arg_nodes))))
+            (else (do)))
+          (call_void diag_out_of_memory)
+          (return (const_i64 -1))))
+        (else (do)))
       (let i i64 (const_i64 0))
       (let arg_child i64 (call_i64 nth_child (local_get tree) (param_get node) (const_i64 2)))
       (while
@@ -931,6 +956,13 @@
         (do
           (store_i64 (ptr_add (local_get arg_nodes) (mul_i64 (local_get i) (const_i64 8))) (local_get arg_child))
           (let av i64 (call_i64 emit_expr (param_get ctx) (local_get arg_child)))
+          (if
+            (condition (eq_i64 (local_get av) (const_i64 -1)))
+            (then (do
+              (call_void free (local_get arg_vals))
+              (call_void free (local_get arg_nodes))
+              (return (const_i64 -1))))
+            (else (do)))
           (store_i64 (ptr_add (local_get arg_vals) (mul_i64 (local_get i) (const_i64 8))) (local_get av))
           (set arg_child (call_i64 node_next_sibling (local_get tree) (local_get arg_child)))
           (set i (add_i64 (local_get i) (const_i64 1)))))
