@@ -141,6 +141,9 @@ bash "$ROOT/test/backend-binding-soundness/test.sh"
 log 'backend statement-position float calls'
 bash "$ROOT/test/backend-stmt-call-float/test.sh"
 
+log 'backend string-literal emission'
+bash "$ROOT/test/backend-string-escape/test.sh"
+
 log 'surface elaboration'
 bash "$ROOT/test/surface-elaboration/test.sh"
 

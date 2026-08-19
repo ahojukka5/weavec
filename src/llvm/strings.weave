@@ -2,9 +2,10 @@
 ; strings.weave — string literal global emission for weavec
 ;
 ; Two-pass approach:
-;   Pass 1: scan_strings_in_node — traverse tree, emit @.strN globals, increment str_ctr
+;   Pass 1: scan_emit_strings — traverse tree, emit @.strN globals, increment str_ctr
 ;   Pass 2: ctx_reset_str — reset str_ctr to 0
 ;   Expression emission: ctx_alloc_str — assign the same index in the same DFS order
+; emit_module asserts the two counters match. WIR admits \\n \\0 \\" \\\\.
 
 (program
   (name "strings")
@@ -35,81 +36,125 @@
           (set len (add_i64 (local_get len) (const_i64 1)))))
       (return (local_get len))))
 
-  ; Emit one source byte as LLVM string content (hex-escape non-printable).
+  ; Write one uppercase hex nibble 0-15 as 0-9A-F.
+  (fn emit_hex_nibble
+    (params (ehn_fd i32) (ehn_v i32))
+    (returns void)
+    (do
+      (if
+        (condition (lt_i32 (param_get ehn_v) (const_i32 10)))
+        (then (do
+          (call_void write_byte (param_get ehn_fd)
+            (add_i32 (const_i32 48) (param_get ehn_v)))))
+        (else (do
+          (call_void write_byte (param_get ehn_fd)
+            (add_i32 (const_i32 55) (param_get ehn_v))))))
+      (return_void)))
+
+  ; Write one byte as an LLVM \\HH hex escape.
+  (fn emit_hex_byte
+    (params (ehb_fd i32) (ehb_b i32))
+    (returns void)
+    (do
+      (call_void write_byte (param_get ehb_fd) (const_i32 92))
+      (call_void emit_hex_nibble (param_get ehb_fd)
+        (div_i32 (param_get ehb_b) (const_i32 16)))
+      (call_void emit_hex_nibble (param_get ehb_fd)
+        (mod_i32 (param_get ehb_b) (const_i32 16)))
+      (return_void)))
+
+  ; Emit one source byte as LLVM string content.
+  ; Bytes outside [0x20, 0x7e], plus quote and backslash, are hex-escaped.
   (fn emit_str_byte
     (params (fd i32) (b i32))
     (returns void)
     (do
-      ; newline → \0A
       (if
-        (condition (eq_i32 (param_get b) (const_i32 10)))
+        (condition (or_bool
+          (or_bool
+            (lt_i32 (param_get b) (const_i32 32))
+            (gt_i32 (param_get b) (const_i32 126)))
+          (or_bool
+            (eq_i32 (param_get b) (const_i32 34))
+            (eq_i32 (param_get b) (const_i32 92)))))
         (then (do
-          (call_void write_cstr (param_get fd) (const_string_ptr "\\0A"))
+          (call_void emit_hex_byte (param_get fd) (param_get b))
           (return_void)))
         (else (do)))
-      ; null → \00
-      (if
-        (condition (eq_i32 (param_get b) (const_i32 0)))
-        (then (do
-          (call_void write_cstr (param_get fd) (const_string_ptr "\\00"))
-          (return_void)))
-        (else (do)))
-      ; backslash → \5C
-      (if
-        (condition (eq_i32 (param_get b) (const_i32 92)))
-        (then (do
-          (call_void write_cstr (param_get fd) (const_string_ptr "\\5C"))
-          (return_void)))
-        (else (do)))
-      ; double-quote → \22
-      (if
-        (condition (eq_i32 (param_get b) (const_i32 34)))
-        (then (do
-          (call_void write_cstr (param_get fd) (const_string_ptr "\\22"))
-          (return_void)))
-        (else (do)))
-      ; printable: emit directly
       (call_void write_byte (param_get fd) (param_get b))
       (return_void)))
 
-  ; Emit one decoded escape sequence given the char after the backslash.
-  (fn emit_escape_char
-    (params (fd i32) (ch i32))
+  (fn diag_unknown_string_escape
+    (params (use_ch i32))
     (returns void)
     (do
+      (call_void diag_prefix)
+      (call_void write_cstr (const_i32 2) (const_string_ptr "unknown string escape: \\"))
+      (call_void write_byte (const_i32 2) (param_get use_ch))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (return_void)))
+
+  ; Return 0 when ch is a WIR-admitted escape letter: n 0 \\ ".
+  (fn string_escape_is_known
+    (params (sek_ch i32))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32 (param_get sek_ch) (const_i32 110)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get sek_ch) (const_i32 48)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get sek_ch) (const_i32 92)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get sek_ch) (const_i32 34)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  ; Emit one decoded escape sequence given the char after the backslash.
+  ; Returns 0 on success, 1 for an unknown WIR escape.
+  (fn emit_escape_char
+    (params (fd i32) (ch i32))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 string_escape_is_known (param_get ch)) (const_i32 0)))
+        (then (do
+          (call_void diag_unknown_string_escape (param_get ch))
+          (return (const_i32 1))))
+        (else (do)))
       (if
         (condition (eq_i32 (param_get ch) (const_i32 110)))
         (then (do
-          (call_void write_cstr (param_get fd) (const_string_ptr "\\0A"))
-          (return_void)))
+          (call_void emit_str_byte (param_get fd) (const_i32 10))
+          (return (const_i32 0))))
         (else (do)))
       (if
         (condition (eq_i32 (param_get ch) (const_i32 48)))
         (then (do
-          (call_void write_cstr (param_get fd) (const_string_ptr "\\00"))
-          (return_void)))
+          (call_void emit_str_byte (param_get fd) (const_i32 0))
+          (return (const_i32 0))))
         (else (do)))
       (if
         (condition (eq_i32 (param_get ch) (const_i32 92)))
         (then (do
-          (call_void write_cstr (param_get fd) (const_string_ptr "\\5C"))
-          (return_void)))
+          (call_void emit_str_byte (param_get fd) (const_i32 92))
+          (return (const_i32 0))))
         (else (do)))
-      (if
-        (condition (eq_i32 (param_get ch) (const_i32 34)))
-        (then (do
-          (call_void write_cstr (param_get fd) (const_string_ptr "\\22"))
-          (return_void)))
-        (else (do)))
-      (call_void write_byte (param_get fd) (const_i32 92))
-      (call_void emit_str_byte (param_get fd) (param_get ch))
-      (return_void)))
+      (call_void emit_str_byte (param_get fd) (const_i32 34))
+      (return (const_i32 0))))
 
   ; Emit the decoded content of a WIR string node as LLVM c"..." bytes.
   ; source_start..source_end are the raw bytes between the quotes.
   (fn emit_str_contents
     (params (fd i32) (source ptr) (str_start i64) (str_end i64))
-    (returns void)
+    (returns i32)
     (do
       (let i i64 (param_get str_start))
       (while
@@ -122,17 +167,21 @@
               (lt_i64 (add_i64 (local_get i) (const_i64 1)) (param_get str_end))))
             (then (do
               (let next i32 (load_u8 (ptr_add (param_get source) (add_i64 (local_get i) (const_i64 1)))))
-              (call_void emit_escape_char (param_get fd) (local_get next))
+              (if
+                (condition (ne_i32 (call_i32 emit_escape_char
+                  (param_get fd) (local_get next)) (const_i32 0)))
+                (then (do (return (const_i32 1))))
+                (else (do)))
               (set i (add_i64 (local_get i) (const_i64 2)))))
             (else (do
               (call_void emit_str_byte (param_get fd) (local_get b))
               (set i (add_i64 (local_get i) (const_i64 1))))))))
-      (return_void)))
+      (return (const_i32 0))))
 
   ; Emit one @.strN global for a string node. Uses and increments ctx str_ctr.
   (fn emit_one_string_global
     (params (ctx ptr) (str_node i64))
-    (returns void)
+    (returns i32)
     (do
       (let fd i32 (call_i32 ctx_get_fd (param_get ctx)))
       (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
@@ -150,39 +199,47 @@
       (call_void write_cstr (local_get fd) (const_string_ptr " = private unnamed_addr constant ["))
       (call_void write_i64_dec (local_get fd) (add_i64 (local_get decoded_len) (const_i64 1)))
       (call_void write_cstr (local_get fd) (const_string_ptr " x i8] c\""))
-      (call_void emit_str_contents (local_get fd) (local_get source) (local_get ts) (add_i64 (local_get ts) (local_get tl)))
+      (if
+        (condition (ne_i32 (call_i32 emit_str_contents
+          (local_get fd) (local_get source) (local_get ts)
+          (add_i64 (local_get ts) (local_get tl))) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
       (call_void write_cstr (local_get fd) (const_string_ptr "\\00\""))
       (call_void write_byte (local_get fd) (const_i32 10))
-      (return_void)))
+      (return (const_i32 0))))
 
   ; Recursively scan a node for const_string_ptr expressions.
   ; Emits @.strN globals and increments ctx str_ctr.
   (fn scan_emit_strings
     (params (ctx ptr) (node i64))
-    (returns void)
+    (returns i32)
     (do
       (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
       (let source ptr (call_ptr ctx_get_source (param_get ctx)))
       (if
         (condition (ne_i32 (call_i32 node_kind (local_get tree) (param_get node)) (call_i32 node_list)))
-        (then (do (return_void)))
+        (then (do (return (const_i32 0))))
         (else (do)))
       ; Check if this list is (const_string_ptr "...")
       (if
         (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
           (const_string_ptr "const_string_ptr") (const_i64 16)) (const_i32 0)))
         (then (do
-          (call_void emit_one_string_global (param_get ctx) (param_get node))
-          (return_void)))
+          (return (call_i32 emit_one_string_global (param_get ctx) (param_get node)))))
         (else (do)))
       ; Otherwise recurse into children
       (let child i64 (call_i64 node_first_child (local_get tree) (param_get node)))
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
         (do
-          (call_void scan_emit_strings (param_get ctx) (local_get child))
+          (if
+            (condition (ne_i32 (call_i32 scan_emit_strings
+              (param_get ctx) (local_get child)) (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
           (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
-      (return_void)))
+      (return (const_i32 0))))
 
   ; Recursively check whether a node contains a const_string_ptr expression.
   (fn has_string_literal
@@ -215,7 +272,7 @@
   ; After this call, ctx str_ctr = total number of string globals emitted.
   (fn emit_string_globals
     (params (ctx ptr) (decls_node i64))
-    (returns void)
+    (returns i32)
     (do
       (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
       (let source ptr (call_ptr ctx_get_source (param_get ctx)))
@@ -247,7 +304,7 @@
           (set scan_child (call_i64 node_next_sibling (local_get tree) (local_get scan_child)))))
       (if
         (condition (eq_i32 (local_get has_strings) (const_i32 0)))
-        (then (do (return_void)))
+        (then (do (return (const_i32 0))))
         (else (do)))
       ; emit header and scan fn bodies (main first when present)
       (call_void write_cstr (local_get fd) (const_string_ptr "; string literals"))
@@ -257,7 +314,11 @@
       (if
         (condition (ne_i64 (local_get main_fn) (const_i64 -1)))
         (then (do
-          (call_void scan_emit_strings (param_get ctx) (local_get main_fn))))
+          (if
+            (condition (ne_i32 (call_i32 scan_emit_strings
+              (param_get ctx) (local_get main_fn)) (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))))
         (else (do)))
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
@@ -270,9 +331,13 @@
                 (condition (eq_i64 (local_get child) (local_get main_fn)))
                 (then (do))
                 (else (do
-                  (call_void scan_emit_strings (param_get ctx) (local_get child)))))))
+                  (if
+                    (condition (ne_i32 (call_i32 scan_emit_strings
+                      (param_get ctx) (local_get child)) (const_i32 0)))
+                    (then (do (return (const_i32 1))))
+                    (else (do))))))))
             (else (do)))
           (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
       (call_void write_byte (local_get fd) (const_i32 10))
-      (return_void)))
+      (return (const_i32 0))))
 )

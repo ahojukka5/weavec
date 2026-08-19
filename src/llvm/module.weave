@@ -356,7 +356,12 @@
           (call_void write_byte (local_get fd) (const_i32 10))))
         (else (do)))
       ; Pass 2: pre-scan and emit string literals (resets str_ctr at end — see below)
-      (call_void emit_string_globals (param_get ctx) (local_get decls_node))
+      (if
+        (condition (ne_i32 (call_i32 emit_string_globals
+          (param_get ctx) (local_get decls_node)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let str_expected i64 (call_i64 ctx_str_count (param_get ctx)))
       ; Reset str_ctr so expression emission assigns the same indices
       (call_void ctx_reset_str (param_get ctx))
       ; Pass 3: emit function definitions (main first when present)
@@ -387,5 +392,14 @@
                     (else (do))))))))
             (else (do)))
           (set fn_child (call_i64 node_next_sibling (local_get tree) (local_get fn_child)))))
+      (if
+        (condition (ne_i64 (call_i64 ctx_str_count (param_get ctx)) (local_get str_expected)))
+        (then (do
+          (call_void diag_prefix)
+          (call_void write_cstr (const_i32 2)
+            (const_string_ptr "string literal index drifted"))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i32 1))))
+        (else (do)))
       (return (const_i32 0))))
 )
