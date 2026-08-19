@@ -140,5 +140,29 @@ if weavec_load_compiler_sources \
   fail 'nested compiler program wrapper was accepted'
 fi
 
+mkdir -p "$WORK/local-types-root/src/core"
+cat > "$WORK/local-types-root/src/core/unit.weave" <<'WEAVE'
+(program
+  (name "local-types")
+  (version "0.1")
+  (fn first
+    (params)
+    (returns i64)
+    (do
+      (let value i64 (const_i64 1))
+      (return (local_get value))))
+  (fn second
+    (params)
+    (returns i32)
+    (do
+      (let value i32 (const_i32 1))
+      (return (local_get value)))))
+WEAVE
+printf 'src/core/unit.weave\n' > "$WORK/local-types.list"
+if weavec_load_compiler_sources \
+    "$WORK/local-types-root" "$WORK/local-types.list" >/dev/null 2>&1; then
+  fail 'cross-function local type collision was accepted'
+fi
+
 bash "$ROOT/test/protocol-boundary/test.sh"
 printf 'compiler-sources: canonical ordered manifest passed\n'
