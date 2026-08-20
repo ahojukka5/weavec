@@ -353,8 +353,8 @@
     (params (tree ptr) (source ptr) (fn_node i64) (head ptr) (head_len i64))
     (returns i64)
     (do
-      (let returns_node i64 (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 3)))
-      (let child i64 (call_i64 node_next_sibling (param_get tree) (local_get returns_node)))
+      (let child i64 (call_i64 surface_fn_clause_start
+        (param_get tree) (param_get source) (param_get fn_node)))
       (let n i64 (const_i64 0))
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
@@ -627,8 +627,8 @@
     (params (fd i32) (source ptr) (tree ptr) (fn_node i64) (head ptr) (head_len i64))
     (returns void)
     (do
-      (let returns_node i64 (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 3)))
-      (let child i64 (call_i64 node_next_sibling (param_get tree) (local_get returns_node)))
+      (let child i64 (call_i64 surface_fn_clause_start
+        (param_get tree) (param_get source) (param_get fn_node)))
       (let found i32 (const_i32 0))
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
@@ -656,12 +656,10 @@
     (params (fd i32) (source ptr) (tree ptr) (fn_node i64))
     (returns void)
     (do
-      (let params_node i64 (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 2)))
-      (let child i64 (call_i64 node_first_child (param_get tree) (local_get params_node)))
-      (if
-        (condition (ne_i64 (local_get child) (const_i64 -1)))
-        (then (do (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
-        (else (do)))
+      (let params_node i64 (call_i64 surface_fn_params_node
+        (param_get tree) (param_get source) (param_get fn_node)))
+      (let child i64 (call_i64 surface_params_first_pair
+        (param_get tree) (param_get source) (local_get params_node)))
       (let any i32 (const_i32 0))
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
@@ -758,7 +756,7 @@
           (call_void write_byte (param_get fd) (const_i32 10)))))
       (call_void write_cstr (param_get fd) (const_string_ptr "Returns: "))
       (call_void emit_node_text (param_get fd) (param_get source) (param_get tree)
-        (call_i64 fn_return_type_node (param_get tree) (param_get fn_node)))
+        (call_i64 fn_return_type_node (param_get tree) (param_get source) (param_get fn_node)))
       (call_void write_byte (param_get fd) (const_i32 10))
       (call_void write_cstr (param_get fd) (const_string_ptr "Parameters:"))
       (call_void write_byte (param_get fd) (const_i32 10))

@@ -579,26 +579,25 @@ higher-level type system.
 Functions may declare runtime preconditions and postconditions:
 
 ```weave
-(fn clamp
-  (params (x i32) (lo i32) (hi i32))
-  (returns i32)
+(fn clamp ((x i32) (lo i32) (hi i32)) i32
   (requires (<= lo hi))
   (ensures (>= result lo))
   (ensures (<= result hi))
-  (do
-    ...))
+  ...)
 ```
 
-Within `ensures`, `result` denotes the value at each return site. Using `result`
-in `requires` is rejected.
+Verbose `(params ...)`, `(returns ...)`, and a wrapping function-level
+`(do ...)` remain accepted. Within `ensures`, `result` denotes the value at
+each return site. Using `result` in `requires` is rejected.
 
-Effect declarations are marker clauses with no child expression:
+Effect declarations use a grouped clause of registry identifiers:
 
 ```weave
-(pure)
-(no_alloc)
-(deterministic)
+(effects pure deterministic)
 ```
+
+Standalone `(pure)`, `(no_alloc)`, and `(deterministic)` remain accepted
+compatibility markers.
 
 They are conservatively audited. `--frontend --strict-contracts` rejects failed
 declarations; ordinary frontend lowering reports them through explain/audit

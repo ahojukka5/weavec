@@ -5,7 +5,7 @@ forms optimize for deterministic generation, validation, structural editing, and
 repair rather than minimum character count.
 
 This document describes the implemented typed-elaboration forms. WIR core version
-2 is unchanged.
+3 is unchanged.
 
 ## Canonical calls
 
@@ -315,6 +315,34 @@ Mixing the two — an expression `if` as a statement, or a `do` body as a value 
 is rejected. Verbose `(if (condition ...) (then (do ...)) (else (do)))` remains
 accepted; `weavec fmt` rewrites it to `when` or compact `if`.
 
+## Canonical function signatures
+
+Canonical declarations use a direct parameter list and a direct return type.
+The body is a sequence of statements, not a wrapping `do`:
+
+```weave
+(fn inc ((x i32)) i32
+  (return (+ x 1)))
+(fn main () i32
+  (return (inc 41)))
+```
+
+Header clauses, when present, sit between the signature and the body:
+
+```weave
+(fn clamp ((value i32)) i32
+  (doc "Reject negative values.")
+  (effects pure)
+  (requires (>= value 0))
+  (return value))
+```
+
+`(params ...)`, `(returns ...)`, a wrapping function-level `(do ...)`, and
+standalone `(pure)` / `(no_alloc)` / `(deterministic)` remain accepted.
+`weavec fmt` rewrites them to the compact signature, unwrapped body, and
+grouped `(effects ...)` form. Derived `(uses ...)` headers are recognized
+and stripped from WIR; the compiler does not yet derive or cross-check them.
+
 ## Returning
 
 Every function body must transfer control out on every path. A body that can
@@ -326,13 +354,10 @@ last statement does, and an `if` returns only when both branches do, so a body
 ending in a fully returning `if` is accepted:
 
 ```weave
-(fn pick
-  (params (flag bool))
-  (returns i32)
-  (do
-    (if flag
-      (return 7)
-      (return 9))))
+(fn pick ((flag bool)) i32
+  (if flag
+    (return 7)
+    (return 9)))
 ```
 
 A loop never satisfies the rule on its own, because a `while` or `for` may run

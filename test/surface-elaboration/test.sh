@@ -38,6 +38,7 @@ run_fixture 77_contract_canonical_result 42
 run_fixture 78_lisp_head_call 42
 run_fixture 79_lisp_operator_heads 42
 run_fixture 80_lisp_compact_if 42
+run_fixture 81_lisp_compact_fn 42
 
 cat > "$TMP/library.weave" <<'WEAVE'
 (program

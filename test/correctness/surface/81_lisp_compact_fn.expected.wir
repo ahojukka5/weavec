@@ -1,0 +1,8 @@
+(core-module
+  (core-version 3)
+  (decls
+    (fn inc (params (x i32)) (returns i32) (do (if (condition (not_bool (ge_i32 x (const_i32 0)))) (then (do (call_void weave_rt_contract_fail (const_string_ptr "contract failed: requires")))) (else (do))) (return (add_i32 x (const_i32 1)))))
+    (fn clamp (params (value i32)) (returns i32) (do (if (condition (lt_i32 value (const_i32 0))) (then (do (return (const_i32 0)))) (else (do))) (return value)))
+    (fn main (params) (returns i32) (do (return (call_i32 inc (call_i32 clamp (const_i32 41))))))
+  )
+)

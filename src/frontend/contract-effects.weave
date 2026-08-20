@@ -9,33 +9,9 @@
     (params (tree ptr) (source ptr) (fn_node i64) (head ptr) (head_len i64))
     (returns i32)
     (do
-      (let returns_node i64 (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 3)))
-      (let child i64 (call_i64 node_next_sibling (param_get tree) (local_get returns_node)))
-      (while
-        (condition (ne_i64 (local_get child) (const_i64 -1)))
-        (do
-          (if
-            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get child)) (call_i32 node_list)))
-            (then (do
-              (if
-                (condition (and_bool
-                  (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                    (param_get head) (param_get head_len)) (const_i32 0))
-                  (eq_i64 (call_i64 count_children (param_get tree) (local_get child)) (const_i64 1))))
-                (then (do (return (const_i32 1))))
-                (else (do)))))
-            (else (do)))
-          (if
-            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get child)) (call_i32 node_list)))
-            (then (do
-              (if
-                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                  (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
-                (then (do (return (const_i32 0))))
-                (else (do)))))
-            (else (do)))
-          (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
-      (return (const_i32 0))))
+      (return (call_i32 surface_fn_has_effect
+        (param_get tree) (param_get source) (param_get fn_node)
+        (param_get head) (param_get head_len)))))
 
   (fn fn_has_pure_clause
     (params (tree ptr) (source ptr) (fn_node i64))
@@ -118,8 +94,8 @@
     (params (tree ptr) (source ptr) (fn_node i64))
     (returns i32)
     (do
-      (let returns_node i64 (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 3)))
-      (let child i64 (call_i64 node_next_sibling (param_get tree) (local_get returns_node)))
+      (let child i64 (call_i64 surface_fn_clause_start
+        (param_get tree) (param_get source) (param_get fn_node)))
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
         (do
@@ -149,13 +125,56 @@
                 (else (do)))))
             (else (do)))
           (if
-            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get child)) (call_i32 node_list)))
+            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
+              (const_string_ptr "effects") (const_i64 7)) (const_i32 0)))
             (then (do
               (if
-                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                  (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
-                (then (do (return (const_i32 0))))
-                (else (do)))))
+                (condition (lt_i64 (call_i64 count_children (param_get tree) (local_get child)) (const_i64 2)))
+                (then (do
+                  (call_void write_cstr (const_i32 2)
+                    (const_string_ptr "weavec: malformed effect clause: effects must list identifiers"))
+                  (call_void write_byte (const_i32 2) (const_i32 10))
+                  (return (const_i32 1))))
+                (else (do)))
+              (let fx_mark i64 (call_i64 node_first_child (param_get tree) (local_get child)))
+              (set fx_mark (call_i64 node_next_sibling (param_get tree) (local_get fx_mark)))
+              (while
+                (condition (ne_i64 (local_get fx_mark) (const_i64 -1)))
+                (do
+                  (if
+                    (condition (eq_i32 (call_i32 node_kind
+                      (param_get tree) (local_get fx_mark)) (call_i32 node_ident)))
+                    (then (do
+                      (if
+                        (condition (and_bool
+                          (and_bool
+                            (eq_i32 (call_i32 ident_equals
+                              (param_get tree) (param_get source) (local_get fx_mark)
+                              (const_string_ptr "pure") (const_i64 4)) (const_i32 0))
+                            (eq_i32 (call_i32 ident_equals
+                              (param_get tree) (param_get source) (local_get fx_mark)
+                              (const_string_ptr "no_alloc") (const_i64 8)) (const_i32 0)))
+                          (eq_i32 (call_i32 ident_equals
+                            (param_get tree) (param_get source) (local_get fx_mark)
+                            (const_string_ptr "deterministic") (const_i64 13)) (const_i32 0))))
+                        (then (do
+                          (call_void write_cstr (const_i32 2)
+                            (const_string_ptr "weavec: unknown effect identifier"))
+                          (call_void write_byte (const_i32 2) (const_i32 10))
+                          (return (const_i32 1))))
+                        (else (do)))))
+                    (else (do
+                      (call_void write_cstr (const_i32 2)
+                        (const_string_ptr "weavec: malformed effect clause: effects must list identifiers"))
+                      (call_void write_byte (const_i32 2) (const_i32 10))
+                      (return (const_i32 1)))))
+                  (set fx_mark (call_i64 node_next_sibling
+                    (param_get tree) (local_get fx_mark)))))))
+            (else (do)))
+          (if
+            (condition (eq_i32 (call_i32 surface_fn_is_header_clause
+              (param_get tree) (param_get source) (local_get child)) (const_i32 0)))
+            (then (do (return (const_i32 0))))
             (else (do)))
           (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
       (return (const_i32 0))))
@@ -503,22 +522,26 @@
     (returns void)
     (do
       (store_i64 (param_get row) (param_get decl_node))
-      (let do_node i64 (call_i64 fn_find_do_child (param_get tree) (param_get source) (param_get decl_node)))
       (let allocations i64 (const_i64 0))
       (let runtime_ctx ptr (call_ptr explain_ctx_new))
       (let unknown_ctx ptr (call_ptr explain_ctx_new))
       (let local_ctx ptr (call_ptr explain_ctx_new))
-      (if
-        (condition (ne_i64 (local_get do_node) (const_i64 -1)))
-        (then (do
-          (set allocations (call_i64 count_allocations_in_node
-            (param_get tree) (param_get source) (local_get do_node)))
+      (let fx_stmt i64 (call_i64 surface_fn_body_first_stmt
+        (param_get tree) (param_get source) (param_get decl_node)))
+      (while
+        (condition (ne_i64 (local_get fx_stmt) (const_i64 -1)))
+        (do
+          (set allocations (add_i64 (local_get allocations)
+            (call_i64 count_allocations_in_node
+              (param_get tree) (param_get source) (local_get fx_stmt))))
           (call_void effect_collect_callees_node
             (local_get runtime_ctx) (local_get unknown_ctx)
-            (param_get tree) (param_get source) (local_get do_node) (param_get first_decl))
+            (param_get tree) (param_get source) (local_get fx_stmt) (param_get first_decl))
           (call_void effect_collect_local_callees_node
-            (local_get local_ctx) (param_get tree) (param_get source) (local_get do_node) (param_get first_decl))))
-        (else (do)))
+            (local_get local_ctx) (param_get tree) (param_get source)
+            (local_get fx_stmt) (param_get first_decl))
+          (set fx_stmt (call_i64 node_next_sibling
+            (param_get tree) (local_get fx_stmt)))))
       (let purity i32 (call_i32 effect_purity_class (local_get allocations) (local_get runtime_ctx) (local_get unknown_ctx)))
       (let det i32 (call_i32 effect_determinism_class
         (param_get tree) (param_get source) (local_get runtime_ctx) (local_get unknown_ctx)))
@@ -770,19 +793,22 @@
       (alloc_out ptr) (runtime_out ptr) (unknown_out ptr) (purity_out ptr))
     (returns void)
     (do
-      (let do_node i64 (call_i64 fn_find_do_child (param_get tree) (param_get source) (param_get fn_node)))
       (let allocations i64 (const_i64 0))
       (let runtime_ctx ptr (call_ptr explain_ctx_new))
       (let unknown_ctx ptr (call_ptr explain_ctx_new))
-      (if
-        (condition (ne_i64 (local_get do_node) (const_i64 -1)))
-        (then (do
-          (set allocations (call_i64 count_allocations_in_node
-            (param_get tree) (param_get source) (local_get do_node)))
+      (let fx_stmt i64 (call_i64 surface_fn_body_first_stmt
+        (param_get tree) (param_get source) (param_get fn_node)))
+      (while
+        (condition (ne_i64 (local_get fx_stmt) (const_i64 -1)))
+        (do
+          (set allocations (add_i64 (local_get allocations)
+            (call_i64 count_allocations_in_node
+              (param_get tree) (param_get source) (local_get fx_stmt))))
           (call_void effect_collect_callees_node
             (local_get runtime_ctx) (local_get unknown_ctx)
-            (param_get tree) (param_get source) (local_get do_node) (param_get first_decl))))
-        (else (do)))
+            (param_get tree) (param_get source) (local_get fx_stmt) (param_get first_decl))
+          (set fx_stmt (call_i64 node_next_sibling
+            (param_get tree) (local_get fx_stmt)))))
       (store_i64 (param_get alloc_out) (local_get allocations))
       (store_ptr (param_get runtime_out) (local_get runtime_ctx))
       (store_ptr (param_get unknown_out) (local_get unknown_ctx))

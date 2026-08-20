@@ -230,7 +230,7 @@
                   (if
                     (condition (gt_i64 (call_i64 count_children (param_get tree) (local_get child)) (const_i64 2)))
                     (then (do
-                      (call_void lower_entry (param_get fd) (param_get source) (param_get tree) (local_get child))))
+                      (call_void emit_decl (param_get fd) (param_get source) (param_get tree) (local_get child))))
                     (else (do)))))
                 (else (do)))
               (if

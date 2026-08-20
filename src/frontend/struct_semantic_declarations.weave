@@ -9,10 +9,9 @@
       (params (sst_tree ptr) (sst_source ptr) (sst_params_node i64))
       (returns i32)
       (do
-        (let sst_head i64 (call_i64 node_first_child
-          (param_get sst_tree) (param_get sst_params_node)))
-        (let sst_param i64 (call_i64 node_next_sibling
-          (param_get sst_tree) (local_get sst_head)))
+        (let sst_param i64 (call_i64 surface_params_first_pair
+          (param_get sst_tree) (param_get sst_source)
+          (param_get sst_params_node)))
         ; An explicit empty group `()` as the sole element after the params
         ; head is the established zero-parameter marker (see externs across
         ; test/quantum/e2e/*.weave); it has no real (name type) pair to walk.
@@ -123,16 +122,12 @@
             (call_void write_byte (const_i32 2) (const_i32 10))
             (return (const_i32 1))))
           (else (do)))
-        (let sst_params_node i64 (call_i64 find_named_clause
+        (let sst_params_node i64 (call_i64 surface_fn_params_node
           (param_get sst_tree) (param_get sst_source)
-          (param_get sst_decl_node)
-          (const_string_ptr "params") (const_i64 6)))
-        (let sst_returns_node i64 (call_i64 find_named_clause
+          (param_get sst_decl_node)))
+        (let sst_return_type_node i64 (call_i64 surface_fn_return_type_node
           (param_get sst_tree) (param_get sst_source)
-          (param_get sst_decl_node)
-          (const_string_ptr "returns") (const_i64 7)))
-        (let sst_return_type_node i64 (call_i64 nth_child
-          (param_get sst_tree) (local_get sst_returns_node) (const_i64 1)))
+          (param_get sst_decl_node)))
         (let sst_return_type i32 (call_i32 sst_type_code
           (param_get sst_tree) (param_get sst_source)
           (local_get sst_return_type_node)))

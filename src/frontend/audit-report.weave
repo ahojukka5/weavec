@@ -580,7 +580,7 @@
       (call_void explain_emit_params (param_get fd) (param_get source) (param_get tree) (param_get fn_node))
       (call_void write_cstr (param_get fd) (const_string_ptr "Returns: "))
       (call_void emit_node_text (param_get fd) (param_get source) (param_get tree)
-        (call_i64 fn_return_type_node (param_get tree) (param_get fn_node)))
+        (call_i64 fn_return_type_node (param_get tree) (param_get source) (param_get fn_node)))
       (call_void write_byte (param_get fd) (const_i32 10))
       (call_void write_cstr (param_get fd) (const_string_ptr "Contracts:"))
       (call_void write_byte (param_get fd) (const_i32 10))

@@ -46,18 +46,13 @@ cat > "$TMP/expected.weave" <<'EOF_EXPECTED'
 (program
   (name "formatter-e2e")
   (version "0.1")
-  (fn add-one
-    (params (value i32))
-    (returns i32)
-    (do (return (+ value 1))))
-  (entry main
-    (params)
-    (returns i32)
+  (fn add-one ((value i32)) i32
+    (return (+ value 1)))
+  (entry main () i32
     ; entry body
-    (do
-      (let wide i64 41)
-      (let narrowed i32 (cast i32 wide))
-      (return (add-one narrowed)))))
+    (let wide i64 41)
+    (let narrowed i32 (cast i32 wide))
+    (return (add-one narrowed))))
 ; trailing source comment
 EOF_EXPECTED
 cmp "$TMP/expected.weave" "$TMP/formatted.weave"

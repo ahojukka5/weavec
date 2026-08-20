@@ -9,36 +9,35 @@
     (params (tree ptr) (source ptr) (fn_node i64))
     (returns i32)
     (do
-      (let returns_node i64 (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 3)))
-      (let child i64 (call_i64 node_next_sibling (param_get tree) (local_get returns_node)))
+      (let child i64 (call_i64 surface_fn_clause_start
+        (param_get tree) (param_get source) (param_get fn_node)))
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
         (do
           (if
-            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get child)) (call_i32 node_list)))
-            (then (do
-              (if
-                (condition (or_bool
-                  (or_bool
-                    (or_bool
-                      (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                        (const_string_ptr "requires") (const_i64 8)) (const_i32 0))
-                      (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                        (const_string_ptr "ensures") (const_i64 7)) (const_i32 0)))
-                    (or_bool
-                      (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                        (const_string_ptr "pure") (const_i64 4)) (const_i32 0))
-                      (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                        (const_string_ptr "no_alloc") (const_i64 8)) (const_i32 0))))
+            (condition (eq_i32 (call_i32 surface_fn_is_header_clause
+              (param_get tree) (param_get source) (local_get child)) (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (if
+            (condition (or_bool
+              (or_bool
+                (or_bool
                   (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                    (const_string_ptr "deterministic") (const_i64 13)) (const_i32 0))))
-                (then (do (return (const_i32 1))))
-                (else (do
-                  (if
-                    (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                      (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
-                    (then (do (return (const_i32 0))))
-                    (else (do))))))))
+                    (const_string_ptr "requires") (const_i64 8)) (const_i32 0))
+                  (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
+                    (const_string_ptr "ensures") (const_i64 7)) (const_i32 0)))
+                (or_bool
+                  (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
+                    (const_string_ptr "pure") (const_i64 4)) (const_i32 0))
+                  (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
+                    (const_string_ptr "no_alloc") (const_i64 8)) (const_i32 0))))
+              (or_bool
+                (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
+                  (const_string_ptr "deterministic") (const_i64 13)) (const_i32 0))
+                (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
+                  (const_string_ptr "effects") (const_i64 7)) (const_i32 0)))))
+            (then (do (return (const_i32 1))))
             (else (do)))
           (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
       (return (const_i32 0))))
@@ -86,24 +85,20 @@
     (params (tree ptr) (source ptr) (fn_node i64))
     (returns i32)
     (do
-      (let returns_node i64 (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 3)))
-      (let child i64 (call_i64 node_next_sibling (param_get tree) (local_get returns_node)))
+      (let child i64 (call_i64 surface_fn_clause_start
+        (param_get tree) (param_get source) (param_get fn_node)))
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
         (do
           (if
-            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get child)) (call_i32 node_list)))
-            (then (do
-              (if
-                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                  (const_string_ptr "ensures") (const_i64 7)) (const_i32 0)))
-                (then (do (return (const_i32 1))))
-                (else (do
-                  (if
-                    (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                      (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
-                    (then (do (return (const_i32 0))))
-                    (else (do))))))))
+            (condition (eq_i32 (call_i32 surface_fn_is_header_clause
+              (param_get tree) (param_get source) (local_get child)) (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
+              (const_string_ptr "ensures") (const_i64 7)) (const_i32 0)))
+            (then (do (return (const_i32 1))))
             (else (do)))
           (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
       (return (const_i32 0))))
@@ -238,16 +233,20 @@
                 (ne_i32 (call_i32 surface_is_call_node
                   (param_get tree) (param_get source) (param_get node))
                   (const_i32 0))
-                (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
-                  (const_string_ptr "let") (const_i64 3)) (const_i32 0)))
+                (ne_i32 (call_i32 surface_is_operator_node
+                  (param_get tree) (param_get source) (param_get node))
+                  (const_i32 0)))
               (or_bool
                 (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
-                  (const_string_ptr "set") (const_i64 3)) (const_i32 0))
+                  (const_string_ptr "let") (const_i64 3)) (const_i32 0))
                 (or_bool
                   (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
-                    (const_string_ptr "qgate") (const_i64 5)) (const_i32 0))
-                  (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
-                    (const_string_ptr "qmeasure") (const_i64 8)) (const_i32 0))))))
+                    (const_string_ptr "set") (const_i64 3)) (const_i32 0))
+                  (or_bool
+                    (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+                      (const_string_ptr "qgate") (const_i64 5)) (const_i32 0))
+                    (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
+                      (const_string_ptr "qmeasure") (const_i64 8)) (const_i32 0)))))))
             (then (do
               (call_void emit_node
                 (param_get fd) (param_get source) (param_get tree) (param_get node))
@@ -316,33 +315,29 @@
     (params (fd i32) (source ptr) (tree ptr) (fn_node i64))
     (returns i32)
     (do
-      (let returns_node i64 (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 3)))
-      (let child i64 (call_i64 node_next_sibling (param_get tree) (local_get returns_node)))
+      (let child i64 (call_i64 surface_fn_clause_start
+        (param_get tree) (param_get source) (param_get fn_node)))
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
         (do
           (if
-            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get child)) (call_i32 node_list)))
+            (condition (eq_i32 (call_i32 surface_fn_is_header_clause
+              (param_get tree) (param_get source) (local_get child)) (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
+              (const_string_ptr "requires") (const_i64 8)) (const_i32 0)))
             (then (do
+              (call_void trace_insert_requires_check
+                (param_get source) (param_get tree) (local_get child)
+                (call_i64 contract_clause_expr (param_get tree) (local_get child)))
+              (let st i32 (call_i32 emit_requires_check
+                (param_get fd) (param_get source) (param_get tree) (local_get child)))
               (if
-                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                  (const_string_ptr "requires") (const_i64 8)) (const_i32 0)))
-                (then (do
-                  (call_void trace_insert_requires_check
-                    (param_get source) (param_get tree) (local_get child)
-                    (call_i64 contract_clause_expr (param_get tree) (local_get child)))
-                  (let st i32 (call_i32 emit_requires_check
-                    (param_get fd) (param_get source) (param_get tree) (local_get child)))
-                  (if
-                    (condition (ne_i32 (local_get st) (const_i32 0)))
-                    (then (do (return (const_i32 1))))
-                    (else (do)))))
-                (else (do
-                  (if
-                    (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                      (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
-                    (then (do (return (const_i32 0))))
-                    (else (do))))))))
+                (condition (ne_i32 (local_get st) (const_i32 0)))
+                (then (do (return (const_i32 1))))
+                (else (do)))))
             (else (do)))
           (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
       (return (const_i32 0))))
@@ -351,32 +346,28 @@
     (params (fd i32) (source ptr) (tree ptr) (fn_node i64) (return_val i64))
     (returns void)
     (do
-      (let returns_node i64 (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 3)))
-      (let child i64 (call_i64 node_next_sibling (param_get tree) (local_get returns_node)))
+      (let child i64 (call_i64 surface_fn_clause_start
+        (param_get tree) (param_get source) (param_get fn_node)))
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
         (do
           (if
-            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get child)) (call_i32 node_list)))
+            (condition (eq_i32 (call_i32 surface_fn_is_header_clause
+              (param_get tree) (param_get source) (local_get child)) (const_i32 0)))
+            (then (do (return_void)))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
+              (const_string_ptr "ensures") (const_i64 7)) (const_i32 0)))
             (then (do
-              (if
-                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                  (const_string_ptr "ensures") (const_i64 7)) (const_i32 0)))
-                (then (do
-                  (let expr i64 (call_i64 contract_clause_expr (param_get tree) (local_get child)))
-                  (call_void trace_insert_ensures_check
-                    (param_get source) (param_get tree) (local_get child) (local_get expr))
-                  (call_void write_cstr (param_get fd) (const_string_ptr "(if (condition (not_bool "))
-                  (call_void emit_contract_expr (param_get fd) (param_get source) (param_get tree) (local_get expr) (const_i32 1) (param_get return_val))
-                  (call_void write_cstr (param_get fd) (const_string_ptr ")) (then (do "))
-                  (call_void emit_contract_fail_ensures (param_get fd))
-                  (call_void write_cstr (param_get fd) (const_string_ptr ")) (else (do))) "))))
-                (else (do
-                  (if
-                    (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                      (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
-                    (then (do (return_void)))
-                    (else (do))))))))
+              (let expr i64 (call_i64 contract_clause_expr (param_get tree) (local_get child)))
+              (call_void trace_insert_ensures_check
+                (param_get source) (param_get tree) (local_get child) (local_get expr))
+              (call_void write_cstr (param_get fd) (const_string_ptr "(if (condition (not_bool "))
+              (call_void emit_contract_expr (param_get fd) (param_get source) (param_get tree) (local_get expr) (const_i32 1) (param_get return_val))
+              (call_void write_cstr (param_get fd) (const_string_ptr ")) (then (do "))
+              (call_void emit_contract_fail_ensures (param_get fd))
+              (call_void write_cstr (param_get fd) (const_string_ptr ")) (else (do))) "))))
             (else (do)))
           (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
       (return_void)))
@@ -434,7 +425,7 @@
         (param_get fd) (param_get source) (param_get tree) (param_get pending) (param_get child)))))
 
   (fn emit_do_body_with_contracts
-    (params (fd i32) (source ptr) (tree ptr) (fn_node i64) (do_node i64))
+    (params (fd i32) (source ptr) (tree ptr) (fn_node i64))
     (returns i32)
     (do
       (let req_st i32 (call_i32 emit_all_requires_checks
@@ -443,8 +434,8 @@
         (condition (ne_i32 (local_get req_st) (const_i32 0)))
         (then (do (return (const_i32 1))))
         (else (do)))
-      (let head i64 (call_i64 node_first_child (param_get tree) (param_get do_node)))
-      (let child i64 (call_i64 node_next_sibling (param_get tree) (local_get head)))
+      (let child i64 (call_i64 surface_fn_body_first_stmt
+        (param_get tree) (param_get source) (param_get fn_node)))
       (let first i32 (const_i32 1))
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
@@ -477,39 +468,21 @@
         (call_i64 nth_child
           (param_get tree) (param_get fn_node) (const_i64 1)))
       (call_void write_byte (param_get fd) (const_i32 32))
-      (call_void emit_node (param_get fd) (param_get source) (param_get tree)
-        (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 2)))
+      (call_void sst_emit_params
+        (param_get fd) (param_get source) (param_get tree)
+        (call_i64 surface_fn_params_node
+          (param_get tree) (param_get source) (param_get fn_node)))
       (call_void write_byte (param_get fd) (const_i32 32))
-      (call_void emit_node (param_get fd) (param_get source) (param_get tree)
-        (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 3)))
-      (let returns_node i64 (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 3)))
-      (let child i64 (call_i64 node_next_sibling (param_get tree) (local_get returns_node)))
-      (while
-        (condition (ne_i64 (local_get child) (const_i64 -1)))
-        (do
-          (if
-            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get child)) (call_i32 node_list)))
-            (then (do
-              (if
-                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                  (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
-                (then (do
-                  (call_void write_byte (param_get fd) (const_i32 32))
-                  (call_void write_byte (param_get fd) (const_i32 40))
-                  (call_void write_cstr (param_get fd) (const_string_ptr "do"))
-                  (call_void write_byte (param_get fd) (const_i32 32))
-                  (let st i32 (call_i32 emit_do_body_with_contracts
-                    (param_get fd) (param_get source) (param_get tree) (param_get fn_node) (local_get child)))
-                  (if
-                    (condition (ne_i32 (local_get st) (const_i32 0)))
-                    (then (do (return (const_i32 1))))
-                    (else (do)))
-                  (call_void write_byte (param_get fd) (const_i32 41))
-                  (call_void write_byte (param_get fd) (const_i32 41))
-                  (call_void write_byte (param_get fd) (const_i32 10))
-                  (return (const_i32 0))))
-                (else (do)))))
-            (else (do)))
-          (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
-      (return (const_i32 1))))
+      (call_void fn_emit_wir_returns
+        (param_get fd) (param_get source) (param_get tree) (param_get fn_node))
+      (call_void write_cstr (param_get fd) (const_string_ptr " (do "))
+      (let st i32 (call_i32 emit_do_body_with_contracts
+        (param_get fd) (param_get source) (param_get tree) (param_get fn_node)))
+      (if
+        (condition (ne_i32 (local_get st) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (call_void write_cstr (param_get fd) (const_string_ptr "))"))
+      (call_void write_byte (param_get fd) (const_i32 10))
+      (return (const_i32 0))))
 )
