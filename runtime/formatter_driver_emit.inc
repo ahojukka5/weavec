@@ -7,10 +7,15 @@ static int weave_fmt_format_list(
     size_t list_start = weave_fmt_node_start(context, list);
     size_t list_end = weave_fmt_node_end(context, list);
     int64_t head = node_first_child(context->tree, list);
-    if (list_start > context->source_length || list_end == 0 ||
-        head == -1 || node_kind(context->tree, head) != node_ident()) {
+    if (list_start > context->source_length || list_end == 0) {
         weave_fmt_fail(context);
         return 0;
+    }
+    if (head == -1 || node_kind(context->tree, head) != node_ident()) {
+        int formatted = weave_fmt_format_anonymous_list(
+            context, list, indentation, force_inline);
+        if (!formatted) weave_fmt_fail(context);
+        return formatted;
     }
 
     size_t head_start = weave_fmt_node_start(context, head);
@@ -55,6 +60,17 @@ static int weave_fmt_format_list(
     if (function_scope) {
         weave_fmt_prepare_function_scope(
             context, list, &saved_binding_count, &saved_return_type);
+    }
+    if (function_scope ||
+        weave_fmt_node_text_equals(context, head, "extern")) {
+        int formatted = weave_fmt_format_function(
+            context, list, head, indentation);
+        if (function_scope) {
+            weave_fmt_restore_function_scope(
+                context, saved_binding_count, saved_return_type);
+        }
+        if (!formatted) weave_fmt_fail(context);
+        return formatted;
     }
 
     weave_fmt_plan plan;

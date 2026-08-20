@@ -9,29 +9,20 @@
     (params (tree ptr) (source ptr) (fn_node i64))
     (returns i64)
     (do
-      (let returns_node i64 (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 3)))
-      (let child i64 (call_i64 node_next_sibling (param_get tree) (local_get returns_node)))
-      (while
-        (condition (ne_i64 (local_get child) (const_i64 -1)))
-        (do
-          (if
-            (condition (eq_i32 (call_i32 node_kind (param_get tree) (local_get child)) (call_i32 node_list)))
-            (then (do
-              (if
-                (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (local_get child)
-                  (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
-                (then (do (return (local_get child))))
-                (else (do)))))
-            (else (do)))
-          (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
-      (return (const_i64 -1))))
+      (if
+        (condition (ne_i32 (call_i32 surface_fn_body_is_wrapped_do
+          (param_get tree) (param_get source) (param_get fn_node)) (const_i32 0)))
+        (then (do
+          (return (call_i64 surface_fn_body_start
+            (param_get tree) (param_get source) (param_get fn_node)))))
+        (else (do (return (const_i64 -1)))))))
 
   (fn fn_return_type_node
-    (params (tree ptr) (fn_node i64))
+    (params (tree ptr) (source ptr) (fn_node i64))
     (returns i64)
     (do
-      (let returns_node i64 (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 3)))
-      (return (call_i64 nth_child (param_get tree) (local_get returns_node) (const_i64 1)))))
+      (return (call_i64 surface_fn_return_type_node
+        (param_get tree) (param_get source) (param_get fn_node)))))
 
   (fn explain_ctx_new
     (params ())
@@ -382,8 +373,8 @@
     (returns void)
     (do
       (call_void write_byte (param_get fd) (const_i32 91))
-      (let returns_node i64 (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 3)))
-      (let child i64 (call_i64 node_next_sibling (param_get tree) (local_get returns_node)))
+      (let child i64 (call_i64 surface_fn_clause_start
+        (param_get tree) (param_get source) (param_get fn_node)))
       (let first i32 (const_i32 1))
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
@@ -412,12 +403,10 @@
     (returns void)
     (do
       (call_void write_byte (param_get fd) (const_i32 91))
-      (let params_node i64 (call_i64 nth_child (param_get tree) (param_get fn_node) (const_i64 2)))
-      (let child i64 (call_i64 node_first_child (param_get tree) (local_get params_node)))
-      (if
-        (condition (ne_i64 (local_get child) (const_i64 -1)))
-        (then (do (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
-        (else (do)))
+      (let params_node i64 (call_i64 surface_fn_params_node
+        (param_get tree) (param_get source) (param_get fn_node)))
+      (let child i64 (call_i64 surface_params_first_pair
+        (param_get tree) (param_get source) (local_get params_node)))
       (let first i32 (const_i32 1))
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
@@ -537,7 +526,7 @@
             (param_get fn_node) (call_ptr weave_audit_json_get_table)))))
       (call_void write_json_comma_key_colon (param_get fd) (const_string_ptr "returns"))
       (call_void write_json_string_from_node (param_get fd) (param_get source) (param_get tree)
-        (call_i64 fn_return_type_node (param_get tree) (param_get fn_node)))
+        (call_i64 fn_return_type_node (param_get tree) (param_get source) (param_get fn_node)))
       (call_void write_json_comma_key_colon (param_get fd) (const_string_ptr "parameters"))
       (call_void explain_emit_params_json (param_get fd) (param_get source) (param_get tree) (param_get fn_node))
       (call_void write_json_comma_key_colon (param_get fd) (const_string_ptr "return_sites"))

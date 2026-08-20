@@ -4,7 +4,23 @@ static void weave_fmt_add_signature(
     int64_t name = weave_fmt_nth_child(context, declaration, 1);
     int64_t params = weave_fmt_find_clause(context, declaration, "params");
     int64_t returns = weave_fmt_find_clause(context, declaration, "returns");
-    if (name == -1 || params == -1 || returns == -1 ||
+    if (params == -1) {
+        params = weave_fmt_nth_child(context, declaration, 2);
+        if (params != -1 && node_kind(context->tree, params) == node_list()) {
+            int64_t params_head = node_first_child(context->tree, params);
+            if (params_head != -1 &&
+                weave_fmt_node_text_equals(context, params_head, "type-params")) {
+                params = node_next_sibling(context->tree, params);
+            }
+        }
+    }
+    int64_t return_type_node = -1;
+    if (returns != -1) {
+        return_type_node = weave_fmt_nth_child(context, returns, 1);
+    } else if (params != -1) {
+        return_type_node = node_next_sibling(context->tree, params);
+    }
+    if (name == -1 || params == -1 || return_type_node == -1 ||
         node_kind(context->tree, name) != node_ident()) {
         return;
     }
@@ -13,12 +29,15 @@ static void weave_fmt_add_signature(
     if (name_start_raw < 0 || name_length_raw <= 0) return;
     size_t name_start = (size_t)name_start_raw;
     size_t name_length = (size_t)name_length_raw;
-    int64_t return_type_node = weave_fmt_nth_child(context, returns, 1);
     weave_fmt_type return_type = weave_fmt_type_from_text(
         context, return_type_node);
 
     size_t parameter_count = 0;
-    int64_t parameter = weave_fmt_nth_child(context, params, 1);
+    int64_t params_head = node_first_child(context->tree, params);
+    int64_t parameter = params_head != -1 &&
+        weave_fmt_node_text_equals(context, params_head, "params")
+        ? weave_fmt_nth_child(context, params, 1)
+        : params_head;
     while (parameter != -1) {
         ++parameter_count;
         parameter = node_next_sibling(context->tree, parameter);

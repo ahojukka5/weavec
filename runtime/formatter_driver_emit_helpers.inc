@@ -5,6 +5,231 @@ static int weave_fmt_format_node(
     weave_fmt_type expected,
     int force_inline);
 
+static int weave_fmt_is_fn_header(
+    const weave_fmt_context *context,
+    int64_t node) {
+    return weave_fmt_list_headed(context, node, "doc") ||
+        weave_fmt_list_headed(context, node, "example") ||
+        weave_fmt_list_headed(context, node, "uses") ||
+        weave_fmt_list_headed(context, node, "effects") ||
+        weave_fmt_list_headed(context, node, "requires") ||
+        weave_fmt_list_headed(context, node, "ensures") ||
+        weave_fmt_list_headed(context, node, "pure") ||
+        weave_fmt_list_headed(context, node, "no_alloc") ||
+        weave_fmt_list_headed(context, node, "deterministic");
+}
+
+static int weave_fmt_format_anonymous_list(
+    weave_fmt_context *context,
+    int64_t list,
+    size_t indentation,
+    int force_inline) {
+    (void)force_inline;
+    if (!weave_fmt_write_char(context, '(')) return 0;
+    int64_t child = node_first_child(context->tree, list);
+    int first = 1;
+    while (child != -1) {
+        if (!first && !weave_fmt_write_char(context, ' ')) return 0;
+        first = 0;
+        if (!weave_fmt_format_node(
+                context, child, indentation + 2, WEAVE_FMT_UNKNOWN, 1)) {
+            return 0;
+        }
+        child = node_next_sibling(context->tree, child);
+    }
+    return weave_fmt_write_char(context, ')');
+}
+
+static int weave_fmt_write_effect_ident(
+    weave_fmt_context *context,
+    const char *name,
+    int *first) {
+    if (!*first && !weave_fmt_write_char(context, ' ')) return 0;
+    *first = 0;
+    return weave_fmt_write_cstr(context, name);
+}
+
+static int weave_fmt_format_function(
+    weave_fmt_context *context,
+    int64_t list,
+    int64_t head,
+    size_t indentation) {
+    int64_t name = weave_fmt_nth_child(context, list, 1);
+    int64_t params = weave_fmt_find_clause(context, list, "params");
+    if (params == -1) {
+        params = weave_fmt_nth_child(context, list, 2);
+        if (params != -1 &&
+            weave_fmt_list_headed(context, params, "type-params")) {
+            params = node_next_sibling(context->tree, params);
+        }
+    }
+    int64_t returns = weave_fmt_find_clause(context, list, "returns");
+    int64_t return_type = returns != -1
+        ? weave_fmt_nth_child(context, returns, 1)
+        : (params == -1 ? -1 : node_next_sibling(context->tree, params));
+    if (name == -1 || params == -1 || return_type == -1) return 0;
+
+    if (!weave_fmt_write_char(context, '(') ||
+        !weave_fmt_write_atom(context, head) ||
+        !weave_fmt_write_char(context, ' ') ||
+        !weave_fmt_write_atom(context, name) ||
+        !weave_fmt_write_char(context, ' ') ||
+        !weave_fmt_write_char(context, '(')) {
+        return 0;
+    }
+    int64_t params_head = node_first_child(context->tree, params);
+    int64_t pair = (params_head != -1 &&
+        weave_fmt_node_text_equals(context, params_head, "params"))
+        ? weave_fmt_nth_child(context, params, 1)
+        : params_head;
+    if (pair != -1 &&
+        node_kind(context->tree, pair) == node_list() &&
+        weave_fmt_child_count(context, pair) == 0 &&
+        node_next_sibling(context->tree, pair) == -1) {
+        pair = -1;
+    }
+    int first_pair = 1;
+    while (pair != -1) {
+        if (!first_pair && !weave_fmt_write_char(context, ' ')) return 0;
+        first_pair = 0;
+        if (!weave_fmt_format_node(
+                context, pair, indentation + 2, WEAVE_FMT_UNKNOWN, 1)) {
+            return 0;
+        }
+        pair = node_next_sibling(context->tree, pair);
+    }
+    if (!weave_fmt_write_char(context, ')') ||
+        !weave_fmt_write_char(context, ' ') ||
+        !weave_fmt_format_node(
+            context, return_type, indentation + 2, WEAVE_FMT_UNKNOWN, 1)) {
+        return 0;
+    }
+
+    int64_t cursor = returns != -1
+        ? node_next_sibling(context->tree, returns)
+        : node_next_sibling(context->tree, return_type);
+    int has_pure = 0;
+    int has_no_alloc = 0;
+    int has_det = 0;
+    int64_t scan = cursor;
+    while (scan != -1) {
+        if (weave_fmt_list_headed(context, scan, "pure")) has_pure = 1;
+        if (weave_fmt_list_headed(context, scan, "no_alloc")) has_no_alloc = 1;
+        if (weave_fmt_list_headed(context, scan, "deterministic")) has_det = 1;
+        if (weave_fmt_list_headed(context, scan, "effects")) {
+            int64_t mark = weave_fmt_nth_child(context, scan, 1);
+            while (mark != -1) {
+                if (weave_fmt_node_text_equals(context, mark, "pure")) {
+                    has_pure = 1;
+                }
+                if (weave_fmt_node_text_equals(context, mark, "no_alloc")) {
+                    has_no_alloc = 1;
+                }
+                if (weave_fmt_node_text_equals(context, mark, "deterministic")) {
+                    has_det = 1;
+                }
+                mark = node_next_sibling(context->tree, mark);
+            }
+        }
+        scan = node_next_sibling(context->tree, scan);
+    }
+
+    scan = cursor;
+    while (scan != -1) {
+        if (weave_fmt_list_headed(context, scan, "doc") ||
+            weave_fmt_list_headed(context, scan, "example") ||
+            weave_fmt_list_headed(context, scan, "uses")) {
+            if (!weave_fmt_write_newline(context) ||
+                !weave_fmt_write_indent(context, indentation + 2) ||
+                !weave_fmt_format_node(
+                    context, scan, indentation + 2, WEAVE_FMT_UNKNOWN, 0)) {
+                return 0;
+            }
+        }
+        scan = node_next_sibling(context->tree, scan);
+    }
+    if (has_pure || has_no_alloc || has_det) {
+        if (!weave_fmt_write_newline(context) ||
+            !weave_fmt_write_indent(context, indentation + 2) ||
+            !weave_fmt_write_cstr(context, "(effects ")) {
+            return 0;
+        }
+        int first_effect = 1;
+        if (has_pure &&
+            !weave_fmt_write_effect_ident(context, "pure", &first_effect)) {
+            return 0;
+        }
+        if (has_no_alloc &&
+            !weave_fmt_write_effect_ident(context, "no_alloc", &first_effect)) {
+            return 0;
+        }
+        if (has_det &&
+            !weave_fmt_write_effect_ident(
+                context, "deterministic", &first_effect)) {
+            return 0;
+        }
+        if (!weave_fmt_write_char(context, ')')) return 0;
+    }
+    scan = cursor;
+    while (scan != -1) {
+        if (weave_fmt_list_headed(context, scan, "requires") ||
+            weave_fmt_list_headed(context, scan, "ensures")) {
+            if (!weave_fmt_write_newline(context) ||
+                !weave_fmt_write_indent(context, indentation + 2) ||
+                !weave_fmt_format_node(
+                    context, scan, indentation + 2, WEAVE_FMT_UNKNOWN, 0)) {
+                return 0;
+            }
+        }
+        scan = node_next_sibling(context->tree, scan);
+    }
+
+    int64_t signature_end_node = returns != -1 ? returns : return_type;
+    int emitted_body = 0;
+    scan = cursor;
+    while (scan != -1) {
+        if (weave_fmt_is_fn_header(context, scan) ||
+            weave_fmt_list_headed(context, scan, "params") ||
+            weave_fmt_list_headed(context, scan, "returns")) {
+            scan = node_next_sibling(context->tree, scan);
+            continue;
+        }
+        if (!emitted_body) {
+            size_t gap_from = weave_fmt_node_end(context, signature_end_node);
+            size_t gap_to = weave_fmt_node_start(context, scan);
+            if (gap_from != 0 && gap_to >= gap_from &&
+                !weave_fmt_emit_gap_comments(
+                    context, gap_from, gap_to, indentation + 2)) {
+                return 0;
+            }
+            emitted_body = 1;
+        }
+        if (weave_fmt_list_headed(context, scan, "do") &&
+            node_next_sibling(context->tree, scan) == -1) {
+            int64_t stmt = weave_fmt_nth_child(context, scan, 1);
+            while (stmt != -1) {
+                if (!weave_fmt_write_newline(context) ||
+                    !weave_fmt_write_indent(context, indentation + 2) ||
+                    !weave_fmt_format_node(
+                        context, stmt, indentation + 2, WEAVE_FMT_UNKNOWN, 0)) {
+                    return 0;
+                }
+                stmt = node_next_sibling(context->tree, stmt);
+            }
+            scan = node_next_sibling(context->tree, scan);
+            continue;
+        }
+        if (!weave_fmt_write_newline(context) ||
+            !weave_fmt_write_indent(context, indentation + 2) ||
+            !weave_fmt_format_node(
+                context, scan, indentation + 2, WEAVE_FMT_UNKNOWN, 0)) {
+            return 0;
+        }
+        scan = node_next_sibling(context->tree, scan);
+    }
+    return weave_fmt_write_char(context, ')');
+}
+
 static int weave_fmt_emit_casted_integer(
     weave_fmt_context *context,
     int64_t value,
@@ -32,9 +257,31 @@ static int weave_fmt_prepare_function_scope(
     context->binding_count = 0;
     int64_t params = weave_fmt_find_clause(context, list, "params");
     int64_t returns = weave_fmt_find_clause(context, list, "returns");
+    if (params == -1) {
+        params = weave_fmt_nth_child(context, list, 2);
+        if (params != -1 && node_kind(context->tree, params) == node_list()) {
+            int64_t params_head = node_first_child(context->tree, params);
+            if (params_head != -1 &&
+                weave_fmt_node_text_equals(context, params_head, "type-params")) {
+                params = node_next_sibling(context->tree, params);
+            }
+        }
+    }
+    int64_t return_type_node = -1;
+    if (returns != -1) {
+        return_type_node = weave_fmt_nth_child(context, returns, 1);
+    } else if (params != -1) {
+        return_type_node = node_next_sibling(context->tree, params);
+    }
     context->current_return_type = weave_fmt_type_from_text(
-        context, weave_fmt_nth_child(context, returns, 1));
-    int64_t parameter = weave_fmt_nth_child(context, params, 1);
+        context, return_type_node);
+    int64_t params_head = params == -1
+        ? -1
+        : node_first_child(context->tree, params);
+    int64_t parameter = params_head != -1 &&
+        weave_fmt_node_text_equals(context, params_head, "params")
+        ? weave_fmt_nth_child(context, params, 1)
+        : params_head;
     while (parameter != -1) {
         int64_t name = weave_fmt_nth_child(context, parameter, 0);
         int64_t type = weave_fmt_nth_child(context, parameter, 1);

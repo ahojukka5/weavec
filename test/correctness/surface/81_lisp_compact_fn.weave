@@ -1,0 +1,20 @@
+; purpose: verify compact function signatures and unwrapped bodies.
+; expected-exit: 42
+; tags: fn, params, effects, return
+
+(program
+  (name "lisp-compact-fn")
+  (version "0.1")
+
+  (fn inc ((x i32)) i32
+    (effects pure)
+    (requires (>= x 0))
+    (return (+ x 1)))
+
+  (fn clamp ((value i32)) i32
+    (when (< value 0)
+      (return 0))
+    (return value))
+
+  (fn main () i32
+    (return (inc (clamp 41)))))

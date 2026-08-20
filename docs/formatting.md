@@ -135,20 +135,14 @@ Top-level declarations:
   (struct Pair
     (field left i32)
     (field right i32))
-  (extern puts (params (message ptr)) (returns i32))
-  (fn add-one
-    (params (value i32))
-    (returns i32)
-    (pure)
-    (no_alloc)
-    (deterministic)
+  (extern puts ((message ptr)) i32)
+  (fn add-one ((value i32)) i32
+    (effects pure no_alloc deterministic)
     (requires (>= value 0))
     (ensures (> result value))
-    (do (return (+ value 1))))
-  (entry main
-    (params)
-    (returns i32)
-    (do (return (add-one 41)))))
+    (return (+ value 1)))
+  (entry main () i32
+    (return (add-one 41))))
 ```
 
 Statements and control flow:

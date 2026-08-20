@@ -1,0 +1,388 @@
+; SPDX-License-Identifier: Apache-2.0
+; fn_surface.weave — compact and verbose function-declaration lookup
+;
+; Canonical surface is `(fn NAME ((x T) ...) ReturnType HEADER... BODY...)`.
+; Verbose `(params ...)`, `(returns ...)`, and a wrapping `(do ...)` remain
+; accepted. WIR emission reconstructs the verbose wrappers.
+
+(program
+  (name "fn_surface")
+  (version "0.1")
+
+  ; Child after the function name, skipping an optional type-params clause.
+  (fn surface_fn_after_name
+    (params (tree ptr) (source ptr) (decl i64))
+    (returns i64)
+    (do
+      (let fs_name i64 (call_i64 nth_child
+        (param_get tree) (param_get decl) (const_i64 1)))
+      (if
+        (condition (eq_i64 (local_get fs_name) (const_i64 -1)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let fs_child i64 (call_i64 node_next_sibling
+        (param_get tree) (local_get fs_name)))
+      (if
+        (condition (eq_i64 (local_get fs_child) (const_i64 -1)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (local_get fs_child)
+          (const_string_ptr "type-params") (const_i64 11)) (const_i32 0)))
+        (then (do
+          (return (call_i64 node_next_sibling
+            (param_get tree) (local_get fs_child)))))
+        (else (do (return (local_get fs_child)))))))
+
+  (fn surface_params_is_verbose
+    (params (tree ptr) (source ptr) (params_node i64))
+    (returns i32)
+    (do
+      (return (call_i32 surface_node_is_list_head
+        (param_get tree) (param_get source) (param_get params_node)
+        (const_string_ptr "params") (const_i64 6)))))
+
+  ; Compact params are `()` or a list of `(name type)` pairs with no `params` head.
+  (fn surface_params_is_compact
+    (params (tree ptr) (source ptr) (params_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (param_get params_node) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get tree) (param_get params_node)) (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_params_is_verbose
+          (param_get tree) (param_get source) (param_get params_node))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i64 (call_i64 count_children
+          (param_get tree) (param_get params_node)) (const_i64 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let fs_first i64 (call_i64 node_first_child
+        (param_get tree) (param_get params_node)))
+      (if
+        (condition (eq_i64 (local_get fs_first) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 node_kind
+          (param_get tree) (local_get fs_first)) (call_i32 node_list)))
+        (then (do (return (const_i32 1))))
+        (else (do (return (const_i32 0)))))))
+
+  ; First `(name type)` pair, or -1 for an empty parameter list.
+  (fn surface_params_first_pair
+    (params (tree ptr) (source ptr) (params_node i64))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_i64 (param_get params_node) (const_i64 -1)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get tree) (param_get params_node)) (call_i32 node_list)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_params_is_verbose
+          (param_get tree) (param_get source) (param_get params_node))
+          (const_i32 0)))
+        (then (do
+          (let fs_head i64 (call_i64 node_first_child
+            (param_get tree) (param_get params_node)))
+          (let fs_param i64 (call_i64 node_next_sibling
+            (param_get tree) (local_get fs_head)))
+          (if
+            (condition (eq_i64 (local_get fs_param) (const_i64 -1)))
+            (then (do (return (const_i64 -1))))
+            (else (do)))
+          (if
+            (condition (eq_i32 (call_i32 node_kind
+              (param_get tree) (local_get fs_param)) (call_i32 node_list)))
+            (then (do
+              (if
+                (condition (eq_i64 (call_i64 count_children
+                  (param_get tree) (local_get fs_param)) (const_i64 0)))
+                (then (do
+                  (if
+                    (condition (eq_i64 (call_i64 node_next_sibling
+                      (param_get tree) (local_get fs_param)) (const_i64 -1)))
+                    (then (do (return (const_i64 -1))))
+                    (else (do (return (local_get fs_param)))))))
+                (else (do (return (local_get fs_param)))))))
+            (else (do (return (local_get fs_param)))))))
+        (else (do
+          (return (call_i64 node_first_child
+            (param_get tree) (param_get params_node))))))))
+
+  (fn surface_fn_params_node
+    (params (tree ptr) (source ptr) (decl i64))
+    (returns i64)
+    (do
+      (let fs_named i64 (call_i64 find_named_clause
+        (param_get tree) (param_get source) (param_get decl)
+        (const_string_ptr "params") (const_i64 6)))
+      (if
+        (condition (ne_i64 (local_get fs_named) (const_i64 -1)))
+        (then (do (return (local_get fs_named))))
+        (else (do)))
+      (let fs_pos i64 (call_i64 surface_fn_after_name
+        (param_get tree) (param_get source) (param_get decl)))
+      (if
+        (condition (ne_i32 (call_i32 surface_params_is_compact
+          (param_get tree) (param_get source) (local_get fs_pos))
+          (const_i32 0)))
+        (then (do (return (local_get fs_pos))))
+        (else (do (return (const_i64 -1)))))))
+
+  ; `(returns T)` clause, or the compact type form itself.
+  (fn surface_fn_return_clause
+    (params (tree ptr) (source ptr) (decl i64))
+    (returns i64)
+    (do
+      (let fs_named i64 (call_i64 find_named_clause
+        (param_get tree) (param_get source) (param_get decl)
+        (const_string_ptr "returns") (const_i64 7)))
+      (if
+        (condition (ne_i64 (local_get fs_named) (const_i64 -1)))
+        (then (do (return (local_get fs_named))))
+        (else (do)))
+      (let fs_params i64 (call_i64 surface_fn_params_node
+        (param_get tree) (param_get source) (param_get decl)))
+      (if
+        (condition (eq_i64 (local_get fs_params) (const_i64 -1)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 node_next_sibling
+        (param_get tree) (local_get fs_params)))))
+
+  (fn surface_fn_return_type_node
+    (params (tree ptr) (source ptr) (decl i64))
+    (returns i64)
+    (do
+      (let fs_clause i64 (call_i64 surface_fn_return_clause
+        (param_get tree) (param_get source) (param_get decl)))
+      (if
+        (condition (eq_i64 (local_get fs_clause) (const_i64 -1)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (local_get fs_clause)
+          (const_string_ptr "returns") (const_i64 7)) (const_i32 0)))
+        (then (do
+          (return (call_i64 nth_child
+            (param_get tree) (local_get fs_clause) (const_i64 1)))))
+        (else (do (return (local_get fs_clause)))))))
+
+  (fn surface_fn_is_header_clause
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (param_get node) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get tree) (param_get node)) (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "doc") (const_i64 3)) (const_i32 0))
+            (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "example") (const_i64 7)) (const_i32 0)))
+          (or_bool
+            (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "uses") (const_i64 4)) (const_i32 0))
+            (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "effects") (const_i64 7)) (const_i32 0)))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "requires") (const_i64 8)) (const_i32 0))
+            (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "ensures") (const_i64 7)) (const_i32 0)))
+          (or_bool
+            (or_bool
+              (ne_i32 (call_i32 head_equals
+                (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "pure") (const_i64 4)) (const_i32 0))
+              (ne_i32 (call_i32 head_equals
+                (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "no_alloc") (const_i64 8)) (const_i32 0)))
+            (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "deterministic") (const_i64 13)) (const_i32 0)))))
+        (then (do (return (const_i32 1))))
+        (else (do (return (const_i32 0)))))))
+
+  ; First child after the return type / `(returns ...)` clause.
+  (fn surface_fn_clause_start
+    (params (tree ptr) (source ptr) (decl i64))
+    (returns i64)
+    (do
+      (let fs_clause i64 (call_i64 surface_fn_return_clause
+        (param_get tree) (param_get source) (param_get decl)))
+      (if
+        (condition (eq_i64 (local_get fs_clause) (const_i64 -1)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 node_next_sibling
+        (param_get tree) (local_get fs_clause)))))
+
+  ; First executable body form, after header clauses.
+  (fn surface_fn_body_start
+    (params (tree ptr) (source ptr) (decl i64))
+    (returns i64)
+    (do
+      (let fs_child i64 (call_i64 surface_fn_clause_start
+        (param_get tree) (param_get source) (param_get decl)))
+      (while
+        (condition (ne_i64 (local_get fs_child) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 surface_fn_is_header_clause
+              (param_get tree) (param_get source) (local_get fs_child))
+              (const_i32 0)))
+            (then (do (return (local_get fs_child))))
+            (else (do)))
+          (set fs_child (call_i64 node_next_sibling
+            (param_get tree) (local_get fs_child)))))
+      (return (const_i64 -1))))
+
+  (fn surface_fn_body_is_wrapped_do
+    (params (tree ptr) (source ptr) (decl i64))
+    (returns i32)
+    (do
+      (let fs_body i64 (call_i64 surface_fn_body_start
+        (param_get tree) (param_get source) (param_get decl)))
+      (if
+        (condition (eq_i64 (local_get fs_body) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (local_get fs_body)
+          (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i64 (call_i64 node_next_sibling
+          (param_get tree) (local_get fs_body)) (const_i64 -1)))
+        (then (do (return (const_i32 1))))
+        (else (do (return (const_i32 0)))))))
+
+  ; First statement of the body: inside a wrapping `do`, or the compact start.
+  (fn surface_fn_body_first_stmt
+    (params (tree ptr) (source ptr) (decl i64))
+    (returns i64)
+    (do
+      (let fs_body i64 (call_i64 surface_fn_body_start
+        (param_get tree) (param_get source) (param_get decl)))
+      (if
+        (condition (eq_i64 (local_get fs_body) (const_i64 -1)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_fn_body_is_wrapped_do
+          (param_get tree) (param_get source) (param_get decl))
+          (const_i32 0)))
+        (then (do
+          (let fs_head i64 (call_i64 node_first_child
+            (param_get tree) (local_get fs_body)))
+          (return (call_i64 node_next_sibling
+            (param_get tree) (local_get fs_head)))))
+        (else (do (return (local_get fs_body)))))))
+
+  (fn surface_fn_last_body_stmt
+    (params (tree ptr) (source ptr) (decl i64))
+    (returns i64)
+    (do
+      (let fs_stmt i64 (call_i64 surface_fn_body_first_stmt
+        (param_get tree) (param_get source) (param_get decl)))
+      (let fs_prev i64 (const_i64 -1))
+      (while
+        (condition (ne_i64 (local_get fs_stmt) (const_i64 -1)))
+        (do
+          (set fs_prev (local_get fs_stmt))
+          (set fs_stmt (call_i64 node_next_sibling
+            (param_get tree) (local_get fs_stmt)))))
+      (return (local_get fs_prev))))
+
+  ; `(pure)` / `(no_alloc)` / `(deterministic)`, or the same ident inside `(effects ...)`.
+  (fn surface_fn_has_effect
+    (params (tree ptr) (source ptr) (decl i64) (head ptr) (head_len i64))
+    (returns i32)
+    (do
+      (let fs_child i64 (call_i64 surface_fn_clause_start
+        (param_get tree) (param_get source) (param_get decl)))
+      (while
+        (condition (ne_i64 (local_get fs_child) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 surface_fn_is_header_clause
+              (param_get tree) (param_get source) (local_get fs_child))
+              (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (if
+            (condition (and_bool
+              (ne_i32 (call_i32 head_equals
+                (param_get tree) (param_get source) (local_get fs_child)
+                (param_get head) (param_get head_len)) (const_i32 0))
+              (eq_i64 (call_i64 count_children
+                (param_get tree) (local_get fs_child)) (const_i64 1))))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (local_get fs_child)
+              (const_string_ptr "effects") (const_i64 7)) (const_i32 0)))
+            (then (do
+              (let fs_mark i64 (call_i64 node_first_child
+                (param_get tree) (local_get fs_child)))
+              (set fs_mark (call_i64 node_next_sibling
+                (param_get tree) (local_get fs_mark)))
+              (while
+                (condition (ne_i64 (local_get fs_mark) (const_i64 -1)))
+                (do
+                  (if
+                    (condition (and_bool
+                      (eq_i32 (call_i32 node_kind
+                        (param_get tree) (local_get fs_mark)) (call_i32 node_ident))
+                      (ne_i32 (call_i32 ident_equals
+                        (param_get tree) (param_get source) (local_get fs_mark)
+                        (param_get head) (param_get head_len)) (const_i32 0))))
+                    (then (do (return (const_i32 1))))
+                    (else (do)))
+                  (set fs_mark (call_i64 node_next_sibling
+                    (param_get tree) (local_get fs_mark)))))))
+            (else (do)))
+          (set fs_child (call_i64 node_next_sibling
+            (param_get tree) (local_get fs_child)))))
+      (return (const_i32 0))))
+)

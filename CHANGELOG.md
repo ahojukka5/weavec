@@ -23,6 +23,13 @@ surface-language contract stabilises.
   STMT...)`, and `(while COND STMT...)`. Multi-statement `if` branches
   use `do` as the single branch form. Verbose `condition`/`then`/`else`
   wrappers remain accepted and `weavec fmt` rewrites them.
+- Canonical function declarations use compact signatures
+  `(fn f ((x T) ...) ReturnType ...)` with unwrapped bodies.
+  `(params ...)`, `(returns ...)`, a wrapping function-level `(do ...)`,
+  and standalone `(pure)` / `(no_alloc)` / `(deterministic)` remain
+  accepted. `weavec fmt` rewrites them to the compact form and grouped
+  `(effects ...)`. Derived `(uses ...)` headers are recognized but not
+  yet derived or cross-checked.
 - Language design principles now treat canonical whitespace as
   formatter-derived layout and `comment` as a standalone surface node,
   matching issues #334 and #337. Author-owned paragraph metadata and
