@@ -51,7 +51,7 @@ cat > "$TMP/backend-failure.weave" <<'EOF_SOURCE'
   (entry main
     (params)
     (returns i32)
-    (do (return (unknown_form 0)))))
+    (do (return (unknown_form_i32 0)))))
 EOF_SOURCE
 printf 'old-wir\n' > "$TMP/backend.wir"
 printf 'old-llvm\n' > "$TMP/backend.ll"

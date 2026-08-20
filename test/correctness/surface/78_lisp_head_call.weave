@@ -1,0 +1,47 @@
+; purpose: verify Lisp head-position calls lower like wrapped (call ...) forms.
+; expected-exit: 42
+; tags: call, literal-sugar, bool, ptr, string, set, return
+
+(program
+  (name "lisp-head-call")
+  (version "0.1")
+
+  (fn choose
+    (params (flag bool) (left i32) (right i32))
+    (returns i32)
+    (do
+      (if
+        (condition flag)
+        (then (do (return left)))
+        (else (do (return right))))))
+
+  (fn null_bonus
+    (params (value ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_ptr value (const_null)))
+        (then (do (return 2)))
+        (else (do (return 0))))))
+
+  (fn string_bonus
+    (params (value ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_ptr value (const_null)))
+        (then (do (return 0)))
+        (else (do (return 99))))))
+
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let base i32 0)
+      (set base 40)
+      (return
+        (add_i32
+          (choose true base 0)
+          (add_i32
+            (null_bonus null)
+            (string_bonus "weave")))))))

@@ -251,12 +251,14 @@ Declare an externally linked function with:
 Parameters are ordered `(name type)` pairs. A no-argument declaration uses
 `(params)`.
 
-Canonical source uses the return-type-independent call form:
+Canonical source uses Lisp head-position calls:
 
 ```weave
-(call malloc 64)
-(call free buffer)
+(malloc 64)
+(free buffer)
 ```
+
+The wrapper `(call malloc 64)` remains accepted.
 
 Explicit WIR-shaped forms remain accepted for low-level source:
 
@@ -527,11 +529,15 @@ types, and unsupported casts.
 
 ## Calls
 
-Canonical calls are:
+Canonical calls occupy Lisp head position:
 
 ```weave
-(call function arguments...)
+(function arguments...)
 ```
+
+`(call function arguments...)` remains accepted compatibility input, and
+`weavec fmt` rewrites it to the head-position form. A function whose name
+collides with reserved syntax is rejected.
 
 The compiler resolves the declaration, return representation, arity, and known
 argument types. Explicit compatibility forms remain available:

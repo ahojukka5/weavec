@@ -57,7 +57,7 @@ cat > "$TMP/expected.weave" <<'EOF_EXPECTED'
     (do
       (let wide i64 41)
       (let narrowed i32 (cast i32 wide))
-      (return (call add-one narrowed)))))
+      (return (add-one narrowed)))))
 ; trailing source comment
 EOF_EXPECTED
 cmp "$TMP/expected.weave" "$TMP/formatted.weave"
@@ -99,7 +99,7 @@ cat > "$TMP/application.weave" <<'EOF_APPLICATION'
 EOF_APPLICATION
 "$WEAVEC" fmt "$TMP/library.weave"
 "$WEAVEC" fmt "$TMP/application.weave"
-grep -Fq '(call answer)' "$TMP/application.weave"
+grep -Fq '(answer)' "$TMP/application.weave"
 if grep -Fq 'call_i32' "$TMP/application.weave"; then
   printf 'formatter: cross-file compatibility call remained typed\n' >&2
   exit 1

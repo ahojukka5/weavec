@@ -40,10 +40,9 @@ static weave_fmt_type weave_fmt_expected_for_child(
     int64_t head,
     size_t actual_index) {
     if (plan->kind == WEAVE_FMT_PLAN_CALL) {
-        if (actual_index == 0 || plan->signature == NULL) return WEAVE_FMT_UNKNOWN;
-        size_t parameter_index = actual_index - 1;
-        return parameter_index < plan->signature->parameter_count
-            ? plan->signature->parameters[parameter_index]
+        if (plan->signature == NULL) return WEAVE_FMT_UNKNOWN;
+        return actual_index < plan->signature->parameter_count
+            ? plan->signature->parameters[actual_index]
             : WEAVE_FMT_UNKNOWN;
     }
     if (plan->kind == WEAVE_FMT_PLAN_OPERATOR) {
@@ -131,7 +130,13 @@ static int weave_fmt_measure_list(
         return -1;
     }
     size_t width = 1;
-    if (plan.kind == WEAVE_FMT_PLAN_NORMAL) {
+    if (plan.kind == WEAVE_FMT_PLAN_CALL) {
+        if (plan.callee_node == -1) return -1;
+        int callee_width = weave_fmt_measure_node(
+            context, plan.callee_node, WEAVE_FMT_UNKNOWN, limit - width);
+        if (callee_width < 0) return -1;
+        width += (size_t)callee_width;
+    } else if (plan.kind == WEAVE_FMT_PLAN_NORMAL) {
         int head_width = weave_fmt_measure_node(
             context, head, WEAVE_FMT_UNKNOWN, limit - width);
         if (head_width < 0) return -1;
@@ -148,6 +153,9 @@ static int weave_fmt_measure_list(
     }
 
     int64_t child = node_next_sibling(context->tree, head);
+    if (plan.kind == WEAVE_FMT_PLAN_CALL && plan.skip_name_child && child != -1) {
+        child = node_next_sibling(context->tree, child);
+    }
     size_t actual_index = 0;
     while (child != -1) {
         if (width == limit) return -1;

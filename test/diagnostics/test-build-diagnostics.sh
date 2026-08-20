@@ -67,7 +67,7 @@ cat > "$TMP/unknown.weave" <<'EOF'
   (entry main
     (params)
     (returns i32)
-    (do (return (unknown_form 0)))))
+    (do (return (unknown_form_i32 0)))))
 EOF
 
 set +e
@@ -169,8 +169,8 @@ set +e
   2>"$TMP/duplicate-multifile.stderr"
 duplicate_multifile_exit="$?"
 set -e
-[[ "$duplicate_multifile_exit" -eq 11 ]] || {
-  printf 'test-build-diagnostics: expected duplicate-token backend exit 11, got %s\n' \
+[[ "$duplicate_multifile_exit" -eq 10 ]] || {
+  printf 'test-build-diagnostics: expected duplicate-token frontend exit 10, got %s\n' \
     "$duplicate_multifile_exit" >&2
   exit 1
 }
@@ -248,13 +248,13 @@ assert unknown["phase"] == "backend"
 assert unknown["exit_code"] == 11
 entry = unknown["diagnostics"][0]
 assert entry["code"] == "backend.unknown-expression-operator"
-assert entry["message"] == "unknown expression operator: unknown_form"
+assert entry["message"] == "unknown expression operator: unknown_form_i32"
 assert entry["span_origin"] == "propagated-wir-location"
 assert entry["span"] is not None
 source = (root / "unknown.weave").read_bytes()
 start = entry["span"]["start_byte"]
 end = entry["span"]["end_byte"]
-assert source[start:end] == b"unknown_form"
+assert source[start:end] == b"unknown_form_i32"
 
 missing_call = json.loads((root / "missing-call.diagnostics.json").read_text())
 assert missing_call["format"] == "weavec-diagnostics-v1"
@@ -285,16 +285,15 @@ assert source[start:end] == b"add_i32"
 assert start == source.rfind(b"add_i32")
 
 duplicate = json.loads((root / "duplicate-multifile.diagnostics.json").read_text())
-assert duplicate["phase"] == "backend"
-assert duplicate["exit_code"] == 11
+assert duplicate["phase"] == "frontend"
+assert duplicate["exit_code"] == 10
 entry = duplicate["diagnostics"][0]
-assert entry["code"] == "backend.unknown-expression-operator"
-assert entry["span_origin"] == "propagated-wir-location"
+assert entry["code"] == "frontend.call.wrong-arity"
 assert pathlib.Path(entry["source"]) == root / "duplicate-main.weave"
 source = (root / "duplicate-main.weave").read_bytes()
 start = entry["span"]["start_byte"]
 end = entry["span"]["end_byte"]
-assert source[start:end] == b"unknown_form"
+assert b"unknown_form" in source[start:end]
 
 identical = json.loads((root / "identical-inputs.diagnostics.json").read_text())
 assert identical["phase"] == "frontend"

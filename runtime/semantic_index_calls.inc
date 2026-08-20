@@ -25,7 +25,7 @@ static size_t weave_si_symbol_from_runtime(
     return WEAVE_SI_NONE;
 }
 
-static int weave_si_call_head(
+static int weave_si_wrapped_call_head(
     const weave_si_source *source,
     int64_t node) {
     static const char *const heads[] = {
@@ -38,6 +38,18 @@ static int weave_si_call_head(
     return 0;
 }
 
+static int weave_si_call_head(
+    const weave_si_source *source,
+    int64_t node) {
+    if (weave_si_wrapped_call_head(source, node)) return 1;
+    int64_t head = node_first_child(source->tree, node);
+    if (head < 0 || node_kind(source->tree, head) != node_ident()) return 0;
+    int64_t start = node_text_start(source->tree, head);
+    int64_t length = node_text_len(source->tree, head);
+    if (start < 0 || length <= 0) return 0;
+    return weave_surface_symbol_return_type(source->bytes, start, length) != 0;
+}
+
 static int weave_si_collect_calls_in_node(
     weave_si_model *model,
     size_t source_index,
@@ -47,7 +59,9 @@ static int weave_si_collect_calls_in_node(
     if (node < 0) return 1;
     if (node_kind(source->tree, node) == node_list() &&
         weave_si_call_head(source, node)) {
-        int64_t target_node = weave_si_nth_child(source->tree, node, 1);
+        int64_t target_node = weave_si_wrapped_call_head(source, node)
+            ? weave_si_nth_child(source->tree, node, 1)
+            : node_first_child(source->tree, node);
         size_t start = 0;
         size_t end = 0;
         if (target_node >= 0 &&

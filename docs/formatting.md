@@ -55,7 +55,7 @@ semantic facts.
 
 | Compatibility input | Canonical output |
 |---|---|
-| `(call_i32 f x)` | `(call f x)` |
+| `(call_i32 f x)` or `(call f x)` | `(f x)` |
 | `(add_i64 x y)` | `(op add x y)` |
 | `(eq_ptr x y)` | `(op equal x y)` |
 | `(cast_i64_to_i32 x)` | `(cast i32 x)` |

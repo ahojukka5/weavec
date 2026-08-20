@@ -22,6 +22,16 @@ cat > "$TMP/unresolved.weave" <<'WEAVE'
     (do (return (call missing 42)))))
 WEAVE
 
+cat > "$TMP/unresolved-direct.weave" <<'WEAVE'
+(program
+  (name "diagnostic-unresolved-direct")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do (return (missing 42)))))
+WEAVE
+
 cat > "$TMP/wrong-arity.weave" <<'WEAVE'
 (program
   (name "diagnostic-wrong-arity")
@@ -99,7 +109,7 @@ run_failure() {
   fi
 }
 
-for name in unresolved wrong-arity argument-type operator-type invalid-cast; do
+for name in unresolved unresolved-direct wrong-arity argument-type operator-type invalid-cast; do
   run_failure "$name"
 done
 

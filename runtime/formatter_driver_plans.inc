@@ -95,6 +95,11 @@ static weave_fmt_type weave_fmt_expr_type(
             context, weave_fmt_nth_child(context, node, 1));
         return signature != NULL ? signature->return_type : WEAVE_FMT_UNKNOWN;
     }
+    {
+        const weave_fmt_signature *direct = weave_fmt_lookup_signature_node(
+            context, head);
+        if (direct != NULL) return direct->return_type;
+    }
     size_t base_length = 0;
     weave_fmt_type call_type = weave_fmt_parse_typed_suffix(
         context, head, &base_length);

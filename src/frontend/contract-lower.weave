@@ -164,9 +164,9 @@
         (then (do
           (if
             (condition (or_bool
-              (ne_i32 (call_i32 surface_node_is_list_head
-                (param_get tree) (param_get source) (param_get node)
-                (const_string_ptr "call") (const_i64 4)) (const_i32 0))
+              (ne_i32 (call_i32 surface_is_call_node
+                (param_get tree) (param_get source) (param_get node))
+                (const_i32 0))
               (or_bool
                 (ne_i32 (call_i32 surface_node_is_list_head
                   (param_get tree) (param_get source) (param_get node)
@@ -235,8 +235,9 @@
           (if
             (condition (or_bool
               (or_bool
-                (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
-                  (const_string_ptr "call") (const_i64 4)) (const_i32 0))
+                (ne_i32 (call_i32 surface_is_call_node
+                  (param_get tree) (param_get source) (param_get node))
+                  (const_i32 0))
                 (ne_i32 (call_i32 head_equals (param_get tree) (param_get source) (param_get node)
                   (const_string_ptr "let") (const_i64 3)) (const_i32 0)))
               (or_bool

@@ -21,9 +21,10 @@ static int weave_fmt_plan_list(
     }
     if (weave_fmt_node_text_equals(context, head, "call")) {
         plan->kind = WEAVE_FMT_PLAN_CALL;
-        plan->virtual_head = "call";
+        plan->callee_node = weave_fmt_nth_child(context, list, 1);
+        plan->skip_name_child = 1;
         plan->signature = weave_fmt_lookup_signature_node(
-            context, weave_fmt_nth_child(context, list, 1));
+            context, plan->callee_node);
         return 1;
     }
     size_t base_length = 0;
@@ -48,14 +49,23 @@ static int weave_fmt_plan_list(
         if (signature != NULL) {
             if (signature->return_type == call_type) {
                 plan->kind = WEAVE_FMT_PLAN_CALL;
-                plan->virtual_head = "call";
+                plan->callee_node = weave_fmt_nth_child(context, list, 1);
+                plan->skip_name_child = 1;
                 plan->signature = signature;
             }
         } else if (!context->has_struct_declarations) {
             plan->kind = WEAVE_FMT_PLAN_CALL;
-            plan->virtual_head = "call";
+            plan->callee_node = weave_fmt_nth_child(context, list, 1);
+            plan->skip_name_child = 1;
             plan->signature = NULL;
         }
+        return 1;
+    }
+    if (weave_fmt_lookup_signature_node(context, head) != NULL) {
+        plan->kind = WEAVE_FMT_PLAN_CALL;
+        plan->callee_node = head;
+        plan->skip_name_child = 0;
+        plan->signature = weave_fmt_lookup_signature_node(context, head);
         return 1;
     }
     if (weave_fmt_node_text_equals(context, head, "op")) {

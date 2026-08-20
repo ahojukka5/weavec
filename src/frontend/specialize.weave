@@ -17,8 +17,19 @@
     (params (tree ptr) (source ptr) (call_node i64))
     (returns i64)
     (do
-      (let spec_child i64 (call_i64 nth_child
-        (param_get tree) (param_get call_node) (const_i64 2)))
+      (let spec_child i64 (const_i64 -1))
+      (if
+        (condition (ne_i32 (call_i32 surface_is_call_node
+          (param_get tree) (param_get source) (param_get call_node))
+          (const_i32 0)))
+        (then (do
+          (set spec_child (call_i64 node_next_sibling
+            (param_get tree)
+            (call_i64 surface_call_name_node
+              (param_get tree) (param_get source) (param_get call_node))))))
+        (else (do
+          (set spec_child (call_i64 nth_child
+            (param_get tree) (param_get call_node) (const_i64 2))))))
       (if
         (condition (eq_i32 (call_i32 surface_node_is_list_head
           (param_get tree) (param_get source) (local_get spec_child)
@@ -121,13 +132,8 @@
     (params (tree ptr) (source ptr) (call_node i64))
     (returns i32)
     (do
-      (if
-        (condition (lt_i64 (call_i64 count_children
-          (param_get tree) (param_get call_node)) (const_i64 2)))
-        (then (do (return (call_i32 surface_type_unknown))))
-        (else (do)))
-      (let spec_fn_name i64 (call_i64 nth_child
-        (param_get tree) (param_get call_node) (const_i64 1)))
+      (let spec_fn_name i64 (call_i64 surface_call_name_node
+        (param_get tree) (param_get source) (param_get call_node)))
       (if
         (condition (eq_i32 (call_i32 surface_node_is_ident
           (param_get tree) (local_get spec_fn_name)) (const_i32 0)))

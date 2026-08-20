@@ -9,11 +9,14 @@ This document describes the implemented typed-elaboration forms. WIR core versio
 
 ## Canonical calls
 
-Ordinary source should use one return-type-independent call form:
+Ordinary source should use Lisp head-position calls:
 
 ```weave
-(call add-two left right)
+(add-two left right)
 ```
+
+The wrapper `(call add-two left right)` remains accepted as compatibility
+input. `weavec fmt` prints the head-position form.
 
 The compiler resolves `add-two` from declarations collected across all input
 files, checks its arity and known argument types, and emits the corresponding
@@ -24,7 +27,8 @@ canonical WIR form such as:
 ```
 
 The caller may appear before the declaration or in another input file. Source
-argument order does not limit semantic lookup.
+argument order does not limit semantic lookup. A function whose name collides
+with reserved syntax such as `if`, `let`, or `return` is rejected.
 
 Existing explicit forms such as `call_i32`, `call_i64`, `call_ptr`, and
 `call_void` remain accepted for compatibility and low-level compiler sources.
@@ -124,7 +128,7 @@ compound types such as `(owned T)` remain rejected.
 A generic call names its type arguments explicitly:
 
 ```weave
-(call identity (type-args i32) 1)
+(identity (type-args i32) 1)
 ```
 
 The compiler emits one concrete WIR function per distinct instantiation.
@@ -196,7 +200,7 @@ types must match. It lowers to a tag test: `Ok` binds the success
 payload, `Err` returns that same error constructor.
 
 ```weave
-(let n i32 (try (call parse-digit ch)))
+(let n i32 (try (parse-digit ch)))
 (return (variant Result (type-args i32 i32) Ok n))
 ```
 
@@ -255,11 +259,11 @@ Examples:
 (set count 1)
 (return 42)
 (return)
-(call choose true 40 2)
-(call consume-pointer null)
-(call consume-string "weave")
-(call consume-raw #"C:\path")
-(call consume-multiline """
+(choose true 40 2)
+(consume-pointer null)
+(consume-string "weave")
+(consume-raw #"C:\path")
+(consume-multiline """
 line
 """)
 (interp "count=" n)
@@ -368,7 +372,7 @@ contain `result` at any nesting depth:
 ```weave
 (ensures
   (op equal
-    (cast i64 (call identity result))
+    (cast i64 (identity result))
     (cast i64 result)))
 ```
 

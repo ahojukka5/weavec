@@ -10,6 +10,11 @@ surface-language contract stabilises.
 
 ### Changed
 
+- Ordinary calls use Lisp head position: `(f args...)` is canonical.
+  `(call f args...)` remains accepted and `weavec fmt` rewrites it to the
+  direct form. Function names that collide with reserved syntax are
+  rejected. WIR-shaped heads such as `add_i32` and `ptr_add` are
+  unchanged.
 - Language design principles now treat canonical whitespace as
   formatter-derived layout and `comment` as a standalone surface node,
   matching issues #334 and #337. Author-owned paragraph metadata and
