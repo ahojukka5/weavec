@@ -19,6 +19,10 @@ surface-language contract stabilises.
   `(= x y)`, `(and ready valid)`, and `(bit-and x y)`. `(op add a b)`
   remains accepted and `weavec fmt` rewrites it to the compact form.
   Comparison and arithmetic stay binary; mixed types still fail.
+- Canonical control flow uses `(if COND THEN ELSE)`, `(when COND
+  STMT...)`, and `(while COND STMT...)`. Multi-statement `if` branches
+  use `do` as the single branch form. Verbose `condition`/`then`/`else`
+  wrappers remain accepted and `weavec fmt` rewrites them.
 - Language design principles now treat canonical whitespace as
   formatter-derived layout and `comment` as a standalone surface node,
   matching issues #334 and #337. Author-owned paragraph metadata and

@@ -56,6 +56,81 @@ static void weave_fmt_restore_function_scope(
     context->current_return_type = saved_return_type;
 }
 
+static int weave_fmt_emit_control_stmts(
+    weave_fmt_context *context,
+    int64_t body,
+    int variadic,
+    size_t indentation) {
+    if (body == -1) return 1;
+    if (variadic && weave_fmt_list_headed(context, body, "do")) {
+        int64_t stmt = node_next_sibling(
+            context->tree, node_first_child(context->tree, body));
+        while (stmt != -1) {
+            if (!weave_fmt_write_newline(context) ||
+                !weave_fmt_write_indent(context, indentation) ||
+                !weave_fmt_format_node(
+                    context, stmt, indentation, WEAVE_FMT_UNKNOWN, 0)) {
+                return 0;
+            }
+            stmt = node_next_sibling(context->tree, stmt);
+        }
+        return 1;
+    }
+    return weave_fmt_write_newline(context) &&
+        weave_fmt_write_indent(context, indentation) &&
+        weave_fmt_format_node(
+            context, body, indentation, WEAVE_FMT_UNKNOWN, 0);
+}
+
+static int weave_fmt_format_control(
+    weave_fmt_context *context,
+    const weave_fmt_plan *plan,
+    size_t indentation) {
+    if (plan->virtual_head == NULL || plan->control_cond == -1) return 0;
+    if (!weave_fmt_write_char(context, '(') ||
+        !weave_fmt_write_cstr(context, plan->virtual_head) ||
+        !weave_fmt_write_char(context, ' ') ||
+        !weave_fmt_format_node(
+            context,
+            plan->control_cond,
+            indentation + 2,
+            WEAVE_FMT_BOOL,
+            1)) {
+        return 0;
+    }
+    if (strcmp(plan->virtual_head, "if") == 0) {
+        if (!weave_fmt_write_newline(context) ||
+            !weave_fmt_write_indent(context, indentation + 2) ||
+            !weave_fmt_format_node(
+                context,
+                plan->control_then,
+                indentation + 2,
+                WEAVE_FMT_UNKNOWN,
+                0)) {
+            return 0;
+        }
+        if (plan->control_else != -1) {
+            if (!weave_fmt_write_newline(context) ||
+                !weave_fmt_write_indent(context, indentation + 2) ||
+                !weave_fmt_format_node(
+                    context,
+                    plan->control_else,
+                    indentation + 2,
+                    WEAVE_FMT_UNKNOWN,
+                    0)) {
+                return 0;
+            }
+        }
+    } else if (!weave_fmt_emit_control_stmts(
+            context,
+            plan->control_then,
+            plan->control_variadic,
+            indentation + 2)) {
+        return 0;
+    }
+    return weave_fmt_write_char(context, ')');
+}
+
 static int weave_fmt_format_operator_child(
     weave_fmt_context *context,
     int64_t list,

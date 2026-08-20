@@ -1,0 +1,8 @@
+(core-module
+  (core-version 3)
+  (decls
+    (fn clamp (params (value i32)) (returns i32) (do (if (condition (lt_i32 value (const_i32 0))) (then (do (return (const_i32 0)))) (else (do))) (return value)))
+    (fn main (params) (returns i32) (do (let n i32 (const_i32 0))
+(if (condition (const_bool true)) (then (do (set n (const_i32 41)))) (else (do (set n (const_i32 1))))) (let i i32 (const_i32 0)) (while (condition (lt_i32 i (const_i32 1))) (do (set i (add_i32 i (const_i32 1))))) (if (condition (lt_i32 (call_i32 clamp (const_i32 -3)) (const_i32 1))) (then (do (return (add_i32 n i)))) (else (do (return (const_i32 0)))))))
+  )
+)

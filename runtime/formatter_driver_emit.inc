@@ -74,6 +74,16 @@ static int weave_fmt_format_list(
         if (!formatted) weave_fmt_fail(context);
         return formatted;
     }
+    if (plan.kind == WEAVE_FMT_PLAN_CONTROL) {
+        int formatted = weave_fmt_format_control(
+            context, &plan, indentation);
+        if (function_scope) {
+            weave_fmt_restore_function_scope(
+                context, saved_binding_count, saved_return_type);
+        }
+        if (!formatted) weave_fmt_fail(context);
+        return formatted;
+    }
 
     int measured = weave_fmt_measure_list(
         context, list, expected, 88 > indentation ? 88 - indentation : 1);

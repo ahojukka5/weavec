@@ -409,32 +409,29 @@ optimization profile promotes eligible loop-carried values to SSA phis. See
   (return expression))
 ```
 
-An `if` statement is:
+An `if` statement is `(if CONDITION THEN ELSE)`. Each branch is one form.
+Multi-statement branches use `do`. No-else guards use `when`:
 
 ```weave
-(if
-  (condition (< value limit))
-  (then (do
-    statements...))
-  (else (do
-    statements...)))
+(if (< value limit)
+  (return value)
+  (return limit))
+(when (< value 0)
+  (return 0))
 ```
 
-The else clause may be omitted on a statement `if`. An `if` whose `then` and
-`else` are expressions is a value; else is required and the branch types must
-agree. It initializes a `let` or is returned:
+An `if` whose branches are expressions is a value; else is required and the
+branch types must agree. It initializes a `let` or is returned:
 
 ```weave
-(let n i32 (if (condition flag) (then 1) (else 2)))
+(let n i32 (if flag 1 2))
 ```
 
-A `while` loop is:
+A `while` loop is `(while CONDITION STATEMENT...)`:
 
 ```weave
-(while
-  (condition (< index limit))
-  (do
-    statements...))
+(while (< index limit)
+  (set index (+ index 1)))
 ```
 
 A counted `for` binds a name over a half-open integer range `[START, END)`:

@@ -109,6 +109,7 @@ typedef enum weave_fmt_plan_kind {
     WEAVE_FMT_PLAN_OPERATOR,
     WEAVE_FMT_PLAN_CAST,
     WEAVE_FMT_PLAN_CONSTRUCTOR,
+    WEAVE_FMT_PLAN_CONTROL,
 } weave_fmt_plan_kind;
 
 typedef struct weave_fmt_plan {
@@ -121,6 +122,10 @@ typedef struct weave_fmt_plan {
     const weave_fmt_signature *signature;
     const weave_fmt_struct *structure;
     int comparison_or_boolean;
+    int64_t control_cond;
+    int64_t control_then;
+    int64_t control_else;
+    int control_variadic;
 } weave_fmt_plan;
 
 typedef struct weave_fmt_context {

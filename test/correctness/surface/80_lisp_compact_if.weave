@@ -1,0 +1,27 @@
+; purpose: verify compact if, when, and while lower like wrapped ceremony.
+; expected-exit: 42
+; tags: if, when, while, return, bool
+
+(program
+  (name "lisp-compact-if")
+  (version "0.1")
+
+  (fn clamp
+    (params (value i32))
+    (returns i32)
+    (do
+      (when (< value 0)
+        (return 0))
+      (return value)))
+
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let n i32 (if true 41 1))
+      (let i i32 0)
+      (while (< i 1)
+        (set i (+ i 1)))
+      (if (< (clamp -3) 1)
+        (return (+ n i))
+        (return 0)))))

@@ -8,6 +8,70 @@ static int weave_fmt_plan_list(
         return 0;
     }
     plan->kind = WEAVE_FMT_PLAN_NORMAL;
+    if (weave_fmt_node_text_equals(context, head, "if") &&
+        weave_fmt_list_headed(
+            context, weave_fmt_nth_child(context, list, 1), "condition")) {
+        int64_t cond = weave_fmt_named_body(
+            context, weave_fmt_nth_child(context, list, 1), "condition");
+        int64_t then_body = weave_fmt_unwrap_do_single(
+            context,
+            weave_fmt_named_body(
+                context, weave_fmt_nth_child(context, list, 2), "then"));
+        int64_t else_clause = weave_fmt_nth_child(context, list, 3);
+        int64_t else_body = -1;
+        if (else_clause != -1) {
+            else_body = weave_fmt_unwrap_do_single(
+                context, weave_fmt_named_body(context, else_clause, "else"));
+            if (weave_fmt_do_is_empty(context, else_body) ||
+                (weave_fmt_list_headed(context, else_clause, "else") &&
+                 weave_fmt_named_body(context, else_clause, "else") != -1 &&
+                 weave_fmt_do_is_empty(
+                     context,
+                     weave_fmt_named_body(context, else_clause, "else")))) {
+                else_body = -1;
+            }
+            if (else_body != -1 &&
+                weave_fmt_list_headed(context, else_clause, "else") &&
+                weave_fmt_do_is_empty(
+                    context,
+                    weave_fmt_named_body(context, else_clause, "else"))) {
+                else_body = -1;
+            }
+        }
+        if (else_body == -1 || weave_fmt_do_is_empty(context, else_body)) {
+            plan->kind = WEAVE_FMT_PLAN_CONTROL;
+            plan->virtual_head = "when";
+            plan->control_cond = cond;
+            plan->control_then = then_body;
+            plan->control_else = -1;
+            plan->control_variadic = weave_fmt_list_headed(
+                context, then_body, "do");
+            return 1;
+        }
+        plan->kind = WEAVE_FMT_PLAN_CONTROL;
+        plan->virtual_head = "if";
+        plan->control_cond = cond;
+        plan->control_then = then_body;
+        plan->control_else = else_body;
+        plan->control_variadic = 0;
+        return 1;
+    }
+    if (weave_fmt_node_text_equals(context, head, "while") &&
+        weave_fmt_list_headed(
+            context, weave_fmt_nth_child(context, list, 1), "condition")) {
+        int64_t cond = weave_fmt_named_body(
+            context, weave_fmt_nth_child(context, list, 1), "condition");
+        int64_t body = weave_fmt_nth_child(context, list, 2);
+        plan->kind = WEAVE_FMT_PLAN_CONTROL;
+        plan->virtual_head = "while";
+        plan->control_cond = cond;
+        plan->control_then = weave_fmt_list_headed(context, body, "do")
+            ? body
+            : body;
+        plan->control_else = -1;
+        plan->control_variadic = 1;
+        return 1;
+    }
     if (weave_fmt_node_text_equals(context, head, "new")) {
         const weave_fmt_struct *structure = weave_fmt_lookup_struct_node(
             context, weave_fmt_nth_child(context, list, 1));
