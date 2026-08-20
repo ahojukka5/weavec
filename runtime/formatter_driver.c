@@ -115,6 +115,8 @@ typedef struct weave_fmt_plan {
     weave_fmt_plan_kind kind;
     const char *virtual_head;
     const char *virtual_second;
+    int64_t callee_node;
+    int skip_name_child;
     weave_fmt_type encoded_type;
     const weave_fmt_signature *signature;
     const weave_fmt_struct *structure;

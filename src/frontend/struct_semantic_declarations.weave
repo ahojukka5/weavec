@@ -108,6 +108,21 @@
           (else (do)))
         (let sst_name_node i64 (call_i64 nth_child
           (param_get sst_tree) (param_get sst_decl_node) (const_i64 1)))
+        (if
+          (condition (ne_i32 (call_i32 surface_ident_is_reserved_syntax
+            (param_get sst_tree) (param_get sst_source)
+            (local_get sst_name_node)) (const_i32 0)))
+          (then (do
+            (call_void surface_error_prefix (const_string_ptr "declaration"))
+            (call_void write_cstr
+              (const_i32 2)
+              (const_string_ptr "function name collides with reserved syntax "))
+            (call_void emit_node_text
+              (const_i32 2) (param_get sst_source) (param_get sst_tree)
+              (local_get sst_name_node))
+            (call_void write_byte (const_i32 2) (const_i32 10))
+            (return (const_i32 1))))
+          (else (do)))
         (let sst_params_node i64 (call_i64 find_named_clause
           (param_get sst_tree) (param_get sst_source)
           (param_get sst_decl_node)

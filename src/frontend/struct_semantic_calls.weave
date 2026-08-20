@@ -17,17 +17,8 @@
       (params (sst_fd i32) (sst_source ptr) (sst_tree ptr) (sst_node i64))
       (returns void)
       (do
-        (if
-          (condition (lt_i64 (call_i64 count_children
-            (param_get sst_tree) (param_get sst_node)) (const_i64 2)))
-          (then (do
-            (call_void sdiag_emit_call
-              (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
-              (param_get sst_node))
-            (return_void)))
-          (else (do)))
-        (let sst_name_node i64 (call_i64 nth_child
-          (param_get sst_tree) (param_get sst_node) (const_i64 1)))
+        (let sst_name_node i64 (call_i64 surface_call_name_node
+          (param_get sst_tree) (param_get sst_source) (param_get sst_node)))
         (if
           (condition (eq_i32 (call_i32 surface_node_is_ident
             (param_get sst_tree) (local_get sst_name_node)) (const_i32 0)))
@@ -197,10 +188,11 @@
         (let sst_expected_count i32 (call_i32 weave_surface_symbol_parameter_count
           (param_get sst_source) (local_get sst_name_start)
           (local_get sst_name_length)))
-        (let sst_skip i64 (const_i64 2))
+        (let sst_skip i64 (call_i64 surface_call_prefix_count
+          (param_get sst_tree) (param_get sst_source) (param_get sst_node)))
         (if
           (condition (ne_i64 (local_get sst_type_args) (const_i64 -1)))
-          (then (do (set sst_skip (const_i64 3))))
+          (then (do (set sst_skip (add_i64 (local_get sst_skip) (const_i64 1)))))
           (else (do)))
         (let sst_actual_count i64 (sub_i64
           (call_i64 count_children (param_get sst_tree) (param_get sst_node))

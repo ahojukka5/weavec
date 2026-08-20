@@ -88,7 +88,12 @@ static int weave_fmt_format_list(
             goto failure;
         }
     }
-    if (plan.kind == WEAVE_FMT_PLAN_NORMAL) {
+    if (plan.kind == WEAVE_FMT_PLAN_CALL) {
+        if (plan.callee_node == -1 ||
+            !weave_fmt_write_atom(context, plan.callee_node)) {
+            goto failure;
+        }
+    } else if (plan.kind == WEAVE_FMT_PLAN_NORMAL) {
         if (!weave_fmt_write_atom(context, head)) goto failure;
     } else if (!weave_fmt_write_cstr(context, plan.virtual_head)) {
         goto failure;
@@ -101,8 +106,12 @@ static int weave_fmt_format_list(
     }
 
     int64_t child = node_next_sibling(context->tree, head);
-    size_t actual_index = 0;
     size_t cursor = weave_fmt_node_end(context, head);
+    if (plan.kind == WEAVE_FMT_PLAN_CALL && plan.skip_name_child && child != -1) {
+        cursor = weave_fmt_node_end(context, child);
+        child = node_next_sibling(context->tree, child);
+    }
+    size_t actual_index = 0;
     int multiline_started = head_gap.comments != 0;
     while (child != -1) {
         size_t child_start = weave_fmt_node_start(context, child);

@@ -99,26 +99,15 @@
     (do
       (let sdiag_child_count i64 (call_i64 count_children
         (param_get sdiag_tree) (param_get sdiag_node)))
-      (if
-        (condition (lt_i64 (local_get sdiag_child_count) (const_i64 2)))
-        (then (do
-          (call_void sdiag_record
-            (param_get sdiag_tree) (param_get sdiag_source) (param_get sdiag_node)
-            (const_string_ptr "frontend.call.missing-target")
-            (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
-            (const_i32 -1) (const_i32 -1) (const_i32 -1) (const_null)
-            (const_i64 -1) (const_i32 0))
-          (return_void)))
-        (else (do)))
-      (let sdiag_name_node i64 (call_i64 nth_child
-        (param_get sdiag_tree) (param_get sdiag_node) (const_i64 1)))
+      (let sdiag_name_node i64 (call_i64 surface_call_name_node
+        (param_get sdiag_tree) (param_get sdiag_source) (param_get sdiag_node)))
       (if
         (condition (eq_i32 (call_i32 surface_node_is_ident
           (param_get sdiag_tree) (local_get sdiag_name_node)) (const_i32 0)))
         (then (do
           (call_void sdiag_record
-            (param_get sdiag_tree) (param_get sdiag_source) (local_get sdiag_name_node)
-            (const_string_ptr "frontend.call.invalid-target")
+            (param_get sdiag_tree) (param_get sdiag_source) (param_get sdiag_node)
+            (const_string_ptr "frontend.call.missing-target")
             (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
             (const_i32 -1) (const_i32 -1) (const_i32 -1) (const_null)
             (const_i64 -1) (const_i32 0))
@@ -135,7 +124,10 @@
         (param_get sdiag_source) (local_get sdiag_name_start)
         (local_get sdiag_name_length)))
       (let sdiag_actual_count_value i64 (sub_i64
-        (local_get sdiag_child_count) (const_i64 2)))
+        (local_get sdiag_child_count)
+        (call_i64 surface_call_prefix_count
+          (param_get sdiag_tree) (param_get sdiag_source)
+          (param_get sdiag_node))))
       (if
         (condition (eq_i32 (local_get sdiag_return_type)
           (call_i32 surface_type_unknown)))

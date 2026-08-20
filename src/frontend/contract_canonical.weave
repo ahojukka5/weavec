@@ -161,12 +161,12 @@
         (then (do (return (call_i32 weave_surface_get_return_type))))
         (else (do)))
       (if
-        (condition (ne_i32 (call_i32 surface_node_is_list_head
-          (param_get cce_tree) (param_get cce_source) (param_get cce_node)
-          (const_string_ptr "call") (const_i64 4)) (const_i32 0)))
+        (condition (ne_i32 (call_i32 surface_is_call_node
+          (param_get cce_tree) (param_get cce_source) (param_get cce_node))
+          (const_i32 0)))
         (then (do
-          (let cce_call_type_name_node i64 (call_i64 nth_child
-            (param_get cce_tree) (param_get cce_node) (const_i64 1)))
+          (let cce_call_type_name_node i64 (call_i64 surface_call_name_node
+            (param_get cce_tree) (param_get cce_source) (param_get cce_node)))
           (if
             (condition (eq_i32 (call_i32 surface_node_is_ident
               (param_get cce_tree) (local_get cce_call_type_name_node))
@@ -226,9 +226,9 @@
         (then (do
           (if
             (condition (or_bool
-              (ne_i32 (call_i32 surface_node_is_list_head
-                (param_get cce_tree) (param_get cce_source) (param_get cce_node)
-                (const_string_ptr "call") (const_i64 4)) (const_i32 0))
+              (ne_i32 (call_i32 surface_is_call_node
+                (param_get cce_tree) (param_get cce_source) (param_get cce_node))
+                (const_i32 0))
               (or_bool
                 (ne_i32 (call_i32 surface_node_is_list_head
                   (param_get cce_tree) (param_get cce_source) (param_get cce_node)
@@ -257,18 +257,8 @@
       (cce_return_val i64))
     (returns void)
     (do
-      (if
-        (condition (lt_i64 (call_i64 count_children
-          (param_get cce_tree) (param_get cce_node)) (const_i64 2)))
-        (then (do
-          (call_void surface_error_prefix (const_string_ptr "call"))
-          (call_void write_cstr (const_i32 2) (const_string_ptr "missing function name"))
-          (call_void write_byte (const_i32 2) (const_i32 10))
-          (call_void sop_emit_failure_expr (param_get cce_fd))
-          (return_void)))
-        (else (do)))
-      (let cce_call_name_node i64 (call_i64 nth_child
-        (param_get cce_tree) (param_get cce_node) (const_i64 1)))
+      (let cce_call_name_node i64 (call_i64 surface_call_name_node
+        (param_get cce_tree) (param_get cce_source) (param_get cce_node)))
       (if
         (condition (eq_i32 (call_i32 surface_node_is_ident
           (param_get cce_tree) (local_get cce_call_name_node)) (const_i32 0)))
@@ -293,7 +283,8 @@
           (local_get cce_call_name_len)))
       (let cce_call_actual_count i64 (sub_i64
         (call_i64 count_children (param_get cce_tree) (param_get cce_node))
-        (const_i64 2)))
+        (call_i64 surface_call_prefix_count
+          (param_get cce_tree) (param_get cce_source) (param_get cce_node))))
       (if
         (condition (eq_i32
           (local_get cce_call_return_type) (call_i32 surface_type_unknown)))
@@ -740,9 +731,9 @@
     (returns void)
     (do
       (if
-        (condition (ne_i32 (call_i32 surface_node_is_list_head
-          (param_get cce_tree) (param_get cce_source) (param_get cce_node)
-          (const_string_ptr "call") (const_i64 4)) (const_i32 0)))
+        (condition (ne_i32 (call_i32 surface_is_call_node
+          (param_get cce_tree) (param_get cce_source) (param_get cce_node))
+          (const_i32 0)))
         (then (do
           (call_void cce_emit_call
             (param_get cce_fd) (param_get cce_source) (param_get cce_tree)
@@ -773,3 +764,4 @@
       (return_void)))
 
 )
+

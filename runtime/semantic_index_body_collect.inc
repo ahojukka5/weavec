@@ -136,6 +136,9 @@ static int weave_si_collect_expression_references(
                strncmp(head, "call_", 5) == 0) {
         result = weave_si_collect_children_from(
             model, source_index, caller_symbol_index, node, 2);
+    } else if (weave_si_call_head(source, node)) {
+        result = weave_si_collect_children_from(
+            model, source_index, caller_symbol_index, node, 1);
     } else if (strcmp(head, "op") == 0) {
         result = weave_si_collect_children_from(
             model, source_index, caller_symbol_index, node, 2);

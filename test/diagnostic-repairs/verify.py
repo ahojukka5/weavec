@@ -59,6 +59,12 @@ def main() -> None:
     assert span_text(unresolved, source) == b"missing"
     assert unresolved["repairs"] == []
 
+    unresolved_direct, source = entry(root, "unresolved-direct")
+    assert unresolved_direct["code"] == "frontend.symbol.unresolved"
+    assert unresolved_direct["symbol"] == "missing"
+    assert span_text(unresolved_direct, source) == b"missing"
+    assert unresolved_direct["repairs"] == []
+
     wrong_arity, source = entry(root, "wrong-arity")
     assert wrong_arity["code"] == "frontend.call.wrong-arity"
     assert wrong_arity["symbol"] == "add-two"

@@ -77,7 +77,8 @@
       (if
         (condition (ne_i32 (call_i32 explain_node_is_call (param_get tree) (param_get source) (param_get node)) (const_i32 0)))
         (then (do
-          (let callee i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
+          (let callee i64 (call_i64 surface_call_name_node
+            (param_get tree) (param_get source) (param_get node)))
           (if
             (condition (ne_i32 (call_i32 explain_is_local_fn_name
               (param_get tree) (param_get source) (param_get first_decl) (local_get callee)) (const_i32 0)))

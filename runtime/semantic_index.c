@@ -48,6 +48,10 @@ extern int32_t weave_surface_enum_spec_arg_type(
     int32_t index,
     int32_t arg_index);
 extern char *weave_semantic_type_display(int32_t type);
+extern int32_t weave_surface_symbol_return_type(
+    const char *source,
+    int64_t start,
+    int64_t length);
 
 typedef struct weave_si_sha256 {
     uint32_t state[8];

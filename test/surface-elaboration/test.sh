@@ -35,6 +35,7 @@ run_fixture() {
 run_fixture 75_canonical_typed_call 42
 run_fixture 76_canonical_ops_and_casts 42
 run_fixture 77_contract_canonical_result 42
+run_fixture 78_lisp_head_call 42
 
 cat > "$TMP/library.weave" <<'WEAVE'
 (program
@@ -53,7 +54,7 @@ cat > "$TMP/main.weave" <<'WEAVE'
   (entry main
     (params)
     (returns i32)
-    (do (return (call forty_two)))))
+    (do (return (forty_two)))))
 WEAVE
 
 # Put the caller first to prove that pass-zero registration resolves forward
@@ -66,6 +67,28 @@ set +e
 status=$?
 set -e
 [[ "$status" -eq 42 ]]
+
+cat > "$TMP/reserved.weave" <<'WEAVE'
+(program
+  (name "reserved-call-name")
+  (version "0.1")
+  (fn if
+    (params (value i32))
+    (returns i32)
+    (do (return value)))
+  (entry main
+    (params)
+    (returns i32)
+    (do (return 0))))
+WEAVE
+set +e
+"$WEAVEC" --frontend "$TMP/reserved.wir" "$TMP/reserved.weave" \
+  2>"$TMP/reserved.stderr"
+status=$?
+set -e
+[[ "$status" -ne 0 ]]
+grep -Fq 'function name collides with reserved syntax if' \
+  "$TMP/reserved.stderr"
 
 cat > "$TMP/contract.weave" <<'WEAVE'
 (program
