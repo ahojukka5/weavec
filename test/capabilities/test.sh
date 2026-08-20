@@ -170,6 +170,7 @@ assert {
     "not",
     "bit-and",
     "cast",
+    "when",
     "requires",
     "ensures",
 }.issubset(form_heads)

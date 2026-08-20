@@ -58,6 +58,9 @@ semantic facts.
 | `(call_i32 f x)` or `(call f x)` | `(f x)` |
 | `(add_i64 x y)` or `(op add x y)` | `(+ x y)` |
 | `(eq_ptr x y)` or `(op equal x y)` | `(= x y)` |
+| `(if (condition c) (then (do s)) (else (do)))` | `(when c s)` |
+| `(if (condition c) (then (do a)) (else (do b)))` | `(if c a b)` |
+| `(while (condition c) (do s))` | `(while c s)` |
 | `(cast_i64_to_i32 x)` | `(cast i32 x)` |
 | `(param_get x)` or `(local_get x)` | `x`, when the binding is authoritative |
 | `(const_i32 1)` | `1`, in an authoritative `i32` context |
@@ -154,13 +157,11 @@ Statements and control flow:
 (do
   (let current i32 0)
   (set current (+ current 1))
-  (if
-    (condition (< current 10))
-    (then (do (set current (* current 2))))
-    (else (do (set current 10))))
-  (while
-    (condition (< current 20))
-    (do (set current (+ current 1))))
+  (if (< current 10)
+    (set current (* current 2))
+    (set current 10))
+  (while (< current 20)
+    (set current (+ current 1)))
   (return current))
 ```
 

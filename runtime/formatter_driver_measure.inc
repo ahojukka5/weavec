@@ -77,6 +77,7 @@ static int weave_fmt_list_requires_multiline(
         weave_fmt_node_text_equals(context, head, "entry") ||
         weave_fmt_node_text_equals(context, head, "struct") ||
         weave_fmt_node_text_equals(context, head, "if") ||
+        weave_fmt_node_text_equals(context, head, "when") ||
         weave_fmt_node_text_equals(context, head, "while")) {
         return 1;
     }

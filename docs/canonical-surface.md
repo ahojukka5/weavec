@@ -277,29 +277,43 @@ line
 
 ## Conditionals
 
-An `if` may omit its else:
+Canonical no-else guards use `when`. The body is a variadic statement list:
 
 ```weave
-(if (condition (< value 0))
-  (then (do (return 0))))
+(when (< value 0)
+  (return 0))
 (return value)
 ```
 
-The short form is normalized to the explicit one, so both spellings lower to the
-same WIR and the explicit form remains valid. An `if` without an else can fall
-through, so it never satisfies the returning rule below.
+`when` can fall through, so it never satisfies the returning rule below.
 
-An `if` whose `then` and `else` are expressions is a value. Else is required,
-and the two expressions must have the same type. It may initialize a `let` or
-be returned, the same way `match` is:
+Canonical `if` is `(if CONDITION THEN ELSE)`. Each branch is one form. A
+multi-statement branch uses `do` as that form; there is no `condition` /
+`then` / `else` wrapper:
 
 ```weave
-(let n i32 (if (condition flag) (then 1) (else 2)))
-(return (if (condition flag) (then 1) (else 2)))
+(if (<= a b)
+  (return a)
+  (return b))
+(if flag
+  (do
+    (set n 1)
+    (return n))
+  (return 0))
 ```
 
-A statement `if` still uses `(then (do ...))`. Mixing the two — an expression
-`if` as a statement, or a `do` body as a value — is rejected.
+An `if` whose branches are expressions is a value. Else is required, and the
+two expressions must have the same type. It may initialize a `let` or be
+returned, the same way `match` is:
+
+```weave
+(let n i32 (if flag 1 2))
+(return (if flag 1 2))
+```
+
+Mixing the two — an expression `if` as a statement, or a `do` body as a value —
+is rejected. Verbose `(if (condition ...) (then (do ...)) (else (do)))` remains
+accepted; `weavec fmt` rewrites it to `when` or compact `if`.
 
 ## Returning
 
@@ -316,9 +330,9 @@ ending in a fully returning `if` is accepted:
   (params (flag bool))
   (returns i32)
   (do
-    (if (condition flag)
-      (then (do (return 7)))
-      (else (do (return 9))))))
+    (if flag
+      (return 7)
+      (return 9))))
 ```
 
 A loop never satisfies the rule on its own, because a `while` or `for` may run
@@ -329,8 +343,8 @@ A counted `for` is:
 ```weave
 (for (range i 0 n)
   (do
-    (if (condition (= i 2))
-      (then (do (break))))
+    (when (= i 2)
+      (break))
     (continue)))
 ```
 

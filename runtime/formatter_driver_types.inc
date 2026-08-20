@@ -193,6 +193,40 @@ static int weave_fmt_compact_operator_is_bool_result(const char *head) {
         strcmp(head, ">=") == 0;
 }
 
+static int weave_fmt_list_headed(
+    const weave_fmt_context *context,
+    int64_t node,
+    const char *head) {
+    if (node == -1 || node_kind(context->tree, node) != node_list()) return 0;
+    return weave_fmt_node_text_equals(
+        context, node_first_child(context->tree, node), head);
+}
+
+static int64_t weave_fmt_named_body(
+    const weave_fmt_context *context,
+    int64_t node,
+    const char *head) {
+    if (!weave_fmt_list_headed(context, node, head)) return -1;
+    return weave_fmt_nth_child(context, node, 1);
+}
+
+static int weave_fmt_do_is_empty(
+    const weave_fmt_context *context,
+    int64_t node) {
+    return weave_fmt_list_headed(context, node, "do") &&
+        weave_fmt_child_count(context, node) <= 1;
+}
+
+static int64_t weave_fmt_unwrap_do_single(
+    const weave_fmt_context *context,
+    int64_t node) {
+    if (!weave_fmt_list_headed(context, node, "do")) return node;
+    if (weave_fmt_child_count(context, node) == 2) {
+        return weave_fmt_nth_child(context, node, 1);
+    }
+    return node;
+}
+
 static int weave_fmt_compact_operator_is_boolean_logic(const char *head) {
     return strcmp(head, "and") == 0 ||
         strcmp(head, "or") == 0 ||
