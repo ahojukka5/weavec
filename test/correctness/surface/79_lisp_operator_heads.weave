@@ -1,0 +1,27 @@
+; purpose: verify Lisp operator heads lower like wrapped (op NAME ...) forms.
+; expected-exit: 42
+; tags: op, cast, arithmetic, comparison, boolean, bitwise, ptr
+
+(program
+  (name "lisp-operator-heads")
+  (version "0.1")
+
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let wide i64 (cast i64 40))
+      (let masked i64 (bit-and wide (cast i64 63)))
+      (let bonus i32 (cast i32 (cast f64 2)))
+      (let valid bool
+        (and
+          (>= masked (cast i64 40))
+          (and
+            (< 1 2)
+            (= null null))))
+      (if
+        (condition (not (or (not valid) false)))
+        (then (do
+          (return (+ (cast i32 masked) bonus))))
+        (else (do
+          (return 0)))))))

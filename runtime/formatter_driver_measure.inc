@@ -46,9 +46,6 @@ static weave_fmt_type weave_fmt_expected_for_child(
             : WEAVE_FMT_UNKNOWN;
     }
     if (plan->kind == WEAVE_FMT_PLAN_OPERATOR) {
-        size_t operand_index = plan->virtual_second != NULL
-            ? actual_index : (actual_index == 0 ? SIZE_MAX : actual_index - 1);
-        if (operand_index == SIZE_MAX) return WEAVE_FMT_UNKNOWN;
         return plan->encoded_type;
     }
     if (plan->kind == WEAVE_FMT_PLAN_CAST) {
@@ -153,7 +150,7 @@ static int weave_fmt_measure_list(
     }
 
     int64_t child = node_next_sibling(context->tree, head);
-    if (plan.kind == WEAVE_FMT_PLAN_CALL && plan.skip_name_child && child != -1) {
+    if (plan.skip_name_child && child != -1) {
         child = node_next_sibling(context->tree, child);
     }
     size_t actual_index = 0;

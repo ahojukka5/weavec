@@ -142,6 +142,9 @@ static int weave_si_collect_expression_references(
     } else if (strcmp(head, "op") == 0) {
         result = weave_si_collect_children_from(
             model, source_index, caller_symbol_index, node, 2);
+    } else if (weave_si_operator_head_text(head)) {
+        result = weave_si_collect_children_from(
+            model, source_index, caller_symbol_index, node, 1);
     } else if (strcmp(head, "cast") == 0) {
         result = weave_si_add_type_reference(
             model,

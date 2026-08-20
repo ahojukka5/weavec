@@ -13,8 +13,14 @@
     (do
       (let sop_child_count i64 (call_i64 count_children
         (param_get sop_tree) (param_get sop_node)))
+      (let sop_prefix i64 (call_i64 surface_op_prefix_count
+        (param_get sop_tree) (param_get sop_source) (param_get sop_node)))
       (if
-        (condition (lt_i64 (local_get sop_child_count) (const_i64 2)))
+        (condition (and_bool
+          (ne_i32 (call_i32 surface_is_wrapped_op
+            (param_get sop_tree) (param_get sop_source) (param_get sop_node))
+            (const_i32 0))
+          (lt_i64 (local_get sop_child_count) (const_i64 2))))
         (then (do
           (call_void surface_error_prefix (const_string_ptr "operator"))
           (call_void write_cstr (const_i32 2) (const_string_ptr "missing operator name"))
@@ -22,8 +28,8 @@
           (call_void sop_emit_failure_expr (param_get sop_fd))
           (return_void)))
         (else (do)))
-      (let sop_name_node i64 (call_i64 nth_child
-        (param_get sop_tree) (param_get sop_node) (const_i64 1)))
+      (let sop_name_node i64 (call_i64 surface_op_name_node
+        (param_get sop_tree) (param_get sop_source) (param_get sop_node)))
       (if
         (condition (eq_i32 (call_i32 surface_node_is_ident
           (param_get sop_tree) (local_get sop_name_node)) (const_i32 0)))
@@ -68,18 +74,19 @@
         (condition (ne_i32 (local_get sop_is_bool_unary) (const_i32 0)))
         (then (do
           (if
-            (condition (ne_i64 (local_get sop_child_count) (const_i64 3)))
+            (condition (ne_i64 (local_get sop_child_count)
+              (add_i64 (local_get sop_prefix) (const_i64 1))))
             (then (do
               (call_void surface_error_prefix (const_string_ptr "operator"))
               (call_void write_cstr (const_i32 2) (const_string_ptr "wrong arity for not: expected 1, got "))
               (call_void write_i64_dec (const_i32 2)
-                (sub_i64 (local_get sop_child_count) (const_i64 2)))
+                (sub_i64 (local_get sop_child_count) (local_get sop_prefix)))
               (call_void write_byte (const_i32 2) (const_i32 10))
               (call_void sop_emit_failure_expr (param_get sop_fd))
               (return_void)))
             (else (do)))
           (let sop_unary_node i64 (call_i64 nth_child
-            (param_get sop_tree) (param_get sop_node) (const_i64 2)))
+            (param_get sop_tree) (param_get sop_node) (local_get sop_prefix)))
           (let sop_unary_type i32 (call_i32 sop_expr_type
             (param_get sop_tree) (param_get sop_source) (local_get sop_unary_node)
             (call_i32 surface_type_bool)))
@@ -101,7 +108,8 @@
           (return_void)))
         (else (do)))
       (if
-        (condition (ne_i64 (local_get sop_child_count) (const_i64 4)))
+        (condition (ne_i64 (local_get sop_child_count)
+          (add_i64 (local_get sop_prefix) (const_i64 2))))
         (then (do
           (call_void surface_error_prefix (const_string_ptr "operator"))
           (call_void write_cstr (const_i32 2) (const_string_ptr "wrong arity for "))
@@ -110,15 +118,16 @@
             (local_get sop_name_node))
           (call_void write_cstr (const_i32 2) (const_string_ptr ": expected 2, got "))
           (call_void write_i64_dec (const_i32 2)
-            (sub_i64 (local_get sop_child_count) (const_i64 2)))
+            (sub_i64 (local_get sop_child_count) (local_get sop_prefix)))
           (call_void write_byte (const_i32 2) (const_i32 10))
           (call_void sop_emit_failure_expr (param_get sop_fd))
           (return_void)))
         (else (do)))
       (let sop_left_node i64 (call_i64 nth_child
-        (param_get sop_tree) (param_get sop_node) (const_i64 2)))
+        (param_get sop_tree) (param_get sop_node) (local_get sop_prefix)))
       (let sop_right_node i64 (call_i64 nth_child
-        (param_get sop_tree) (param_get sop_node) (const_i64 3)))
+        (param_get sop_tree) (param_get sop_node)
+        (add_i64 (local_get sop_prefix) (const_i64 1))))
       (if
         (condition (ne_i32 (local_get sop_is_bool_binary) (const_i32 0)))
         (then (do

@@ -36,29 +36,32 @@ They are not the preferred representation for newly generated application code.
 
 ## Canonical operators
 
-Generated application source should use `(op NAME OPERANDS...)`. The compiler
+Generated application source should use Lisp operator heads. The compiler
 selects the admitted typed WIR operator from the operand types:
 
 ```weave
-(op add left right)
-(op less-than index limit)
-(op equal pointer null)
-(op and ready valid)
-(op not failed)
+(+ left right)
+(< index limit)
+(= pointer null)
+(and ready valid)
+(not failed)
 ```
 
-The canonical names are:
+The wrapper `(op NAME OPERANDS...)` remains accepted as compatibility input.
+`weavec fmt` prints the compact heads.
 
-- arithmetic: `add`, `sub`, `mul`, `div`, and `mod`;
+The canonical heads are:
+
+- arithmetic: `+`, `-`, `*`, `/`, and `mod`;
 - integer bit operations: `bit-and`, `bit-or`, `bit-xor`, `shift-left`, and
   `shift-right`;
-- comparisons: `equal`, `not-equal`, `less-than`, `less-or-equal`,
-  `greater-than`, and `greater-or-equal`;
+- comparisons: `=`, `!=`, `<`, `<=`, `>`, and `>=`;
 - Boolean operations: `and`, `or`, and `not`.
 
-The short arithmetic names deliberately match the established WIR and common
-programming-language vocabulary. The former long surface spellings `subtract`,
-`multiply`, `divide`, and `remainder` are not canonical forms.
+Long names such as `add` and `less-than` remain valid only inside `(op NAME
+...)`. They are not compact heads; `(add left right)` is a call. The former
+long surface spellings `subtract`, `multiply`, `divide`, and `remainder` are
+not canonical forms.
 
 Arithmetic supports `i32`, `i64`, `f32`, and `f64`. Bit operations support
 `i32` and `i64`. Ordered comparisons support numeric operands, while pointer
@@ -267,8 +270,8 @@ Examples:
 line
 """)
 (interp "count=" n)
-(op add count 1)
-(op add 1.5 2.25)
+(+ count 1)
+(+ 1.5 2.25)
 (new Record (count 42) (flag true))
 ```
 
@@ -277,7 +280,7 @@ line
 An `if` may omit its else:
 
 ```weave
-(if (condition (op less-than value 0))
+(if (condition (< value 0))
   (then (do (return 0))))
 (return value)
 ```
@@ -326,7 +329,7 @@ A counted `for` is:
 ```weave
 (for (range i 0 n)
   (do
-    (if (condition (op equal i 2))
+    (if (condition (= i 2))
       (then (do (break))))
     (continue)))
 ```
@@ -371,7 +374,7 @@ contain `result` at any nesting depth:
 
 ```weave
 (ensures
-  (op equal
+  (=
     (cast i64 (identity result))
     (cast i64 result)))
 ```
