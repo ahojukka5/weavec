@@ -179,15 +179,13 @@ rewritten into the same source. The formatter must not commute operands,
 reassociate floating-point arithmetic, rename variables, or remove explicit
 type annotations merely because it can infer them.
 
-One channel of whitespace carries author intent and is therefore canonical
-content rather than formatter freedom: vertical grouping. The intended rules
-are that exactly one blank line separates top-level declarations (mandatory,
-not author-controlled); inside a body, a single blank line between statements
-is a *paragraph break* that the author owns, runs of blank lines normalize to
-one, and blank lines are removed everywhere else. Paragraph breaks have zero
-semantics — lowering ignores them — but they survive format, structural edit,
-and round-trip, which requires representing them in the surface tree. The
-concrete mechanism is specified in issue #334.
+Canonical whitespace is formatter-owned. Blank lines, indentation, and wrapping
+are not surface-tree state, so two inputs that differ only in whitespace
+normalize to one byte sequence. The printer derives vertical spacing from the
+tree and a compiler-owned line-width rule: a form prints inline when it fits,
+otherwise in one canonical multiline shape, with deterministic sibling
+separation. Issue #334 records that derived layout. It does not preserve
+author-owned paragraph metadata or a `leading_break` flag.
 
 ## P4. Distinct things should look distinct
 
@@ -384,9 +382,9 @@ Prefer:
 ```
 
 The formatter may change whitespace freely because whitespace should not carry
-block *meaning* in canonical Weave. Paragraph breaks between statements are the
-one exception, and they are canonical content under P3, not meaning: they never
-affect block structure or semantics.
+block *meaning* in canonical Weave, and it is not preserved tree state under
+P3. Visual adjacency of a one-line comment to a following multiline form is a
+printer rule, not a semantic attachment.
 
 Edit stability also argues for flat bodies over deep ones. Deep homogeneous
 nesting — identical heads, long closer runs — is where bracket-balancing
@@ -492,11 +490,13 @@ A `comment` node may have no executable semantics while still surviving into WIR
 or LLVM as an annotation or textual comment. Its presence changes source
 identity, not necessarily executable semantics.
 
-A comment node needs an attachment rule, or it merely relocates the guessing
-problem this principle exists to remove. The intended rule: a
-statement-position `comment` binds to the statement that follows it. The
-formatter keeps the pair adjacent — no paragraph break between them — and
-structural edits move, copy, or delete the pair as a unit.
+A `comment` node is a standalone sibling in the surface tree. It has no hidden
+ownership or attachment relationship with the preceding or following statement.
+Moving a neighboring statement does not implicitly move the comment; a tool may
+select both nodes only by an explicit edit. The formatter may keep a one-line
+comment visually adjacent to a following multiline form, but that adjacency is
+presentation, not tree identity. Issues #337 and #334 specify the node and the
+printer rule.
 
 Structured forms can distinguish different roles:
 
@@ -603,28 +603,36 @@ Explicit alternative nesting remains programmer intent.
 ### Comments as AST nodes
 
 Treating comments as parser trivia is conventional and compact, but weakens P3
-and P11 because the formatter must invent attachment rules.
+and P11 because the formatter must invent attachment rules, and structural
+edits cannot name the comment independently.
 
 A structured no-op node:
 
 ```weave
 (comment "This transform is intentionally not fused.")
+(let residual (- predicted observed))
 ```
 
 costs source tokens but gives comments stable identity, structural position, and
-round-trip behavior. Whether this trade is worthwhile should be measured in real
-agent workflows before the syntax is frozen.
+round-trip behavior. Binding that node invisibly to the following statement
+would recreate the trivia problem as hidden ownership: deleting or moving the
+statement would silently take the comment with it. The derived rule in issue
+#337 is that `comment` is an ordinary sibling. A printer may place a one-line
+comment next to a following multiline form; that is layout, not AST attachment.
 
-### Paragraph breaks as canonical content
+### Canonical whitespace is derived from structure
 
-Authors group statements into paragraphs with blank lines, and the grouping
-helps a reader chunk logic. Leaving it to the formatter destroys it (P3 with
-whitespace fully formatter-owned); leaving it uncanonical breaks byte
-equality. The resolution chosen in P3 is to make a single blank line between
-statements canonical content with zero semantics, represented in the surface
-tree as node metadata rather than as a standalone child node, so arity
-contracts and structural tools are unaffected. Issue #334 specifies the
-mechanism, the normalization rules, and the acceptance tests.
+Authors group statements with blank lines, and the grouping helps a reader
+chunk logic. Storing that grouping as tree metadata would make invisible author
+state part of program identity: two trees that mean the same thing would print
+differently, and tools would have to preserve or edit whitespace flags.
+
+The earlier draft that represented paragraph breaks as surface-tree metadata is
+rejected. Whitespace is not preserved information. The formatter discards
+arbitrary input spacing and reconstructs one layout from the parsed tree and
+the compiler-owned complete-form width. Issue #334 specifies that derived
+layout. A one-line `comment` may sit next to a following multiline sibling only
+as a printer adjacency rule, not as AST ownership.
 
 ## Standing exclusions
 
