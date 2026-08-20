@@ -1,0 +1,6 @@
+(core-module
+  (core-version 3)
+  (decls
+    (fn main (params) (returns i32) (do (let wide i64 (cast_i32_to_i64 (const_i32 40))) (let masked i64 (and_i64 wide (cast_i32_to_i64 (const_i32 63)))) (let bonus i32 (cast_f64_to_i32 (cast_i32_to_f64 (const_i32 2)))) (let valid bool (and_bool (ge_i64 masked (cast_i32_to_i64 (const_i32 40))) (and_bool (lt_i32 (const_i32 1) (const_i32 2)) (eq_ptr (const_null) (const_null))))) (if (condition (not_bool (or_bool (not_bool valid) (const_bool false)))) (then (do (return (add_i32 (cast_i64_to_i32 masked) bonus)))) (else (do (return (const_i32 0)))))))
+  )
+)

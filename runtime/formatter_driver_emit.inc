@@ -107,7 +107,7 @@ static int weave_fmt_format_list(
 
     int64_t child = node_next_sibling(context->tree, head);
     size_t cursor = weave_fmt_node_end(context, head);
-    if (plan.kind == WEAVE_FMT_PLAN_CALL && plan.skip_name_child && child != -1) {
+    if (plan.skip_name_child && child != -1) {
         cursor = weave_fmt_node_end(context, child);
         child = node_next_sibling(context->tree, child);
     }

@@ -97,10 +97,10 @@ static const char *weave_fmt_operator_name(
 #define WEAVE_FMT_BASE(text) \
     (base_length == sizeof(text) - 1 && \
      memcmp(context->source + start, text, sizeof(text) - 1) == 0)
-    if (WEAVE_FMT_BASE("add")) canonical = "add";
-    else if (WEAVE_FMT_BASE("sub")) canonical = "sub";
-    else if (WEAVE_FMT_BASE("mul")) canonical = "mul";
-    else if (WEAVE_FMT_BASE("div")) canonical = "div";
+    if (WEAVE_FMT_BASE("add")) canonical = "+";
+    else if (WEAVE_FMT_BASE("sub")) canonical = "-";
+    else if (WEAVE_FMT_BASE("mul")) canonical = "*";
+    else if (WEAVE_FMT_BASE("div")) canonical = "/";
     else if (WEAVE_FMT_BASE("mod")) canonical = "mod";
     else if (WEAVE_FMT_BASE("and")) {
         canonical = type == WEAVE_FMT_BOOL ? "and" : "bit-and";
@@ -111,12 +111,12 @@ static const char *weave_fmt_operator_name(
     } else if (WEAVE_FMT_BASE("xor")) canonical = "bit-xor";
     else if (WEAVE_FMT_BASE("shl")) canonical = "shift-left";
     else if (WEAVE_FMT_BASE("shr")) canonical = "shift-right";
-    else if (WEAVE_FMT_BASE("eq")) { canonical = "equal"; bool_result = 1; }
-    else if (WEAVE_FMT_BASE("ne")) { canonical = "not-equal"; bool_result = 1; }
-    else if (WEAVE_FMT_BASE("lt")) { canonical = "less-than"; bool_result = 1; }
-    else if (WEAVE_FMT_BASE("le")) { canonical = "less-or-equal"; bool_result = 1; }
-    else if (WEAVE_FMT_BASE("gt")) { canonical = "greater-than"; bool_result = 1; }
-    else if (WEAVE_FMT_BASE("ge")) { canonical = "greater-or-equal"; bool_result = 1; }
+    else if (WEAVE_FMT_BASE("eq")) { canonical = "="; bool_result = 1; }
+    else if (WEAVE_FMT_BASE("ne")) { canonical = "!="; bool_result = 1; }
+    else if (WEAVE_FMT_BASE("lt")) { canonical = "<"; bool_result = 1; }
+    else if (WEAVE_FMT_BASE("le")) { canonical = "<="; bool_result = 1; }
+    else if (WEAVE_FMT_BASE("gt")) { canonical = ">"; bool_result = 1; }
+    else if (WEAVE_FMT_BASE("ge")) { canonical = ">="; bool_result = 1; }
     else if (WEAVE_FMT_BASE("not") && type == WEAVE_FMT_BOOL) {
         canonical = "not";
         bool_result = 1;
@@ -126,6 +126,77 @@ static const char *weave_fmt_operator_name(
     *operand_type = type;
     *comparison_or_boolean = bool_result;
     return canonical;
+}
+
+static const char *weave_fmt_compact_operator_from_name(
+    const weave_fmt_context *context,
+    int64_t name) {
+    if (name == -1) return NULL;
+    if (weave_fmt_node_text_equals(context, name, "add") ||
+        weave_fmt_node_text_equals(context, name, "+")) return "+";
+    if (weave_fmt_node_text_equals(context, name, "sub") ||
+        weave_fmt_node_text_equals(context, name, "-")) return "-";
+    if (weave_fmt_node_text_equals(context, name, "mul") ||
+        weave_fmt_node_text_equals(context, name, "*")) return "*";
+    if (weave_fmt_node_text_equals(context, name, "div") ||
+        weave_fmt_node_text_equals(context, name, "/")) return "/";
+    if (weave_fmt_node_text_equals(context, name, "mod")) return "mod";
+    if (weave_fmt_node_text_equals(context, name, "equal") ||
+        weave_fmt_node_text_equals(context, name, "=")) return "=";
+    if (weave_fmt_node_text_equals(context, name, "not-equal") ||
+        weave_fmt_node_text_equals(context, name, "!=")) return "!=";
+    if (weave_fmt_node_text_equals(context, name, "less-than") ||
+        weave_fmt_node_text_equals(context, name, "<")) return "<";
+    if (weave_fmt_node_text_equals(context, name, "less-or-equal") ||
+        weave_fmt_node_text_equals(context, name, "<=")) return "<=";
+    if (weave_fmt_node_text_equals(context, name, "greater-than") ||
+        weave_fmt_node_text_equals(context, name, ">")) return ">";
+    if (weave_fmt_node_text_equals(context, name, "greater-or-equal") ||
+        weave_fmt_node_text_equals(context, name, ">=")) return ">=";
+    if (weave_fmt_node_text_equals(context, name, "and")) return "and";
+    if (weave_fmt_node_text_equals(context, name, "or")) return "or";
+    if (weave_fmt_node_text_equals(context, name, "not")) return "not";
+    if (weave_fmt_node_text_equals(context, name, "bit-and")) return "bit-and";
+    if (weave_fmt_node_text_equals(context, name, "bit-or")) return "bit-or";
+    if (weave_fmt_node_text_equals(context, name, "bit-xor")) return "bit-xor";
+    if (weave_fmt_node_text_equals(context, name, "shift-left")) return "shift-left";
+    if (weave_fmt_node_text_equals(context, name, "shift-right")) {
+        return "shift-right";
+    }
+    return NULL;
+}
+
+static int weave_fmt_is_compact_operator_head(
+    const weave_fmt_context *context,
+    int64_t head) {
+    static const char *const heads[] = {
+        "+", "-", "*", "/", "mod",
+        "=", "!=", "<", "<=", ">", ">=",
+        "and", "or", "not",
+        "bit-and", "bit-or", "bit-xor", "shift-left", "shift-right",
+    };
+    for (size_t index = 0; index < sizeof(heads) / sizeof(heads[0]); ++index) {
+        if (weave_fmt_node_text_equals(context, head, heads[index])) return 1;
+    }
+    return 0;
+}
+
+static int weave_fmt_compact_operator_is_bool_result(const char *head) {
+    return strcmp(head, "and") == 0 ||
+        strcmp(head, "or") == 0 ||
+        strcmp(head, "not") == 0 ||
+        strcmp(head, "=") == 0 ||
+        strcmp(head, "!=") == 0 ||
+        strcmp(head, "<") == 0 ||
+        strcmp(head, "<=") == 0 ||
+        strcmp(head, ">") == 0 ||
+        strcmp(head, ">=") == 0;
+}
+
+static int weave_fmt_compact_operator_is_boolean_logic(const char *head) {
+    return strcmp(head, "and") == 0 ||
+        strcmp(head, "or") == 0 ||
+        strcmp(head, "not") == 0;
 }
 
 static int32_t weave_fmt_semantic_type_ref(weave_fmt_type type) {

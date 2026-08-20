@@ -252,6 +252,12 @@
     (returns i32)
     (do
       (if
+        (condition (ne_i32 (call_i32 surface_ident_is_operator_head
+          (param_get tree) (param_get source) (param_get node))
+          (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
         (condition (or_bool
           (or_bool
             (or_bool

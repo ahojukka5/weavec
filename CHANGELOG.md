@@ -15,6 +15,10 @@ surface-language contract stabilises.
   direct form. Function names that collide with reserved syntax are
   rejected. WIR-shaped heads such as `add_i32` and `ptr_add` are
   unchanged.
+- Canonical operators use Lisp heads such as `(+ a b)`, `(< i n)`,
+  `(= x y)`, `(and ready valid)`, and `(bit-and x y)`. `(op add a b)`
+  remains accepted and `weavec fmt` rewrites it to the compact form.
+  Comparison and arithmetic stay binary; mixed types still fail.
 - Language design principles now treat canonical whitespace as
   formatter-derived layout and `comment` as a standalone surface node,
   matching issues #334 and #337. Author-owned paragraph metadata and

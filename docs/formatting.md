@@ -56,8 +56,8 @@ semantic facts.
 | Compatibility input | Canonical output |
 |---|---|
 | `(call_i32 f x)` or `(call f x)` | `(f x)` |
-| `(add_i64 x y)` | `(op add x y)` |
-| `(eq_ptr x y)` | `(op equal x y)` |
+| `(add_i64 x y)` or `(op add x y)` | `(+ x y)` |
+| `(eq_ptr x y)` or `(op equal x y)` | `(= x y)` |
 | `(cast_i64_to_i32 x)` | `(cast i32 x)` |
 | `(param_get x)` or `(local_get x)` | `x`, when the binding is authoritative |
 | `(const_i32 1)` | `1`, in an authoritative `i32` context |
@@ -79,7 +79,7 @@ anchor. For example:
 normalizes to:
 
 ```weave
-(op add (cast i64 1) 2)
+(+ (cast i64 1) 2)
 ```
 
 The cast is not an implicit conversion. It is an explicit canonical form that
@@ -139,13 +139,13 @@ Top-level declarations:
     (pure)
     (no_alloc)
     (deterministic)
-    (requires (op greater-or-equal value 0))
-    (ensures (op greater-than result value))
-    (do (return (op add value 1))))
+    (requires (>= value 0))
+    (ensures (> result value))
+    (do (return (+ value 1))))
   (entry main
     (params)
     (returns i32)
-    (do (return (call add-one 41)))))
+    (do (return (add-one 41)))))
 ```
 
 Statements and control flow:
@@ -153,23 +153,23 @@ Statements and control flow:
 ```weave
 (do
   (let current i32 0)
-  (set current (op add current 1))
+  (set current (+ current 1))
   (if
-    (condition (op less-than current 10))
-    (then (do (set current (op multiply current 2))))
+    (condition (< current 10))
+    (then (do (set current (* current 2))))
     (else (do (set current 10))))
   (while
-    (condition (op less-than current 20))
-    (do (set current (op add current 1))))
+    (condition (< current 20))
+    (do (set current (+ current 1))))
   (return current))
 ```
 
 Expression families:
 
 ```weave
-(call function argument)
-(op add left right)
-(op not predicate)
+(function argument)
+(+ left right)
+(not predicate)
 (cast i64 value)
 ```
 

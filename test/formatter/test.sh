@@ -49,7 +49,7 @@ cat > "$TMP/expected.weave" <<'EOF_EXPECTED'
   (fn add-one
     (params (value i32))
     (returns i32)
-    (do (return (op add value 1))))
+    (do (return (+ value 1))))
   (entry main
     (params)
     (returns i32)

@@ -225,7 +225,7 @@ types.
   (returns (type-app Result i32 i32))
   (do
     (let v i32 (try (call parse-digit n)))
-    (return (variant Result (type-args i32 i32) Ok (op add v v)))))
+    (return (variant Result (type-args i32 i32) Ok (+ v v)))))
 ```
 
 Invalid constructors and payload types are rejected with exact diagnostics.
@@ -279,7 +279,7 @@ body:
   (params (left i32) (right i32))
   (returns i32)
   (do
-    (return (op add left right))))
+    (return (+ left right))))
 ```
 
 The program entry uses the same shape:
@@ -392,7 +392,7 @@ Integer literal sugar is accepted in authoritative numeric contexts:
 Update an existing local with:
 
 ```weave
-(set answer (op add answer 1))
+(set answer (+ answer 1))
 ```
 
 The raw backend represents mutable locals with stack slots. The selected LLVM
@@ -413,7 +413,7 @@ An `if` statement is:
 
 ```weave
 (if
-  (condition (op less-than value limit))
+  (condition (< value limit))
   (then (do
     statements...))
   (else (do
@@ -432,7 +432,7 @@ A `while` loop is:
 
 ```weave
 (while
-  (condition (op less-than index limit))
+  (condition (< index limit))
   (do
     statements...))
 ```
@@ -505,15 +505,18 @@ Floating constants currently use integer literal tokens and lower through an
 integer-to-floating conversion. Decimal literal syntax is not yet part of the
 stable surface contract.
 
-Canonical operators use `(op NAME OPERANDS...)`:
+Canonical operators occupy Lisp head position:
 
 ```weave
-(op add left right)
-(op less-than left right)
-(op equal pointer null)
-(op and ready valid)
-(op not failed)
+(+ left right)
+(< left right)
+(= pointer null)
+(and ready valid)
+(not failed)
 ```
+
+`(op add left right)` and the other wrapped long names remain accepted
+compatibility input, and `weavec fmt` rewrites them to the compact heads.
 
 Canonical casts name the target type:
 
@@ -582,9 +585,9 @@ Functions may declare runtime preconditions and postconditions:
 (fn clamp
   (params (x i32) (lo i32) (hi i32))
   (returns i32)
-  (requires (op less-or-equal lo hi))
-  (ensures (op greater-or-equal result lo))
-  (ensures (op less-or-equal result hi))
+  (requires (<= lo hi))
+  (ensures (>= result lo))
+  (ensures (<= result hi))
   (do
     ...))
 ```

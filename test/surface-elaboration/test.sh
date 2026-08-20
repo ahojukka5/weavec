@@ -36,6 +36,7 @@ run_fixture 75_canonical_typed_call 42
 run_fixture 76_canonical_ops_and_casts 42
 run_fixture 77_contract_canonical_result 42
 run_fixture 78_lisp_head_call 42
+run_fixture 79_lisp_operator_heads 42
 
 cat > "$TMP/library.weave" <<'WEAVE'
 (program
@@ -200,6 +201,30 @@ cat > "$TMP/operator-arity.weave" <<'WEAVE'
     (do (return (op add 1)))))
 WEAVE
 expect_frontend_failure operator-arity 'wrong arity for add: expected 2, got 1'
+
+cat > "$TMP/compact-mixed-op.weave" <<'WEAVE'
+(program
+  (name "compact-mixed-op")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let wide i64 (cast i64 2))
+      (return (+ (const_i32 40) wide)))))
+WEAVE
+expect_frontend_failure compact-mixed-op 'operand type mismatch for +'
+
+cat > "$TMP/compact-operator-arity.weave" <<'WEAVE'
+(program
+  (name "compact-operator-arity")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do (return (+ 1)))))
+WEAVE
+expect_frontend_failure compact-operator-arity 'wrong arity for +: expected 2, got 1'
 
 cat > "$TMP/contract-result-type.weave" <<'WEAVE'
 (program

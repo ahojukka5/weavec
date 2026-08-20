@@ -64,12 +64,7 @@ static int weave_fmt_format_operator_child(
     size_t actual_index,
     size_t indentation,
     int force_inline) {
-    size_t operand_index = plan->virtual_second != NULL
-        ? actual_index : (actual_index == 0 ? SIZE_MAX : actual_index - 1);
-    if (operand_index == SIZE_MAX) {
-        return weave_fmt_format_node(
-            context, child, indentation, WEAVE_FMT_UNKNOWN, force_inline);
-    }
+    size_t operand_index = actual_index;
     if (plan->encoded_type == WEAVE_FMT_BOOL ||
         plan->encoded_type == WEAVE_FMT_PTR) {
         return weave_fmt_format_node(
@@ -80,12 +75,12 @@ static int weave_fmt_format_operator_child(
             force_inline);
     }
 
-    int64_t left = plan->virtual_second != NULL
-        ? weave_fmt_nth_child(context, list, 1)
-        : weave_fmt_nth_child(context, list, 2);
-    int64_t right = plan->virtual_second != NULL
+    int64_t left = plan->skip_name_child
         ? weave_fmt_nth_child(context, list, 2)
-        : weave_fmt_nth_child(context, list, 3);
+        : weave_fmt_nth_child(context, list, 1);
+    int64_t right = plan->skip_name_child
+        ? weave_fmt_nth_child(context, list, 3)
+        : weave_fmt_nth_child(context, list, 2);
     weave_fmt_type left_seed = weave_fmt_seed_type(context, left);
     weave_fmt_type right_seed = weave_fmt_seed_type(context, right);
     size_t anchor = SIZE_MAX;

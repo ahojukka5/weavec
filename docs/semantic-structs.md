@@ -119,7 +119,7 @@ canonical forms:
 
 ```weave
 (field-set record count
-  (op add (field-get record count) 2))
+  (+ (field-get record count) 2))
 ```
 
 ## Pointer boundary

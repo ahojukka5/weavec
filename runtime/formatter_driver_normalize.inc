@@ -61,37 +61,42 @@ static int weave_fmt_plan_list(
         }
         return 1;
     }
-    if (weave_fmt_lookup_signature_node(context, head) != NULL) {
-        plan->kind = WEAVE_FMT_PLAN_CALL;
-        plan->callee_node = head;
-        plan->skip_name_child = 0;
-        plan->signature = weave_fmt_lookup_signature_node(context, head);
+    if (weave_fmt_node_text_equals(context, head, "op")) {
+        int64_t name = weave_fmt_nth_child(context, list, 1);
+        const char *compact = weave_fmt_compact_operator_from_name(context, name);
+        if (compact != NULL) {
+            plan->kind = WEAVE_FMT_PLAN_OPERATOR;
+            plan->virtual_head = compact;
+            plan->skip_name_child = 1;
+            if (weave_fmt_compact_operator_is_boolean_logic(compact)) {
+                plan->encoded_type = WEAVE_FMT_BOOL;
+                plan->comparison_or_boolean = 1;
+            } else {
+                plan->encoded_type = weave_fmt_infer_canonical_operand_type(
+                    context,
+                    weave_fmt_nth_child(context, list, 2),
+                    weave_fmt_nth_child(context, list, 3));
+                plan->comparison_or_boolean =
+                    weave_fmt_compact_operator_is_bool_result(compact);
+            }
+        }
         return 1;
     }
-    if (weave_fmt_node_text_equals(context, head, "op")) {
+    if (weave_fmt_is_compact_operator_head(context, head)) {
+        const char *compact = weave_fmt_compact_operator_from_name(context, head);
         plan->kind = WEAVE_FMT_PLAN_OPERATOR;
-        plan->virtual_head = "op";
-        int64_t name = weave_fmt_nth_child(context, list, 1);
-        if (name != -1 &&
-            (weave_fmt_node_text_equals(context, name, "and") ||
-             weave_fmt_node_text_equals(context, name, "or") ||
-             weave_fmt_node_text_equals(context, name, "not"))) {
+        plan->virtual_head = compact;
+        plan->skip_name_child = 0;
+        if (weave_fmt_compact_operator_is_boolean_logic(compact)) {
             plan->encoded_type = WEAVE_FMT_BOOL;
             plan->comparison_or_boolean = 1;
         } else {
-            int64_t left = weave_fmt_nth_child(context, list, 2);
-            int64_t right = weave_fmt_nth_child(context, list, 3);
             plan->encoded_type = weave_fmt_infer_canonical_operand_type(
-                context, left, right);
-            if (name != -1 &&
-                (weave_fmt_node_text_equals(context, name, "equal") ||
-                 weave_fmt_node_text_equals(context, name, "not-equal") ||
-                 weave_fmt_node_text_equals(context, name, "less-than") ||
-                 weave_fmt_node_text_equals(context, name, "less-or-equal") ||
-                 weave_fmt_node_text_equals(context, name, "greater-than") ||
-                 weave_fmt_node_text_equals(context, name, "greater-or-equal"))) {
-                plan->comparison_or_boolean = 1;
-            }
+                context,
+                weave_fmt_nth_child(context, list, 1),
+                weave_fmt_nth_child(context, list, 2));
+            plan->comparison_or_boolean =
+                weave_fmt_compact_operator_is_bool_result(compact);
         }
         return 1;
     }
@@ -101,10 +106,17 @@ static int weave_fmt_plan_list(
         context, head, &operand_type, &bool_result);
     if (operator_name != NULL) {
         plan->kind = WEAVE_FMT_PLAN_OPERATOR;
-        plan->virtual_head = "op";
-        plan->virtual_second = operator_name;
+        plan->virtual_head = operator_name;
+        plan->skip_name_child = 0;
         plan->encoded_type = operand_type;
         plan->comparison_or_boolean = bool_result;
+        return 1;
+    }
+    if (weave_fmt_lookup_signature_node(context, head) != NULL) {
+        plan->kind = WEAVE_FMT_PLAN_CALL;
+        plan->callee_node = head;
+        plan->skip_name_child = 0;
+        plan->signature = weave_fmt_lookup_signature_node(context, head);
         return 1;
     }
     if (weave_fmt_node_text_equals(context, head, "cast")) {

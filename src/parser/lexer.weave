@@ -7,6 +7,7 @@
 ; Supports:
 ;   - Parentheses: ( )
 ;   - Identifiers: alphanumeric + underscore + dash
+;   - Operator atoms: + - * / < > = ! and two-character <= >= !=
 ;   - Strings: "..." with escapes, #"..." raw, and """...""" multiline
 ;   - Numbers: integer or decimal digits, optional minus sign
 ;   - Comments: ; to end of line
@@ -195,6 +196,38 @@
   )
 )
 
+; Compact operator heads are identifier tokens, not a separate kind.
+; Minus is an operator only when the number lexer did not already take it.
+(fn is_operator_start
+  (params (ch i32))
+  (returns bool)
+  (do
+    (return
+      (or_bool
+        (or_bool
+          (or_bool
+            (eq_i32 (param_get ch) (const_i32 43))   ; '+'
+            (eq_i32 (param_get ch) (const_i32 42)))  ; '*'
+          (or_bool
+            (eq_i32 (param_get ch) (const_i32 47))   ; '/'
+            (eq_i32 (param_get ch) (const_i32 60)))) ; '<'
+        (or_bool
+          (or_bool
+            (eq_i32 (param_get ch) (const_i32 62))   ; '>'
+            (eq_i32 (param_get ch) (const_i32 61)))  ; '='
+          (or_bool
+            (eq_i32 (param_get ch) (const_i32 33))   ; '!'
+            (eq_i32 (param_get ch) (const_i32 45))))) ; '-'
+    )
+  )
+)
+
+(fn is_operator_continue
+  (params (ch i32))
+  (returns bool)
+  (do
+    (return (eq_i32 (param_get ch) (const_i32 61))))) ; '='
+
 ; =============================================================================
 ; Integer parsing helpers
 ; =============================================================================
@@ -283,6 +316,29 @@
       (local_get token_len)
       (const_i64 0))
 
+    (return (local_get index))))
+
+; Lex a compact operator atom such as +, <=, or !=.
+(fn lex_operator
+  (params (source ptr) (length i64) (tokens ptr) (start i64))
+  (returns i64)
+  (do
+    (let index i64 (add_i64 (param_get start) (const_i64 1)))
+    (if
+      (condition
+        (and_bool
+          (lt_i64 (local_get index) (param_get length))
+          (call_bool is_operator_continue
+            (load_u8 (ptr_add (param_get source) (local_get index))))))
+      (then (do
+        (set index (add_i64 (local_get index) (const_i64 1)))))
+      (else (do)))
+    (call_i32 tokens_push
+      (param_get tokens)
+      (const_i32 3)
+      (param_get start)
+      (sub_i64 (local_get index) (param_get start))
+      (const_i64 0))
     (return (local_get index))))
 
 ; Lex a numeric atom. Decimal atoms retain their exact source span; their
@@ -685,6 +741,21 @@
               (call_bool is_ident_start (local_get ch))))
           (then (do
             (set index (call_i64 lex_identifier
+              (param_get source)
+              (param_get length)
+              (local_get tokens)
+              (local_get index)))
+            (set handled (const_i32 1))))
+          (else (do)))
+
+        ; Compact operator atom
+        (if
+          (condition
+            (and_bool
+              (eq_i32 (local_get handled) (const_i32 0))
+              (call_bool is_operator_start (local_get ch))))
+          (then (do
+            (set index (call_i64 lex_operator
               (param_get source)
               (param_get length)
               (local_get tokens)

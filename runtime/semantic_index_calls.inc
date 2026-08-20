@@ -25,6 +25,20 @@ static size_t weave_si_symbol_from_runtime(
     return WEAVE_SI_NONE;
 }
 
+static int weave_si_operator_head_text(const char *head) {
+    static const char *const heads[] = {
+        "+", "-", "*", "/", "mod",
+        "=", "!=", "<", "<=", ">", ">=",
+        "and", "or", "not",
+        "bit-and", "bit-or", "bit-xor", "shift-left", "shift-right",
+    };
+    if (head == NULL) return 0;
+    for (size_t index = 0; index < sizeof(heads) / sizeof(heads[0]); ++index) {
+        if (strcmp(head, heads[index]) == 0) return 1;
+    }
+    return 0;
+}
+
 static int weave_si_wrapped_call_head(
     const weave_si_source *source,
     int64_t node) {

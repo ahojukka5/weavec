@@ -72,13 +72,15 @@
     (params (cce_tree ptr) (cce_source ptr) (cce_node i64))
     (returns i32)
     (do
+      (let cce_rt_prefix i64 (call_i64 surface_op_prefix_count
+        (param_get cce_tree) (param_get cce_source) (param_get cce_node)))
       (if
         (condition (lt_i64 (call_i64 count_children
-          (param_get cce_tree) (param_get cce_node)) (const_i64 2)))
+          (param_get cce_tree) (param_get cce_node)) (local_get cce_rt_prefix)))
         (then (do (return (call_i32 surface_type_unknown))))
         (else (do)))
-      (let cce_op_name_node i64 (call_i64 nth_child
-        (param_get cce_tree) (param_get cce_node) (const_i64 1)))
+      (let cce_op_name_node i64 (call_i64 surface_op_name_node
+        (param_get cce_tree) (param_get cce_source) (param_get cce_node)))
       (if
         (condition (eq_i32 (call_i32 surface_node_is_ident
           (param_get cce_tree) (local_get cce_op_name_node)) (const_i32 0)))
@@ -109,13 +111,15 @@
         (then (do
           (if
             (condition (ne_i64 (call_i64 count_children
-              (param_get cce_tree) (param_get cce_node)) (const_i64 4)))
+              (param_get cce_tree) (param_get cce_node))
+              (add_i64 (local_get cce_rt_prefix) (const_i64 2))))
             (then (do (return (call_i32 surface_type_unknown))))
             (else (do)))
           (let cce_op_left_node i64 (call_i64 nth_child
-            (param_get cce_tree) (param_get cce_node) (const_i64 2)))
+            (param_get cce_tree) (param_get cce_node) (local_get cce_rt_prefix)))
           (let cce_op_right_node i64 (call_i64 nth_child
-            (param_get cce_tree) (param_get cce_node) (const_i64 3)))
+            (param_get cce_tree) (param_get cce_node)
+            (add_i64 (local_get cce_rt_prefix) (const_i64 1))))
           (return (call_i32 cce_infer_binary_type
             (param_get cce_tree) (param_get cce_source)
             (local_get cce_op_left_node) (local_get cce_op_right_node)))))
@@ -181,9 +185,9 @@
               (param_get cce_tree) (local_get cce_call_type_name_node))))))
         (else (do)))
       (if
-        (condition (ne_i32 (call_i32 surface_node_is_list_head
-          (param_get cce_tree) (param_get cce_source) (param_get cce_node)
-          (const_string_ptr "op") (const_i64 2)) (const_i32 0)))
+        (condition (ne_i32 (call_i32 surface_is_operator_node
+          (param_get cce_tree) (param_get cce_source) (param_get cce_node))
+          (const_i32 0)))
         (then (do (return (call_i32 cce_op_result_type
           (param_get cce_tree) (param_get cce_source) (param_get cce_node)))))
         (else (do)))
@@ -230,9 +234,9 @@
                 (param_get cce_tree) (param_get cce_source) (param_get cce_node))
                 (const_i32 0))
               (or_bool
-                (ne_i32 (call_i32 surface_node_is_list_head
-                  (param_get cce_tree) (param_get cce_source) (param_get cce_node)
-                  (const_string_ptr "op") (const_i64 2)) (const_i32 0))
+                (ne_i32 (call_i32 surface_is_operator_node
+                  (param_get cce_tree) (param_get cce_source) (param_get cce_node))
+                  (const_i32 0))
                 (ne_i32 (call_i32 surface_node_is_list_head
                   (param_get cce_tree) (param_get cce_source) (param_get cce_node)
                   (const_string_ptr "cast") (const_i64 4)) (const_i32 0)))))
@@ -379,8 +383,14 @@
     (do
       (let cce_op_child_count i64 (call_i64 count_children
         (param_get cce_tree) (param_get cce_node)))
+      (let cce_emit_op_prefix i64 (call_i64 surface_op_prefix_count
+        (param_get cce_tree) (param_get cce_source) (param_get cce_node)))
       (if
-        (condition (lt_i64 (local_get cce_op_child_count) (const_i64 2)))
+        (condition (and_bool
+          (ne_i32 (call_i32 surface_is_wrapped_op
+            (param_get cce_tree) (param_get cce_source) (param_get cce_node))
+            (const_i32 0))
+          (lt_i64 (local_get cce_op_child_count) (const_i64 2))))
         (then (do
           (call_void surface_error_prefix (const_string_ptr "operator"))
           (call_void write_cstr (const_i32 2) (const_string_ptr "missing operator name"))
@@ -388,8 +398,8 @@
           (call_void sop_emit_failure_expr (param_get cce_fd))
           (return_void)))
         (else (do)))
-      (let cce_emit_op_name_node i64 (call_i64 nth_child
-        (param_get cce_tree) (param_get cce_node) (const_i64 1)))
+      (let cce_emit_op_name_node i64 (call_i64 surface_op_name_node
+        (param_get cce_tree) (param_get cce_source) (param_get cce_node)))
       (if
         (condition (eq_i32 (call_i32 surface_node_is_ident
           (param_get cce_tree) (local_get cce_emit_op_name_node))
@@ -442,20 +452,23 @@
         (condition (ne_i32 (local_get cce_op_is_bool_unary) (const_i32 0)))
         (then (do
           (if
-            (condition (ne_i64 (local_get cce_op_child_count) (const_i64 3)))
+            (condition (ne_i64 (local_get cce_op_child_count)
+              (add_i64 (local_get cce_emit_op_prefix) (const_i64 1))))
             (then (do
               (call_void surface_error_prefix (const_string_ptr "operator"))
               (call_void write_cstr (const_i32 2)
                 (const_string_ptr "wrong arity for not: expected 1, got "))
               (call_void write_i64_dec
                 (const_i32 2)
-                (sub_i64 (local_get cce_op_child_count) (const_i64 2)))
+                (sub_i64 (local_get cce_op_child_count)
+                  (local_get cce_emit_op_prefix)))
               (call_void write_byte (const_i32 2) (const_i32 10))
               (call_void sop_emit_failure_expr (param_get cce_fd))
               (return_void)))
             (else (do)))
           (let cce_op_unary_node i64 (call_i64 nth_child
-            (param_get cce_tree) (param_get cce_node) (const_i64 2)))
+            (param_get cce_tree) (param_get cce_node)
+            (local_get cce_emit_op_prefix)))
           (let cce_op_unary_type i32 (call_i32 cce_expr_type
             (param_get cce_tree) (param_get cce_source)
             (local_get cce_op_unary_node) (call_i32 surface_type_bool)))
@@ -481,7 +494,8 @@
           (return_void)))
         (else (do)))
       (if
-        (condition (ne_i64 (local_get cce_op_child_count) (const_i64 4)))
+        (condition (ne_i64 (local_get cce_op_child_count)
+          (add_i64 (local_get cce_emit_op_prefix) (const_i64 2))))
         (then (do
           (call_void surface_error_prefix (const_string_ptr "operator"))
           (call_void write_cstr (const_i32 2) (const_string_ptr "wrong arity for "))
@@ -492,15 +506,18 @@
             (const_string_ptr ": expected 2, got "))
           (call_void write_i64_dec
             (const_i32 2)
-            (sub_i64 (local_get cce_op_child_count) (const_i64 2)))
+            (sub_i64 (local_get cce_op_child_count)
+              (local_get cce_emit_op_prefix)))
           (call_void write_byte (const_i32 2) (const_i32 10))
           (call_void sop_emit_failure_expr (param_get cce_fd))
           (return_void)))
         (else (do)))
       (let cce_emit_op_left_node i64 (call_i64 nth_child
-        (param_get cce_tree) (param_get cce_node) (const_i64 2)))
+        (param_get cce_tree) (param_get cce_node)
+        (local_get cce_emit_op_prefix)))
       (let cce_emit_op_right_node i64 (call_i64 nth_child
-        (param_get cce_tree) (param_get cce_node) (const_i64 3)))
+        (param_get cce_tree) (param_get cce_node)
+        (add_i64 (local_get cce_emit_op_prefix) (const_i64 1))))
       (if
         (condition (ne_i32 (local_get cce_op_is_bool_binary) (const_i32 0)))
         (then (do
@@ -741,9 +758,9 @@
           (return_void)))
         (else (do)))
       (if
-        (condition (ne_i32 (call_i32 surface_node_is_list_head
-          (param_get cce_tree) (param_get cce_source) (param_get cce_node)
-          (const_string_ptr "op") (const_i64 2)) (const_i32 0)))
+        (condition (ne_i32 (call_i32 surface_is_operator_node
+          (param_get cce_tree) (param_get cce_source) (param_get cce_node))
+          (const_i32 0)))
         (then (do
           (call_void cce_emit_op
             (param_get cce_fd) (param_get cce_source) (param_get cce_tree)
