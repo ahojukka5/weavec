@@ -1,21 +1,20 @@
 ; SPDX-License-Identifier: Apache-2.0
 ; io.weave — low-level I/O helpers for weavec
 ;
-; write_byte, write_bytes, write_cstr, write_i64_dec
+; write_byte, write_bytes, write_cstr, write_i64_dec go through the host
+; output buffer (grow-once ~64KiB, flush at end). write_finish flushes,
+; closes, and reports a failed write.
 
 (program
   (name "io")
   (version "0.1")
 
-  ; Write one byte to fd by allocating a 1-byte buffer.
+  ; Write one byte to fd through the compiler output buffer.
   (fn write_byte
     (params (fd i32) (b i32))
     (returns void)
     (do
-      (let buf ptr (call_ptr malloc (const_i64 1)))
-      (store_i8 (local_get buf) (param_get b))
-      (call_i64 write (param_get fd) (local_get buf) (const_i64 1))
-      (call_void free (local_get buf))
+      (call_i32 weave_rt_write_u8 (param_get fd) (param_get b))
       (return_void)))
 
   ; Write n bytes from buf to fd.
@@ -23,7 +22,7 @@
     (params (fd i32) (buf ptr) (n i64))
     (returns void)
     (do
-      (call_i64 write (param_get fd) (param_get buf) (param_get n))
+      (call_i32 weave_rt_write (param_get fd) (param_get buf) (param_get n))
       (return_void)))
 
   ; Write null-terminated string to fd.
@@ -32,8 +31,29 @@
     (returns void)
     (do
       (let n i64 (call_i64 strlen (param_get s)))
-      (call_i64 write (param_get fd) (param_get s) (local_get n))
+      (call_i32 weave_rt_write (param_get fd) (param_get s) (local_get n))
       (return_void)))
+
+  ; Flush buffered bytes for fd. Returns 1 if any write has failed.
+  (fn write_flush
+    (params (fd i32))
+    (returns i32)
+    (do
+      (return (call_i32 weave_rt_flush (param_get fd)))))
+
+  ; Flush, close, and report whether output writes failed.
+  (fn write_finish
+    (params (fd i32))
+    (returns i32)
+    (do
+      (return (call_i32 weave_rt_write_finish (param_get fd)))))
+
+  ; Sticky write-failure flag for the current output.
+  (fn write_failed
+    (params)
+    (returns i32)
+    (do
+      (return (call_i32 weave_rt_write_failed))))
 
   ; Write i64 value as decimal digits to fd.
   (fn write_i64_dec

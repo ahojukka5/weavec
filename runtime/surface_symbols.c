@@ -1682,11 +1682,22 @@ int32_t weave_surface_enum_spec_arg_type(int32_t index, int32_t arg_index) {
     return weave_surface_enum_specs[index].arg_types[arg_index];
 }
 
+static void weave_surface_enum_write_bytes(int fd, const void *buf, size_t n) {
+    if (buf == NULL || n == 0) {
+        return;
+    }
+#ifdef WEAVE_HAVE_RT_WRITE
+    (void)weave_rt_write((int32_t)fd, buf, (int64_t)n);
+#else
+    write(fd, buf, n);
+#endif
+}
+
 static void weave_surface_enum_write(int fd, const char *text) {
     if (text == NULL) {
         return;
     }
-    write(fd, text, strlen(text));
+    weave_surface_enum_write_bytes(fd, text, strlen(text));
 }
 
 void weave_surface_enum_write_constructor(
@@ -1924,7 +1935,7 @@ void weave_surface_loop_write_lt_name(
     int32_t id) {
     weave_surface_enum_write(fd, "(lt_i32 (local_get ");
     if (source != NULL && start >= 0 && length > 0) {
-        write(fd, source + start, (size_t)length);
+        weave_surface_enum_write_bytes(fd, source + start, (size_t)length);
     }
     weave_surface_enum_write(fd, ") (local_get ");
     weave_surface_loop_write_ident(fd, id, "end");
@@ -1938,11 +1949,11 @@ void weave_surface_loop_write_inc_name(
     int64_t length) {
     weave_surface_enum_write(fd, "(set ");
     if (source != NULL && start >= 0 && length > 0) {
-        write(fd, source + start, (size_t)length);
+        weave_surface_enum_write_bytes(fd, source + start, (size_t)length);
     }
     weave_surface_enum_write(fd, " (add_i32 (local_get ");
     if (source != NULL && start >= 0 && length > 0) {
-        write(fd, source + start, (size_t)length);
+        weave_surface_enum_write_bytes(fd, source + start, (size_t)length);
     }
     weave_surface_enum_write(fd, ") (const_i32 1)))");
 }
@@ -1999,7 +2010,7 @@ void weave_surface_write_string_quoted(
     const unsigned char *bytes =
         (const unsigned char *)source + (size_t)start;
     if (style == 0) {
-        write(fd, bytes, (size_t)length);
+        weave_surface_enum_write_bytes(fd, bytes, (size_t)length);
         weave_surface_enum_write(fd, "\"");
         return;
     }
@@ -2012,7 +2023,7 @@ void weave_surface_write_string_quoted(
         } else if (byte == (unsigned char)'\n') {
             weave_surface_enum_write(fd, "\\n");
         } else {
-            write(fd, &byte, 1);
+            weave_surface_enum_write_bytes(fd, &byte, 1);
         }
     }
     weave_surface_enum_write(fd, "\"");
@@ -2050,7 +2061,7 @@ void weave_surface_try_write_set_ok(
     }
     weave_surface_enum_write(fd, "(set ");
     if (dest != NULL && dest_len > 0) {
-        write(fd, dest, (size_t)dest_len);
+        weave_surface_enum_write_bytes(fd, dest, (size_t)dest_len);
     }
     snprintf(
         line,

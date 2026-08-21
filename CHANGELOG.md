@@ -10,6 +10,10 @@ surface-language contract stabilises.
 
 ### Changed
 
+- Compiler `.wir` and `.ll` emission uses a grow-once 64KiB host
+  buffer, flushed before close. `write_byte` no longer allocates and
+  syscalls per byte. See
+  [Runtime implementation boundary](docs/runtime-boundary.md).
 - `file_write_text` returns `Result bool FileError`. `Ok true` means
   the file holds the text; `Err Failed` is a recoverable I/O failure,
   not errno. Indexing get stays `Option`; refused set stays `bool`.
@@ -71,6 +75,8 @@ surface-language contract stabilises.
 
 ### Fixed
 
+- Failed compiler output `write()` is a diagnostic and a nonzero
+  exit instead of a silently truncated `.wir` or `.ll`.
 - Specialized Option and Result helpers now emit balanced WIR: enum
   constructors and payload functions close their own `(fn ...)`, and
   match `else` closes `then` before opening the next arm. Variant
