@@ -224,15 +224,15 @@ def unattributed_superseded_mentions(path: Path, text: str) -> list[str]:
 def audit() -> list[str]:
     errors: list[str] = []
 
-    for emitter in ("src/frontend/lower.weave", "src/frontend/lower_program_emit.weave"):
-        emitter_text = (ROOT / emitter).read_text(encoding="utf-8")
-        if f'(const_string_ptr "  {DECLARED}")' not in emitter_text:
-            errors.append(
-                f"{emitter} does not emit core version {CURRENT_CORE_VERSION}"
-            )
-        for version in SUPERSEDED_CORE_VERSIONS:
-            if f"core-version {version}" in emitter_text:
-                errors.append(f"{emitter} still references core version {version}")
+    emitter = "src/frontend/lower_program_emit.weave"
+    emitter_text = (ROOT / emitter).read_text(encoding="utf-8")
+    if f'(const_string_ptr "  {DECLARED}")' not in emitter_text:
+        errors.append(
+            f"{emitter} does not emit core version {CURRENT_CORE_VERSION}"
+        )
+    for version in SUPERSEDED_CORE_VERSIONS:
+        if f"core-version {version}" in emitter_text:
+            errors.append(f"{emitter} still references core version {version}")
 
     module_text = (ROOT / "src/llvm/module.weave").read_text(encoding="utf-8")
     for required in (

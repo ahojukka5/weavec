@@ -1,6 +1,6 @@
 ; SPDX-License-Identifier: Apache-2.0
 ; quantum_typecheck.weave — surface quantum validation (reference copy for editing)
-; Live implementation: src/frontend/lower.weave (validate_* functions).
+; Live implementation: src/frontend/lower_program_validate.weave (validate_* functions).
 
 (program
   (name "quantum_typecheck")
