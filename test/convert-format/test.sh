@@ -146,8 +146,10 @@ if command -v llc >/dev/null 2>&1; then
   "$TMP/app"
   status="$?"
   set -e
-  if [[ "$status" -ne 297 ]]; then
-    printf 'convert-format: expected exit 297, got %s\n' "$status" >&2
+  # Packed checksum is 297 (len("42") + '4' + '2' + 42 + len("1.5") +
+  # '1' + '.' + '5'). Process status is that value modulo 256.
+  if [[ "$status" -ne 41 ]]; then
+    printf 'convert-format: expected exit 41, got %s\n' "$status" >&2
     exit 1
   fi
 fi

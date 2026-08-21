@@ -239,7 +239,7 @@
         (condition (or_bool (eq_i64 (local_get pv) (const_i64 -1)) (eq_i64 (local_get vv) (const_i64 -1))))
         (then (do (return (const_i32 1))))
         (else (do)))
-      ; For store_i8, trunc i32 value to i8 first
+      ; For store_i8, narrow i32 or widen bool to one byte first.
       (if
         (condition (ne_i32 (call_i32 ident_equals (local_get tree) (local_get source) (local_get op)
           (const_string_ptr "store_i8") (const_i64 8)) (const_i32 0)))
@@ -247,7 +247,13 @@
           (let t i64 (call_i64 ctx_alloc_temp (param_get ctx)))
           (call_void write_cstr (local_get fd) (const_string_ptr "  %.t"))
           (call_void write_i64_dec (local_get fd) (local_get t))
-          (call_void write_cstr (local_get fd) (const_string_ptr " = trunc i32 "))
+          (if
+            (condition (eq_i32 (call_i32 get_expr_type
+              (param_get ctx) (local_get val_node)) (const_i32 3)))
+            (then (do
+              (call_void write_cstr (local_get fd) (const_string_ptr " = zext i1 "))))
+            (else (do
+              (call_void write_cstr (local_get fd) (const_string_ptr " = trunc i32 ")))))
           (call_void emit_operand (param_get ctx) (local_get val_node) (local_get vv))
           (call_void write_cstr (local_get fd) (const_string_ptr " to i8"))
           (call_void write_byte (local_get fd) (const_i32 10))
@@ -585,10 +591,31 @@
         (condition (eq_i64 (local_get ev) (const_i64 -1)))
         (then (do (return (const_i32 1))))
         (else (do)))
+      (let ret_operand i64 (local_get ev))
+      (if
+        (condition (and_bool
+          (eq_i32 (param_get ret_type_id) (const_i32 3))
+          (eq_i32 (call_i32 get_expr_type (param_get ctx) (local_get expr_node))
+            (const_i32 1))))
+        (then (do
+          (set ret_operand (call_i64 ctx_alloc_temp (param_get ctx)))
+          (call_void write_cstr (local_get fd) (const_string_ptr "  %.t"))
+          (call_void write_i64_dec (local_get fd) (local_get ret_operand))
+          (call_void write_cstr (local_get fd) (const_string_ptr " = trunc i32 "))
+          (call_void emit_operand (param_get ctx) (local_get expr_node) (local_get ev))
+          (call_void write_cstr (local_get fd) (const_string_ptr " to i1"))
+          (call_void write_byte (local_get fd) (const_i32 10))))
+        (else (do)))
       (call_void write_cstr (local_get fd) (const_string_ptr "  ret "))
       (call_void emit_type (local_get fd) (param_get ret_type_id))
       (call_void write_byte (local_get fd) (const_i32 32))
-      (call_void emit_operand (param_get ctx) (local_get expr_node) (local_get ev))
+      (if
+        (condition (ne_i64 (local_get ret_operand) (local_get ev)))
+        (then (do
+          (call_void write_cstr (local_get fd) (const_string_ptr "%.t"))
+          (call_void write_i64_dec (local_get fd) (local_get ret_operand))))
+        (else (do
+          (call_void emit_operand (param_get ctx) (local_get expr_node) (local_get ev)))))
       (call_void write_byte (local_get fd) (const_i32 10))
       (return (const_i32 0))))
 

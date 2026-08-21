@@ -1742,7 +1742,7 @@ void weave_surface_enum_write_constructor(
             fd,
             "      (store_i64 (ptr_add (local_get self) (const_i64 8)) (const_i64 0))\n");
     }
-    weave_surface_enum_write(fd, "      (return (local_get self)))))\n");
+    weave_surface_enum_write(fd, "      (return (local_get self))))\n");
 }
 
 void weave_surface_enum_write_tag_fn(int32_t fd, const char *prefix) {
@@ -1771,7 +1771,7 @@ void weave_surface_enum_write_payload_fn(
     weave_surface_enum_write(fd, ") (do (return (");
     weave_surface_enum_write(fd, load_head);
     weave_surface_enum_write(
-        fd, " (ptr_add (param_get self) (const_i64 8)))))))\n");
+        fd, " (ptr_add (param_get self) (const_i64 8))))))\n");
 }
 
 int32_t weave_surface_match_temp_next(void) {
@@ -2023,7 +2023,7 @@ void weave_surface_match_write_then_do(int32_t fd) {
 }
 
 void weave_surface_match_write_else_do(int32_t fd) {
-    weave_surface_enum_write(fd, ") (else (do ");
+    weave_surface_enum_write(fd, ")) (else (do ");
 }
 
 void weave_surface_match_write_close2(int32_t fd) {

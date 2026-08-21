@@ -64,6 +64,14 @@ surface-language contract stabilises.
 
 ### Fixed
 
+- Specialized Option and Result helpers now emit balanced WIR: enum
+  constructors and payload functions close their own `(fn ...)`, and
+  match `else` closes `then` before opening the next arm. Variant
+  payloads instantiate generic type arguments so integer literals wrap
+  as `const_i32`. Native Option, Result, Vec, convert, and parse-digits
+  programs compile past the previous unknown-constructor failure.
+- `store_i8` of a bool payload widens `i1` instead of truncating `i32`.
+  A bool-returning `load_u8` truncates to `i1` on return.
 - Decimal `const_f32` and `const_f64` now emit a `bitcast` of the IEEE
   bits instead of `fadd` with a spliced decimal token. LLVM no longer
   rejects values such as `0.1`, and `-0.0` keeps its sign.
