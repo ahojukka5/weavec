@@ -42,6 +42,9 @@ surface-language contract stabilises.
   recoverable errors, and `bool` for refused mutations. Migrating
   `parse_f64` and `samples_get` waits on `Option`/`Result`
   specialization for `f64` and `ptr`.
+- Lengths, indices, and capacities are `usize`. `u64` is explicit
+  unsigned arithmetic; `u8` is a stored byte. Those types are not
+  admitted yet, and existing `i32` size APIs must not freeze.
 - Language design principles now treat canonical whitespace as
   formatter-derived layout and `comment` as a standalone surface node,
   matching issues #334 and #337. Author-owned paragraph metadata and

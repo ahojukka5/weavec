@@ -42,6 +42,9 @@ The current primitive and built-in surface types are:
 | `void` | No return value. |
 | `Qubit` | Quantum-handle surface type used by current quantum lowering. |
 
+`u8`, `u64`, and `usize` are decided but not yet admitted. Lengths and
+indices are `usize`; see [Integer widths and the size type](integer-widths.md).
+
 A `(struct NAME ...)` declaration additionally introduces `NAME` as a nominal
 surface type. Nominal struct types lower physically to WIR `ptr`, but two
 different struct names are not interchangeable.
