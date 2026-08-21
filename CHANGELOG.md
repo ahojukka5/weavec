@@ -52,6 +52,9 @@ surface-language contract stabilises.
 - `f32` and `f64` follow IEEE-754. `sqrt` of a negative is `NaN`,
   not `0.0`. The intended correctly rounded `sqrt` is `llvm.sqrt`
   once WIR admits it.
+- Ownership for #115 must justify LLVM `noalias` on exclusive
+  borrows, distinguish task-shareable types, and define GPU/parallel
+  eligibility as `pure`/`no_alloc` over slices.
 - Language design principles now treat canonical whitespace as
   formatter-derived layout and `comment` as a standalone surface node,
   matching issues #334 and #337. Author-owned paragraph metadata and

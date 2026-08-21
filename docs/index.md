@@ -91,6 +91,7 @@ names used when they were released.
 - [Semantic structs](semantic-structs.md)
 - [Struct layout and compatibility ABI](struct-layout.md)
 - [Struct value semantics](struct-ownership.md)
+- [Ownership requirements for concurrency and GPU](ownership-concurrency.md)
 - [Quantum surface support](quantum.md)
 
 ## Backend and performance notes

@@ -138,6 +138,10 @@ representation decision last.
   impossible to misuse. They cannot be removed until cleanup is automatic, so
   they outlive this decision.
 
+Concurrency, GPU eligibility, and LLVM `noalias` are not left implicit.
+They are requirements on #115 in
+[Ownership requirements for concurrency and GPU](ownership-concurrency.md).
+
 ## Interim posture
 
 Until move checking exists, the alias semantics stay as they are and are
@@ -154,4 +158,5 @@ model then has to remove.
 - [Semantic structs](semantic-structs.md)
 - [Struct layout and compatibility ABI](struct-layout.md)
 - [Next-version WIR struct fields](wir-next-struct-fields.md)
+- [Ownership requirements for concurrency and GPU](ownership-concurrency.md)
 - [Language reference](language-reference.md)
