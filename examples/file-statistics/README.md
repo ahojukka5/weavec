@@ -57,11 +57,13 @@ text_file_is_open(file)   -> bool
 text_file_line_count(file) -> i32
 text_file_line(file, i)   -> line text
 text_file_close(file)
+file_write_text(path, text) -> bool
 ```
 
-There is no directory traversal, no writing, no seeking, no streaming, and no
-path handling. `TextFile` is a nominal struct, so this example holds a value of
-that type and never a descriptor or a buffer address.
+There is no directory traversal, no seeking, no streaming, and no
+path handling. Writing a whole C string is `file_write_text`. `TextFile` is a
+nominal struct, so this example holds a value of that type and never a
+descriptor or a buffer address.
 
 The whole file is read at open time and each newline is replaced by a terminator
 in place, so a line is an ordinary string without copying. That suits the small

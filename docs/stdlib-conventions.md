@@ -51,8 +51,10 @@ that already identifies the module (`string_`, `bytes_`, `vec_`,
 `std.io` still exports unprefixed `write_stdout`, `write_stderr`, and
 `print_f64`. Those names stay so existing programs keep building. New
 I/O entry points use an `io_` prefix. `std.process` keeps `args_count`
-and `arg`. The Option form should be named `process_arg` once `Option
-ptr` specializes.
+and `arg`, and adds `process_exit`. The Option form of `arg` should be
+named `process_arg` once `Option ptr` specializes. `std.env` exports
+`env_get`. `std.path` exports `path_join`, `path_basename`, and
+`path_is_absolute`. `std.file` adds `file_write_text`.
 
 ## Mutation and ownership
 
@@ -69,6 +71,12 @@ write.
 Callers still release owned values they create (`samples_release`,
 `free` through `std.memory`). This document does not add an ownership
 checker; it only forbids hiding failure inside a returned handle.
+
+`file_write_text` returns `bool` because it mutates the filesystem.
+Named I/O error constructors, and switching open/write to `Result`,
+are issue #247. Putting `Result` into `std.file` today would emit
+helper WIR that existing native file programs cannot resolve.
+`env_get` already uses `Option String` for a missing name.
 
 ## What this does not decide
 

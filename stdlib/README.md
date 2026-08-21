@@ -18,6 +18,8 @@ package. The full contract is in the repository document
 | `stdlib/matrix.weave` | `std.matrix` |
 | `stdlib/statistics.weave` | `std.statistics` |
 | `stdlib/file.weave` | `std.file` |
+| `stdlib/path.weave` | `std.path` |
+| `stdlib/env.weave` | `std.env` |
 | `stdlib/bytes.weave` | `std.bytes` |
 | `stdlib/string.weave` | `std.string` |
 | `stdlib/vec.weave` | `std.vec` |

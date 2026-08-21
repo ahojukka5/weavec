@@ -1,0 +1,103 @@
+; SPDX-License-Identifier: Apache-2.0
+; POSIX path helpers for ordinary Weave programs.
+;
+; Paths are C strings at the boundary so they compose with arg() and
+; file_open_text. Joined and basename results are owned String values.
+; The separator is `/`. This is not a complete path library: no cwd,
+; no `..` resolution, and no Windows drives. std.memory, std.option,
+; std.bytes, and std.string must be earlier in the build.
+
+(program
+  (name "std.path")
+  (version "0.1")
+
+  (fn path_is_absolute
+    (params (path ptr))
+    (returns bool)
+    (do
+      (if
+        (condition (eq_ptr (param_get path) (const_null)))
+        (then (do (return (const_bool false))))
+        (else (do)))
+      (return
+        (eq_i32
+          (load_u8 (param_get path))
+          (const_i32 47)))))
+
+  (fn path_join
+    (params (left ptr) (right ptr))
+    (returns String)
+    (do
+      (if
+        (condition (eq_ptr (param_get right) (const_null)))
+        (then (do
+          (if
+            (condition (eq_ptr (param_get left) (const_null)))
+            (then (do
+              (return (call string_from_text (const_string_ptr "")))))
+            (else (do
+              (return (call string_from_text (param_get left))))))))
+        (else (do)))
+      (if
+        (condition (call path_is_absolute (param_get right)))
+        (then (do
+          (return (call string_from_text (param_get right)))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get left) (const_null))
+          (eq_i32 (load_u8 (param_get left)) (const_i32 0))))
+        (then (do
+          (return (call string_from_text (param_get right)))))
+        (else (do)))
+      (let out String (call string_from_text (param_get left)))
+      (let n i32 (call string_len (local_get out)))
+      (let last i32
+        (call option_unwrap_or (type-args i32)
+          (call string_get (local_get out) (sub_i32 (local_get n) (const_i32 1)))
+          (const_i32 0)))
+      (if
+        (condition (ne_i32 (local_get last) (const_i32 47)))
+        (then (do
+          (let slash String (call string_from_text (const_string_ptr "/")))
+          (call string_append (local_get out) (local_get slash))
+          (call string_release (local_get slash))))
+        (else (do)))
+      (let extra String (call string_from_text (param_get right)))
+      (call string_append (local_get out) (local_get extra))
+      (call string_release (local_get extra))
+      (return (local_get out))))
+
+  (fn path_basename
+    (params (path ptr))
+    (returns String)
+    (do
+      (if
+        (condition (eq_ptr (param_get path) (const_null)))
+        (then (do
+          (return (call string_from_text (const_string_ptr "")))))
+        (else (do)))
+      (let i i64 (const_i64 0))
+      (let last i64 (const_i64 -1))
+      (while
+        (condition (ne_i32
+          (load_u8 (ptr_add (param_get path) (local_get i)))
+          (const_i32 0)))
+        (do
+          (if
+            (condition (eq_i32
+              (load_u8 (ptr_add (param_get path) (local_get i)))
+              (const_i32 47)))
+            (then (do (set last (local_get i))))
+            (else (do)))
+          (set i (add_i64 (local_get i) (const_i64 1)))))
+      (if
+        (condition (lt_i64 (local_get last) (const_i64 0)))
+        (then (do
+          (return (call string_from_text (param_get path)))))
+        (else (do)))
+      (return
+        (call string_from_text
+          (ptr_add
+            (param_get path)
+            (add_i64 (local_get last) (const_i64 1))))))))

@@ -50,7 +50,11 @@ the platform `argc`/`argv` pair and captures it into a mechanical host store bef
 calling the application's high-level `program_main` function. The module owns the
 user convention that the executable name is hidden and arguments are zero-indexed.
 `stdlib/parse.weave` performs deterministic ASCII-to-`f64` parsing entirely in
-Weave.
+Weave. `process_exit` is a mechanical `exit` wrapper. Environment lookup lives
+in `stdlib/env.weave`: `getenv` is copied into an owned `String` and missing
+names are `None`. Path joining lives in `stdlib/path.weave` in Weave.
+`file_write_text` uses libc `fwrite` the same way `file_open_text` uses
+`fopen`. There are no new `weave_rt_` symbols.
 
 `stdlib/math.weave` implements reusable `sqrt_f64` and trigonometric
 kernels in Weave. `sqrt` of a negative is `NaN`, not `0.0`. The

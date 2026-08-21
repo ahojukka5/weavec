@@ -4,6 +4,7 @@
 ; This module owns the native CLI entry wrapper as well as the user-facing
 ; convention that argv[0] is the executable name and is not counted as a program
 ; argument. Application source defines `program_main` and never sees raw pointers.
+; `process_exit` is the host terminator. Environment lookup lives in std.env.
 
 (program
   (name "std.process")
@@ -18,6 +19,9 @@
   (extern weave_rt_process_raw_arg
     (params (index i32))
     (returns ptr))
+  (extern exit
+    (params (code i32))
+    (returns void))
 
   (entry main
     (params (argc i32) (argv ptr))
@@ -52,4 +56,13 @@
         (then (do (return (const_null))))
         (else (do)))
       (return (call_ptr weave_rt_process_raw_arg
-        (add_i32 (param_get index) (const_i32 1)))))))
+        (add_i32 (param_get index) (const_i32 1))))))
+
+  ; Never returns. The host exit is the process-wide terminator; Weave
+  ; cannot express that itself. The status is an exit code, not a length.
+  (fn process_exit
+    (params (code i32))
+    (returns void)
+    (do
+      (call_void exit (param_get code))
+      (return_void))))

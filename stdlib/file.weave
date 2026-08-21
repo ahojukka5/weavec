@@ -2,10 +2,10 @@
 ; Reading a small text file as lines.
 ;
 ; This is the minimum a line-oriented program needs: open a file, ask how many
-; lines it has, read one, close it. There is no directory traversal, no writing,
-; no seeking, no streaming, and no path handling. A TextFile is a nominal struct,
-; so application source holds a value of that type rather than a descriptor or a
-; buffer address.
+; lines it has, read one, close it, or replace a file with one C string. There
+; is no directory traversal, no seeking, no streaming, and no path handling. A
+; TextFile is a nominal struct, so application source holds a value of that
+; type rather than a descriptor or a buffer address.
 ;
 ; The whole file is read into memory at open time. That suits the small inputs
 ; these examples work with and keeps line access a pointer walk rather than a
@@ -30,6 +30,9 @@
     (params (stream ptr))
     (returns i64))
   (extern fread
+    (params (buffer ptr) (size i64) (count i64) (stream ptr))
+    (returns i64))
+  (extern fwrite
     (params (buffer ptr) (size i64) (count i64) (stream ptr))
     (returns i64))
 
@@ -197,4 +200,60 @@
         (then (do (call free (field-get file content))))
         (else (do)))
       (call free file)
-      (return_void))))
+      (return_void)))
+
+  (fn file_cstr_len
+    (params (text ptr))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_ptr (param_get text) (const_null)))
+        (then (do (return (const_i64 0))))
+        (else (do)))
+      (let n i64 (const_i64 0))
+      (while
+        (condition (ne_i32
+          (load_u8 (ptr_add (param_get text) (local_get n)))
+          (const_i32 0)))
+        (do
+          (set n (add_i64 (local_get n) (const_i64 1)))))
+      (return (local_get n))))
+
+  ; Replace the named file with one NUL-terminated string. true means
+  ; the file now holds that text. false means it does not: a null
+  ; argument, an open failure, or a short write. Named I/O error
+  ; constructors are issue #247.
+  (fn file_write_text
+    (params (path ptr) (text ptr))
+    (returns bool)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get path) (const_null))
+          (eq_ptr (param_get text) (const_null))))
+        (then (do (return (const_bool false))))
+        (else (do)))
+      (let stream ptr
+        (call_ptr fopen (param_get path) (const_string_ptr "wb")))
+      (if
+        (condition (eq_ptr (local_get stream) (const_null)))
+        (then (do (return (const_bool false))))
+        (else (do)))
+      (let n i64 (call_i64 file_cstr_len (param_get text)))
+      (let wrote i64 (const_i64 0))
+      (if
+        (condition (gt_i64 (local_get n) (const_i64 0)))
+        (then (do
+          (set wrote
+            (call_i64 fwrite
+              (param_get text)
+              (const_i64 1)
+              (local_get n)
+              (local_get stream)))))
+        (else (do)))
+      (call_i32 fclose (local_get stream))
+      (if
+        (condition (ne_i64 (local_get wrote) (local_get n)))
+        (then (do (return (const_bool false))))
+        (else (do)))
+      (return (const_bool true)))))

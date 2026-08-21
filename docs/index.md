@@ -49,6 +49,8 @@ names used when they were released.
   modules live, how they are named `std.<id>`, and how packages ship them.
 - [Standard-library API conventions](stdlib-conventions.md) — Option,
   Result, and bool failure signaling, naming, and mutation rules.
+- [Paths, files, process, and environment](cli-io.md) — `process_exit`,
+  `file_write_text`, POSIX path helpers, and `env_get`.
 - [Integer widths and the size type](integer-widths.md) — `usize` for
   lengths and indices, `u64`/`u8` roles, and why `i32` sizes must not
   freeze.

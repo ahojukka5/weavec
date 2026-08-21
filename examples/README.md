@@ -64,7 +64,7 @@ modules a program needs are the ones it actually uses:
 
 | module | provides |
 | --- | --- |
-| `stdlib/process.weave` | command-line arguments |
+| `stdlib/process.weave` | command-line arguments and process exit |
 | `stdlib/parse.weave` | reading numbers from text |
 | `stdlib/math.weave` | square root, trigonometry, inverse cosine |
 | `stdlib/io.weave` | printing numbers and text |
@@ -72,7 +72,9 @@ modules a program needs are the ones it actually uses:
 | `stdlib/vector.weave` | the `Vec3` type and its dot product |
 | `stdlib/matrix.weave` | the `Mat3` type and matrix-vector multiplication |
 | `stdlib/statistics.weave` | mean and variance over a set of values |
-| `stdlib/file.weave` | reading a text file as lines |
+| `stdlib/file.weave` | reading a text file as lines, and writing a string |
+| `stdlib/path.weave` | joining POSIX paths |
+| `stdlib/env.weave` | reading environment variables |
 | `stdlib/option.weave` | the `Option` type for a value that may be absent |
 | `stdlib/result.weave` | the `Result` type for success or a recoverable error |
 | `stdlib/bytes.weave` | owned byte buffers with length, append, and get |
@@ -84,7 +86,8 @@ Modules that depend on another must be listed after it: `stdlib/memory.weave`
 comes before anything that allocates, `stdlib/vector.weave` before
 `stdlib/matrix.weave`, `stdlib/bytes.weave` before `stdlib/string.weave`,
 and `stdlib/memory.weave` plus `stdlib/option.weave` before
-`stdlib/vec.weave`. `stdlib/convert.weave` comes after `stdlib/parse.weave`,
+`stdlib/vec.weave`. `stdlib/path.weave` and `stdlib/env.weave` come after
+`stdlib/string.weave`. `stdlib/convert.weave` comes after `stdlib/parse.weave`,
 `stdlib/io.weave`, `stdlib/result.weave`, and `stdlib/string.weave`.
 
 ## What these demonstrate
