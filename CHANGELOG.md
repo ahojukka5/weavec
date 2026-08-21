@@ -34,6 +34,10 @@ surface-language contract stabilises.
   every path. A tail expression is not a return. `weavec fmt` does not
   invent or remove `return` from tail position. Void functions use
   `(return)` or `(return_void)`.
+- `weavec fmt` is the byte-canonical serializer: one surface tree has
+  one source-byte representation. The inline budget is a compiler-owned
+  80 columns, not a user option. `fmt --check` names a noncanonical
+  path. Style flags such as `--width` are rejected.
 - Language design principles now treat canonical whitespace as
   formatter-derived layout and `comment` as a standalone surface node,
   matching issues #334 and #337. Author-owned paragraph metadata and

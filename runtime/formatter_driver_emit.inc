@@ -102,7 +102,10 @@ static int weave_fmt_format_list(
     }
 
     int measured = weave_fmt_measure_list(
-        context, list, expected, 88 > indentation ? 88 - indentation : 1);
+        context,
+        list,
+        expected,
+        weave_fmt_column_budget(indentation));
     int inline_mode = head_gap.comments == 0 &&
         (force_inline || measured >= 0);
 
@@ -148,7 +151,7 @@ static int weave_fmt_format_list(
             child,
             weave_fmt_expected_for_child(
                 context, list, &plan, head, actual_index),
-            88);
+            weave_fmt_column_budget(indentation + 2));
         int scalar_prefix = child_measure >= 0 &&
             node_kind(context->tree, child) != node_list();
         if (gap.comments != 0) {
