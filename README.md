@@ -249,10 +249,12 @@ See the [command reference](docs/command-reference.md),
 - quantum LLVM validation;
 - basic self-host integration tests.
 
-Pull requests run a light file-based contract smoke and commit-message lint on
-GitHub-hosted runners. The full ladder and deep self-host run after merge, on
-`master`, with Linux glibc SDKs and Linux musl SDKs. macOS is a supported build
-host and is exercised locally, but no macOS job runs in CI.
+Pull requests run a file-based contract smoke, commit-message lint, and a
+GitHub-hosted compile of `weavec` plus the fast behavioral suites. The full
+ladder and deep self-host run after merge, on `master`, with Linux glibc SDKs
+and Linux musl SDKs. macOS is a supported build host and is exercised locally,
+but no macOS job runs in CI. Versioned GitHub releases wait for the post-merge
+ladder on the same SHA before publishing.
 
 Deep self-hosting is a separate permanent post-merge and release gate:
 

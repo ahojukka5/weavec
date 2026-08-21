@@ -272,12 +272,70 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  wait-ladder:
+    name: "release: wait for CI ladder"
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Wait for ci.yml ladder jobs on this SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          deadline=$((SECONDS + 2100))
+          glibc_name='test: compile & run full ladder (linux-glibc-sdks)'
+          musl_name='test: compile & run full ladder (linux-musl-sdks)'
+          while (( SECONDS < deadline )); do
+            run_id="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow ci.yml \
+              --commit "$GITHUB_SHA" \
+              --event push \
+              --json databaseId,status \
+              --jq '.[0].databaseId // empty')"
+            if [[ -z "$run_id" ]]; then
+              sleep 20
+              continue
+            fi
+            jobs_json="$(gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --json jobs)"
+            glibc="$(printf '%s\n' "$jobs_json" | jq -r --arg n "$glibc_name" \
+              '.jobs[] | select(.name==$n) | .conclusion // .status')"
+            musl="$(printf '%s\n' "$jobs_json" | jq -r --arg n "$musl_name" \
+              '.jobs[] | select(.name==$n) | .conclusion // .status')"
+            printf 'ci run %s glibc=%s musl=%s\n' "$run_id" "$glibc" "$musl"
+            if [[ "$glibc" == success && "$musl" == success ]]; then
+              exit 0
+            fi
+            for result in "$glibc" "$musl"; do
+              case "$result" in
+                failure|cancelled|timed_out|startup_failure)
+                  echo "ci.yml ladder finished with $result" >&2
+                  exit 1
+                  ;;
+              esac
+            done
+            sleep 20
+          done
+          echo "timed out waiting for ci.yml ladder jobs" >&2
+          exit 1
+
   publish-release:
     name: "release: publish GitHub release"
     if: >-
-      startsWith(github.ref, 'refs/tags/v') ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/master')
-    needs: [build-linux, verify-archives]
+      !cancelled() &&
+      needs.build-linux.result == 'success' &&
+      needs.verify-archives.result == 'success' &&
+      (needs.wait-ladder.result == 'success' ||
+       needs.wait-ladder.result == 'skipped') &&
+      (startsWith(github.ref, 'refs/tags/v') ||
+       (github.event_name == 'push' && github.ref == 'refs/heads/master'))
+    needs: [build-linux, verify-archives, wait-ladder]
     runs-on: self-hosted
     permissions:
       contents: write

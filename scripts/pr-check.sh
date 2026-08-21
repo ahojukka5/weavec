@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Light pull-request contracts. These checks are file-based and do not build
-# the compiler or occupy the self-hosted ladder fleet. The full ladder runs
-# on master after merge.
+# the compiler or occupy the self-hosted ladder fleet. The compile-and-fast-suite
+# gate is scripts/pr-compile.sh. The full ladder runs on master after merge.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -41,5 +41,12 @@ bash "$ROOT/test/project-protocol-contract/test.sh"
 
 log 'development entrypoints'
 bash "$ROOT/test/development-entrypoints/test.sh"
+
+log 'PR compile gate script'
+bash -n "$ROOT/scripts/pr-compile.sh"
+[[ -x "$ROOT/scripts/pr-compile.sh" ]] || {
+  printf 'pr-check: scripts/pr-compile.sh must be executable\n' >&2
+  exit 1
+}
 
 log 'passed'

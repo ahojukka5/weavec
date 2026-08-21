@@ -73,23 +73,24 @@ commits and files.
 
 ## CI completion gate
 
-Pull-request CI is the light contract smoke and commit-message lint. The full
+Pull-request CI is the file-based contract smoke, commit-message lint, and a
+GitHub-hosted compile of `weavec` plus the fast behavioral suites. The full
 ladder and deep self-host run only after merge, on `master`.
 
 A task is not complete while a required pull-request check for the exact
 current head is queued, pending, in progress, cancelled, timed out, or failing.
 
-- Keep the pull request in draft while those light PR checks are unresolved or
+- Keep the pull request in draft while those PR checks are unresolved or
   red.
-- Do not stop at reporting a failed or cancelled PR check. Inspect its logs,
-  fix the underlying code, test, workflow, or runner interaction, and trigger
-  fresh validation for the exact corrected head.
+- A red or cancelled PR check is unfinished work. Inspect its logs, fix the
+  underlying code, test, workflow, or runner interaction, and trigger fresh
+  validation for the exact corrected head.
 - Continue until every required PR check is green. A red PR check is
   unfinished work, not a status that can be explained away or handed to the
   reviewer.
 - After every history rewrite or force-push, discard earlier PR-check evidence
   and wait for the new exact head.
-- Mark the pull request ready for review only after the light PR checks are
+- Mark the pull request ready for review only after the PR checks are
   green and the branch history and validation summary are final.
 - Do not wait for the full ladder or deep self-host on a pull request. If
   post-merge `master` CI fails, open a follow-up fix.
