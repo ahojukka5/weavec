@@ -1,9 +1,23 @@
 # Canonical Weave formatting
 
-`weavec fmt` parses surface Weave with the compiler's own S-expression parser and
-emits one deterministic textual normal form. It is intended for LLM generation,
-structural editing, review, and repair loops where irrelevant spelling choices
-should disappear before semantic work continues.
+`weavec fmt` is the byte-canonical serializer for surface Weave. One canonical
+surface tree has exactly one authoritative source-byte representation.
+Formatting is serialization, not style: there are no profiles, widths,
+repository-specific layouts, or author-owned indentation choices.
+
+```text
+fmt(fmt(source)) == fmt(source)
+```
+
+Sources that differ only in admitted noncanonical spelling or whitespace, but
+parse to the same canonical surface tree, serialize to the same bytes:
+
+```text
+fmt(source_a) == fmt(source_b)
+```
+
+The parser may still accept historical compatibility forms. The printer has
+exactly one current dialect.
 
 ## Commands
 
@@ -15,8 +29,11 @@ weavec fmt --output OUTPUT SOURCE
 
 `weavec fmt SOURCE` formats `SOURCE` in place. `--output` leaves the source
 untouched and atomically publishes the formatted document at `OUTPUT`.
-`--check` performs no modification and returns nonzero when formatting would
-change the source.
+`--check` is the authoritative canonical-byte gate. It performs no modification
+and returns `1` when source bytes differ from serialization, printing the path
+on stderr. Noncanonical whitespace is not a parse or type error.
+
+## Normal form
 
 | Exit | Meaning |
 |---:|---|
@@ -38,10 +55,19 @@ The normal form uses:
 - one space between inline children;
 - no trailing horizontal whitespace;
 - exactly one final newline;
-- an 88-column inline budget;
-- multiline `program`, `fn`, `entry`, `struct`, `if`, and `while` forms;
+- a compiler-owned 80-column inline budget;
+- try-inline for a complete form at its current indentation, otherwise one
+  deterministic multiline rendering;
+- multiline `program`, `fn`, `entry`, and `struct` declarations, which keep
+  headers separated from executable bodies;
 - multiline `do` forms when they contain more than one statement;
 - original declaration, statement, field, clause, and argument order.
+
+The column budget is not configurable. Vertical spacing remains derived from
+rendered structure; arbitrary input blank lines are discarded. Remaining
+header/body blank-line policy is issue #334. Comment nodes as first-class AST
+forms are issue #337; until then the printer recovers semicolon comments from
+source gaps.
 
 Formatting never sorts declarations or children. Source order remains semantic
 and continues to be part of the bootstrap and multi-file compilation contract.

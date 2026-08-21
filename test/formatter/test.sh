@@ -345,4 +345,90 @@ if text.index("(b (const_i32 2))") >= text.index("(a (const_i32 1))"):
         "constructor for an ambiguously-named struct was silently reordered")
 PY
 
+set +e
+"$WEAVEC" fmt --width 120 "$TMP/formatted.weave" >/dev/null 2>"$TMP/style.stderr"
+style_exit="$?"
+set -e
+[[ "$style_exit" -eq 2 ]] || {
+  printf 'formatter: expected style-option exit 2, got %s\n' "$style_exit" >&2
+  exit 1
+}
+if ! grep -Fq 'no style options' "$TMP/style.stderr"; then
+  printf 'formatter: missing style-option diagnostic\n' >&2
+  cat "$TMP/style.stderr" >&2
+  exit 1
+fi
+
+cat > "$TMP/canonical-core.weave" <<'EOF_CANONICAL_CORE'
+(program
+  (name "fmt-corpus")
+  (version "0.1")
+  (fn add-one ((value i32)) i32
+    (return (+ value 1)))
+  (entry main () i32
+    (return (add-one 41))))
+EOF_CANONICAL_CORE
+
+python3 - "$TMP" <<'PY'
+from pathlib import Path
+import sys
+
+tmp = Path(sys.argv[1])
+canonical = (tmp / "canonical-core.weave").read_bytes()
+variants = {
+    "spaces": b'''(program  (name   "fmt-corpus")   (version  "0.1")
+(fn add-one (params (value i32)) (returns i32) (do (return (op add value 1))))
+(entry main (params) (returns i32) (do (return (call add-one 41)))))
+''',
+    "crlf": b'''(program(name "fmt-corpus")(version "0.1")\r
+(fn add-one((value i32)) i32 (return (+ value 1)))\r
+(entry main() i32 (return (add-one 41))))\r
+''',
+    "blank-lines": b'''(program
+
+  (name "fmt-corpus")
+
+  (version "0.1")
+
+  (fn add-one ((value i32)) i32
+    (return (add_i32 (param_get value) (const_i32 1))))
+
+  (entry main () i32
+    (return (call_i32 add-one 41))))
+''',
+}
+for name, source in variants.items():
+    (tmp / f"corpus-{name}.weave").write_bytes(source)
+PY
+
+for variant in spaces crlf blank-lines; do
+  "$WEAVEC" fmt --output "$TMP/corpus-$variant.out.weave" \
+    "$TMP/corpus-$variant.weave"
+  cmp "$TMP/canonical-core.weave" "$TMP/corpus-$variant.out.weave"
+  "$WEAVEC" fmt "$TMP/corpus-$variant.out.weave"
+  cmp "$TMP/canonical-core.weave" "$TMP/corpus-$variant.out.weave"
+done
+"$WEAVEC" fmt --check "$TMP/canonical-core.weave"
+
+set +e
+"$WEAVEC" fmt --check "$TMP/corpus-spaces.weave" \
+  >/dev/null 2>"$TMP/check-noncanonical.stderr"
+check_noncanonical="$?"
+set -e
+[[ "$check_noncanonical" -eq 1 ]] || {
+  printf 'formatter: expected noncanonical corpus check exit 1, got %s\n' \
+    "$check_noncanonical" >&2
+  exit 1
+}
+if ! grep -Fq 'is not canonical' "$TMP/check-noncanonical.stderr"; then
+  printf 'formatter: --check did not name the noncanonical path\n' >&2
+  cat "$TMP/check-noncanonical.stderr" >&2
+  exit 1
+fi
+if ! grep -Fq "$TMP/corpus-spaces.weave" "$TMP/check-noncanonical.stderr"; then
+  printf 'formatter: --check diagnostic omitted the source path\n' >&2
+  cat "$TMP/check-noncanonical.stderr" >&2
+  exit 1
+fi
+
 printf 'formatter: canonicalization, structs, comments, and atomicity passed\n'

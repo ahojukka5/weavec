@@ -147,6 +147,14 @@ typedef struct weave_fmt_context {
     int has_struct_declarations;
 } weave_fmt_context;
 
+enum { WEAVE_FMT_COLUMN_LIMIT = 80 };
+
+static size_t weave_fmt_column_budget(size_t indentation) {
+    return WEAVE_FMT_COLUMN_LIMIT > indentation
+        ? (size_t)WEAVE_FMT_COLUMN_LIMIT - indentation
+        : 1;
+}
+
 
 #include "formatter_driver_io.inc"
 #include "formatter_driver_gaps.inc"

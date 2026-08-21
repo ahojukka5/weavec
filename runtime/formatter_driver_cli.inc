@@ -194,6 +194,9 @@ static int weave_fmt_run(
     }
     if (check_only) {
         unlink(temporary);
+        if (!equal) {
+            fprintf(stderr, "weavec: fmt: %s is not canonical\n", source_path);
+        }
         return equal ? 0 : 1;
     }
 
@@ -221,6 +224,20 @@ static int weave_fmt_run(
 }
 
 int weave_rt_format_main(int argc, char **argv) {
+    int index = 2;
+    while (index < argc) {
+        if (strcmp(argv[index], "--width") == 0 ||
+            strcmp(argv[index], "--indent") == 0 ||
+            strcmp(argv[index], "--style") == 0 ||
+            strcmp(argv[index], "--config") == 0) {
+            fputs(
+                "weavec: fmt: canonical Weave has no style options; "
+                "formatting is serialization\n",
+                stderr);
+            return 2;
+        }
+        ++index;
+    }
     if (argc == 3) {
         return weave_fmt_run(argv[2], NULL, 0);
     }

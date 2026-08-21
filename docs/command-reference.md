@@ -232,11 +232,13 @@ weavec fmt --output <output.weave> <source.weave>
 
 The formatter parses one complete surface source with the compiler parser,
 normalizes layout and supported compatibility forms, preserves declaration and
-child order, and emits the deterministic canonical normal form. The default mode
-updates the source atomically. `--output` writes a separate destination, and
-`--check` returns `0` for canonical input or `1` when the source would change.
-Invalid usage returns `2`; read, parse, formatting, comparison, and publication
-failures return `3` without replacing an existing source or output.
+child order, and emits the deterministic canonical byte representation of that
+tree. There are no style flags. The default mode updates the source atomically.
+`--output` writes a separate destination, and `--check` returns `0` for
+canonical input or `1` when the source would change, naming the path.
+Invalid usage, including `--width` / `--indent` / `--style`, returns `2`;
+read, parse, formatting, comparison, and publication failures return `3`
+without replacing an existing source or output.
 
 See [Canonical Weave formatting](formatting.md) for the normalization, comment,
 idempotence, and compatibility policies.
