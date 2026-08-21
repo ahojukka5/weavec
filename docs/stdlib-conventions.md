@@ -14,7 +14,7 @@ There are three admitted outcomes. Do not invent a fourth.
 | Situation | Return | Example |
 |---|---|---|
 | A value may be absent | `Option T` | `string_get`, `vec_get`, `samples_get`, `process_arg` |
-| An operation may fail with a cause | `Result T E` | `parse_f64`, `parse_float`, file open |
+| An operation may fail with a cause | `Result T E` | `parse_float`, `file_write_text` |
 | A mutation may refuse | `bool` | `vec_set`, `vec_push`, `samples_add` |
 
 `true` means the mutation happened. `false` means it did not: out of
@@ -72,11 +72,12 @@ Callers still release owned values they create (`samples_release`,
 `free` through `std.memory`). This document does not add an ownership
 checker; it only forbids hiding failure inside a returned handle.
 
-`file_write_text` returns `bool` because it mutates the filesystem.
-Named I/O error constructors, and switching open/write to `Result`,
-are issue #247. Putting `Result` into `std.file` today would emit
-helper WIR that existing native file programs cannot resolve.
-`env_get` already uses `Option String` for a missing name.
+`file_write_text` returns `Result bool FileError`. `Ok true` means the
+filesystem mutation happened. `Err Failed` means it did not. Named
+constructors live on `FileError`; there is no errno integer.
+`file_open_text` plus `text_file_is_open` remain compatibility.
+`env_get` already uses `Option String` for a missing name. See
+[Bounds-check and I/O error behavior](bounds-io-errors.md).
 
 ## What this does not decide
 
@@ -85,4 +86,5 @@ Integer widths (`usize`, `u64`, `u8`) are decided in
 (`NaN`, `±inf`, signed zero, and `sqrt` of a negative) are decided in
 [Floating-point special values](floating-point.md): IEEE operations
 return `NaN` or `inf`, not `Option`. Bounds-check and I/O error
-behavior for paths and files are issue #247.
+behavior for paths and files are in
+[Bounds-check and I/O error behavior](bounds-io-errors.md).

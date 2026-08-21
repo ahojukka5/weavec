@@ -785,6 +785,7 @@ EOF_FILESTATS
   "$EXTRACTED_PACKAGE/stdlib/math.weave" \
   "$EXTRACTED_PACKAGE/stdlib/io.weave" \
   "$EXTRACTED_PACKAGE/stdlib/statistics.weave" \
+  "$EXTRACTED_PACKAGE/stdlib/result.weave" \
   "$EXTRACTED_PACKAGE/stdlib/file.weave" \
   "$EXTRACTED_PACKAGE/examples/file-statistics/main.weave" \
   -o "$EXTRACTED_FILESTATS_BIN"

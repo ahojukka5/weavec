@@ -22,6 +22,7 @@ WIR="$TMP/file-statistics.wir"
   "$ROOT/stdlib/math.weave" \
   "$ROOT/stdlib/io.weave" \
   "$ROOT/stdlib/statistics.weave" \
+  "$ROOT/stdlib/result.weave" \
   "$ROOT/stdlib/file.weave" \
   "$ROOT/examples/file-statistics/main.weave" \
   -o "$BIN" \
