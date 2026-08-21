@@ -47,6 +47,8 @@ names used when they were released.
   forms accepted by the current compiler.
 - [Standard-library layout and module naming](stdlib.md) — where `stdlib`
   modules live, how they are named `std.<id>`, and how packages ship them.
+- [Standard-library API conventions](stdlib-conventions.md) — Option,
+  Result, and bool failure signaling, naming, and mutation rules.
 - [Canonical LLM-facing surface forms](canonical-surface.md) — typed canonical
   calls, contextual literals, compatibility forms, and deterministic elaboration.
 - [WIR core version 3](wir.md) — the self-hosted frontend/backend envelope,
