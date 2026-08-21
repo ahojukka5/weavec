@@ -38,7 +38,7 @@ library tree. Do not give a standard module a name that is not `std.<id>`.
 | Path | Identity | Provides |
 |---|---|---|
 | `stdlib/memory.weave` | `std.memory` | The single `malloc`/`free` boundary. |
-| `stdlib/process.weave` | `std.process` | Command-line arguments. |
+| `stdlib/process.weave` | `std.process` | Command-line arguments and `process_exit`. |
 | `stdlib/parse.weave` | `std.parse` | ASCII decimal number parsing. |
 | `stdlib/io.weave` | `std.io` | Writing text and numbers. |
 | `stdlib/math.weave` | `std.math` | Square root and trigonometry. `sqrt` of a negative is `NaN`. |
@@ -47,7 +47,9 @@ library tree. Do not give a standard module a name that is not `std.<id>`.
 | `stdlib/vector.weave` | `std.vector` | Fixed `Vec3`, not a generic vector. |
 | `stdlib/matrix.weave` | `std.matrix` | Fixed `Mat3`. |
 | `stdlib/statistics.weave` | `std.statistics` | Mean and variance. |
-| `stdlib/file.weave` | `std.file` | Reading a small text file as lines. |
+| `stdlib/file.weave` | `std.file` | Reading a small text file as lines, and replacing a file with one string. |
+| `stdlib/path.weave` | `std.path` | POSIX join, basename, and absolute-path test. |
+| `stdlib/env.weave` | `std.env` | `getenv` copied into `Option String`. |
 | `stdlib/bytes.weave` | `std.bytes` | Owned byte buffer: length, append, get. |
 | `stdlib/string.weave` | `std.string` | Owned text buffer: length, append, get. |
 | `stdlib/vec.weave` | `std.vec` | Generic `Vec` and `Slice`, currently `i32` only. |
@@ -73,6 +75,12 @@ zeros removed, at least one fractional digit. `parse_float` wraps
 `parse_f64_valid` and `parse_f64`. Invalid text is `Err 1`. `std.memory`,
 `std.option`, `std.result`, `std.parse`, `std.io`, `std.bytes`, and
 `std.string` must appear before `std.convert`.
+
+`std.path` joins POSIX paths and returns owned `String` values.
+`std.memory`, `std.option`, `std.bytes`, and `std.string` must appear
+before it. `std.env` copies `getenv` into `Option String` and has the
+same prerequisites. `std.file` writes with `file_write_text`; named I/O
+errors are issue #247. See [Paths, files, process, and environment](cli-io.md).
 
 ## Adding a module
 

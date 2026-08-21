@@ -79,6 +79,10 @@ surface-language contract stabilises.
 
 ### Added
 
+- Paths, files, process exit, and environment lookup: `process_exit`,
+  `file_write_text`, POSIX `path_join` / `path_basename` /
+  `path_is_absolute`, and `env_get` as `Option String`. See
+  [Paths, files, process, and environment](docs/cli-io.md).
 - Primitive conversion and formatting in `stdlib/convert.weave`.
   `format_i32` and `format_f64` produce an owned `String`; `format_f64`
   matches `write_f64_trimmed`. `parse_i32`, `parse_i64`, `parse_bool`,
