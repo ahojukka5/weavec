@@ -75,7 +75,6 @@ src/frontend/struct_semantic_constructor.weave
 src/frontend/struct_semantic_fields.weave
 src/frontend/lower_program_emit.weave
 src/frontend/lower_program_validate.weave
-!src/frontend/lower.weave
 src/frontend/driver.weave
 src/frontend/explain-audit.weave
 src/frontend/contract-effects.weave

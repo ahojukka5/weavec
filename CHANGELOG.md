@@ -8,6 +8,12 @@ surface-language contract stabilises.
 
 ## [Unreleased]
 
+### Removed
+
+- `src/frontend/lower.weave`, a leftover second surface-to-WIR
+  lowering path. Production lowering is `lower_program_emit.weave`
+  plus `lower_program_validate.weave`.
+
 ### Changed
 
 - Compiler `.wir` and `.ll` emission uses a grow-once 64KiB host
