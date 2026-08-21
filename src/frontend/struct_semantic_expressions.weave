@@ -153,6 +153,17 @@
           (param_get sst_expected)))
         (if
           (condition (and_bool
+            (eq_i32 (param_get sst_expected) (call_i32 surface_type_ptr))
+            (ne_i32 (call_i32 weave_semantic_is_enum_type
+              (local_get sst_actual)) (const_i32 0))))
+          (then (do
+            (call_void var_record_no_identity
+              (param_get sst_tree) (param_get sst_source)
+              (param_get sst_node))
+            (return_void)))
+          (else (do)))
+        (if
+          (condition (and_bool
             (ne_i32 (param_get sst_expected) (call_i32 surface_type_unknown))
             (and_bool
               (ne_i32 (local_get sst_actual) (call_i32 surface_type_unknown))

@@ -372,6 +372,18 @@
             (local_get sdiag_name_node) (const_i32 0))
           (return_void)))
         (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 weave_semantic_is_enum_type
+          (local_get sdiag_binary_operand_type)) (const_i32 0)))
+        (then (do
+          (call_void sdiag_record
+            (param_get sdiag_tree) (param_get sdiag_source) (param_get sdiag_node)
+            (const_string_ptr "frontend.enum.no-identity")
+            (call_i32 surface_type_unknown) (local_get sdiag_binary_operand_type)
+            (const_i32 -1) (const_i32 -1) (const_i32 -1)
+            (const_string_ptr "operands") (local_get sdiag_name_node) (const_i32 0))
+          (return_void)))
+        (else (do)))
       (call_void sdiag_record
         (param_get sdiag_tree) (param_get sdiag_source) (param_get sdiag_node)
         (const_string_ptr "frontend.operator.unsupported-type")

@@ -137,7 +137,8 @@ an arbitrary `ptr` into `Record`, and it does not allow one nominal struct type
 where another is expected.
 
 Nominal struct values participate in pointer equality, including comparison with
-`null`. Arithmetic, ordering, casts, and Boolean use remain invalid unless a
+`null`. Enum values do not; see [Enum values have no identity](enum-identity.md).
+Arithmetic, ordering, casts, and Boolean use remain invalid unless a
 future language feature defines them explicitly.
 
 ## Binding and release, and what is not yet checked

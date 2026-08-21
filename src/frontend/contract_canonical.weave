@@ -616,6 +616,16 @@
       (if
         (condition (and_bool
           (ne_i32 (local_get cce_op_is_comparison) (const_i32 0))
+          (ne_i32 (call_i32 weave_semantic_is_enum_type
+            (local_get cce_op_operand_type)) (const_i32 0))))
+        (then (do
+          (call_void var_human_no_identity)
+          (call_void sop_emit_failure_expr (param_get cce_fd))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get cce_op_is_comparison) (const_i32 0))
           (eq_i32 (call_i32 sop_comparison_supports_type
             (param_get cce_tree) (param_get cce_source)
             (local_get cce_emit_op_name_node)

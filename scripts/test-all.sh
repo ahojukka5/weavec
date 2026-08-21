@@ -258,6 +258,9 @@ bash "$ROOT/test/convert-format/test.sh"
 log 'tagged variants'
 bash "$ROOT/test/tagged-variants/test.sh"
 
+log 'enum identity'
+bash "$ROOT/test/enum-identity/test.sh"
+
 log 'exhaustive match'
 bash "$ROOT/test/variant-match/test.sh"
 

@@ -252,33 +252,43 @@
               (local_get sst_expected_type)))
             (if
               (condition (and_bool
-                (ne_i32 (local_get sst_expected_type) (call_i32 surface_type_unknown))
-                (and_bool
-                  (ne_i32 (local_get sst_actual_type) (call_i32 surface_type_unknown))
-                  (eq_i32 (call_i32 sst_types_compatible
-                    (local_get sst_expected_type) (local_get sst_actual_type))
-                  (const_i32 0)))))
+                (eq_i32 (local_get sst_expected_type) (call_i32 surface_type_ptr))
+                (ne_i32 (call_i32 weave_semantic_is_enum_type
+                  (local_get sst_actual_type)) (const_i32 0))))
               (then (do
-                (call_void sst_human_prefix (const_string_ptr "call"))
-                (call_void write_cstr
-                  (const_i32 2) (const_string_ptr "argument type mismatch for "))
-                (call_void emit_node_text
-                  (const_i32 2) (param_get sst_source) (param_get sst_tree)
-                  (local_get sst_name_node))
-                (call_void write_cstr (const_i32 2) (const_string_ptr ": expected "))
-                (call_void sst_emit_type_name
-                  (const_i32 2) (local_get sst_expected_type))
-                (call_void write_cstr (const_i32 2) (const_string_ptr ", got "))
-                (call_void sst_emit_type_name
-                  (const_i32 2) (local_get sst_actual_type))
-                (call_void write_byte (const_i32 2) (const_i32 10))
-                (call_void sst_record
-                  (param_get sst_tree) (param_get sst_source) (local_get sst_argument)
-                  (const_string_ptr "frontend.call.argument-type-mismatch")
-                  (local_get sst_expected_type) (local_get sst_actual_type)
-                  (local_get sst_argument_index) (const_i32 -1) (const_i32 -1)
-                  (const_string_ptr "argument") (local_get sst_name_node))))
-              (else (do)))
+                (call_void var_record_no_identity
+                  (param_get sst_tree) (param_get sst_source)
+                  (local_get sst_argument))))
+              (else (do
+                (if
+                  (condition (and_bool
+                    (ne_i32 (local_get sst_expected_type) (call_i32 surface_type_unknown))
+                    (and_bool
+                      (ne_i32 (local_get sst_actual_type) (call_i32 surface_type_unknown))
+                      (eq_i32 (call_i32 sst_types_compatible
+                        (local_get sst_expected_type) (local_get sst_actual_type))
+                      (const_i32 0)))))
+                  (then (do
+                    (call_void sst_human_prefix (const_string_ptr "call"))
+                    (call_void write_cstr
+                      (const_i32 2) (const_string_ptr "argument type mismatch for "))
+                    (call_void emit_node_text
+                      (const_i32 2) (param_get sst_source) (param_get sst_tree)
+                      (local_get sst_name_node))
+                    (call_void write_cstr (const_i32 2) (const_string_ptr ": expected "))
+                    (call_void sst_emit_type_name
+                      (const_i32 2) (local_get sst_expected_type))
+                    (call_void write_cstr (const_i32 2) (const_string_ptr ", got "))
+                    (call_void sst_emit_type_name
+                      (const_i32 2) (local_get sst_actual_type))
+                    (call_void write_byte (const_i32 2) (const_i32 10))
+                    (call_void sst_record
+                      (param_get sst_tree) (param_get sst_source) (local_get sst_argument)
+                      (const_string_ptr "frontend.call.argument-type-mismatch")
+                      (local_get sst_expected_type) (local_get sst_actual_type)
+                      (local_get sst_argument_index) (const_i32 -1) (const_i32 -1)
+                      (const_string_ptr "argument") (local_get sst_name_node))))
+                  (else (do))))))
             (call_void write_byte (param_get sst_fd) (const_i32 32))
             (call_void surface_emit_expr_expected
               (param_get sst_fd) (param_get sst_source) (param_get sst_tree)

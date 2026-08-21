@@ -183,6 +183,8 @@
       (call_void cap_write_feature (param_get cr_writer)
         (const_string_ptr "tagged-variants") (const_string_ptr "experimental") (const_i64 147))
       (call_void cap_write_feature (param_get cr_writer)
+        (const_string_ptr "enum-no-identity") (const_string_ptr "stable") (const_i64 279))
+      (call_void cap_write_feature (param_get cr_writer)
         (const_string_ptr "exhaustive-match") (const_string_ptr "experimental") (const_i64 148))
       (call_void cap_write_feature (param_get cr_writer)
         (const_string_ptr "option-result") (const_string_ptr "experimental") (const_i64 149))

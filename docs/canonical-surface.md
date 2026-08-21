@@ -164,9 +164,13 @@ Construction, tag access, and payload access are explicit:
 (variant-payload Color Blue value)
 ```
 
-The concrete layout is a 16-byte heap object: an `i32` tag at offset 0 and an
-8-byte payload slot at offset 8. Generic templates are not emitted; each
-distinct type-argument list produces one specialized helper family.
+The current lowering is a 16-byte heap object: an `i32` tag at offset 0
+and an 8-byte payload slot at offset 8. That layout is not observable.
+Enum values have no identity: `=` / `!=` and `eq_ptr` / `ne_ptr` are
+rejected, and an enum does not flow to `ptr`. Compare with `match` or
+`variant-tag`. Generic templates are not emitted; each distinct
+type-argument list produces one specialized helper family. See
+[Enum values have no identity](enum-identity.md).
 
 ## Exhaustive match
 

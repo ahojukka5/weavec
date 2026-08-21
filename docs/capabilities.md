@@ -111,6 +111,13 @@ The `string-interpolation` feature is experimental. It publishes
 [#240](https://github.com/ahojukka5/weavec/issues/240). Admitted pieces
 are `i32`, `i64`, `bool`, and text pointers. The result is `ptr`.
 
+The `enum-no-identity` feature is stable. Equality operators admit
+`i32`, `i64`, `f32`, `f64`, and `ptr` only. Enum values, including
+`Option` and `Result`, cannot be compared with `=` / `!=` or `eq_ptr`
+and do not flow to `ptr`. See
+[Enum values have no identity](enum-identity.md) and issue
+[#279](https://github.com/ahojukka5/weavec/issues/279).
+
 The application-language roadmap and its five epics are documented in
 [`roadmap.md`](roadmap.md). Planned capabilities should link to their owning epic
 or focused subissue instead of using completed historical issue numbers.
