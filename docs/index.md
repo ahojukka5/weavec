@@ -54,6 +54,9 @@ names used when they were released.
 - [Bounds-check and I/O error behavior](bounds-io-errors.md) — `Option`
   on out-of-range get, `bool` on refused set, `Result` with `FileError`
   on recoverable write failure.
+- [Ergonomic stdlib qualification](ergonomic-stdlib.md) — the
+  `file-statistics` command sequence from checkout and an extracted
+  package.
 - [Integer widths and the size type](integer-widths.md) — `usize` for
   lengths and indices, `u64`/`u8` roles, and why `i32` sizes must not
   freeze.

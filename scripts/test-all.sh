@@ -204,6 +204,9 @@ bash "$ROOT/test/file-statistics/test.sh"
 log 'paths, files, process, and environment'
 bash "$ROOT/test/cli-io/test.sh"
 
+log 'ergonomic stdlib qualification'
+bash "$ROOT/test/ergonomic-stdlib-qualify/test.sh"
+
 log 'parse digits with Option and Result'
 bash "$ROOT/test/parse-digits/test.sh"
 

@@ -14,6 +14,9 @@ surface-language contract stabilises.
   the file holds the text; `Err Failed` is a recoverable I/O failure,
   not errno. Indexing get stays `Option`; refused set stays `bool`.
   See [Bounds-check and I/O error behavior](docs/bounds-io-errors.md).
+- Checkout qualification for the ergonomic stdlib is
+  `file-statistics` with shuffled and relocated module copies. See
+  [Ergonomic stdlib qualification](docs/ergonomic-stdlib.md).
 - Ordinary calls use Lisp head position: `(f args...)` is canonical.
   `(call f args...)` remains accepted and `weavec fmt` rewrites it to the
   direct form. Function names that collide with reserved syntax are
