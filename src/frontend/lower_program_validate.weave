@@ -245,8 +245,19 @@
       (let name_node i64 (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1)))
       (call_void emit_node_text (const_i32 2) (param_get source) (param_get tree) (local_get name_node))
       (call_void write_cstr (const_i32 2)
-        (const_string_ptr " can reach the end of its body without returning; every path must end in (return VALUE) or (return_void)"))
+        (const_string_ptr " can reach the end of its body without returning; every path must end in (return VALUE) or (return)"))
       (call_void write_byte (const_i32 2) (const_i32 10))
+      (let vt_span i64 (param_get node))
+      (if
+        (condition (ne_i64 (local_get body) (const_i64 -1)))
+        (then (do (set vt_span (local_get body))))
+        (else (do)))
+      (call_void sdiag_record
+        (param_get tree) (param_get source) (local_get vt_span)
+        (const_string_ptr "frontend.function.missing-return")
+        (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+        (const_i32 -1) (const_i32 -1) (const_i32 -1)
+        (param_get label) (local_get name_node) (const_i32 0))
       (return (const_i32 1))))
 
   ; A type annotation must be a name or a type-app. Other compound spellings

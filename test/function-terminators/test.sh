@@ -53,7 +53,15 @@ expect_accepted() {
   local name="$1"
   local expected_status="$2"
 
+  set +e
   "$WEAVEC" build "$TMP/$name.weave" -o "$TMP/$name" 2>"$TMP/$name.stderr"
+  local build_status="$?"
+  set -e
+  if [[ "$build_status" -ne 0 ]]; then
+    printf 'function-terminators: %s failed to build\n' "$name" >&2
+    cat "$TMP/$name.stderr" >&2
+    exit 1
+  fi
   if [[ -s "$TMP/$name.stderr" ]]; then
     printf 'function-terminators: %s wrote unexpected stderr\n' "$name" >&2
     cat "$TMP/$name.stderr" >&2
@@ -204,5 +212,126 @@ cat > "$TMP/loop-only.weave" <<'EOF'
   (entry main (params) (returns i32) (do (call note 3) (return 0))))
 EOF
 expect_rejected loop-only 'note can reach the end of its body'
+
+# Compact surface: a tail expression is not a return.
+cat > "$TMP/compact-tail.weave" <<'EOF'
+(program
+  (name "compact-tail")
+  (version "0.1")
+  (fn compute ((value i32)) i32
+    (let doubled i32 (* value 2)))
+  (entry main () i32
+    (return (compute 21))))
+EOF
+expect_rejected compact-tail 'compute can reach the end of its body'
+
+# Compact if with both branches returning remains accepted.
+cat > "$TMP/compact-both-branches.weave" <<'EOF'
+(program
+  (name "compact-both-branches")
+  (version "0.1")
+  (fn pick ((flag bool)) i32
+    (if flag
+      (return 7)
+      (return 9)))
+  (entry main () i32
+    (return (pick true))))
+EOF
+expect_accepted compact-both-branches 7
+
+# Compact roots: every discriminant branch returns explicitly.
+cat > "$TMP/compact-roots.weave" <<'EOF'
+(program
+  (name "compact-roots")
+  (version "0.1")
+  (fn roots ((a f64) (b f64) (c f64)) i32
+    (doc "Classify the discriminant: 0 two roots, 1 one root, 2 none.")
+    (let d f64 (- (* b b) (* 4.0 (* a c))))
+    (if (< d 0.0)
+      (return 2)
+      (if (= d 0.0)
+        (return 1)
+        (return 0))))
+  (entry main () i32
+    (return (roots 1.0 -3.0 2.0))))
+EOF
+expect_accepted compact-roots 0
+
+# Falling off the end publishes an exact-span diagnostics document.
+cat > "$TMP/missing-return-span.weave" <<'EOF'
+(program
+  (name "missing-return-span")
+  (version "0.1")
+  (fn compute ((value i32)) i32
+    (let doubled i32 (* value 2)))
+  (entry main () i32
+    (return (compute 21))))
+EOF
+set +e
+"$WEAVEC" build "$TMP/missing-return-span.weave" -o "$TMP/missing-return-span" \
+  --diagnostics-json "$TMP/missing-return-span.json" \
+  >"$TMP/missing-return-span.stdout" 2>"$TMP/missing-return-span.stderr"
+set -e
+python3 - "$TMP/missing-return-span.json" "$TMP/missing-return-span.weave" <<'PY'
+import json
+import pathlib
+import sys
+
+doc = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+source = pathlib.Path(sys.argv[2]).read_bytes()
+assert doc["status"] == "failed"
+assert doc["phase"] == "frontend"
+diags = doc["diagnostics"]
+assert len(diags) >= 1
+diag = diags[0]
+assert diag["code"] == "frontend.function.missing-return"
+assert diag["symbol"] == "compute"
+span = diag["span"]
+start = span["start_byte"]
+end = span["end_byte"]
+assert 0 <= start < end <= len(source)
+fragment = source[start:end]
+assert b"let doubled" in fragment, fragment
+assert b"(return" not in fragment
+PY
+
+# Formatter does not wrap a tail expression in return, and does not strip
+# an explicit return that already occupies tail position.
+cat > "$TMP/fmt-tail-input.weave" <<'EOF'
+(program
+  (name "fmt-tail")
+  (version "0.1")
+  (fn compute ((value i32)) i32
+    (* value 2))
+  (entry main () i32
+    (return 0)))
+EOF
+"$WEAVEC" fmt --output "$TMP/fmt-tail-out.weave" "$TMP/fmt-tail-input.weave"
+if grep -Fq '(return (* value 2))' "$TMP/fmt-tail-out.weave"; then
+  printf 'function-terminators: formatter invented a tail return\n' >&2
+  cat "$TMP/fmt-tail-out.weave" >&2
+  exit 1
+fi
+if ! grep -Fq '(* value 2)' "$TMP/fmt-tail-out.weave"; then
+  printf 'function-terminators: formatter dropped the tail expression\n' >&2
+  cat "$TMP/fmt-tail-out.weave" >&2
+  exit 1
+fi
+
+cat > "$TMP/fmt-explicit-input.weave" <<'EOF'
+(program
+  (name "fmt-explicit")
+  (version "0.1")
+  (fn compute ((value i32)) i32
+    (return (* value 2)))
+  (entry main () i32
+    (return (compute 21))))
+EOF
+"$WEAVEC" fmt --output "$TMP/fmt-explicit-out.weave" "$TMP/fmt-explicit-input.weave"
+if ! grep -Fq '(return (* value 2))' "$TMP/fmt-explicit-out.weave"; then
+  printf 'function-terminators: formatter removed an explicit return\n' >&2
+  cat "$TMP/fmt-explicit-out.weave" >&2
+  exit 1
+fi
 
 printf 'function-terminators: passed\n'
