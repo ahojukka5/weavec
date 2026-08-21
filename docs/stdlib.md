@@ -4,8 +4,9 @@ User-facing standard-library modules live in `stdlib/` at the repository
 root and at the root of an extracted release package. That is the only
 home for a new standard module.
 
-This document is the naming and packaging contract. It does not add
-collection or I/O behavior.
+This document is the naming and packaging contract. Failure, naming, and
+mutation rules for exported APIs are in
+[Standard-library API conventions](stdlib-conventions.md).
 
 ## Home and identity
 

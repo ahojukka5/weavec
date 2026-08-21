@@ -38,6 +38,10 @@ surface-language contract stabilises.
   one source-byte representation. The inline budget is a compiler-owned
   80 columns, not a user option. `fmt --check` names a noncanonical
   path. Style flags such as `--width` are rejected.
+- Standard-library APIs use `Option` for absence, `Result` for
+  recoverable errors, and `bool` for refused mutations. Migrating
+  `parse_f64` and `samples_get` waits on `Option`/`Result`
+  specialization for `f64` and `ptr`.
 - Language design principles now treat canonical whitespace as
   formatter-derived layout and `comment` as a standalone surface node,
   matching issues #334 and #337. Author-owned paragraph metadata and
