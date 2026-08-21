@@ -43,6 +43,22 @@ This division is intentional: the host moves bytes, while Weave decides what a
 floating-point program means and how its portable textual representation is
 constructed.
 
+## Compiler output writes
+
+Frontend WIR and backend LLVM emission share file descriptors with C helpers
+that write specialized enum WIR and source-location comments. Surface Weave has
+no process globals, so a Weave-only buffer would interleave with those C
+`write()` calls. The host therefore owns one grow-once 64KiB buffer in
+`runtime/portable.c`. `src/core/io.weave` is the Weave API: `write_byte`,
+`write_bytes`, and `write_cstr` append, and `write_finish` flushes, closes, and
+reports failure. Stdout and stderr still flush immediately so diagnostics are
+not delayed. A short write or `ENOSPC` prints `weavec: error: write failed` and
+exits nonzero instead of leaving a truncated `.wir` or `.ll`.
+
+When Weave gains process-global mutable storage, the buffer policy should move
+into `src/core/io.weave` and the C helpers should call it, or the C emission
+helpers should move into Weave.
+
 ## Process arguments and basic math
 
 CLI programs opt into `stdlib/process.weave`, whose native entry wrapper receives

@@ -26,6 +26,13 @@
   ; portable.c owns host portability helpers; build_driver.c owns the public
   ; source-to-executable orchestration and private runtime discovery.
   (extern weave_rt_open_write_trunc (params (path ptr) (mode i32)) (returns i32))
+  ; Buffered compiler output. Host-owned because C emission helpers share
+  ; the same fd and Weave has no process globals yet.
+  (extern weave_rt_write (params (fd i32) (buf ptr) (n i64)) (returns i32))
+  (extern weave_rt_write_u8 (params (fd i32) (b i32)) (returns i32))
+  (extern weave_rt_flush (params (fd i32)) (returns i32))
+  (extern weave_rt_write_finish (params (fd i32)) (returns i32))
+  (extern weave_rt_write_failed (params) (returns i32))
   ; Decimal float → IEEE bits. weavec1 cannot compile f64 compiler
   ; sources, so the host performs this one conversion.
   (extern weave_rt_float_literal_bits

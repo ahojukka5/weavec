@@ -87,9 +87,16 @@ void weave_rt_set_source_index(int64_t source_index) {
     weave_source_location_source_index = source_index;
 }
 
+static void weave_source_location_emit(int fd, const void *buf, size_t n) {
+    if (buf == NULL || n == 0) {
+        return;
+    }
+    (void)weave_rt_write((int32_t)fd, buf, (int64_t)n);
+}
+
 static void weave_source_location_write_json_fd(int fd, const char *value) {
     const unsigned char *cursor = (const unsigned char *)(value != NULL ? value : "");
-    (void)write(fd, "\"", 1);
+    weave_source_location_emit(fd, "\"", 1);
     while (*cursor != '\0') {
         char escaped[7];
         const char *bytes = (const char *)cursor;
@@ -111,10 +118,10 @@ static void weave_source_location_write_json_fd(int fd, const char *value) {
                 }
                 break;
         }
-        (void)write(fd, bytes, length);
+        weave_source_location_emit(fd, bytes, length);
         ++cursor;
     }
-    (void)write(fd, "\"", 1);
+    weave_source_location_emit(fd, "\"", 1);
 }
 
 void weave_rt_emit_source_file(
@@ -135,9 +142,9 @@ void weave_rt_emit_source_file(
     if (written <= 0 || (size_t)written >= sizeof(prefix)) {
         return;
     }
-    (void)write(fd, prefix, (size_t)written);
+    weave_source_location_emit(fd, prefix, (size_t)written);
     weave_source_location_write_json_fd(fd, source_path);
-    (void)write(fd, "\n", 1);
+    weave_source_location_emit(fd, "\n", 1);
 }
 
 void weave_rt_emit_source_span(
@@ -162,7 +169,7 @@ void weave_rt_emit_source_span(
         (long long)start,
         expanded_end);
     if (written > 0 && (size_t)written < sizeof(line)) {
-        (void)write(fd, line, (size_t)written);
+        weave_source_location_emit(fd, line, (size_t)written);
     }
 }
 
@@ -338,13 +345,14 @@ void weave_rt_emit_llvm_source_span(
     if (written <= 0 || (size_t)written >= sizeof(prefix)) {
         return;
     }
-    (void)write(fd, prefix, (size_t)written);
+    weave_source_location_emit(fd, prefix, (size_t)written);
     if (mapping.quoted_path != NULL && mapping.quoted_path_length > 0) {
-        (void)write(fd, mapping.quoted_path, mapping.quoted_path_length);
+        weave_source_location_emit(
+            fd, mapping.quoted_path, mapping.quoted_path_length);
     } else {
-        (void)write(fd, "null", 4);
+        weave_source_location_emit(fd, "null", 4);
     }
-    (void)write(fd, "\n", 1);
+    weave_source_location_emit(fd, "\n", 1);
 }
 
 void weave_rt_record_diagnostic_wir_span(int fd, int64_t start, int64_t length) {

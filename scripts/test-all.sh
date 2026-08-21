@@ -102,6 +102,9 @@ fi
 log 'compiler version'
 bash "$ROOT/test/version/test.sh"
 
+log 'compiler output writes'
+bash "$ROOT/test/compiler-write/test.sh"
+
 log 'compiler capabilities'
 bash "$ROOT/test/capabilities/test.sh"
 

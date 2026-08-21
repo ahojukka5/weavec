@@ -44,6 +44,129 @@ int weave_rt_open_write_trunc(const char *path, int mode) {
     return open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
 }
 
+/* Grow-once compiler output buffer. Weave io.weave and C emission helpers
+ * share the same fd, so the host owns the buffer: surface Weave has no
+ * process globals, and a Weave-only buffer would interleave with C write().
+ * Stdout/stderr flush immediately so diagnostics are not delayed. */
+#define WEAVE_IO_CAP ((size_t)65536)
+
+static int weave_io_fd = -1;
+static unsigned char *weave_io_buf = NULL;
+static size_t weave_io_len = 0;
+static int weave_io_failed = 0;
+
+static void weave_io_note_fail(void) {
+    static const char msg[] = "weavec: error: write failed\n";
+    if (weave_io_failed) {
+        return;
+    }
+    weave_io_failed = 1;
+    (void)write(2, msg, sizeof(msg) - 1);
+}
+
+static int weave_io_sys_write(int fd, const void *data, size_t n) {
+    const unsigned char *p = (const unsigned char *)data;
+    while (n > 0) {
+        ssize_t written = write(fd, p, n);
+        if (written < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            weave_io_note_fail();
+            return -1;
+        }
+        if (written == 0) {
+            weave_io_note_fail();
+            return -1;
+        }
+        p += (size_t)written;
+        n -= (size_t)written;
+    }
+    return 0;
+}
+
+int32_t weave_rt_flush(int32_t fd) {
+    if (weave_io_buf == NULL || weave_io_len == 0) {
+        return weave_io_failed ? 1 : 0;
+    }
+    if (fd >= 0 && weave_io_fd != fd) {
+        return weave_io_failed ? 1 : 0;
+    }
+    int out_fd = weave_io_fd;
+    size_t n = weave_io_len;
+    weave_io_len = 0;
+    if (weave_io_sys_write(out_fd, weave_io_buf, n) != 0) {
+        return 1;
+    }
+    return weave_io_failed ? 1 : 0;
+}
+
+int32_t weave_rt_write_failed(void) {
+    return weave_io_failed ? 1 : 0;
+}
+
+int32_t weave_rt_write_finish(int32_t fd) {
+    int32_t rc = weave_rt_flush(fd);
+    (void)close(fd);
+    int32_t failed = (rc != 0 || weave_io_failed) ? 1 : 0;
+    weave_io_failed = 0;
+    if (weave_io_fd == fd) {
+        weave_io_fd = -1;
+    }
+    return failed;
+}
+
+int32_t weave_rt_write(int32_t fd, const void *data, int64_t n) {
+    if (weave_io_failed) {
+        return 1;
+    }
+    if (n <= 0 || data == NULL) {
+        return 0;
+    }
+    if (fd != weave_io_fd) {
+        if (weave_io_fd >= 0 && weave_rt_flush(weave_io_fd) != 0) {
+            return 1;
+        }
+        weave_io_fd = fd;
+    }
+    const unsigned char *p = (const unsigned char *)data;
+    size_t remaining = (size_t)n;
+    if (weave_io_buf == NULL) {
+        weave_io_buf = (unsigned char *)malloc(WEAVE_IO_CAP);
+    }
+    if (weave_io_buf == NULL) {
+        return weave_io_sys_write(fd, p, remaining) == 0 ? 0 : 1;
+    }
+    while (remaining > 0) {
+        size_t space = WEAVE_IO_CAP - weave_io_len;
+        if (space == 0) {
+            if (weave_rt_flush(fd) != 0) {
+                return 1;
+            }
+            space = WEAVE_IO_CAP;
+        }
+        if (weave_io_len == 0 && remaining >= WEAVE_IO_CAP) {
+            return weave_io_sys_write(fd, p, remaining) == 0 ? 0 : 1;
+        }
+        size_t chunk = remaining < space ? remaining : space;
+        memcpy(weave_io_buf + weave_io_len, p, chunk);
+        weave_io_len += chunk;
+        p += chunk;
+        remaining -= chunk;
+    }
+    if (fd == 1 || fd == 2) {
+        return weave_rt_flush(fd);
+    }
+    return 0;
+}
+
+int32_t weave_rt_write_u8(int32_t fd, int32_t b) {
+    unsigned char byte = (unsigned char)b;
+    return weave_rt_write(fd, &byte, 1);
+}
+
+#define WEAVE_HAVE_RT_WRITE 1
+
 /* Copy a WIR decimal atom and return IEEE bits. is_f32 selects float vs
  * double. The seed compiler cannot express this conversion in Weave. */
 int64_t weave_rt_float_literal_bits(
