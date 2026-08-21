@@ -55,6 +55,8 @@ names used when they were released.
 - [Enum values have no identity](enum-identity.md) — no pointer
   equality on enums, so a later unboxed `Option` is not a breaking
   change.
+- [Floating-point special values](floating-point.md) — IEEE `NaN` /
+  `inf` / signed zero, and `sqrt` of a negative.
 - [Canonical LLM-facing surface forms](canonical-surface.md) — typed canonical
   calls, contextual literals, compatibility forms, and deterministic elaboration.
 - [WIR core version 3](wir.md) — the self-hosted frontend/backend envelope,

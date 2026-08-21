@@ -38,6 +38,15 @@ cat > "$TMP/main.weave" <<'EOF'
         (condition (op not-equal (call sqrt_f64 0.0) 0.0))
         (then (do (return 5)))
         (else (do)))
+      (let nan-root f64 (call sqrt_f64 -1.0))
+      (if
+        (condition (op equal nan-root nan-root))
+        (then (do (return 6)))
+        (else (do)))
+      (if
+        (condition (op equal nan-root 0.0))
+        (then (do (return 7)))
+        (else (do)))
       (return 0))))
 EOF
 

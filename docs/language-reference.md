@@ -45,6 +45,10 @@ The current primitive and built-in surface types are:
 `u8`, `u64`, and `usize` are decided but not yet admitted. Lengths and
 indices are `usize`; see [Integer widths and the size type](integer-widths.md).
 
+`f32` and `f64` are IEEE-754 binary32 and binary64. Invalid operations
+yield `NaN`, not `0.0`. See
+[Floating-point special values](floating-point.md).
+
 A `(struct NAME ...)` declaration additionally introduces `NAME` as a nominal
 surface type. Nominal struct types lower physically to WIR `ptr`, but two
 different struct names are not interchangeable.
