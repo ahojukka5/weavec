@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 name: ci
 
-# Pull requests get a file-based smoke on GitHub-hosted runners. The full
-# ladder and deep self-host run only after merge, on the self-hosted fleet.
+# Pull requests get a file-based smoke plus a hosted compile-and-fast-suite
+# gate. The full ladder and deep self-host run only after merge, on the
+# self-hosted fleet.
 on:
   push:
     branches: [master]
@@ -31,6 +32,55 @@ jobs:
       - name: Run file-based repository contracts
         shell: bash
         run: bash scripts/pr-check.sh
+
+  pr-compile:
+    name: "check: compile and fast suites"
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      WEAVEC1_VERSION: v0.3.2
+      WEAVEC1_LIBC: glibc
+      WEAVEC_BOOTSTRAP_VERSION: v0.3.1
+      WEAVEC_BOOTSTRAP_LIBC: glibc
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install LLVM toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y clang llvm
+          for tool in llvm-as llvm-link; do
+            if command -v "$tool" >/dev/null 2>&1; then
+              continue
+            fi
+            versioned="$(command -v "${tool}-18" || command -v "${tool}-17" || true)"
+            [[ -n "$versioned" ]] || {
+              echo "missing $tool" >&2
+              exit 1
+            }
+            sudo ln -sf "$versioned" "/usr/local/bin/$tool"
+          done
+          clang --version
+          llvm-as --version
+          llvm-link --version
+
+      - name: Cache published SDKs
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/downloads
+            build/vendor
+          key: pr-sdk-${{ runner.os }}-weavec1-v0.3.2-bootstrap-v0.3.1-glibc
+
+      - name: Build compiler and run fast suites
+        shell: bash
+        run: bash scripts/pr-compile.sh
 
   test:
     name: "test: compile & run full ladder (${{ matrix.name }})"

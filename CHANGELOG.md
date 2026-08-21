@@ -70,8 +70,10 @@ surface-language contract stabilises.
   formatter-derived layout and `comment` as a standalone surface node,
   matching issues #334 and #337. Author-owned paragraph metadata and
   implicit comment-to-statement binding are rejected.
-- Pull-request CI is a light GitHub-hosted contract smoke and commit-message
-  lint. The full ladder and deep self-host run only after merge on `master`.
+- Pull-request CI builds `weavec` on GitHub-hosted runners and runs
+  `test.sh` plus diagnostic, formatter, and Option/Result suites.
+  The full ladder and deep self-host still run only after merge on
+  `master`. Versioned releases wait for that ladder on the same SHA.
 
 ### Fixed
 
