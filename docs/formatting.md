@@ -176,6 +176,9 @@ Void and quantum forms retain their canonical structural heads:
 (qmeasure qubit result-name)
 ```
 
+The formatter never invents a `(return ...)` from a tail expression, and never
+removes an explicit `return` because it occupies tail position.
+
 Experimental forms are formatted structurally but remain experimental according
 to the capability registry. Formatting does not promote a feature's stability.
 

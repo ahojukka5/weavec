@@ -347,7 +347,23 @@ and stripped from WIR; the compiler does not yet derive or cross-check them.
 
 Every function body must transfer control out on every path. A body that can
 reach its end without returning is rejected by the frontend, naming the
-function; there is no implicit return, for a value or for `void`.
+function and spanning the fall-through path; there is no implicit return, for a
+value or for `void`. A tail expression is never the function result. Moving a
+statement to the end of a body cannot change what is returned.
+
+The compact `roots` illustration returns only through explicit `return` on every
+branch:
+
+```weave
+(fn roots ((a f64) (b f64) (c f64)) i32
+  (doc "Classify the discriminant: 0 two roots, 1 one root, 2 none.")
+  (let d f64 (- (* b b) (* 4.0 (* a c))))
+  (if (< d 0.0)
+    (return 2)
+    (if (= d 0.0)
+      (return 1)
+      (return 0))))
+```
 
 The check is not "the last statement is a return". A `do` block returns when its
 last statement does, and an `if` returns only when both branches do, so a body
@@ -359,6 +375,9 @@ ending in a fully returning `if` is accepted:
     (return 7)
     (return 9)))
 ```
+
+`match` is an expression. It supplies a function result only when wrapped in
+`(return (match ...))`, never by occupying tail position.
 
 A loop never satisfies the rule on its own, because a `while` or `for` may run
 zero times.

@@ -30,6 +30,10 @@ surface-language contract stabilises.
   accepted. `weavec fmt` rewrites them to the compact form and grouped
   `(effects ...)`. Derived `(uses ...)` headers are recognized but not
   yet derived or cross-checked.
+- Non-void functions return only through explicit `(return EXPR)` on
+  every path. A tail expression is not a return. `weavec fmt` does not
+  invent or remove `return` from tail position. Void functions use
+  `(return)` or `(return_void)`.
 - Language design principles now treat canonical whitespace as
   formatter-derived layout and `comment` as a standalone surface node,
   matching issues #334 and #337. Author-owned paragraph metadata and

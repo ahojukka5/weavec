@@ -446,11 +446,17 @@ A counted `for` binds a name over a half-open integer range `[START, END)`:
 loop. `(continue)` skips the rest of the current iteration; a `for` still
 advances the index. Both are rejected outside a loop.
 
-`return` takes one expression for a typed function. Void functions use:
+`return` takes one expression for a typed function. There is no implicit
+tail-expression return: every path of a non-void function must reach
+`(return EXPR)`. Void functions use a bare `(return)` or:
 
 ```weave
 (return_void)
 ```
+
+Falling off the end of a function is a frontend error with code
+`frontend.function.missing-return`. The diagnostic names the function and
+spans the statement that can fall through.
 
 ## Constants and scalar operations
 
