@@ -49,6 +49,9 @@ surface-language contract stabilises.
   conversion are rejected so a later unboxed `Option` is not a
   breaking change. The current boxed layout is an implementation
   detail.
+- `f32` and `f64` follow IEEE-754. `sqrt` of a negative is `NaN`,
+  not `0.0`. The intended correctly rounded `sqrt` is `llvm.sqrt`
+  once WIR admits it.
 - Language design principles now treat canonical whitespace as
   formatter-derived layout and `comment` as a standalone surface node,
   matching issues #334 and #337. Author-owned paragraph metadata and

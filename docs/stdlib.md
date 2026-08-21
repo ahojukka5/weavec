@@ -41,7 +41,7 @@ library tree. Do not give a standard module a name that is not `std.<id>`.
 | `stdlib/process.weave` | `std.process` | Command-line arguments. |
 | `stdlib/parse.weave` | `std.parse` | ASCII decimal number parsing. |
 | `stdlib/io.weave` | `std.io` | Writing text and numbers. |
-| `stdlib/math.weave` | `std.math` | Square root and trigonometry. |
+| `stdlib/math.weave` | `std.math` | Square root and trigonometry. `sqrt` of a negative is `NaN`. |
 | `stdlib/option.weave` | `std.option` | Canonical `Option`, plus `is_some`, `is_none`, and `unwrap_or`. |
 | `stdlib/result.weave` | `std.result` | Canonical `Result`, plus `is_ok`, `is_err`, and `unwrap_or`. |
 | `stdlib/vector.weave` | `std.vector` | Fixed `Vec3`, not a generic vector. |

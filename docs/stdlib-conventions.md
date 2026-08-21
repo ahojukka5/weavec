@@ -74,5 +74,7 @@ checker; it only forbids hiding failure inside a returned handle.
 
 Integer widths (`usize`, `u64`, `u8`) are decided in
 [Integer widths and the size type](integer-widths.md). Floating specials
-(`NaN`, `sqrt` of a negative) are issue #283. Bounds-check and I/O error
+(`NaN`, `±inf`, signed zero, and `sqrt` of a negative) are decided in
+[Floating-point special values](floating-point.md): IEEE operations
+return `NaN` or `inf`, not `Option`. Bounds-check and I/O error
 behavior for paths and files are issue #247.

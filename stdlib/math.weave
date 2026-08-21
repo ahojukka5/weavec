@@ -1,7 +1,8 @@
 ; SPDX-License-Identifier: Apache-2.0
 ; Small reusable numerical helpers implemented in Weave.
 ;
-; Square root uses a fixed-count Newton iteration. Trigonometric functions use
+; Square root uses a fixed-count Newton iteration until llvm.sqrt is an
+; admitted WIR form. Negative inputs return NaN. Trigonometric functions use
 ; deterministic range reduction and fixed-count Taylor recurrences. Keeping the
 ; algorithms here avoids a process-wide libm dependency and keeps numerical
 ; semantics in Weave rather than the C host boundary.
@@ -17,9 +18,16 @@
     (params (value f64))
     (returns f64)
     (do
+      ; IEEE domain: negative → NaN, not 0.0. Signed zeros return unchanged.
+      ; Finite positives use Newton until llvm.sqrt is an admitted WIR form.
       (if
-        (condition (le_f64 (param_get value) (const_f64 0.0)))
-        (then (do (return (const_f64 0.0))))
+        (condition (lt_f64 (param_get value) (const_f64 0.0)))
+        (then (do
+          (return (div_f64 (const_f64 0.0) (const_f64 0.0)))))
+        (else (do)))
+      (if
+        (condition (eq_f64 (param_get value) (const_f64 0.0)))
+        (then (do (return (param_get value))))
         (else (do)))
       (let guess f64 (param_get value))
       (if

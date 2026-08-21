@@ -52,9 +52,12 @@ user convention that the executable name is hidden and arguments are zero-indexe
 `stdlib/parse.weave` performs deterministic ASCII-to-`f64` parsing entirely in
 Weave.
 
-`stdlib/math.weave` implements the reusable `sqrt_f64` function directly in Weave
-with a fixed Newton iteration. The C runtime therefore contributes no numeric
-algorithm and no libm dependency; for this feature it only stores and returns the
+`stdlib/math.weave` implements reusable `sqrt_f64` and trigonometric
+kernels in Weave. `sqrt` of a negative is `NaN`, not `0.0`. The
+intended correctly rounded implementation is `llvm.sqrt` once WIR
+admits it; see [Floating-point special values](floating-point.md).
+The C runtime therefore contributes no numeric algorithm and no libm
+dependency; for this feature it only stores and returns the
 platform-provided raw argument values mechanically.
 
 User-facing modules live in `stdlib/` and are named `std.<id>`. Application
