@@ -72,6 +72,7 @@ checker; it only forbids hiding failure inside a returned handle.
 
 ## What this does not decide
 
-Integer widths (`usize`) are issue #280. Floating specials (`NaN`,
-`sqrt` of a negative) are issue #283. Bounds-check and I/O error
+Integer widths (`usize`, `u64`, `u8`) are decided in
+[Integer widths and the size type](integer-widths.md). Floating specials
+(`NaN`, `sqrt` of a negative) are issue #283. Bounds-check and I/O error
 behavior for paths and files are issue #247.

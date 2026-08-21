@@ -49,6 +49,9 @@ names used when they were released.
   modules live, how they are named `std.<id>`, and how packages ship them.
 - [Standard-library API conventions](stdlib-conventions.md) — Option,
   Result, and bool failure signaling, naming, and mutation rules.
+- [Integer widths and the size type](integer-widths.md) — `usize` for
+  lengths and indices, `u64`/`u8` roles, and why `i32` sizes must not
+  freeze.
 - [Canonical LLM-facing surface forms](canonical-surface.md) — typed canonical
   calls, contextual literals, compatibility forms, and deterministic elaboration.
 - [WIR core version 3](wir.md) — the self-hosted frontend/backend envelope,
