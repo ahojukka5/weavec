@@ -65,7 +65,7 @@ cat > "$TMP/app.weave" <<'EOF'
         (op add sln
           (op add (call option_unwrap_or (type-args i32) first 0)
             (op add (call option_unwrap_or (type-args i32) mid 0)
-              (call option_unwrap_or (type-args i32) last 0))))))))))
+              (call option_unwrap_or (type-args i32) last 0)))))))))
 EOF
 
 "$WEAVEC" --frontend "$TMP/app.wir" "${SOURCES[@]}" "$TMP/app.weave" \

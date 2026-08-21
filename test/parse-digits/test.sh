@@ -106,7 +106,7 @@ run_case documented 0 $'digits = 1 2 3\nsum = 6\n' '' 1 2 3
 run_case ends 0 $'digits = 0 9\nsum = 9\n' '' 0 9
 run_case decimal 0 $'digits = 1\nsum = 1\n' '' 1.0
 run_case usage 2 '' $'usage: parse-digits <digit>...\n'
-run_case malformed 2 '' $'error: not a digit: x\n' 1 x
+run_case malformed 2 $'digits = 1' $'error: not a digit: x\n' 1 x
 run_case too-large 2 '' $'error: not a digit: 10\n' 10
 run_case negative 2 '' $'error: not a digit: -1\n' -1
 run_case fraction 2 '' $'error: not a digit: 1.5\n' 1.5

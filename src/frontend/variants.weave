@@ -694,6 +694,7 @@
       (let ven_args_node i64 (call_i64 spec_type_args_node
         (param_get tree) (param_get source) (param_get node)))
       (let ven_prefix ptr (call_ptr weave_surface_enum_name (local_get ven_index)))
+      (let ven_vals ptr (const_null))
       (if
         (condition (gt_i32 (local_get ven_arity) (const_i32 0)))
         (then (do
@@ -722,7 +723,7 @@
                 (param_get fd) (const_string_ptr "(const_null)"))
               (return_void)))
             (else (do)))
-          (let ven_vals ptr (call_ptr malloc
+          (set ven_vals (call_ptr malloc
             (mul_i64 (cast_i32_to_i64 (local_get ven_arity)) (const_i64 4))))
           (if
             (condition (eq_ptr (local_get ven_vals) (const_null)))
@@ -766,10 +767,11 @@
             (else (do)))
           (call_void free (local_get ven_key))
           (call_void free (local_get ven_sname))
-          (call_void free (local_get ven_vals))
           (if
             (condition (lt_i32 (local_get ven_spec) (const_i32 0)))
             (then (do
+              (call_void free (local_get ven_vals))
+              (set ven_vals (const_null))
               (call_void var_error
                 (param_get tree) (param_get source) (param_get node)
                 (const_string_ptr "cannot specialize generic enum"))
@@ -798,6 +800,12 @@
         (condition (eq_i32 (call_i32 surface_node_is_ident
           (param_get tree) (local_get ven_ctor)) (const_i32 0)))
         (then (do
+          (if
+            (condition (ne_ptr (local_get ven_vals) (const_null)))
+            (then (do
+              (call_void free (local_get ven_vals))
+              (set ven_vals (const_null))))
+            (else (do)))
           (call_void var_error
             (param_get tree) (param_get source) (param_get node)
             (const_string_ptr "variant constructor must be a name"))
@@ -811,6 +819,12 @@
       (if
         (condition (lt_i32 (local_get ven_v) (const_i32 0)))
         (then (do
+          (if
+            (condition (ne_ptr (local_get ven_vals) (const_null)))
+            (then (do
+              (call_void free (local_get ven_vals))
+              (set ven_vals (const_null))))
+            (else (do)))
           (call_void var_error
             (param_get tree) (param_get source) (local_get ven_ctor)
             (const_string_ptr "unknown variant constructor"))
@@ -819,6 +833,14 @@
         (else (do)))
       (let ven_payload i32 (call_i32 weave_surface_enum_variant_payload
         (local_get ven_index) (local_get ven_v)))
+      (if
+        (condition (ne_ptr (local_get ven_vals) (const_null)))
+        (then (do
+          (set ven_payload (call_i32 spec_instantiate_type
+            (local_get ven_payload) (local_get ven_vals) (local_get ven_arity)))
+          (call_void free (local_get ven_vals))
+          (set ven_vals (const_null))))
+        (else (do)))
       (let ven_value i64 (call_i64 node_next_sibling
         (param_get tree) (local_get ven_ctor)))
       (if
