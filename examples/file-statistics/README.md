@@ -13,6 +13,7 @@ weavec build \
   stdlib/math.weave \
   stdlib/io.weave \
   stdlib/statistics.weave \
+  stdlib/result.weave \
   stdlib/file.weave \
   examples/file-statistics/main.weave \
   -o file-statistics
@@ -57,7 +58,7 @@ text_file_is_open(file)   -> bool
 text_file_line_count(file) -> i32
 text_file_line(file, i)   -> line text
 text_file_close(file)
-file_write_text(path, text) -> bool
+file_write_text(path, text) -> Result bool FileError
 ```
 
 There is no directory traversal, no seeking, no streaming, and no

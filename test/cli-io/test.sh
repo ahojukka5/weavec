@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0
 #
-# Paths, files, process exit, and environment (#246). Application source
-# names no ptr. file_write_text is a filesystem mutation (bool). env_get
-# uses Option. Named I/O error types are #247.
+# Paths, files, process, and environment. Application source names no
+# ptr. file_write_text is Result bool FileError. env_get uses Option.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -38,8 +37,7 @@ expect_frontend() {
   }
 }
 
-# Path join, absolute, and basename. Native is skipped: String construction
-# still emits Option i32 helpers whose WIR constructors are unordered.
+# Path join, absolute, and basename. Native runs when llc is present.
 cat > "$TMP/paths.weave" <<'EOF'
 (program
   (name "paths")
@@ -100,31 +98,27 @@ if grep -Eq '\bptr\b|\bextern\b|ptr_add|load_|store_|weave_rt_|malloc|free' \
   exit 1
 fi
 
-# User-level Result around the bool write, proving the intended I/O error
-# shape without putting Result constructors into std.file.
+# Direct Result from file_write_text, with a stable FileError constructor.
 cat > "$TMP/wrap.weave" <<'EOF'
 (program
   (name "wrap")
   (version "0.1")
-  (fn write-or-err
-    (params (path ptr) (text ptr))
-    (returns (type-app Result i32 i32))
-    (do
-      (if
-        (condition (call file_write_text path text))
-        (then (do (return (variant Result (type-args i32 i32) Ok 0))))
-        (else (do (return (variant Result (type-args i32 i32) Err 1))))))))
   (fn program_main
     (params)
     (returns i32)
     (do
-      (let r (call write-or-err (call arg 0) "ok\n"))
-      (return (call result_unwrap_or (type-args i32 i32) r 2)))))
+      (let r (call file_write_text (call arg 0) "ok\n"))
+      (if
+        (condition (call result_is_err (type-args bool FileError) r))
+        (then (do (return 2)))
+        (else (do)))
+      (return 0))))
 EOF
 expect_frontend wrap \
   "$MEMORY" "$RESULT" "$PROCESS" "$FILE"
-grep -Fq '(call_bool file_write_text' "$TMP/wrap.wir"
-grep -Fq 'Result__s__i32__i32_new_Err' "$TMP/wrap.wir"
+grep -Fq '(call_ptr file_write_text' "$TMP/wrap.wir"
+grep -Fq 'FileError_new_Failed' "$TMP/wrap.wir"
+grep -Fq 'Result__s__bool__enum__FileError_new_Err' "$TMP/wrap.wir"
 
 "$WEAVEC" analyze \
   "$MEMORY" "$OPTION" "$BYTES" "$STRING" "$PATH_MOD" "$ENV" \
@@ -141,8 +135,7 @@ for name in ("path_join", "path_is_absolute", "path_basename", "env_get"):
 print("cli-io: semantic index passed")
 PY
 
-# Native process_exit and file_write_text. These modules do not emit the
-# unordered Option/Result constructors.
+# Native process_exit and file_write_text.
 if command -v llc >/dev/null 2>&1; then
   cat > "$TMP/exit.weave" <<'EOF'
 (program
@@ -182,12 +175,23 @@ EOF
           (return 2)))
         (else (do)))
       (if
-        (condition (op not (call file_write_text (call arg 0) "hi\n")))
+        (condition (call result_is_err (type-args bool FileError)
+          (call file_write_text (call arg 0) "hi\n")))
         (then (do (return 3)))
         (else (do)))
+      (let bad (call file_write_text "/no/such/dir/weavec-cli-io.txt" "x"))
       (if
-        (condition (call file_write_text "/no/such/dir/weavec-cli-io.txt" "x"))
+        (condition (call result_is_ok (type-args bool FileError) bad))
         (then (do (return 4)))
+        (else (do)))
+      (let err FileError (match Result bad
+        (case Ok x (variant FileError Failed))
+        (case Err e e)))
+      (let kind i32 (match FileError err
+        (case Failed 0)))
+      (if
+        (condition (op not-equal kind 0))
+        (then (do (return 6)))
         (else (do)))
       (let file (call file_open_text (call arg 0)))
       (if
@@ -207,7 +211,7 @@ EOF
     exit 1
   fi
   "$WEAVEC" build \
-    "$MEMORY" "$PROCESS" "$IO" "$FILE" "$TMP/write.weave" -o "$TMP/write"
+    "$MEMORY" "$RESULT" "$PROCESS" "$IO" "$FILE" "$TMP/write.weave" -o "$TMP/write"
   set +e
   "$TMP/write" "$out" >"$TMP/write.stdout" 2>"$TMP/write.stderr"
   status="$?"

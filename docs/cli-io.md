@@ -32,19 +32,13 @@ in the API conventions.
 ## Files
 
 `file_write_text(path, text)` replaces the named file with one
-NUL-terminated string. It returns `bool`: `true` means the file now
-holds that text; `false` means it does not. That is a filesystem
-mutation, not a byte count.
-
-It does not return `Result` yet. Generated zero-payload and specialized
-`Result` constructors currently emit WIR that the backend cannot
-resolve, so putting `Result` into `std.file` would break the existing
-file-statistics native build. Named I/O error constructors are issue
-#247.
+NUL-terminated string. It returns `Result bool FileError`. `Ok true`
+means the file now holds that text; `Err Failed` means it does not.
+That is a recoverable I/O result, not a byte count and not errno.
 
 `file_open_text` is unchanged. A `TextFile` whose content is null still
 means the file could not be read; `text_file_is_open` remains the
-compatibility check.
+compatibility check. `std.result` must appear before `std.file`.
 
 No new public length parameter is `i32`. Lengths stay inside the
 implementation (`i64` from `ftell` / a C-string walk) until `usize` is

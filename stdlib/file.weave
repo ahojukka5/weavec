@@ -12,6 +12,7 @@
 ; second pass over the host.
 ;
 ; Allocation comes from std.memory, which must be earlier in the build.
+; Recoverable write failures are Result FileError; pass std.result first.
 
 (program
   (name "std.file")
@@ -42,6 +43,11 @@
     (field content ptr)
     (field length i64)
     (field line_count i32))
+
+  ; Coarse recoverable I/O failure. There is no errno integer and no
+  ; finer taxonomy yet, so exhaustive match on Failed stays stable.
+  (enum FileError
+    (variant Failed))
 
   ; Count the lines in already-terminated content. A trailing newline ends the
   ; last line rather than starting an empty one; a file with no trailing newline
@@ -219,25 +225,32 @@
           (set n (add_i64 (local_get n) (const_i64 1)))))
       (return (local_get n))))
 
-  ; Replace the named file with one NUL-terminated string. true means
-  ; the file now holds that text. false means it does not: a null
-  ; argument, an open failure, or a short write. Named I/O error
-  ; constructors are issue #247.
+  (fn file_write_failed
+    (params)
+    (returns (type-app Result bool FileError))
+    (do
+      (return (variant Result (type-args bool FileError) Err
+        (variant FileError Failed)))))
+
+  ; Replace the named file with one NUL-terminated string. Ok true
+  ; means the file now holds that text. Err Failed means it does not:
+  ; a null argument, an open failure, or a short write. Callers inspect
+  ; the Result tag; the bool is not a second failure channel.
   (fn file_write_text
     (params (path ptr) (text ptr))
-    (returns bool)
+    (returns (type-app Result bool FileError))
     (do
       (if
         (condition (or_bool
           (eq_ptr (param_get path) (const_null))
           (eq_ptr (param_get text) (const_null))))
-        (then (do (return (const_bool false))))
+        (then (do (return (call file_write_failed))))
         (else (do)))
       (let stream ptr
         (call_ptr fopen (param_get path) (const_string_ptr "wb")))
       (if
         (condition (eq_ptr (local_get stream) (const_null)))
-        (then (do (return (const_bool false))))
+        (then (do (return (call file_write_failed))))
         (else (do)))
       (let n i64 (call_i64 file_cstr_len (param_get text)))
       (let wrote i64 (const_i64 0))
@@ -254,6 +267,7 @@
       (call_i32 fclose (local_get stream))
       (if
         (condition (ne_i64 (local_get wrote) (local_get n)))
-        (then (do (return (const_bool false))))
+        (then (do (return (call file_write_failed))))
         (else (do)))
-      (return (const_bool true)))))
+      (return (variant Result (type-args bool FileError) Ok
+        (const_bool true))))))

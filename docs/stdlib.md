@@ -79,8 +79,10 @@ zeros removed, at least one fractional digit. `parse_float` wraps
 `std.path` joins POSIX paths and returns owned `String` values.
 `std.memory`, `std.option`, `std.bytes`, and `std.string` must appear
 before it. `std.env` copies `getenv` into `Option String` and has the
-same prerequisites. `std.file` writes with `file_write_text`; named I/O
-errors are issue #247. See [Paths, files, process, and environment](cli-io.md).
+same prerequisites. `std.file` writes with `file_write_text`, which
+returns `Result bool FileError`. Pass `std.result` first. See
+[Paths, files, process, and environment](cli-io.md) and
+[Bounds-check and I/O error behavior](bounds-io-errors.md).
 
 ## Adding a module
 

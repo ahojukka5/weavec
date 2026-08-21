@@ -10,6 +10,10 @@ surface-language contract stabilises.
 
 ### Changed
 
+- `file_write_text` returns `Result bool FileError`. `Ok true` means
+  the file holds the text; `Err Failed` is a recoverable I/O failure,
+  not errno. Indexing get stays `Option`; refused set stays `bool`.
+  See [Bounds-check and I/O error behavior](docs/bounds-io-errors.md).
 - Ordinary calls use Lisp head position: `(f args...)` is canonical.
   `(call f args...)` remains accepted and `weavec fmt` rewrites it to the
   direct form. Function names that collide with reserved syntax are
@@ -88,9 +92,10 @@ surface-language contract stabilises.
 ### Added
 
 - Paths, files, process exit, and environment lookup: `process_exit`,
-  `file_write_text`, POSIX `path_join` / `path_basename` /
-  `path_is_absolute`, and `env_get` as `Option String`. See
-  [Paths, files, process, and environment](docs/cli-io.md).
+  `file_write_text` as `Result bool FileError`, POSIX `path_join` /
+  `path_basename` / `path_is_absolute`, and `env_get` as `Option
+  String`. See [Paths, files, process, and environment](docs/cli-io.md)
+  and [Bounds-check and I/O error behavior](docs/bounds-io-errors.md).
 - Primitive conversion and formatting in `stdlib/convert.weave`.
   `format_i32` and `format_f64` produce an owned `String`; `format_f64`
   matches `write_f64_trimmed`. `parse_i32`, `parse_i64`, `parse_bool`,

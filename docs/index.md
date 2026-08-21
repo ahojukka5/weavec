@@ -51,6 +51,9 @@ names used when they were released.
   Result, and bool failure signaling, naming, and mutation rules.
 - [Paths, files, process, and environment](cli-io.md) — `process_exit`,
   `file_write_text`, POSIX path helpers, and `env_get`.
+- [Bounds-check and I/O error behavior](bounds-io-errors.md) — `Option`
+  on out-of-range get, `bool` on refused set, `Result` with `FileError`
+  on recoverable write failure.
 - [Integer widths and the size type](integer-widths.md) — `usize` for
   lengths and indices, `u64`/`u8` roles, and why `i32` sizes must not
   freeze.
