@@ -563,6 +563,18 @@
                 (param_get node))
               (return_void)))
             (else (do)))
+          (if
+            (condition (or_bool
+              (ne_i32 (call_i32 head_equals
+                (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "eq_ptr") (const_i64 6)) (const_i32 0))
+              (ne_i32 (call_i32 head_equals
+                (param_get tree) (param_get source) (param_get node)
+                (const_string_ptr "ne_ptr") (const_i64 6)) (const_i32 0))))
+            (then (do
+              (call_void var_check_eq_identity
+                (param_get tree) (param_get source) (param_get node))))
+            (else (do)))
           (call_void write_byte (param_get fd) (const_i32 40))
           (let child i64 (call_i64 node_first_child (param_get tree) (param_get node)))
           (let first i32 (const_i32 1))

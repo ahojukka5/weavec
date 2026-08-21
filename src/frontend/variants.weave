@@ -1,9 +1,11 @@
 ; SPDX-License-Identifier: Apache-2.0
 ; variants.weave — tagged enum declarations and WIR lowering
 ;
-; Layout is a 16-byte heap object: i32 tag at offset 0 and an 8-byte payload
-; slot at offset 8. Nullary variants store zero in the payload slot. Tags are
-; declaration order. Generic templates are not emitted.
+; Current lowering is a 16-byte heap object: i32 tag at offset 0 and an
+; 8-byte payload slot at offset 8. That layout is an implementation detail;
+; enum values have no observable identity. Nullary variants store zero in
+; the payload slot. Tags are declaration order. Generic templates are not
+; emitted.
 
 (program
   (name "variants")
@@ -23,6 +25,57 @@
         (const_i32 -1) (const_i32 -1) (const_i32 -1)
         (const_string_ptr "enum") (const_i64 -1) (const_i32 0))
       (return (const_i32 1))))
+
+  (fn var_human_no_identity
+    (params)
+    (returns void)
+    (do
+      (call_void surface_error_prefix (const_string_ptr "enum"))
+      (call_void write_cstr (const_i32 2)
+        (const_string_ptr "values have no identity; use match or variant-tag, not pointer equality"))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (return_void)))
+
+  (fn var_record_no_identity
+    (params (tree ptr) (source ptr) (node i64))
+    (returns void)
+    (do
+      (call_void var_human_no_identity)
+      (call_void sdiag_record
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "frontend.enum.no-identity")
+        (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+        (const_i32 -1) (const_i32 -1) (const_i32 -1)
+        (const_string_ptr "enum") (const_i64 -1) (const_i32 0))
+      (return_void)))
+
+  (fn var_check_eq_identity
+    (params (tree ptr) (source ptr) (node i64))
+    (returns void)
+    (do
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get tree) (param_get node)) (const_i64 3)))
+        (then (do (return_void)))
+        (else (do)))
+      (let ven_left i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 1)))
+      (let ven_right i64 (call_i64 nth_child
+        (param_get tree) (param_get node) (const_i64 2)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 weave_semantic_is_enum_type
+            (call_i32 sop_expr_type
+              (param_get tree) (param_get source) (local_get ven_left)
+              (call_i32 surface_type_unknown))) (const_i32 0))
+          (ne_i32 (call_i32 weave_semantic_is_enum_type
+            (call_i32 sop_expr_type
+              (param_get tree) (param_get source) (local_get ven_right)
+              (call_i32 surface_type_unknown))) (const_i32 0))))
+        (then (do (call_void var_record_no_identity
+          (param_get tree) (param_get source) (param_get node))))
+        (else (do)))
+      (return_void)))
 
   (fn var_payload_supported
     (params (type i32))

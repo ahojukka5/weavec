@@ -52,6 +52,9 @@ names used when they were released.
 - [Integer widths and the size type](integer-widths.md) — `usize` for
   lengths and indices, `u64`/`u8` roles, and why `i32` sizes must not
   freeze.
+- [Enum values have no identity](enum-identity.md) — no pointer
+  equality on enums, so a later unboxed `Option` is not a breaking
+  change.
 - [Canonical LLM-facing surface forms](canonical-surface.md) — typed canonical
   calls, contextual literals, compatibility forms, and deterministic elaboration.
 - [WIR core version 3](wir.md) — the self-hosted frontend/backend envelope,

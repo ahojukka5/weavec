@@ -197,6 +197,19 @@
       (if
         (condition (and_bool
           (ne_i32 (local_get sop_is_comparison) (const_i32 0))
+          (ne_i32 (call_i32 weave_semantic_is_enum_type
+            (local_get sop_operand_type)) (const_i32 0))))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "enum"))
+          (call_void write_cstr (const_i32 2)
+            (const_string_ptr "values have no identity; use match or variant-tag, not pointer equality"))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (call_void sop_emit_failure_expr (param_get sop_fd))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get sop_is_comparison) (const_i32 0))
           (eq_i32 (call_i32 sop_comparison_supports_type
             (param_get sop_tree) (param_get sop_source) (local_get sop_name_node)
             (local_get sop_operand_type)) (const_i32 0))))

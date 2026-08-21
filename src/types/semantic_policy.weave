@@ -96,6 +96,37 @@
         (else (do)))
       (return (const_string_ptr "unknown"))))
 
+; True for a tagged enum or a type-app of one. Boxed heap layout is not
+; part of the type's meaning, so enum values must not collapse to ptr.
+(fn weave_semantic_is_enum_type
+    (params (type i32))
+    (returns i32)
+    (do
+      (if
+        (condition (le_i32 (param_get type) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 weave_surface_enum_is_type
+          (param_get type)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let sem_enum_graph ptr (call_ptr semantic_graph))
+      (if
+        (condition (eq_ptr (local_get sem_enum_graph) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32
+          (call_i32 type_graph_kind
+            (local_get sem_enum_graph) (param_get type))
+          (call_i32 type_kind_application)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 weave_surface_enum_is_type
+        (call_i32 type_graph_child
+          (local_get sem_enum_graph) (param_get type) (const_i64 0))))))
+
 (fn weave_semantic_types_compatible
     (params (expected i32) (actual i32))
     (returns i32)
@@ -129,13 +160,13 @@
       (if
         (condition (and_bool
           (eq_i32 (param_get expected) (local_get sem_compat_pointer))
-          (or_bool
-            (gt_i32
-              (call_i32 semantic_flat_type (param_get actual))
-              (const_i32 0))
+          (and_bool
+            (eq_i32 (call_i32 weave_semantic_is_enum_type
+              (param_get actual)) (const_i32 0))
             (or_bool
-              (ne_i32 (call_i32 weave_surface_enum_is_type
-                (param_get actual)) (const_i32 0))
+              (gt_i32
+                (call_i32 semantic_flat_type (param_get actual))
+                (const_i32 0))
               (eq_i32
                 (call_i32 type_graph_kind
                   (local_get sem_compat_graph) (param_get actual))
@@ -145,10 +176,13 @@
       (if
         (condition (and_bool
           (eq_i32 (param_get expected) (local_get sem_compat_pointer))
-          (eq_i32
-            (call_i32 type_graph_kind
-              (local_get sem_compat_graph) (param_get actual))
-            (call_i32 type_kind_application))))
+          (and_bool
+            (eq_i32 (call_i32 weave_semantic_is_enum_type
+              (param_get actual)) (const_i32 0))
+            (eq_i32
+              (call_i32 type_graph_kind
+                (local_get sem_compat_graph) (param_get actual))
+              (call_i32 type_kind_application)))))
         (then (do (return (const_i32 1))))
         (else (do)))
       (if

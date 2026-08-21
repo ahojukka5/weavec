@@ -127,6 +127,11 @@ constructor is already covered. Missing constructors without `_` are
 rejected. Arm result types must agree. `match` initializes a `let` or is
 returned.
 
+Enum values have no identity. `=` / `!=`, `eq_ptr` / `ne_ptr`, and
+implicit conversion to `ptr` are rejected (`frontend.enum.no-identity`).
+Compare with `match` or `variant-tag`. The current 16-byte heap object is
+an implementation detail; see [Enum values have no identity](enum-identity.md).
+
 ```weave
 (return (match Result value
   (case Ok x x)
@@ -534,7 +539,7 @@ Canonical casts name the target type:
 Explicit WIR-shaped operators such as `add_i32`, `eq_ptr`, `and_bool`, and
 `cast_i64_to_i32` remain accepted for compatibility and compiler implementation
 code. The compiler rejects unknown operators, wrong arity, mixed known operand
-types, and unsupported casts.
+types, unsupported casts, and pointer equality on enum values.
 
 ## Calls
 

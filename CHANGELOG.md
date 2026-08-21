@@ -45,6 +45,10 @@ surface-language contract stabilises.
 - Lengths, indices, and capacities are `usize`. `u64` is explicit
   unsigned arithmetic; `u8` is a stored byte. Those types are not
   admitted yet, and existing `i32` size APIs must not freeze.
+- Enum values have no identity. `=` / `eq_ptr` and implicit `ptr`
+  conversion are rejected so a later unboxed `Option` is not a
+  breaking change. The current boxed layout is an implementation
+  detail.
 - Language design principles now treat canonical whitespace as
   formatter-derived layout and `comment` as a standalone surface node,
   matching issues #334 and #337. Author-owned paragraph metadata and
