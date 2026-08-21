@@ -1,0 +1,94 @@
+{
+  "valid": [
+    {
+      "name": "tagged-expect-eq",
+      "source": "(module arithmetic\n  (fn add-two ((a i32) (b i32)) i32\n    (return (+ a b)))\n  (test add-two-basic\n    (tags unit)\n    (do\n      (expect-eq (add-two 40 2) 42))))\n"
+    },
+    {
+      "name": "expect-bool-and-fail",
+      "source": "(program\n  (name \"bits\")\n  (version \"0.1\")\n  (test truth\n    (do\n      (expect true)\n      (expect-ne 0 1)))\n  (test explicit-fail\n    (do\n      (fail \"not yet\"))))\n"
+    },
+    {
+      "name": "untagged",
+      "source": "(module m\n  (test smoke\n    (do\n      (expect-eq 1 1))))\n"
+    }
+  ],
+  "invalid": [
+    {
+      "name": "nested-test",
+      "error": "test.nested",
+      "source": "(module m\n  (test outer\n    (do\n      (test inner\n        (do\n          (expect true))))))\n"
+    },
+    {
+      "name": "duplicate-name",
+      "error": "test.duplicate-name",
+      "source": "(module m\n  (test twice\n    (do (expect true)))\n  (test twice\n    (do (expect true))))\n"
+    },
+    {
+      "name": "duplicate-tag",
+      "error": "test.duplicate-tag",
+      "source": "(module m\n  (test t\n    (tags unit unit)\n    (do (expect true))))\n"
+    },
+    {
+      "name": "return-in-test",
+      "error": "test.return",
+      "source": "(module m\n  (test t\n    (do (return 0))))\n"
+    },
+    {
+      "name": "fn-collision",
+      "error": "test.collision",
+      "source": "(module m\n  (fn t () i32 (return 0))\n  (test t\n    (do (expect true))))\n"
+    },
+    {
+      "name": "expect-i32",
+      "error": "test.expect-type",
+      "source": "(module m\n  (test t\n    (do (expect 1))))\n"
+    },
+    {
+      "name": "expect-eq-mixed",
+      "error": "test.expect-eq-type",
+      "source": "(module m\n  (test t\n    (do (expect-eq 1 true))))\n"
+    },
+    {
+      "name": "malformed-name",
+      "error": "test.malformed-name",
+      "source": "(module m\n  (test 1bad\n    (do (expect true))))\n"
+    }
+  ],
+  "results": [
+    {
+      "name": "passing-run",
+      "document": {
+        "format": "weavec-test-results-v1",
+        "status": "passed",
+        "exit_code": 0,
+        "tests": [
+          {
+            "name": "add-two-basic",
+            "module": "arithmetic",
+            "tags": ["unit"],
+            "status": "passed",
+            "message": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "assertion-failure",
+      "document": {
+        "format": "weavec-test-results-v1",
+        "status": "failed",
+        "exit_code": 20,
+        "tests": [
+          {
+            "name": "add-two-basic",
+            "module": "arithmetic",
+            "tags": ["unit"],
+            "status": "failed",
+            "message": "expect-eq"
+          }
+        ]
+      }
+    }
+  ]
+}

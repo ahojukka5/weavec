@@ -281,6 +281,13 @@ Explicit WIR-shaped forms remain accepted for low-level source:
 
 Unknown call targets are rejected before LLVM output is created.
 
+## Tests
+
+Top-level `(test NAME ...)` declarations are specified in
+[Language testing](testing.md) and are not accepted by the current
+frontend. Do not emit them in production sources until the parser slice
+of epic #114 lands.
+
 ## Functions and entry points
 
 A function has explicit parameters, return type, optional contracts, and a `do`

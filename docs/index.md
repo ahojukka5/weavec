@@ -36,6 +36,8 @@ names used when they were released.
   canonical scripts, dependency overrides, and no-build test qualification.
 - [Command reference](command-reference.md) — public build command,
   compiler-development overrides, and low-level compiler modes.
+- [Language testing](testing.md) — specified `test` forms, assertions,
+  `weavec test` exits, and `weavec-test-results-v1`.
 - [Compiler capability and grammar registry](capabilities.md) —
   `weavec-capabilities-v1`, installed targets, protocol versions, feature status,
   and the compiler-authoritative LLM-facing grammar contract.

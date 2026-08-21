@@ -20,7 +20,8 @@ directory. The admitted source set contains only entries that are:
 
 Non-`.weave` files and hidden files or directories are ignored. Sockets, devices,
 FIFOs, and other non-regular entries are not sources. Test roots are not part of
-an ordinary project build and remain reserved for the testing epic.
+an ordinary project build and remain reserved for the testing epic. See
+[Language testing](testing.md).
 
 Visible symbolic links are rejected anywhere under a source root, even when the
 link target would remain inside the project. Hidden entries are excluded before

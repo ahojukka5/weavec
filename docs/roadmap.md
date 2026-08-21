@@ -50,7 +50,8 @@ platform framework.
 Issue [#114](https://github.com/ahojukka5/weavec/issues/114) defines top-level
 test declarations, assertions, deterministic discovery, native test-harness
 generation, filtering, and a versioned machine-readable result format exposed
-through `weavec test`.
+through `weavec test`. The first-milestone contract is
+[Language testing](testing.md).
 
 The standalone command and test-form skeleton may start early. Project-wide test
 discovery depends on #111, and generic test helpers can expand after #112.
