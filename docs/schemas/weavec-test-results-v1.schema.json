@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:weavec:schema:test-results:v1",
+  "title": "weavec-test-results-v1",
+  "type": "object",
+  "required": [
+    "format",
+    "status",
+    "exit_code",
+    "tests"
+  ],
+  "properties": {
+    "format": {"const": "weavec-test-results-v1"},
+    "status": {"enum": ["passed", "failed", "error"]},
+    "exit_code": {"type": "integer", "minimum": 0},
+    "tests": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/test"}
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "test": {
+      "type": "object",
+      "required": [
+        "name",
+        "module",
+        "tags",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "module": {"type": "string", "minLength": 1},
+        "tags": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "status": {
+          "enum": [
+            "passed",
+            "failed",
+            "error",
+            "crashed",
+            "skipped",
+            "filtered"
+          ]
+        },
+        "message": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    }
+  }
+}

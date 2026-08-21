@@ -243,6 +243,22 @@ without replacing an existing source or output.
 See [Canonical Weave formatting](formatting.md) for the normalization, comment,
 idempotence, and compatibility policies.
 
+## Language testing
+
+`weavec test` is specified in [Language testing](testing.md) and is not
+implemented yet. The intended public forms are:
+
+```text
+weavec test
+weavec test <input.weave> [input2.weave ...]
+weavec test --json <path>
+```
+
+Invalid usage will return `2`. After a successful harness build, `0` means
+every selected test passed, `20` means an assertion failed, and `21` means a
+test crashed. Harness compile and link failures reuse `weavec build` phase
+codes `10`–`15`.
+
 ## Compiler-development overrides
 
 The public build command accepts explicit overrides:

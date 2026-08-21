@@ -122,6 +122,11 @@ The application-language roadmap and its five epics are documented in
 [`roadmap.md`](roadmap.md). Planned capabilities should link to their owning epic
 or focused subissue instead of using completed historical issue numbers.
 
+Language testing is planned by
+[#114](https://github.com/ahojukka5/weavec/issues/114). The contract is
+[Language testing](testing.md). The registry must not list `weavec test` or
+`test` forms as implemented until the parser and command slices land.
+
 ### Surface grammar
 
 `surface` is the LLM-facing grammar registry. It reports:
