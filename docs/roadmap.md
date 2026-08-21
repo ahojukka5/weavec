@@ -62,6 +62,12 @@ stages: explicit safe/unsafe boundaries, move-only owned values, lexical borrows
 deterministic cleanup, non-null references, slices, initialization tracking, and
 checked indexing.
 
+Concurrency, GPU eligibility, and LLVM `noalias` are requirements on that
+model, recorded in
+[Ownership requirements for concurrency and GPU](ownership-concurrency.md).
+They are specified before implementation so shared-vs-exclusive access is
+not retrofitted.
+
 The archived `weave-bootstrap` ownership work is design input and a negative-test
 corpus, not an implementation to port verbatim. The new implementation must state
 and prove the guarantees delivered by each stage before claiming Rust-like
