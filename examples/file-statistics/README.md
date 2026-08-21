@@ -44,6 +44,9 @@ test asserts this example calls `samples_population_variance` and does not
 recompute deviations itself, and checks that the same four values produce the
 same summary through both programs.
 
+Checkout and package qualification is
+[Ergonomic stdlib qualification](../../docs/ergonomic-stdlib.md).
+
 `Samples` is a fixed-capacity block of `f64`. Both callers know how many values
 they will have before parsing — an argument count, a line count — so it never
 needs to grow, and no growth machinery exists.
