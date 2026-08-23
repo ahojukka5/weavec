@@ -114,6 +114,9 @@ bash "$ROOT/test/capabilities/test.sh"
 log 'structured semantic type graph'
 bash "$ROOT/test/semantic-type-graph/test.sh"
 
+log 'owned in-memory WIR tree'
+bash "$ROOT/test/wir-tree/test.sh"
+
 log 'public project acceptance'
 bash "$ROOT/test/project-acceptance/test.sh"
 

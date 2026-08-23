@@ -1,0 +1,199 @@
+; SPDX-License-Identifier: Apache-2.0
+; Executable qualification for the owned in-memory WIR tree.
+
+(program
+  (name "wir_tree_test")
+  (version "0.1")
+
+  (fn wir_test_equal_n
+    (params (wte_left ptr) (wte_right ptr) (wte_length i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get wte_left) (const_null))
+          (eq_ptr (param_get wte_right) (const_null))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let wte_index i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get wte_index) (param_get wte_length)))
+        (do
+          (if
+            (condition (ne_i32
+              (load_u8 (ptr_add (param_get wte_left) (local_get wte_index)))
+              (load_u8 (ptr_add (param_get wte_right) (local_get wte_index)))))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set wte_index (add_i64 (local_get wte_index) (const_i64 1)))))
+      (return (const_i32 1))))
+
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (let wtm_tree ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get wtm_tree) (const_null)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+
+      (let wtm_root i64 (call_i64 wir_list (local_get wtm_tree)))
+      (let wtm_source ptr (call_ptr malloc (const_i64 6)))
+      (if
+        (condition (eq_ptr (local_get wtm_source) (const_null)))
+        (then (do
+          (call_void wir_tree_free (local_get wtm_tree))
+          (return (const_i32 2))))
+        (else (do)))
+      (store_i8 (local_get wtm_source) (const_i32 97))
+      (store_i8 (ptr_add (local_get wtm_source) (const_i64 1)) (const_i32 108))
+      (store_i8 (ptr_add (local_get wtm_source) (const_i64 2)) (const_i32 112))
+      (store_i8 (ptr_add (local_get wtm_source) (const_i64 3)) (const_i32 104))
+      (store_i8 (ptr_add (local_get wtm_source) (const_i64 4)) (const_i32 97))
+      (store_i8 (ptr_add (local_get wtm_source) (const_i64 5)) (const_i32 0))
+      (let wtm_atom i64
+        (call_i64 wir_atom_n (local_get wtm_tree) (local_get wtm_source) (const_i64 5)))
+      (call_void free (local_get wtm_source))
+
+      (let wtm_string i64
+        (call_i64 wir_string (local_get wtm_tree) (const_string_ptr "payload")))
+      (let wtm_integer i64
+        (call_i64 wir_int (local_get wtm_tree) (const_i64 42)))
+      (let wtm_nested i64 (call_i64 wir_list (local_get wtm_tree)))
+      (let wtm_inner i64
+        (call_i64 wir_atom (local_get wtm_tree) (const_string_ptr "inner")))
+
+      (if
+        (condition (eq_i32
+          (call_i32 wir_append_child (local_get wtm_tree) (local_get wtm_root) (local_get wtm_atom))
+          (const_i32 0)))
+        (then (do (return (const_i32 3))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_append_child (local_get wtm_tree) (local_get wtm_root) (local_get wtm_string))
+          (const_i32 0)))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_append_child (local_get wtm_tree) (local_get wtm_root) (local_get wtm_integer))
+          (const_i32 0)))
+        (then (do (return (const_i32 5))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_append_child (local_get wtm_tree) (local_get wtm_root) (local_get wtm_nested))
+          (const_i32 0)))
+        (then (do (return (const_i32 6))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_append_child (local_get wtm_tree) (local_get wtm_nested) (local_get wtm_inner))
+          (const_i32 0)))
+        (then (do (return (const_i32 7))))
+        (else (do)))
+
+      (if
+        (condition (ne_i64
+          (call_i64 wir_node_first_child (local_get wtm_tree) (local_get wtm_root))
+          (local_get wtm_atom)))
+        (then (do (return (const_i32 8))))
+        (else (do)))
+      (if
+        (condition (ne_i64
+          (call_i64 wir_node_next_sibling (local_get wtm_tree) (local_get wtm_atom))
+          (local_get wtm_string)))
+        (then (do (return (const_i32 9))))
+        (else (do)))
+      (if
+        (condition (ne_i64
+          (call_i64 wir_node_next_sibling (local_get wtm_tree) (local_get wtm_string))
+          (local_get wtm_integer)))
+        (then (do (return (const_i32 10))))
+        (else (do)))
+      (if
+        (condition (ne_i64
+          (call_i64 wir_node_parent (local_get wtm_tree) (local_get wtm_inner))
+          (local_get wtm_nested)))
+        (then (do (return (const_i32 11))))
+        (else (do)))
+      (if
+        (condition (ne_i64
+          (call_i64 wir_node_int (local_get wtm_tree) (local_get wtm_integer))
+          (const_i64 42)))
+        (then (do (return (const_i32 12))))
+        (else (do)))
+
+      (let wtm_fill i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get wtm_fill) (const_i64 200)))
+        (do
+          (if
+            (condition (lt_i64
+              (call_i64 wir_atom
+                (local_get wtm_tree)
+                (const_string_ptr "0123456789abcdef"))
+              (const_i64 0)))
+            (then (do (return (const_i32 13))))
+            (else (do)))
+          (set wtm_fill (add_i64 (local_get wtm_fill) (const_i64 1)))))
+
+      (if
+        (condition (eq_i32
+          (call_i32 wir_test_equal_n
+            (call_ptr wir_node_text (local_get wtm_tree) (local_get wtm_atom))
+            (const_string_ptr "alpha")
+            (const_i64 5))
+          (const_i32 0)))
+        (then (do (return (const_i32 14))))
+        (else (do)))
+      (if
+        (condition (ne_i64
+          (call_i64 wir_node_text_len (local_get wtm_tree) (local_get wtm_atom))
+          (const_i64 5)))
+        (then (do (return (const_i32 15))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_node_set_provenance
+            (local_get wtm_tree) (local_get wtm_atom) (const_i64 1234))
+          (const_i32 0)))
+        (then (do (return (const_i32 16))))
+        (else (do)))
+      (if
+        (condition (ne_i64
+          (call_i64 wir_node_provenance (local_get wtm_tree) (local_get wtm_atom))
+          (const_i64 1234)))
+        (then (do (return (const_i32 17))))
+        (else (do)))
+      (if
+        (condition (ne_i32
+          (call_i32 wir_tree_failed (local_get wtm_tree))
+          (const_i32 0)))
+        (then (do (return (const_i32 18))))
+        (else (do)))
+
+      (let wtm_bad ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get wtm_bad) (const_null)))
+        (then (do (return (const_i32 19))))
+        (else (do)))
+      (if
+        (condition (ne_i64
+          (call_i64 wir_atom_n (local_get wtm_bad) (const_null) (const_i64 -1))
+          (const_i64 -1)))
+        (then (do (return (const_i32 20))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_tree_failed (local_get wtm_bad))
+          (const_i32 0)))
+        (then (do (return (const_i32 21))))
+        (else (do)))
+
+      (call_void wir_tree_free (local_get wtm_bad))
+      (call_void wir_tree_free (local_get wtm_tree))
+      (return (const_i32 0))))
+)
