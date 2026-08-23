@@ -74,10 +74,60 @@ if grep -Fq '    (when (< 1 2) (write_stderr' "$TMP/long.weave"; then
   exit 1
 fi
 require_line '    (when' "$TMP/long.weave"
-require_line '      (< 1 2)' "$TMP/long.weave"
 require_line '      (return 0))))' "$TMP/long.weave"
+python3 - "$TMP/long.weave" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+marker = 'columns")'
+start = text.index(marker) + len(marker)
+end = text.index('(return 0)', start)
+gap = text[start:end]
+if gap.count('\n') != 2 or gap.replace('\n', '').strip():
+    print(
+        'formatter-layout: multiline control sibling must have exactly one blank line',
+        file=sys.stderr,
+    )
+    print(f'gap repr: {gap!r}', file=sys.stderr)
+    print('--- canonical output ---', file=sys.stderr)
+    print(text, end='', file=sys.stderr)
+    print('--- end canonical output ---', file=sys.stderr)
+    raise SystemExit(1)
+PY
 cp "$TMP/long.weave" "$TMP/long.once"
 "$WEAVEC" fmt "$TMP/long.weave"
 cmp "$TMP/long.once" "$TMP/long.weave"
+
+cat > "$TMP/inline-siblings.weave" <<'EOF_INLINE_SIBLINGS'
+(program
+  (name "formatter-layout-inline-siblings")
+  (version "0.1")
+  (entry main () i32
+    (when (< 1 2)
+      (write_stderr "a")
+      (write_stderr "b")
+      (write_stderr "c")
+      (write_stderr "d")
+      (return 0))))
+EOF_INLINE_SIBLINGS
+
+"$WEAVEC" fmt "$TMP/inline-siblings.weave"
+python3 - "$TMP/inline-siblings.weave" <<'PY'
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+start = text.index('(write_stderr "a")')
+end = text.index('(return 0)', start)
+body = text[start:end]
+if '\n\n' in body:
+    raise SystemExit(
+        'formatter-layout: inline control siblings gained a blank separator')
+PY
+cp "$TMP/inline-siblings.weave" "$TMP/inline-siblings.once"
+"$WEAVEC" fmt "$TMP/inline-siblings.weave"
+cmp "$TMP/inline-siblings.once" "$TMP/inline-siblings.weave"
 
 printf 'formatter-layout: passed\n'
