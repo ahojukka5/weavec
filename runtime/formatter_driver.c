@@ -162,10 +162,21 @@ static size_t weave_fmt_column_budget(size_t indentation) {
 #include "formatter_driver_structs.inc"
 #include "formatter_driver_types.inc"
 #include "formatter_driver_plans.inc"
+#define weave_fmt_plan_list weave_fmt_plan_list_legacy
 #include "formatter_driver_normalize.inc"
+#undef weave_fmt_plan_list
+#include "formatter_driver_control_plans.inc"
 #include "formatter_driver_measure.inc"
+#define weave_fmt_emit_control_stmts weave_fmt_emit_control_stmts_legacy
 #include "formatter_driver_emit_helpers.inc"
+#undef weave_fmt_emit_control_stmts
+static int weave_fmt_emit_control_stmts(
+    weave_fmt_context *context,
+    int64_t body,
+    int variadic,
+    size_t indentation);
 #include "formatter_driver_control_layout.inc"
+#include "formatter_driver_control_spacing.inc"
 #define weave_fmt_format_control weave_fmt_format_control_canonical
 #include "formatter_driver_emit.inc"
 #undef weave_fmt_format_control

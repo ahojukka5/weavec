@@ -44,11 +44,8 @@ static int weave_fmt_control_fits_inline(
                 limit)) {
             return 0;
         }
-    } else if (plan->control_variadic &&
-               weave_fmt_list_headed(context, plan->control_then, "do")) {
-        int64_t stmt = node_next_sibling(
-            context->tree,
-            node_first_child(context->tree, plan->control_then));
+    } else if (plan->control_variadic) {
+        int64_t stmt = plan->control_then;
         while (stmt != -1) {
             if (!weave_fmt_measure_control_part(
                     context, stmt, WEAVE_FMT_UNKNOWN, &width, limit)) {
@@ -113,11 +110,8 @@ static int weave_fmt_format_control_canonical(
                     WEAVE_FMT_UNKNOWN)) {
                 return 0;
             }
-        } else if (plan->control_variadic &&
-                   weave_fmt_list_headed(context, plan->control_then, "do")) {
-            int64_t stmt = node_next_sibling(
-                context->tree,
-                node_first_child(context->tree, plan->control_then));
+        } else if (plan->control_variadic) {
+            int64_t stmt = plan->control_then;
             while (stmt != -1) {
                 if (!weave_fmt_format_control_inline_part(
                         context, stmt, indentation, WEAVE_FMT_UNKNOWN)) {
