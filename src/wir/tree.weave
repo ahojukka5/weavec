@@ -1,0 +1,596 @@
+; SPDX-License-Identifier: Apache-2.0
+; tree.weave — owned in-memory WIR tree and builder storage
+;
+; WIR text bytes are owned by this tree. Nodes store byte offsets, not pointers
+; into surface source buffers, so growing the text arena cannot invalidate nodes.
+
+(program
+  (name "wir.tree")
+  (version "0.1")
+
+  (fn wir_node_size
+    (params)
+    (returns i64)
+    (do (return (const_i64 72))))
+
+  (fn wir_tree_size
+    (params)
+    (returns i64)
+    (do (return (const_i64 56))))
+
+  (fn wir_kind_list
+    (params)
+    (returns i32)
+    (do (return (const_i32 1))))
+
+  (fn wir_kind_atom
+    (params)
+    (returns i32)
+    (do (return (const_i32 2))))
+
+  (fn wir_kind_string
+    (params)
+    (returns i32)
+    (do (return (const_i32 3))))
+
+  (fn wir_kind_int
+    (params)
+    (returns i32)
+    (do (return (const_i32 4))))
+
+  (fn wir_tree_mark_failed
+    (params (wmf_tree ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_ptr (param_get wmf_tree) (const_null)))
+        (then (do
+          (store_i32
+            (ptr_add (param_get wmf_tree) (const_i64 48))
+            (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn wir_tree_failed
+    (params (wtf_tree ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_ptr (param_get wtf_tree) (const_null)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return
+        (load_i32 (ptr_add (param_get wtf_tree) (const_i64 48))))))
+
+  (fn wir_tree_new
+    (params)
+    (returns ptr)
+    (do
+      (let wtn_tree ptr (call_ptr malloc (call_i64 wir_tree_size)))
+      (if
+        (condition (eq_ptr (local_get wtn_tree) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (store_ptr (local_get wtn_tree) (const_null))
+      (store_i64 (ptr_add (local_get wtn_tree) (const_i64 8)) (const_i64 0))
+      (store_i64 (ptr_add (local_get wtn_tree) (const_i64 16)) (const_i64 0))
+      (store_ptr (ptr_add (local_get wtn_tree) (const_i64 24)) (const_null))
+      (store_i64 (ptr_add (local_get wtn_tree) (const_i64 32)) (const_i64 0))
+      (store_i64 (ptr_add (local_get wtn_tree) (const_i64 40)) (const_i64 0))
+      (store_i32 (ptr_add (local_get wtn_tree) (const_i64 48)) (const_i32 0))
+      (return (local_get wtn_tree))))
+
+  (fn wir_tree_free
+    (params (wtfr_tree ptr))
+    (returns void)
+    (do
+      (if
+        (condition (eq_ptr (param_get wtfr_tree) (const_null)))
+        (then (do (return_void)))
+        (else (do)))
+      (let wtfr_nodes ptr (load_ptr (param_get wtfr_tree)))
+      (let wtfr_text ptr
+        (load_ptr (ptr_add (param_get wtfr_tree) (const_i64 24))))
+      (if
+        (condition (ne_ptr (local_get wtfr_nodes) (const_null)))
+        (then (do (call_void free (local_get wtfr_nodes))))
+        (else (do)))
+      (if
+        (condition (ne_ptr (local_get wtfr_text) (const_null)))
+        (then (do (call_void free (local_get wtfr_text))))
+        (else (do)))
+      (call_void free (param_get wtfr_tree))
+      (return_void)))
+
+  (fn wir_tree_count
+    (params (wtc_tree ptr))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_ptr (param_get wtc_tree) (const_null)))
+        (then (do (return (const_i64 0))))
+        (else (do)))
+      (return (load_i64 (ptr_add (param_get wtc_tree) (const_i64 8))))))
+
+  (fn wir_tree_index_valid
+    (params (wtiv_tree ptr) (wtiv_index i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get wtiv_tree) (const_null))
+          (lt_i64 (param_get wtiv_index) (const_i64 0))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ge_i64
+          (param_get wtiv_index)
+          (call_i64 wir_tree_count (param_get wtiv_tree))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+
+  (fn wir_tree_node_ptr
+    (params (wtnp_tree ptr) (wtnp_index i64))
+    (returns ptr)
+    (do
+      (if
+        (condition (eq_i32
+          (call_i32 wir_tree_index_valid
+            (param_get wtnp_tree) (param_get wtnp_index))
+          (const_i32 0)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (return
+        (ptr_add
+          (load_ptr (param_get wtnp_tree))
+          (mul_i64 (param_get wtnp_index) (call_i64 wir_node_size))))))
+
+  (fn wir_tree_reserve_nodes
+    (params (wtrn_tree ptr) (wtrn_additional i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_tree_failed (param_get wtrn_tree)) (const_i32 1))
+          (lt_i64 (param_get wtrn_additional) (const_i64 0))))
+        (then (do
+          (return (call_i32 wir_tree_mark_failed (param_get wtrn_tree)))))
+        (else (do)))
+      (let wtrn_count i64
+        (load_i64 (ptr_add (param_get wtrn_tree) (const_i64 8))))
+      (let wtrn_required i64
+        (add_i64 (local_get wtrn_count) (param_get wtrn_additional)))
+      (if
+        (condition (lt_i64 (local_get wtrn_required) (local_get wtrn_count)))
+        (then (do
+          (return (call_i32 wir_tree_mark_failed (param_get wtrn_tree)))))
+        (else (do)))
+      (let wtrn_capacity i64
+        (load_i64 (ptr_add (param_get wtrn_tree) (const_i64 16))))
+      (if
+        (condition (ge_i64 (local_get wtrn_capacity) (local_get wtrn_required)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (eq_i64 (local_get wtrn_capacity) (const_i64 0)))
+        (then (do (set wtrn_capacity (const_i64 64))))
+        (else (do)))
+      (while
+        (condition (lt_i64 (local_get wtrn_capacity) (local_get wtrn_required)))
+        (do
+          (let wtrn_next i64 (mul_i64 (local_get wtrn_capacity) (const_i64 2)))
+          (if
+            (condition (le_i64 (local_get wtrn_next) (local_get wtrn_capacity)))
+            (then (do (set wtrn_capacity (local_get wtrn_required))))
+            (else (do (set wtrn_capacity (local_get wtrn_next)))))))
+      (let wtrn_nodes ptr
+        (call_ptr realloc
+          (load_ptr (param_get wtrn_tree))
+          (mul_i64 (local_get wtrn_capacity) (call_i64 wir_node_size))))
+      (if
+        (condition (eq_ptr (local_get wtrn_nodes) (const_null)))
+        (then (do
+          (return (call_i32 wir_tree_mark_failed (param_get wtrn_tree)))))
+        (else (do)))
+      (store_ptr (param_get wtrn_tree) (local_get wtrn_nodes))
+      (store_i64
+        (ptr_add (param_get wtrn_tree) (const_i64 16))
+        (local_get wtrn_capacity))
+      (return (const_i32 1))))
+
+  (fn wir_tree_reserve_text
+    (params (wtrt_tree ptr) (wtrt_additional i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_tree_failed (param_get wtrt_tree)) (const_i32 1))
+          (lt_i64 (param_get wtrt_additional) (const_i64 0))))
+        (then (do
+          (return (call_i32 wir_tree_mark_failed (param_get wtrt_tree)))))
+        (else (do)))
+      (let wtrt_length i64
+        (load_i64 (ptr_add (param_get wtrt_tree) (const_i64 32))))
+      (let wtrt_required i64
+        (add_i64 (local_get wtrt_length) (param_get wtrt_additional)))
+      (if
+        (condition (lt_i64 (local_get wtrt_required) (local_get wtrt_length)))
+        (then (do
+          (return (call_i32 wir_tree_mark_failed (param_get wtrt_tree)))))
+        (else (do)))
+      (let wtrt_capacity i64
+        (load_i64 (ptr_add (param_get wtrt_tree) (const_i64 40))))
+      (if
+        (condition (ge_i64 (local_get wtrt_capacity) (local_get wtrt_required)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (eq_i64 (local_get wtrt_capacity) (const_i64 0)))
+        (then (do (set wtrt_capacity (const_i64 256))))
+        (else (do)))
+      (while
+        (condition (lt_i64 (local_get wtrt_capacity) (local_get wtrt_required)))
+        (do
+          (let wtrt_next i64 (mul_i64 (local_get wtrt_capacity) (const_i64 2)))
+          (if
+            (condition (le_i64 (local_get wtrt_next) (local_get wtrt_capacity)))
+            (then (do (set wtrt_capacity (local_get wtrt_required))))
+            (else (do (set wtrt_capacity (local_get wtrt_next)))))))
+      (let wtrt_text ptr
+        (call_ptr realloc
+          (load_ptr (ptr_add (param_get wtrt_tree) (const_i64 24)))
+          (local_get wtrt_capacity)))
+      (if
+        (condition (eq_ptr (local_get wtrt_text) (const_null)))
+        (then (do
+          (return (call_i32 wir_tree_mark_failed (param_get wtrt_tree)))))
+        (else (do)))
+      (store_ptr
+        (ptr_add (param_get wtrt_tree) (const_i64 24))
+        (local_get wtrt_text))
+      (store_i64
+        (ptr_add (param_get wtrt_tree) (const_i64 40))
+        (local_get wtrt_capacity))
+      (return (const_i32 1))))
+
+  (fn wir_tree_copy_text
+    (params (wtct_tree ptr) (wtct_source ptr) (wtct_length i64))
+    (returns i64)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i64 (param_get wtct_length) (const_i64 0))
+          (and_bool
+            (gt_i64 (param_get wtct_length) (const_i64 0))
+            (eq_ptr (param_get wtct_source) (const_null)))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wtct_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_tree_reserve_text
+            (param_get wtct_tree)
+            (add_i64 (param_get wtct_length) (const_i64 1)))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let wtct_offset i64
+        (load_i64 (ptr_add (param_get wtct_tree) (const_i64 32))))
+      (let wtct_text ptr
+        (load_ptr (ptr_add (param_get wtct_tree) (const_i64 24))))
+      (let wtct_index i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get wtct_index) (param_get wtct_length)))
+        (do
+          (store_i8
+            (ptr_add
+              (local_get wtct_text)
+              (add_i64 (local_get wtct_offset) (local_get wtct_index)))
+            (load_u8 (ptr_add (param_get wtct_source) (local_get wtct_index))))
+          (set wtct_index (add_i64 (local_get wtct_index) (const_i64 1)))))
+      (store_i8
+        (ptr_add
+          (local_get wtct_text)
+          (add_i64 (local_get wtct_offset) (param_get wtct_length)))
+        (const_i32 0))
+      (store_i64
+        (ptr_add (param_get wtct_tree) (const_i64 32))
+        (add_i64
+          (local_get wtct_offset)
+          (add_i64 (param_get wtct_length) (const_i64 1))))
+      (return (local_get wtct_offset))))
+
+  (fn wir_tree_append_node
+    (params
+      (wtan_tree ptr) (wtan_kind i32)
+      (wtan_text ptr) (wtan_text_length i64) (wtan_value i64))
+    (returns i64)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i32 (param_get wtan_kind) (call_i32 wir_kind_list))
+          (gt_i32 (param_get wtan_kind) (call_i32 wir_kind_int))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wtan_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let wtan_text_offset i64 (const_i64 -1))
+      (if
+        (condition (or_bool
+          (eq_i32 (param_get wtan_kind) (call_i32 wir_kind_atom))
+          (eq_i32 (param_get wtan_kind) (call_i32 wir_kind_string))))
+        (then (do
+          (set wtan_text_offset
+            (call_i64 wir_tree_copy_text
+              (param_get wtan_tree)
+              (param_get wtan_text)
+              (param_get wtan_text_length)))
+          (if
+            (condition (lt_i64 (local_get wtan_text_offset) (const_i64 0)))
+            (then (do (return (const_i64 -1))))
+            (else (do)))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_tree_reserve_nodes
+            (param_get wtan_tree) (const_i64 1))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let wtan_index i64
+        (load_i64 (ptr_add (param_get wtan_tree) (const_i64 8))))
+      (let wtan_node ptr
+        (ptr_add
+          (load_ptr (param_get wtan_tree))
+          (mul_i64 (local_get wtan_index) (call_i64 wir_node_size))))
+      (store_i32 (local_get wtan_node) (param_get wtan_kind))
+      (store_i64 (ptr_add (local_get wtan_node) (const_i64 8)) (local_get wtan_text_offset))
+      (store_i64 (ptr_add (local_get wtan_node) (const_i64 16)) (param_get wtan_text_length))
+      (store_i64 (ptr_add (local_get wtan_node) (const_i64 24)) (const_i64 -1))
+      (store_i64 (ptr_add (local_get wtan_node) (const_i64 32)) (const_i64 -1))
+      (store_i64 (ptr_add (local_get wtan_node) (const_i64 40)) (const_i64 -1))
+      (store_i64 (ptr_add (local_get wtan_node) (const_i64 48)) (param_get wtan_value))
+      (store_i64 (ptr_add (local_get wtan_node) (const_i64 56)) (const_i64 -1))
+      (store_i64 (ptr_add (local_get wtan_node) (const_i64 64)) (const_i64 0))
+      (store_i64
+        (ptr_add (param_get wtan_tree) (const_i64 8))
+        (add_i64 (local_get wtan_index) (const_i64 1)))
+      (return (local_get wtan_index))))
+
+  (fn wir_list
+    (params (wl_tree ptr))
+    (returns i64)
+    (do
+      (return
+        (call_i64 wir_tree_append_node
+          (param_get wl_tree) (call_i32 wir_kind_list)
+          (const_null) (const_i64 0) (const_i64 0)))))
+
+  (fn wir_atom_n
+    (params (wan_tree ptr) (wan_text ptr) (wan_length i64))
+    (returns i64)
+    (do
+      (return
+        (call_i64 wir_tree_append_node
+          (param_get wan_tree) (call_i32 wir_kind_atom)
+          (param_get wan_text) (param_get wan_length) (const_i64 0)))))
+
+  (fn wir_atom
+    (params (wa_tree ptr) (wa_text ptr))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_ptr (param_get wa_text) (const_null)))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wa_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (return
+        (call_i64 wir_atom_n
+          (param_get wa_tree) (param_get wa_text)
+          (call_i64 strlen (param_get wa_text))))))
+
+  (fn wir_string_n
+    (params (wsn_tree ptr) (wsn_text ptr) (wsn_length i64))
+    (returns i64)
+    (do
+      (return
+        (call_i64 wir_tree_append_node
+          (param_get wsn_tree) (call_i32 wir_kind_string)
+          (param_get wsn_text) (param_get wsn_length) (const_i64 0)))))
+
+  (fn wir_string
+    (params (ws_tree ptr) (ws_text ptr))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_ptr (param_get ws_text) (const_null)))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get ws_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (return
+        (call_i64 wir_string_n
+          (param_get ws_tree) (param_get ws_text)
+          (call_i64 strlen (param_get ws_text))))))
+
+  (fn wir_int
+    (params (wi_tree ptr) (wi_value i64))
+    (returns i64)
+    (do
+      (return
+        (call_i64 wir_tree_append_node
+          (param_get wi_tree) (call_i32 wir_kind_int)
+          (const_null) (const_i64 0) (param_get wi_value)))))
+
+  (fn wir_append_child
+    (params (wac_tree ptr) (wac_parent i64) (wac_child i64))
+    (returns i32)
+    (do
+      (let wac_parent_node ptr
+        (call_ptr wir_tree_node_ptr (param_get wac_tree) (param_get wac_parent)))
+      (let wac_child_node ptr
+        (call_ptr wir_tree_node_ptr (param_get wac_tree) (param_get wac_child)))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get wac_parent_node) (const_null))
+          (eq_ptr (local_get wac_child_node) (const_null))))
+        (then (do (return (call_i32 wir_tree_mark_failed (param_get wac_tree)))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (load_i32 (local_get wac_parent_node)) (call_i32 wir_kind_list))
+          (ne_i64
+            (load_i64 (ptr_add (local_get wac_child_node) (const_i64 56)))
+            (const_i64 -1))))
+        (then (do (return (call_i32 wir_tree_mark_failed (param_get wac_tree)))))
+        (else (do)))
+      (let wac_last i64
+        (load_i64 (ptr_add (local_get wac_parent_node) (const_i64 32))))
+      (if
+        (condition (eq_i64 (local_get wac_last) (const_i64 -1)))
+        (then (do
+          (store_i64
+            (ptr_add (local_get wac_parent_node) (const_i64 24))
+            (param_get wac_child))))
+        (else (do
+          (let wac_last_node ptr
+            (call_ptr wir_tree_node_ptr (param_get wac_tree) (local_get wac_last)))
+          (if
+            (condition (eq_ptr (local_get wac_last_node) (const_null)))
+            (then (do
+              (return (call_i32 wir_tree_mark_failed (param_get wac_tree)))))
+            (else (do)))
+          (store_i64
+            (ptr_add (local_get wac_last_node) (const_i64 40))
+            (param_get wac_child)))))
+      (store_i64
+        (ptr_add (local_get wac_parent_node) (const_i64 32))
+        (param_get wac_child))
+      (store_i64
+        (ptr_add (local_get wac_child_node) (const_i64 56))
+        (param_get wac_parent))
+      (return (const_i32 1))))
+
+  (fn wir_node_kind
+    (params (wnk_tree ptr) (wnk_index i64))
+    (returns i32)
+    (do
+      (let wnk_node ptr
+        (call_ptr wir_tree_node_ptr (param_get wnk_tree) (param_get wnk_index)))
+      (if
+        (condition (eq_ptr (local_get wnk_node) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (load_i32 (local_get wnk_node)))))
+
+  (fn wir_node_text_len
+    (params (wntl_tree ptr) (wntl_index i64))
+    (returns i64)
+    (do
+      (let wntl_node ptr
+        (call_ptr wir_tree_node_ptr (param_get wntl_tree) (param_get wntl_index)))
+      (if
+        (condition (eq_ptr (local_get wntl_node) (const_null)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (load_i64 (ptr_add (local_get wntl_node) (const_i64 16))))))
+
+  (fn wir_node_text
+    (params (wnt_tree ptr) (wnt_index i64))
+    (returns ptr)
+    (do
+      (let wnt_node ptr
+        (call_ptr wir_tree_node_ptr (param_get wnt_tree) (param_get wnt_index)))
+      (if
+        (condition (eq_ptr (local_get wnt_node) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (let wnt_offset i64
+        (load_i64 (ptr_add (local_get wnt_node) (const_i64 8))))
+      (if
+        (condition (lt_i64 (local_get wnt_offset) (const_i64 0)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (return
+        (ptr_add
+          (load_ptr (ptr_add (param_get wnt_tree) (const_i64 24)))
+          (local_get wnt_offset)))))
+
+  (fn wir_node_int
+    (params (wni_tree ptr) (wni_index i64))
+    (returns i64)
+    (do
+      (let wni_node ptr
+        (call_ptr wir_tree_node_ptr (param_get wni_tree) (param_get wni_index)))
+      (if
+        (condition (eq_ptr (local_get wni_node) (const_null)))
+        (then (do (return (const_i64 0))))
+        (else (do)))
+      (return (load_i64 (ptr_add (local_get wni_node) (const_i64 48))))))
+
+  (fn wir_node_first_child
+    (params (wnfc_tree ptr) (wnfc_index i64))
+    (returns i64)
+    (do
+      (let wnfc_node ptr
+        (call_ptr wir_tree_node_ptr (param_get wnfc_tree) (param_get wnfc_index)))
+      (if
+        (condition (eq_ptr (local_get wnfc_node) (const_null)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (load_i64 (ptr_add (local_get wnfc_node) (const_i64 24))))))
+
+  (fn wir_node_next_sibling
+    (params (wnns_tree ptr) (wnns_index i64))
+    (returns i64)
+    (do
+      (let wnns_node ptr
+        (call_ptr wir_tree_node_ptr (param_get wnns_tree) (param_get wnns_index)))
+      (if
+        (condition (eq_ptr (local_get wnns_node) (const_null)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (load_i64 (ptr_add (local_get wnns_node) (const_i64 40))))))
+
+  (fn wir_node_parent
+    (params (wnp_tree ptr) (wnp_index i64))
+    (returns i64)
+    (do
+      (let wnp_node ptr
+        (call_ptr wir_tree_node_ptr (param_get wnp_tree) (param_get wnp_index)))
+      (if
+        (condition (eq_ptr (local_get wnp_node) (const_null)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (load_i64 (ptr_add (local_get wnp_node) (const_i64 56))))))
+
+  (fn wir_node_set_provenance
+    (params (wnsp_tree ptr) (wnsp_index i64) (wnsp_value i64))
+    (returns i32)
+    (do
+      (let wnsp_node ptr
+        (call_ptr wir_tree_node_ptr (param_get wnsp_tree) (param_get wnsp_index)))
+      (if
+        (condition (eq_ptr (local_get wnsp_node) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (store_i64
+        (ptr_add (local_get wnsp_node) (const_i64 64))
+        (param_get wnsp_value))
+      (return (const_i32 1))))
+
+  (fn wir_node_provenance
+    (params (wnp2_tree ptr) (wnp2_index i64))
+    (returns i64)
+    (do
+      (let wnp2_node ptr
+        (call_ptr wir_tree_node_ptr (param_get wnp2_tree) (param_get wnp2_index)))
+      (if
+        (condition (eq_ptr (local_get wnp2_node) (const_null)))
+        (then (do (return (const_i64 0))))
+        (else (do)))
+      (return (load_i64 (ptr_add (local_get wnp2_node) (const_i64 64))))))
+)
