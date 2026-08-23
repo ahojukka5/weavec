@@ -24,6 +24,9 @@ bash "$ROOT/test/diagnostic-repairs/test.sh"
 log 'canonical formatter'
 bash "$ROOT/test/formatter/test.sh"
 
+log 'canonical formatter layout'
+bash "$ROOT/test/formatter-layout/test.sh"
+
 log 'option and result'
 bash "$ROOT/test/option-result/test.sh"
 

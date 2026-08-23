@@ -165,7 +165,10 @@ static size_t weave_fmt_column_budget(size_t indentation) {
 #include "formatter_driver_normalize.inc"
 #include "formatter_driver_measure.inc"
 #include "formatter_driver_emit_helpers.inc"
+#include "formatter_driver_control_layout.inc"
+#define weave_fmt_format_control weave_fmt_format_control_canonical
 #include "formatter_driver_emit.inc"
+#undef weave_fmt_format_control
 #include "formatter_driver_cli.inc"
 
 #endif

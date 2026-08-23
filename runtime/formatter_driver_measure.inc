@@ -75,10 +75,7 @@ static int weave_fmt_list_requires_multiline(
     if (weave_fmt_node_text_equals(context, head, "program") ||
         weave_fmt_node_text_equals(context, head, "fn") ||
         weave_fmt_node_text_equals(context, head, "entry") ||
-        weave_fmt_node_text_equals(context, head, "struct") ||
-        weave_fmt_node_text_equals(context, head, "if") ||
-        weave_fmt_node_text_equals(context, head, "when") ||
-        weave_fmt_node_text_equals(context, head, "while")) {
+        weave_fmt_node_text_equals(context, head, "struct")) {
         return 1;
     }
     return weave_fmt_node_text_equals(context, head, "do") &&
@@ -196,4 +193,3 @@ static int weave_fmt_measure_node(
     int64_t length = node_text_len(context->tree, node);
     return length >= 0 && (uint64_t)length <= limit ? (int)length : -1;
 }
-
