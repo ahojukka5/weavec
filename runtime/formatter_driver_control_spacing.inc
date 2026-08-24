@@ -4,6 +4,11 @@ static int weave_fmt_spacing_node_fits_inline(
     size_t indentation) {
     if (node == -1) return 1;
     if (node_kind(context->tree, node) == node_list()) {
+        /* Extern declarations are rendered by the canonical function printer as
+         * one signature line. Measuring their pre-normalization tree is not
+         * stable because legacy (params ...)/(returns ...) clauses become the
+         * compact anonymous parameter list after the first formatter pass. */
+        if (weave_fmt_list_headed(context, node, "extern")) return 1;
         weave_fmt_plan plan;
         if (weave_fmt_plan_list(context, node, &plan) &&
             plan.kind == WEAVE_FMT_PLAN_CONTROL) {

@@ -142,6 +142,8 @@ static int weave_fmt_format_list(
     }
     size_t actual_index = 0;
     int multiline_started = head_gap.comments != 0;
+    int previous_form_on_line = 0;
+    int previous_form_multiline = 0;
     while (child != -1) {
         size_t child_start = weave_fmt_node_start(context, child);
         weave_fmt_gap gap = weave_fmt_scan_gap(context, cursor, child_start);
@@ -152,19 +154,32 @@ static int weave_fmt_format_list(
             weave_fmt_expected_for_child(
                 context, list, &plan, head, actual_index),
             weave_fmt_column_budget(indentation + 2));
-        int scalar_prefix = child_measure >= 0 &&
-            node_kind(context->tree, child) != node_list();
+        int child_is_form =
+            node_kind(context->tree, child) == node_list();
+        int child_form_multiline = child_is_form &&
+            !weave_fmt_spacing_node_fits_inline(
+                context, child, indentation + 2);
+        int scalar_prefix = child_measure >= 0 && !child_is_form;
         if (gap.comments != 0) {
             if (!weave_fmt_emit_gap_comments(
                     context, cursor, child_start, indentation + 2)) {
                 goto failure;
             }
             multiline_started = 1;
+            previous_form_on_line = 0;
+            previous_form_multiline = 0;
         }
         if (inline_mode || (!multiline_started && scalar_prefix && gap.comments == 0)) {
             if (!weave_fmt_write_char(context, ' ')) goto failure;
         } else {
-            if (!weave_fmt_write_newline(context)) goto failure;
+            int separate_forms = gap.comments == 0 &&
+                previous_form_on_line &&
+                child_is_form &&
+                (previous_form_multiline || child_form_multiline);
+            if (!weave_fmt_write_newline(context) ||
+                (separate_forms && !weave_fmt_write_char(context, '\n'))) {
+                goto failure;
+            }
             multiline_started = 1;
         }
         int child_inline = inline_mode || (!multiline_started && scalar_prefix);
@@ -188,8 +203,13 @@ static int weave_fmt_format_list(
                 child_inline);
         }
         if (!ok) goto failure;
-        if (node_kind(context->tree, child) == node_list()) {
+        if (child_is_form) {
             multiline_started = !inline_mode;
+            previous_form_on_line = !inline_mode;
+            previous_form_multiline = child_form_multiline;
+        } else {
+            previous_form_on_line = 0;
+            previous_form_multiline = 0;
         }
         cursor = weave_fmt_node_end(context, child);
         if (cursor == 0) goto failure;

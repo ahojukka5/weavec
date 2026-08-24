@@ -46,8 +46,10 @@ cat > "$TMP/expected.weave" <<'EOF_EXPECTED'
 (program
   (name "formatter-e2e")
   (version "0.1")
+
   (fn add-one ((value i32)) i32
     (return (+ value 1)))
+
   (entry main () i32
     ; entry body
     (let wide i64 41)
@@ -363,8 +365,10 @@ cat > "$TMP/canonical-core.weave" <<'EOF_CANONICAL_CORE'
 (program
   (name "fmt-corpus")
   (version "0.1")
+
   (fn add-one ((value i32)) i32
     (return (+ value 1)))
+
   (entry main () i32
     (return (add-one 41))))
 EOF_CANONICAL_CORE
