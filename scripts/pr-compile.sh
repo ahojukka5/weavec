@@ -36,6 +36,9 @@ bash "$ROOT/test/formatter-generic-spacing/test.sh"
 log 'owned in-memory WIR tree'
 bash "$ROOT/test/wir-tree/test.sh"
 
+log 'owned WIR decimal lexemes'
+bash "$ROOT/test/wir-decimal/test.sh"
+
 log 'option and result'
 bash "$ROOT/test/option-result/test.sh"
 

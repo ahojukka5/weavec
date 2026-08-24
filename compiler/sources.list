@@ -10,6 +10,7 @@ src/parser/tree.weave
 src/parser/lexer.weave
 src/parser/parser.weave
 src/wir/tree.weave
+src/wir/decimal.weave
 src/core/struct_extern.weave
 src/core/io.weave
 src/core/util.weave

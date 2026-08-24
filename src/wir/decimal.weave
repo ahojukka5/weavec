@@ -1,0 +1,116 @@
+; SPDX-License-Identifier: Apache-2.0
+; decimal.weave — validated arena-owned decimal WIR lexemes
+;
+; Decimal literals preserve their admitted source spelling byte-for-byte. They
+; intentionally reuse the WIR atom text storage, but only through this validated
+; builder so plain integers retain the single value-backed wir_int representation.
+
+(program
+  (name "wir.decimal")
+  (version "0.1")
+
+  (fn wir_decimal_digit
+    (params (wdd_byte i32))
+    (returns bool)
+    (do
+      (return
+        (and_bool
+          (ge_i32 (param_get wdd_byte) (const_i32 48))
+          (le_i32 (param_get wdd_byte) (const_i32 57))))))
+
+  ; Match the current lexer decimal contract exactly:
+  ;   -? DIGIT+ '.' DIGIT+
+  ; Exponent notation is deliberately not admitted here.
+  (fn wir_decimal_valid_n
+    (params (wdv_text ptr) (wdv_length i64))
+    (returns bool)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get wdv_text) (const_null))
+          (lt_i64 (param_get wdv_length) (const_i64 3))))
+        (then (do (return (const_bool false))))
+        (else (do)))
+      (let wdv_i i64 (const_i64 0))
+      (if
+        (condition (eq_i32 (load_u8 (param_get wdv_text)) (const_i32 45)))
+        (then (do
+          (set wdv_i (const_i64 1))
+          (if
+            (condition (ge_i64 (local_get wdv_i) (param_get wdv_length)))
+            (then (do (return (const_bool false))))
+            (else (do)))))
+        (else (do)))
+
+      (let wdv_whole i64 (const_i64 0))
+      (while
+        (condition (and_bool
+          (lt_i64 (local_get wdv_i) (param_get wdv_length))
+          (call_bool wir_decimal_digit
+            (load_u8 (ptr_add (param_get wdv_text) (local_get wdv_i))))))
+        (do
+          (set wdv_i (add_i64 (local_get wdv_i) (const_i64 1)))
+          (set wdv_whole (add_i64 (local_get wdv_whole) (const_i64 1)))))
+      (if
+        (condition (eq_i64 (local_get wdv_whole) (const_i64 0)))
+        (then (do (return (const_bool false))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ge_i64 (local_get wdv_i) (param_get wdv_length))
+          (ne_i32
+            (load_u8 (ptr_add (param_get wdv_text) (local_get wdv_i)))
+            (const_i32 46))))
+        (then (do (return (const_bool false))))
+        (else (do)))
+      (set wdv_i (add_i64 (local_get wdv_i) (const_i64 1)))
+
+      (let wdv_fraction i64 (const_i64 0))
+      (while
+        (condition (and_bool
+          (lt_i64 (local_get wdv_i) (param_get wdv_length))
+          (call_bool wir_decimal_digit
+            (load_u8 (ptr_add (param_get wdv_text) (local_get wdv_i))))))
+        (do
+          (set wdv_i (add_i64 (local_get wdv_i) (const_i64 1)))
+          (set wdv_fraction (add_i64 (local_get wdv_fraction) (const_i64 1)))))
+      (if
+        (condition (eq_i64 (local_get wdv_fraction) (const_i64 0)))
+        (then (do (return (const_bool false))))
+        (else (do)))
+      (return
+        (eq_i64 (local_get wdv_i) (param_get wdv_length)))))
+
+  (fn wir_decimal_n
+    (params (wdn_tree ptr) (wdn_text ptr) (wdn_length i64))
+    (returns i64)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get wdn_tree) (const_null))
+          (not_bool
+            (call_bool wir_decimal_valid_n
+              (param_get wdn_text) (param_get wdn_length)))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wdn_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (return
+        (call_i64 wir_atom_n
+          (param_get wdn_tree) (param_get wdn_text) (param_get wdn_length)))))
+
+  (fn wir_decimal
+    (params (wd_tree ptr) (wd_text ptr))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_ptr (param_get wd_text) (const_null)))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wd_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (return
+        (call_i64 wir_decimal_n
+          (param_get wd_tree) (param_get wd_text)
+          (call_i64 strlen (param_get wd_text))))))
+)

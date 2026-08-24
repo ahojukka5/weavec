@@ -1,0 +1,172 @@
+; SPDX-License-Identifier: Apache-2.0
+; Executable qualification for arena-owned decimal WIR lexemes.
+
+(program
+  (name "wir_decimal_test")
+  (version "0.1")
+
+  (fn wd_text_eq
+    (params (wdte_tree ptr) (wdte_node i64) (wdte_text ptr) (wdte_length i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i64
+          (call_i64 wir_node_text_len (param_get wdte_tree) (param_get wdte_node))
+          (param_get wdte_length)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let wdte_owned ptr
+        (call_ptr wir_node_text (param_get wdte_tree) (param_get wdte_node)))
+      (if
+        (condition (eq_ptr (local_get wdte_owned) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let wdte_i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get wdte_i) (param_get wdte_length)))
+        (do
+          (if
+            (condition (ne_i32
+              (load_u8 (ptr_add (local_get wdte_owned) (local_get wdte_i)))
+              (load_u8 (ptr_add (param_get wdte_text) (local_get wdte_i)))))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set wdte_i (add_i64 (local_get wdte_i) (const_i64 1)))))
+      (return (const_i32 1))))
+
+  (fn wd_invalid_rejected
+    (params (wdir_text ptr))
+    (returns bool)
+    (do
+      (let wdir_tree ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get wdir_tree) (const_null)))
+        (then (do (return (const_bool false))))
+        (else (do)))
+      (let wdir_node i64
+        (call_i64 wir_decimal (local_get wdir_tree) (param_get wdir_text)))
+      (let wdir_ok bool
+        (and_bool
+          (lt_i64 (local_get wdir_node) (const_i64 0))
+          (ne_i32 (call_i32 wir_tree_failed (local_get wdir_tree)) (const_i32 0))))
+      (call_void wir_tree_free (local_get wdir_tree))
+      (return (local_get wdir_ok))))
+
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (let wdm_tree ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get wdm_tree) (const_null)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+
+      (let wdm_one i64
+        (call_i64 wir_decimal (local_get wdm_tree) (const_string_ptr "1.5")))
+      (let wdm_two i64
+        (call_i64 wir_decimal (local_get wdm_tree) (const_string_ptr "-2.25")))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get wdm_one) (const_i64 0))
+          (lt_i64 (local_get wdm_two) (const_i64 0))))
+        (then (do (return (const_i32 2))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32
+            (call_i32 wir_node_kind (local_get wdm_tree) (local_get wdm_one))
+            (call_i32 wir_kind_atom))
+          (ne_i32
+            (call_i32 wir_node_kind (local_get wdm_tree) (local_get wdm_two))
+            (call_i32 wir_kind_atom))))
+        (then (do (return (const_i32 3))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wd_text_eq
+            (local_get wdm_tree) (local_get wdm_one)
+            (const_string_ptr "1.5") (const_i64 3))
+          (const_i32 0)))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wd_text_eq
+            (local_get wdm_tree) (local_get wdm_two)
+            (const_string_ptr "-2.25") (const_i64 5))
+          (const_i32 0)))
+        (then (do (return (const_i32 5))))
+        (else (do)))
+
+      ; Plain integers retain the separate value-backed representation.
+      (let wdm_int i64 (call_i64 wir_int (local_get wdm_tree) (const_i64 42)))
+      (if
+        (condition (or_bool
+          (ne_i32
+            (call_i32 wir_node_kind (local_get wdm_tree) (local_get wdm_int))
+            (call_i32 wir_kind_int))
+          (ne_i64
+            (call_i64 wir_node_int (local_get wdm_tree) (local_get wdm_int))
+            (const_i64 42))))
+        (then (do (return (const_i32 6))))
+        (else (do)))
+
+      ; Prove the decimal node owns its bytes independently of caller storage.
+      (let wdm_source ptr (call_ptr malloc (const_i64 6)))
+      (if
+        (condition (eq_ptr (local_get wdm_source) (const_null)))
+        (then (do (return (const_i32 7))))
+        (else (do)))
+      (store_i8 (ptr_add (local_get wdm_source) (const_i64 0)) (const_i32 51))
+      (store_i8 (ptr_add (local_get wdm_source) (const_i64 1)) (const_i32 46))
+      (store_i8 (ptr_add (local_get wdm_source) (const_i64 2)) (const_i32 49))
+      (store_i8 (ptr_add (local_get wdm_source) (const_i64 3)) (const_i32 50))
+      (store_i8 (ptr_add (local_get wdm_source) (const_i64 4)) (const_i32 53))
+      (store_i8 (ptr_add (local_get wdm_source) (const_i64 5)) (const_i32 0))
+      (let wdm_owned i64
+        (call_i64 wir_decimal_n (local_get wdm_tree) (local_get wdm_source) (const_i64 5)))
+      (if
+        (condition (lt_i64 (local_get wdm_owned) (const_i64 0)))
+        (then (do (return (const_i32 8))))
+        (else (do)))
+      (store_i8 (local_get wdm_source) (const_i32 57))
+      (call_void free (local_get wdm_source))
+      (if
+        (condition (eq_i32
+          (call_i32 wd_text_eq
+            (local_get wdm_tree) (local_get wdm_owned)
+            (const_string_ptr "3.125") (const_i64 5))
+          (const_i32 0)))
+        (then (do (return (const_i32 9))))
+        (else (do)))
+      (call_void wir_tree_free (local_get wdm_tree))
+
+      (if
+        (condition (not_bool
+          (call_bool wd_invalid_rejected (const_string_ptr "42"))))
+        (then (do (return (const_i32 10))))
+        (else (do)))
+      (if
+        (condition (not_bool
+          (call_bool wd_invalid_rejected (const_string_ptr "1."))))
+        (then (do (return (const_i32 11))))
+        (else (do)))
+      (if
+        (condition (not_bool
+          (call_bool wd_invalid_rejected (const_string_ptr ".5"))))
+        (then (do (return (const_i32 12))))
+        (else (do)))
+      (if
+        (condition (not_bool
+          (call_bool wd_invalid_rejected (const_string_ptr "-.5"))))
+        (then (do (return (const_i32 13))))
+        (else (do)))
+      (if
+        (condition (not_bool
+          (call_bool wd_invalid_rejected (const_string_ptr "1.2x"))))
+        (then (do (return (const_i32 14))))
+        (else (do)))
+
+      (return (const_i32 0))))
+)
