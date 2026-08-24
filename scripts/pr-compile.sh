@@ -27,6 +27,9 @@ bash "$ROOT/test/formatter/test.sh"
 log 'canonical formatter layout'
 bash "$ROOT/test/formatter-layout/test.sh"
 
+log 'canonical function spacing'
+bash "$ROOT/test/formatter-function-spacing/test.sh"
+
 log 'owned in-memory WIR tree'
 bash "$ROOT/test/wir-tree/test.sh"
 
