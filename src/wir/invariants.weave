@@ -1,0 +1,84 @@
+; SPDX-License-Identifier: Apache-2.0
+; invariants.weave — side-effect-free structural/allocation guards for WIR builders
+
+(program
+  (name "wir.invariants")
+  (version "0.1")
+
+  ; Return the exact node-arena allocation byte count, or -1 when the
+  ; multiplication would exceed the signed i64 allocation-size domain.
+  (fn wir_node_capacity_bytes
+    (params (wncb_capacity i64))
+    (returns i64)
+    (do
+      (if
+        (condition (lt_i64 (param_get wncb_capacity) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let wncb_size i64 (call_i64 wir_node_size))
+      (if
+        (condition (le_i64 (local_get wncb_size) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let wncb_max_capacity i64
+        (div_i64 (const_i64 9223372036854775807) (local_get wncb_size)))
+      (if
+        (condition (gt_i64
+          (param_get wncb_capacity) (local_get wncb_max_capacity)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return
+        (mul_i64 (param_get wncb_capacity) (local_get wncb_size)))))
+
+  ; Return true when linking child below parent would create a structural cycle.
+  ; Invalid/malformed parent chains are rejected conservatively as cyclic so a
+  ; caller can fail closed without mutating the existing tree.
+  (fn wir_link_would_cycle
+    (params (wlwc_tree ptr) (wlwc_parent i64) (wlwc_child i64))
+    (returns bool)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get wlwc_tree) (const_null))
+          (or_bool
+            (eq_i32
+              (call_i32 wir_tree_index_valid
+                (param_get wlwc_tree) (param_get wlwc_parent))
+              (const_i32 0))
+            (eq_i32
+              (call_i32 wir_tree_index_valid
+                (param_get wlwc_tree) (param_get wlwc_child))
+              (const_i32 0)))))
+        (then (do (return (const_bool true))))
+        (else (do)))
+      (if
+        (condition (eq_i64 (param_get wlwc_parent) (param_get wlwc_child)))
+        (then (do (return (const_bool true))))
+        (else (do)))
+      (let wlwc_count i64 (call_i64 wir_tree_count (param_get wlwc_tree)))
+      (let wlwc_cursor i64 (param_get wlwc_parent))
+      (let wlwc_steps i64 (const_i64 0))
+      (while
+        (condition (ne_i64 (local_get wlwc_cursor) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32
+              (call_i32 wir_tree_index_valid
+                (param_get wlwc_tree) (local_get wlwc_cursor))
+              (const_i32 0)))
+            (then (do (return (const_bool true))))
+            (else (do)))
+          (if
+            (condition (eq_i64 (local_get wlwc_cursor) (param_get wlwc_child)))
+            (then (do (return (const_bool true))))
+            (else (do)))
+          (set wlwc_steps (add_i64 (local_get wlwc_steps) (const_i64 1)))
+          (if
+            (condition (gt_i64 (local_get wlwc_steps) (local_get wlwc_count)))
+            (then (do (return (const_bool true))))
+            (else (do)))
+          (set wlwc_cursor
+            (call_i64 wir_node_parent
+              (param_get wlwc_tree) (local_get wlwc_cursor)))))
+      (return (const_bool false))))
+)
