@@ -1,0 +1,110 @@
+; SPDX-License-Identifier: Apache-2.0
+; Executable qualification for WIR builder invariant helpers.
+
+(program
+  (name "wir_invariants_test")
+  (version "0.1")
+
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      ; Allocation-size boundary: 72-byte nodes within signed i64 bytes.
+      (if
+        (condition (ne_i64
+          (call_i64 wir_node_capacity_bytes (const_i64 -1))
+          (const_i64 -1)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i64
+          (call_i64 wir_node_capacity_bytes (const_i64 0))
+          (const_i64 0)))
+        (then (do (return (const_i32 2))))
+        (else (do)))
+      (if
+        (condition (ne_i64
+          (call_i64 wir_node_capacity_bytes (const_i64 128102389400760775))
+          (const_i64 9223372036854775800)))
+        (then (do (return (const_i32 3))))
+        (else (do)))
+      (if
+        (condition (ne_i64
+          (call_i64 wir_node_capacity_bytes (const_i64 128102389400760776))
+          (const_i64 -1)))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+
+      ; Build only valid links with the current builder, then query proposed links.
+      (let tree ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get tree) (const_null)))
+        (then (do (return (const_i32 5))))
+        (else (do)))
+      (let root i64 (call_i64 wir_list (local_get tree)))
+      (let child i64 (call_i64 wir_list (local_get tree)))
+      (let grandchild i64 (call_i64 wir_list (local_get tree)))
+      (let sibling i64 (call_i64 wir_list (local_get tree)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (lt_i64 (local_get root) (const_i64 0))
+            (lt_i64 (local_get child) (const_i64 0)))
+          (or_bool
+            (lt_i64 (local_get grandchild) (const_i64 0))
+            (lt_i64 (local_get sibling) (const_i64 0)))))
+        (then (do (return (const_i32 6))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32
+            (call_i32 wir_append_child
+              (local_get tree) (local_get root) (local_get child))
+            (const_i32 0))
+          (or_bool
+            (eq_i32
+              (call_i32 wir_append_child
+                (local_get tree) (local_get child) (local_get grandchild))
+              (const_i32 0))
+            (eq_i32
+              (call_i32 wir_append_child
+                (local_get tree) (local_get root) (local_get sibling))
+              (const_i32 0)))))
+        (then (do (return (const_i32 7))))
+        (else (do)))
+
+      ; Direct self-cycle.
+      (if
+        (condition (not_bool
+          (call_bool wir_link_would_cycle
+            (local_get tree) (local_get root) (local_get root))))
+        (then (do (return (const_i32 8))))
+        (else (do)))
+
+      ; Indirect cycle: root is already an ancestor of grandchild.
+      (if
+        (condition (not_bool
+          (call_bool wir_link_would_cycle
+            (local_get tree) (local_get grandchild) (local_get root))))
+        (then (do (return (const_i32 9))))
+        (else (do)))
+
+      ; Unrelated structural pair does not form a cycle. Single-parent policy is
+      ; intentionally owned by wir_append_child, not this helper.
+      (if
+        (condition (call_bool wir_link_would_cycle
+          (local_get tree) (local_get sibling) (local_get grandchild)))
+        (then (do (return (const_i32 10))))
+        (else (do)))
+
+      ; Malformed/out-of-range chains fail closed.
+      (if
+        (condition (not_bool
+          (call_bool wir_link_would_cycle
+            (local_get tree) (const_i64 9999) (local_get child))))
+        (then (do (return (const_i32 11))))
+        (else (do)))
+
+      (call_void wir_tree_free (local_get tree))
+      (return (const_i32 0))))
+)
