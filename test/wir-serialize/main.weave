@@ -1,0 +1,428 @@
+; SPDX-License-Identifier: Apache-2.0
+; Executable qualification for the owned WIR serializer.
+
+(program
+  (name "wir_serialize_test")
+  (version "0.1")
+
+  (fn ws_test_equal_n
+    (params (wte_left ptr) (wte_right ptr) (wte_length i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get wte_left) (const_null))
+          (eq_ptr (param_get wte_right) (const_null))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let wte_i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get wte_i) (param_get wte_length)))
+        (do
+          (if
+            (condition (ne_i32
+              (load_u8 (ptr_add (param_get wte_left) (local_get wte_i)))
+              (load_u8 (ptr_add (param_get wte_right) (local_get wte_i)))))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set wte_i (add_i64 (local_get wte_i) (const_i64 1)))))
+      (return (const_i32 1))))
+
+  (fn ws_test_add_atom
+    (params (wta_tree ptr) (wta_parent i64) (wta_text ptr))
+    (returns i64)
+    (do
+      (let wta_node i64
+        (call_i64 wir_atom (param_get wta_tree) (param_get wta_text)))
+      (if
+        (condition (lt_i64 (local_get wta_node) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_append_child
+            (param_get wta_tree) (param_get wta_parent) (local_get wta_node))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wta_node))))
+
+  (fn ws_test_add_int
+    (params (wti_tree ptr) (wti_parent i64) (wti_value i64))
+    (returns i64)
+    (do
+      (let wti_node i64
+        (call_i64 wir_int (param_get wti_tree) (param_get wti_value)))
+      (if
+        (condition (lt_i64 (local_get wti_node) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_append_child
+            (param_get wti_tree) (param_get wti_parent) (local_get wti_node))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wti_node))))
+
+  (fn ws_test_add_list
+    (params (wtl_tree ptr) (wtl_parent i64))
+    (returns i64)
+    (do
+      (let wtl_node i64 (call_i64 wir_list (param_get wtl_tree)))
+      (if
+        (condition (lt_i64 (local_get wtl_node) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_append_child
+            (param_get wtl_tree) (param_get wtl_parent) (local_get wtl_node))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wtl_node))))
+
+  (fn ws_test_find_kind
+    (params (wtfk_tree ptr) (wtfk_node i64) (wtfk_kind i32))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_i32
+          (call_i32 node_kind (param_get wtfk_tree) (param_get wtfk_node))
+          (param_get wtfk_kind)))
+        (then (do (return (param_get wtfk_node))))
+        (else (do)))
+      (let wtfk_child i64
+        (call_i64 node_first_child (param_get wtfk_tree) (param_get wtfk_node)))
+      (while
+        (condition (ne_i64 (local_get wtfk_child) (const_i64 -1)))
+        (do
+          (let wtfk_found i64
+            (call_i64 ws_test_find_kind
+              (param_get wtfk_tree) (local_get wtfk_child) (param_get wtfk_kind)))
+          (if
+            (condition (ne_i64 (local_get wtfk_found) (const_i64 -1)))
+            (then (do (return (local_get wtfk_found))))
+            (else (do)))
+          (set wtfk_child
+            (call_i64 node_next_sibling
+              (param_get wtfk_tree) (local_get wtfk_child)))))
+      (return (const_i64 -1))))
+
+  (fn ws_test_find_int_value
+    (params (wtfi_tree ptr) (wtfi_node i64) (wtfi_value i64))
+    (returns i64)
+    (do
+      (if
+        (condition (and_bool
+          (eq_i32
+            (call_i32 node_kind (param_get wtfi_tree) (param_get wtfi_node))
+            (call_i32 node_int))
+          (eq_i64
+            (call_i64 node_value (param_get wtfi_tree) (param_get wtfi_node))
+            (param_get wtfi_value))))
+        (then (do (return (param_get wtfi_node))))
+        (else (do)))
+      (let wtfi_child i64
+        (call_i64 node_first_child (param_get wtfi_tree) (param_get wtfi_node)))
+      (while
+        (condition (ne_i64 (local_get wtfi_child) (const_i64 -1)))
+        (do
+          (let wtfi_found i64
+            (call_i64 ws_test_find_int_value
+              (param_get wtfi_tree) (local_get wtfi_child) (param_get wtfi_value)))
+          (if
+            (condition (ne_i64 (local_get wtfi_found) (const_i64 -1)))
+            (then (do (return (local_get wtfi_found))))
+            (else (do)))
+          (set wtfi_child
+            (call_i64 node_next_sibling
+              (param_get wtfi_tree) (local_get wtfi_child)))))
+      (return (const_i64 -1))))
+
+  (fn ws_test_string_spelling_ok
+    (params (wts_tree ptr) (wts_source ptr) (wts_node i64))
+    (returns i32)
+    (do
+      (let wts_start i64
+        (call_i64 node_text_start (param_get wts_tree) (param_get wts_node)))
+      (let wts_length i64
+        (call_i64 node_text_len (param_get wts_tree) (param_get wts_node)))
+      (if
+        (condition (ne_i64 (local_get wts_length) (const_i64 12)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      ; Expected raw token content:
+      ; A\n\0\"\\<TAB><C3><A4>
+      (if (condition (ne_i32 (load_u8 (ptr_add (param_get wts_source) (local_get wts_start))) (const_i32 65)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (if (condition (ne_i32 (load_u8 (ptr_add (param_get wts_source) (add_i64 (local_get wts_start) (const_i64 1)))) (const_i32 92)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (if (condition (ne_i32 (load_u8 (ptr_add (param_get wts_source) (add_i64 (local_get wts_start) (const_i64 2)))) (const_i32 110)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (if (condition (ne_i32 (load_u8 (ptr_add (param_get wts_source) (add_i64 (local_get wts_start) (const_i64 3)))) (const_i32 92)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (if (condition (ne_i32 (load_u8 (ptr_add (param_get wts_source) (add_i64 (local_get wts_start) (const_i64 4)))) (const_i32 48)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (if (condition (ne_i32 (load_u8 (ptr_add (param_get wts_source) (add_i64 (local_get wts_start) (const_i64 5)))) (const_i32 92)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (if (condition (ne_i32 (load_u8 (ptr_add (param_get wts_source) (add_i64 (local_get wts_start) (const_i64 6)))) (const_i32 34)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (if (condition (ne_i32 (load_u8 (ptr_add (param_get wts_source) (add_i64 (local_get wts_start) (const_i64 7)))) (const_i32 92)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (if (condition (ne_i32 (load_u8 (ptr_add (param_get wts_source) (add_i64 (local_get wts_start) (const_i64 8)))) (const_i32 92)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (if (condition (ne_i32 (load_u8 (ptr_add (param_get wts_source) (add_i64 (local_get wts_start) (const_i64 9)))) (const_i32 9)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (if (condition (ne_i32 (load_u8 (ptr_add (param_get wts_source) (add_i64 (local_get wts_start) (const_i64 10)))) (const_i32 195)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (if (condition (ne_i32 (load_u8 (ptr_add (param_get wts_source) (add_i64 (local_get wts_start) (const_i64 11)))) (const_i32 164)))
+        (then (do (return (const_i32 0)))) (else (do)))
+      (return (const_i32 1))))
+
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (let wsm_tree ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get wsm_tree) (const_null)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let wsm_root i64 (call_i64 wir_list (local_get wsm_tree)))
+      (if
+        (condition (lt_i64 (local_get wsm_root) (const_i64 0)))
+        (then (do (return (const_i32 2))))
+        (else (do)))
+      (if
+        (condition (lt_i64
+          (call_i64 ws_test_add_atom
+            (local_get wsm_tree) (local_get wsm_root) (const_string_ptr "core-module"))
+          (const_i64 0)))
+        (then (do (return (const_i32 3))))
+        (else (do)))
+
+      (let wsm_version i64
+        (call_i64 ws_test_add_list (local_get wsm_tree) (local_get wsm_root)))
+      (call_i64 ws_test_add_atom
+        (local_get wsm_tree) (local_get wsm_version) (const_string_ptr "core-version"))
+      (call_i64 ws_test_add_int (local_get wsm_tree) (local_get wsm_version) (const_i64 3))
+
+      (let wsm_decls i64
+        (call_i64 ws_test_add_list (local_get wsm_tree) (local_get wsm_root)))
+      (call_i64 ws_test_add_atom
+        (local_get wsm_tree) (local_get wsm_decls) (const_string_ptr "decls"))
+      (let wsm_fn i64
+        (call_i64 ws_test_add_list (local_get wsm_tree) (local_get wsm_decls)))
+      (call_i64 ws_test_add_atom
+        (local_get wsm_tree) (local_get wsm_fn) (const_string_ptr "fn"))
+      (call_i64 ws_test_add_atom
+        (local_get wsm_tree) (local_get wsm_fn) (const_string_ptr "main"))
+      (let wsm_params i64
+        (call_i64 ws_test_add_list (local_get wsm_tree) (local_get wsm_fn)))
+      (call_i64 ws_test_add_atom
+        (local_get wsm_tree) (local_get wsm_params) (const_string_ptr "params"))
+      (let wsm_returns i64
+        (call_i64 ws_test_add_list (local_get wsm_tree) (local_get wsm_fn)))
+      (call_i64 ws_test_add_atom
+        (local_get wsm_tree) (local_get wsm_returns) (const_string_ptr "returns"))
+      (call_i64 ws_test_add_atom
+        (local_get wsm_tree) (local_get wsm_returns) (const_string_ptr "i32"))
+      (let wsm_do i64
+        (call_i64 ws_test_add_list (local_get wsm_tree) (local_get wsm_fn)))
+      (call_i64 ws_test_add_atom
+        (local_get wsm_tree) (local_get wsm_do) (const_string_ptr "do"))
+
+      (let wsm_let i64
+        (call_i64 ws_test_add_list (local_get wsm_tree) (local_get wsm_do)))
+      (call_i64 ws_test_add_atom
+        (local_get wsm_tree) (local_get wsm_let) (const_string_ptr "let"))
+      (call_i64 ws_test_add_atom
+        (local_get wsm_tree) (local_get wsm_let) (const_string_ptr "message"))
+      (call_i64 ws_test_add_atom
+        (local_get wsm_tree) (local_get wsm_let) (const_string_ptr "ptr"))
+      (let wsm_csp i64
+        (call_i64 ws_test_add_list (local_get wsm_tree) (local_get wsm_let)))
+      (call_i64 ws_test_add_atom
+        (local_get wsm_tree) (local_get wsm_csp) (const_string_ptr "const_string_ptr"))
+
+      (let wsm_payload ptr (call_ptr malloc (const_i64 8)))
+      (if
+        (condition (eq_ptr (local_get wsm_payload) (const_null)))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+      (store_i8 (local_get wsm_payload) (const_i32 65))
+      (store_i8 (ptr_add (local_get wsm_payload) (const_i64 1)) (const_i32 10))
+      (store_i8 (ptr_add (local_get wsm_payload) (const_i64 2)) (const_i32 0))
+      (store_i8 (ptr_add (local_get wsm_payload) (const_i64 3)) (const_i32 34))
+      (store_i8 (ptr_add (local_get wsm_payload) (const_i64 4)) (const_i32 92))
+      (store_i8 (ptr_add (local_get wsm_payload) (const_i64 5)) (const_i32 9))
+      (store_i8 (ptr_add (local_get wsm_payload) (const_i64 6)) (const_i32 195))
+      (store_i8 (ptr_add (local_get wsm_payload) (const_i64 7)) (const_i32 164))
+      (let wsm_string i64
+        (call_i64 wir_string_n
+          (local_get wsm_tree) (local_get wsm_payload) (const_i64 8)))
+      (call_void free (local_get wsm_payload))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get wsm_string) (const_i64 0))
+          (eq_i32
+            (call_i32 wir_append_child
+              (local_get wsm_tree) (local_get wsm_csp) (local_get wsm_string))
+            (const_i32 0))))
+        (then (do (return (const_i32 5))))
+        (else (do)))
+
+      (let wsm_return i64
+        (call_i64 ws_test_add_list (local_get wsm_tree) (local_get wsm_do)))
+      (call_i64 ws_test_add_atom
+        (local_get wsm_tree) (local_get wsm_return) (const_string_ptr "return"))
+      (let wsm_const i64
+        (call_i64 ws_test_add_list (local_get wsm_tree) (local_get wsm_return)))
+      (call_i64 ws_test_add_atom
+        (local_get wsm_tree) (local_get wsm_const) (const_string_ptr "const_i32"))
+      (call_i64 ws_test_add_int
+        (local_get wsm_tree) (local_get wsm_const) (const_i64 -42))
+
+      (let wsm_one ptr (call_ptr wir_buffer_new))
+      (let wsm_two ptr (call_ptr wir_buffer_new))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get wsm_one) (const_null))
+          (eq_ptr (local_get wsm_two) (const_null))))
+        (then (do (return (const_i32 6))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32
+            (call_i32 wir_serialize_into
+              (local_get wsm_one) (local_get wsm_tree) (local_get wsm_root))
+            (const_i32 0))
+          (eq_i32
+            (call_i32 wir_serialize_into
+              (local_get wsm_two) (local_get wsm_tree) (local_get wsm_root))
+            (const_i32 0))))
+        (then (do (return (const_i32 7))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i64
+            (call_i64 wir_buffer_length (local_get wsm_one))
+            (call_i64 wir_buffer_length (local_get wsm_two)))
+          (eq_i32
+            (call_i32 ws_test_equal_n
+              (call_ptr wir_buffer_data (local_get wsm_one))
+              (call_ptr wir_buffer_data (local_get wsm_two))
+              (call_i64 wir_buffer_length (local_get wsm_one)))
+            (const_i32 0))))
+        (then (do (return (const_i32 8))))
+        (else (do)))
+
+      ; Parse the canonical bytes with the existing generic parser.
+      (let wsm_tokens ptr
+        (call_ptr lex
+          (call_ptr wir_buffer_data (local_get wsm_one))
+          (call_i64 wir_buffer_length (local_get wsm_one))))
+      (if
+        (condition (eq_ptr (local_get wsm_tokens) (const_null)))
+        (then (do (return (const_i32 9))))
+        (else (do)))
+      (let wsm_parsed ptr (call_ptr parse (local_get wsm_tokens)))
+      (if
+        (condition (eq_ptr (local_get wsm_parsed) (const_null)))
+        (then (do (return (const_i32 10))))
+        (else (do)))
+      (if
+        (condition (ne_i32
+          (call_i32 node_kind (local_get wsm_parsed) (const_i64 0))
+          (call_i32 node_list)))
+        (then (do (return (const_i32 11))))
+        (else (do)))
+      (let wsm_parsed_string i64
+        (call_i64 ws_test_find_kind
+          (local_get wsm_parsed) (const_i64 0) (call_i32 node_string)))
+      (if
+        (condition (or_bool
+          (eq_i64 (local_get wsm_parsed_string) (const_i64 -1))
+          (eq_i32
+            (call_i32 ws_test_string_spelling_ok
+              (local_get wsm_parsed)
+              (call_ptr wir_buffer_data (local_get wsm_one))
+              (local_get wsm_parsed_string))
+            (const_i32 0))))
+        (then (do (return (const_i32 12))))
+        (else (do)))
+      (if
+        (condition (eq_i64
+          (call_i64 ws_test_find_int_value
+            (local_get wsm_parsed) (const_i64 0) (const_i64 -42))
+          (const_i64 -1)))
+        (then (do (return (const_i32 13))))
+        (else (do)))
+
+      ; Invalid atom spelling must roll back a caller-owned prefix exactly.
+      (let wsm_bad_tree ptr (call_ptr wir_tree_new))
+      (let wsm_bad_root i64 (call_i64 wir_list (local_get wsm_bad_tree)))
+      (let wsm_bad_atom i64
+        (call_i64 wir_atom_n
+          (local_get wsm_bad_tree) (const_string_ptr "bad atom") (const_i64 8)))
+      (call_i32 wir_append_child
+        (local_get wsm_bad_tree) (local_get wsm_bad_root) (local_get wsm_bad_atom))
+      (let wsm_bad_buffer ptr (call_ptr wir_buffer_new))
+      (call_i32 wir_buffer_append_cstr
+        (local_get wsm_bad_buffer) (const_string_ptr "keep"))
+      (if
+        (condition (ne_i32
+          (call_i32 wir_serialize_into
+            (local_get wsm_bad_buffer) (local_get wsm_bad_tree) (local_get wsm_bad_root))
+          (const_i32 0)))
+        (then (do (return (const_i32 14))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i64 (call_i64 wir_buffer_length (local_get wsm_bad_buffer)) (const_i64 4))
+          (eq_i32
+            (call_i32 ws_test_equal_n
+              (call_ptr wir_buffer_data (local_get wsm_bad_buffer))
+              (const_string_ptr "keep") (const_i64 4))
+            (const_i32 0))))
+        (then (do (return (const_i32 15))))
+        (else (do)))
+      (if
+        (condition (ne_i32
+          (call_i32 wir_buffer_failed (local_get wsm_bad_buffer))
+          (const_i32 0)))
+        (then (do (return (const_i32 16))))
+        (else (do)))
+
+      ; Defensive traversal bound: before #398 the builder may admit this
+      ; self-cycle; after #398 the append itself will fail/stick the tree. Both
+      ; states must make serialization fail rather than loop.
+      (let wsm_cycle_tree ptr (call_ptr wir_tree_new))
+      (let wsm_cycle_root i64 (call_i64 wir_list (local_get wsm_cycle_tree)))
+      (call_i32 wir_append_child
+        (local_get wsm_cycle_tree) (local_get wsm_cycle_root) (local_get wsm_cycle_root))
+      (let wsm_cycle_buffer ptr (call_ptr wir_buffer_new))
+      (if
+        (condition (ne_i32
+          (call_i32 wir_serialize_into
+            (local_get wsm_cycle_buffer)
+            (local_get wsm_cycle_tree)
+            (local_get wsm_cycle_root))
+          (const_i32 0)))
+        (then (do (return (const_i32 17))))
+        (else (do)))
+
+      (call_void wir_buffer_free (local_get wsm_cycle_buffer))
+      (call_void wir_tree_free (local_get wsm_cycle_tree))
+      (call_void wir_buffer_free (local_get wsm_bad_buffer))
+      (call_void wir_tree_free (local_get wsm_bad_tree))
+      (call_void tree_free (local_get wsm_parsed))
+      (call_void tokens_free (local_get wsm_tokens))
+      (call_void wir_buffer_free (local_get wsm_two))
+      (call_void wir_buffer_free (local_get wsm_one))
+      (call_void wir_tree_free (local_get wsm_tree))
+      (return (const_i32 0))))
+)

@@ -1,0 +1,255 @@
+; SPDX-License-Identifier: Apache-2.0
+; Production-shaped decimal round-trip qualification for the owned WIR serializer.
+
+(program
+  (name "wir_serialize_decimal_test")
+  (version "0.1")
+
+  (fn wsd_equal_n
+    (params (left ptr) (right ptr) (length i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get left) (const_null))
+          (eq_ptr (param_get right) (const_null))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get i) (param_get length)))
+        (do
+          (if
+            (condition (ne_i32
+              (load_u8 (ptr_add (param_get left) (local_get i)))
+              (load_u8 (ptr_add (param_get right) (local_get i)))))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set i (add_i64 (local_get i) (const_i64 1)))))
+      (return (const_i32 1))))
+
+  (fn wsd_add_list
+    (params (tree ptr) (parent i64))
+    (returns i64)
+    (do
+      (let node i64 (call_i64 wir_list (param_get tree)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get node) (const_i64 0))
+          (eq_i32
+            (call_i32 wir_append_child
+              (param_get tree) (param_get parent) (local_get node))
+            (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get node))))
+
+  (fn wsd_add_atom
+    (params (tree ptr) (parent i64) (text ptr))
+    (returns i64)
+    (do
+      (let node i64 (call_i64 wir_atom (param_get tree) (param_get text)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get node) (const_i64 0))
+          (eq_i32
+            (call_i32 wir_append_child
+              (param_get tree) (param_get parent) (local_get node))
+            (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get node))))
+
+  (fn wsd_add_decimal
+    (params (tree ptr) (parent i64) (text ptr))
+    (returns i64)
+    (do
+      (let node i64 (call_i64 wir_decimal (param_get tree) (param_get text)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get node) (const_i64 0))
+          (eq_i32
+            (call_i32 wir_append_child
+              (param_get tree) (param_get parent) (local_get node))
+            (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get node))))
+
+  (fn wsd_parsed_text_eq
+    (params (tree ptr) (source ptr) (node i64) (expected ptr) (length i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i64
+          (call_i64 node_text_len (param_get tree) (param_get node))
+          (param_get length)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let start i64
+        (call_i64 node_text_start (param_get tree) (param_get node)))
+      (if
+        (condition (lt_i64 (local_get start) (const_i64 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return
+        (call_i32 wsd_equal_n
+          (ptr_add (param_get source) (local_get start))
+          (param_get expected)
+          (param_get length)))))
+
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (let tree ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get tree) (const_null)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let root i64 (call_i64 wir_list (local_get tree)))
+      (if
+        (condition (lt_i64 (local_get root) (const_i64 0)))
+        (then (do (return (const_i32 2))))
+        (else (do)))
+      (if
+        (condition (lt_i64
+          (call_i64 wsd_add_atom
+            (local_get tree) (local_get root) (const_string_ptr "floats"))
+          (const_i64 0)))
+        (then (do (return (const_i32 3))))
+        (else (do)))
+
+      (let f64_form i64
+        (call_i64 wsd_add_list (local_get tree) (local_get root)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get f64_form) (const_i64 0))
+          (lt_i64
+            (call_i64 wsd_add_atom
+              (local_get tree) (local_get f64_form) (const_string_ptr "const_f64"))
+            (const_i64 0))))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+      (if
+        (condition (lt_i64
+          (call_i64 wsd_add_decimal
+            (local_get tree) (local_get f64_form) (const_string_ptr "1.5"))
+          (const_i64 0)))
+        (then (do (return (const_i32 5))))
+        (else (do)))
+
+      (let f32_form i64
+        (call_i64 wsd_add_list (local_get tree) (local_get root)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get f32_form) (const_i64 0))
+          (lt_i64
+            (call_i64 wsd_add_atom
+              (local_get tree) (local_get f32_form) (const_string_ptr "const_f32"))
+            (const_i64 0))))
+        (then (do (return (const_i32 6))))
+        (else (do)))
+      (if
+        (condition (lt_i64
+          (call_i64 wsd_add_decimal
+            (local_get tree) (local_get f32_form) (const_string_ptr "-2.25"))
+          (const_i64 0)))
+        (then (do (return (const_i32 7))))
+        (else (do)))
+
+      (let buffer ptr (call_ptr wir_buffer_new))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get buffer) (const_null))
+          (eq_i32
+            (call_i32 wir_serialize_into
+              (local_get buffer) (local_get tree) (local_get root))
+            (const_i32 0))))
+        (then (do (return (const_i32 8))))
+        (else (do)))
+
+      (let expected ptr
+        (const_string_ptr "(floats (const_f64 1.5) (const_f32 -2.25))"))
+      (let expected_len i64 (call_i64 strlen (local_get expected)))
+      (if
+        (condition (or_bool
+          (ne_i64
+            (call_i64 wir_buffer_length (local_get buffer))
+            (local_get expected_len))
+          (eq_i32
+            (call_i32 wsd_equal_n
+              (call_ptr wir_buffer_data (local_get buffer))
+              (local_get expected)
+              (local_get expected_len))
+            (const_i32 0))))
+        (then (do (return (const_i32 9))))
+        (else (do)))
+
+      ; Round-trip through the existing generic WIR lexer/parser.
+      (let source ptr (call_ptr wir_buffer_data (local_get buffer)))
+      (let tokens ptr
+        (call_ptr lex (local_get source) (call_i64 wir_buffer_length (local_get buffer))))
+      (if
+        (condition (eq_ptr (local_get tokens) (const_null)))
+        (then (do (return (const_i32 10))))
+        (else (do)))
+      (let parsed ptr (call_ptr parse (local_get tokens)))
+      (if
+        (condition (eq_ptr (local_get parsed) (const_null)))
+        (then (do (return (const_i32 11))))
+        (else (do)))
+
+      (let head i64 (call_i64 node_first_child (local_get parsed) (const_i64 0)))
+      (let parsed_f64 i64
+        (call_i64 node_next_sibling (local_get parsed) (local_get head)))
+      (let parsed_f32 i64
+        (call_i64 node_next_sibling (local_get parsed) (local_get parsed_f64)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get parsed_f64) (const_i64 0))
+          (lt_i64 (local_get parsed_f32) (const_i64 0))))
+        (then (do (return (const_i32 12))))
+        (else (do)))
+
+      (let f64_head i64
+        (call_i64 node_first_child (local_get parsed) (local_get parsed_f64)))
+      (let f64_decimal i64
+        (call_i64 node_next_sibling (local_get parsed) (local_get f64_head)))
+      (let f32_head i64
+        (call_i64 node_first_child (local_get parsed) (local_get parsed_f32)))
+      (let f32_decimal i64
+        (call_i64 node_next_sibling (local_get parsed) (local_get f32_head)))
+      (if
+        (condition (or_bool
+          (ne_i32
+            (call_i32 node_kind (local_get parsed) (local_get f64_decimal))
+            (call_i32 node_int))
+          (ne_i32
+            (call_i32 node_kind (local_get parsed) (local_get f32_decimal))
+            (call_i32 node_int))))
+        (then (do (return (const_i32 13))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wsd_parsed_text_eq
+            (local_get parsed) (local_get source) (local_get f64_decimal)
+            (const_string_ptr "1.5") (const_i64 3))
+          (const_i32 0)))
+        (then (do (return (const_i32 14))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wsd_parsed_text_eq
+            (local_get parsed) (local_get source) (local_get f32_decimal)
+            (const_string_ptr "-2.25") (const_i64 5))
+          (const_i32 0)))
+        (then (do (return (const_i32 15))))
+        (else (do)))
+
+      (call_void tree_free (local_get parsed))
+      (call_void tokens_free (local_get tokens))
+      (call_void wir_buffer_free (local_get buffer))
+      (call_void wir_tree_free (local_get tree))
+      (return (const_i32 0))))
+)

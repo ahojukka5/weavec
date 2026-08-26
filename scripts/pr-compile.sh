@@ -39,6 +39,9 @@ bash "$ROOT/test/wir-tree/test.sh"
 log 'owned WIR decimal lexemes'
 bash "$ROOT/test/wir-decimal/test.sh"
 
+log 'canonical WIR serializer'
+bash "$ROOT/test/wir-serialize/test.sh"
+
 log 'option and result'
 bash "$ROOT/test/option-result/test.sh"
 
