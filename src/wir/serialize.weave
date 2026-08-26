@@ -1,0 +1,555 @@
+; SPDX-License-Identifier: Apache-2.0
+; serialize.weave — canonical textual serializer for owned WIR trees
+;
+; Canonical WIR is intentionally compact: lists use one space between children
+; and no source-derived whitespace. Strings use exactly the WIR escapes
+; \n, \0, \", and \\; all other bytes are emitted byte-for-byte.
+;
+; Serialization is transactional with respect to the caller-owned buffer:
+; invalid tree structure rolls the logical length back to its starting point.
+
+(program
+  (name "wir.serialize")
+  (version "0.1")
+
+  ; Buffer layout: data ptr, length i64, capacity i64, failed i32.
+  (fn wir_buffer_size
+    (params)
+    (returns i64)
+    (do (return (const_i64 32))))
+
+  (fn wir_buffer_mark_failed
+    (params (buffer ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_ptr (param_get buffer) (const_null)))
+        (then (do
+          (store_i32 (ptr_add (param_get buffer) (const_i64 24)) (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn wir_buffer_new
+    (params)
+    (returns ptr)
+    (do
+      (let buffer ptr (call_ptr malloc (call_i64 wir_buffer_size)))
+      (if
+        (condition (eq_ptr (local_get buffer) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (store_ptr (local_get buffer) (const_null))
+      (store_i64 (ptr_add (local_get buffer) (const_i64 8)) (const_i64 0))
+      (store_i64 (ptr_add (local_get buffer) (const_i64 16)) (const_i64 0))
+      (store_i32 (ptr_add (local_get buffer) (const_i64 24)) (const_i32 0))
+      (return (local_get buffer))))
+
+  (fn wir_buffer_free
+    (params (buffer ptr))
+    (returns void)
+    (do
+      (if
+        (condition (eq_ptr (param_get buffer) (const_null)))
+        (then (do (return_void)))
+        (else (do)))
+      (let data ptr (load_ptr (param_get buffer)))
+      (if
+        (condition (ne_ptr (local_get data) (const_null)))
+        (then (do (call_void free (local_get data))))
+        (else (do)))
+      (call_void free (param_get buffer))
+      (return_void)))
+
+  (fn wir_buffer_failed
+    (params (buffer ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_ptr (param_get buffer) (const_null)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (load_i32 (ptr_add (param_get buffer) (const_i64 24))))))
+
+  (fn wir_buffer_length
+    (params (buffer ptr))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_ptr (param_get buffer) (const_null)))
+        (then (do (return (const_i64 0))))
+        (else (do)))
+      (return (load_i64 (ptr_add (param_get buffer) (const_i64 8))))))
+
+  (fn wir_buffer_data
+    (params (buffer ptr))
+    (returns ptr)
+    (do
+      (if
+        (condition (eq_ptr (param_get buffer) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (return (load_ptr (param_get buffer)))))
+
+  (fn wir_buffer_reserve
+    (params (buffer ptr) (additional i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 wir_buffer_failed (param_get buffer)) (const_i32 0))
+          (lt_i64 (param_get additional) (const_i64 0))))
+        (then (do (return (call_i32 wir_buffer_mark_failed (param_get buffer)))))
+        (else (do)))
+      (let length i64 (load_i64 (ptr_add (param_get buffer) (const_i64 8))))
+      (let required i64 (add_i64 (local_get length) (param_get additional)))
+      (if
+        (condition (lt_i64 (local_get required) (local_get length)))
+        (then (do (return (call_i32 wir_buffer_mark_failed (param_get buffer)))))
+        (else (do)))
+      (let needed i64 (add_i64 (local_get required) (const_i64 1)))
+      (if
+        (condition (le_i64 (local_get needed) (local_get required)))
+        (then (do (return (call_i32 wir_buffer_mark_failed (param_get buffer)))))
+        (else (do)))
+      (let capacity i64 (load_i64 (ptr_add (param_get buffer) (const_i64 16))))
+      (if
+        (condition (ge_i64 (local_get capacity) (local_get needed)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (eq_i64 (local_get capacity) (const_i64 0)))
+        (then (do (set capacity (const_i64 256))))
+        (else (do)))
+      (while
+        (condition (lt_i64 (local_get capacity) (local_get needed)))
+        (do
+          (let next i64 (mul_i64 (local_get capacity) (const_i64 2)))
+          (if
+            (condition (le_i64 (local_get next) (local_get capacity)))
+            (then (do (set capacity (local_get needed))))
+            (else (do (set capacity (local_get next)))))))
+      (let data ptr (call_ptr realloc (load_ptr (param_get buffer)) (local_get capacity)))
+      (if
+        (condition (eq_ptr (local_get data) (const_null)))
+        (then (do (return (call_i32 wir_buffer_mark_failed (param_get buffer)))))
+        (else (do)))
+      (store_ptr (param_get buffer) (local_get data))
+      (store_i64 (ptr_add (param_get buffer) (const_i64 16)) (local_get capacity))
+      (return (const_i32 1))))
+
+  (fn wir_buffer_append_byte
+    (params (buffer ptr) (byte i32))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32
+          (call_i32 wir_buffer_reserve (param_get buffer) (const_i64 1))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let length i64 (load_i64 (ptr_add (param_get buffer) (const_i64 8))))
+      (let data ptr (load_ptr (param_get buffer)))
+      (store_i8 (ptr_add (local_get data) (local_get length)) (param_get byte))
+      (store_i8
+        (ptr_add (local_get data) (add_i64 (local_get length) (const_i64 1)))
+        (const_i32 0))
+      (store_i64
+        (ptr_add (param_get buffer) (const_i64 8))
+        (add_i64 (local_get length) (const_i64 1)))
+      (return (const_i32 1))))
+
+  (fn wir_buffer_append_n
+    (params (buffer ptr) (source ptr) (length i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i64 (param_get length) (const_i64 0))
+          (and_bool
+            (gt_i64 (param_get length) (const_i64 0))
+            (eq_ptr (param_get source) (const_null)))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i64 (param_get length) (const_i64 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_buffer_reserve (param_get buffer) (param_get length))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let current i64 (load_i64 (ptr_add (param_get buffer) (const_i64 8))))
+      (let data ptr (load_ptr (param_get buffer)))
+      (let i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get i) (param_get length)))
+        (do
+          (store_i8
+            (ptr_add (local_get data) (add_i64 (local_get current) (local_get i)))
+            (load_u8 (ptr_add (param_get source) (local_get i))))
+          (set i (add_i64 (local_get i) (const_i64 1)))))
+      (let next i64 (add_i64 (local_get current) (param_get length)))
+      (store_i8 (ptr_add (local_get data) (local_get next)) (const_i32 0))
+      (store_i64 (ptr_add (param_get buffer) (const_i64 8)) (local_get next))
+      (return (const_i32 1))))
+
+  (fn wir_buffer_append_cstr
+    (params (buffer ptr) (source ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_ptr (param_get source) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 wir_buffer_append_n
+        (param_get buffer) (param_get source) (call_i64 strlen (param_get source))))))
+
+  (fn wir_buffer_truncate
+    (params (buffer ptr) (length i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get buffer) (const_null))
+          (lt_i64 (param_get length) (const_i64 0))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let current i64 (load_i64 (ptr_add (param_get buffer) (const_i64 8))))
+      (if
+        (condition (gt_i64 (param_get length) (local_get current)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (store_i64 (ptr_add (param_get buffer) (const_i64 8)) (param_get length))
+      (let data ptr (load_ptr (param_get buffer)))
+      (if
+        (condition (ne_ptr (local_get data) (const_null)))
+        (then (do (store_i8 (ptr_add (local_get data) (param_get length)) (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+
+  ; Atom validation mirrors the generic S-expression lexer.
+  (fn wir_ser_alpha
+    (params (ch i32))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (and_bool (ge_i32 (param_get ch) (const_i32 97)) (le_i32 (param_get ch) (const_i32 122)))
+          (and_bool (ge_i32 (param_get ch) (const_i32 65)) (le_i32 (param_get ch) (const_i32 90)))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn wir_ser_digit
+    (params (ch i32))
+    (returns i32)
+    (do
+      (if
+        (condition (and_bool (ge_i32 (param_get ch) (const_i32 48)) (le_i32 (param_get ch) (const_i32 57))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn wir_ser_ident_start
+    (params (ch i32))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 wir_ser_alpha (param_get ch)) (const_i32 0))
+          (eq_i32 (param_get ch) (const_i32 95))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn wir_ser_ident_continue
+    (params (ch i32))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 wir_ser_alpha (param_get ch)) (const_i32 0))
+            (ne_i32 (call_i32 wir_ser_digit (param_get ch)) (const_i32 0)))
+          (or_bool
+            (eq_i32 (param_get ch) (const_i32 95))
+            (eq_i32 (param_get ch) (const_i32 45)))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn wir_ser_operator_start
+    (params (ch i32))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (or_bool
+            (or_bool (eq_i32 (param_get ch) (const_i32 43)) (eq_i32 (param_get ch) (const_i32 42)))
+            (or_bool (eq_i32 (param_get ch) (const_i32 47)) (eq_i32 (param_get ch) (const_i32 60))))
+          (or_bool
+            (or_bool (eq_i32 (param_get ch) (const_i32 62)) (eq_i32 (param_get ch) (const_i32 61)))
+            (or_bool (eq_i32 (param_get ch) (const_i32 33)) (eq_i32 (param_get ch) (const_i32 45))))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn wir_ser_atom_valid
+    (params (tree ptr) (node i64))
+    (returns i32)
+    (do
+      (let length i64 (call_i64 wir_node_text_len (param_get tree) (param_get node)))
+      (let text ptr (call_ptr wir_node_text (param_get tree) (param_get node)))
+      (if
+        (condition (or_bool (le_i64 (local_get length) (const_i64 0)) (eq_ptr (local_get text) (const_null))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (call_bool wir_decimal_valid_n (local_get text) (local_get length)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let first i32 (load_u8 (local_get text)))
+      (if
+        (condition (ne_i32 (call_i32 wir_ser_ident_start (local_get first)) (const_i32 0)))
+        (then (do
+          (let i i64 (const_i64 1))
+          (while
+            (condition (lt_i64 (local_get i) (local_get length)))
+            (do
+              (if
+                (condition (eq_i32
+                  (call_i32 wir_ser_ident_continue (load_u8 (ptr_add (local_get text) (local_get i))))
+                  (const_i32 0)))
+                (then (do (return (const_i32 0))))
+                (else (do)))
+              (set i (add_i64 (local_get i) (const_i64 1)))))
+          (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_ser_operator_start (local_get first)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i64 (local_get length) (const_i64 1)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (eq_i64 (local_get length) (const_i64 2))
+          (eq_i32 (load_u8 (ptr_add (local_get text) (const_i64 1))) (const_i32 61))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  ; Decimal i64 without negating INT64_MIN.
+  (fn wir_buffer_append_i64
+    (params (buffer ptr) (value i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (param_get value) (const_i64 0)))
+        (then (do (return (call_i32 wir_buffer_append_byte (param_get buffer) (const_i32 48)))))
+        (else (do)))
+      (let digits ptr (call_ptr malloc (const_i64 32)))
+      (if
+        (condition (eq_ptr (local_get digits) (const_null)))
+        (then (do (return (call_i32 wir_buffer_mark_failed (param_get buffer)))))
+        (else (do)))
+      (let remaining i64 (param_get value))
+      (let count i64 (const_i64 0))
+      (while
+        (condition (ne_i64 (local_get remaining) (const_i64 0)))
+        (do
+          (let q i64 (div_i64 (local_get remaining) (const_i64 10)))
+          (let r i64 (sub_i64 (local_get remaining) (mul_i64 (local_get q) (const_i64 10))))
+          (if
+            (condition (lt_i64 (local_get r) (const_i64 0)))
+            (then (do (set r (sub_i64 (const_i64 0) (local_get r)))))
+            (else (do)))
+          (store_i8
+            (ptr_add (local_get digits) (local_get count))
+            (add_i32 (const_i32 48) (cast_i64_to_i32 (local_get r))))
+          (set count (add_i64 (local_get count) (const_i64 1)))
+          (set remaining (local_get q))))
+      (let ok i32 (const_i32 1))
+      (if
+        (condition (lt_i64 (param_get value) (const_i64 0)))
+        (then (do
+          (set ok (call_i32 wir_buffer_append_byte (param_get buffer) (const_i32 45)))))
+        (else (do)))
+      (let i i64 (local_get count))
+      (while
+        (condition (and_bool (gt_i64 (local_get i) (const_i64 0)) (ne_i32 (local_get ok) (const_i32 0))))
+        (do
+          (set i (sub_i64 (local_get i) (const_i64 1)))
+          (set ok (call_i32 wir_buffer_append_byte
+            (param_get buffer) (load_u8 (ptr_add (local_get digits) (local_get i)))))))
+      (call_void free (local_get digits))
+      (return (local_get ok))))
+
+  (fn wir_serialize_string
+    (params (buffer ptr) (tree ptr) (node i64))
+    (returns i32)
+    (do
+      (let text ptr (call_ptr wir_node_text (param_get tree) (param_get node)))
+      (let length i64 (call_i64 wir_node_text_len (param_get tree) (param_get node)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get length) (const_i64 0))
+          (and_bool (gt_i64 (local_get length) (const_i64 0)) (eq_ptr (local_get text) (const_null)))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_buffer_append_byte (param_get buffer) (const_i32 34)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get i) (local_get length)))
+        (do
+          (let b i32 (load_u8 (ptr_add (local_get text) (local_get i))))
+          (if
+            (condition (or_bool
+              (or_bool (eq_i32 (local_get b) (const_i32 0)) (eq_i32 (local_get b) (const_i32 10)))
+              (or_bool (eq_i32 (local_get b) (const_i32 34)) (eq_i32 (local_get b) (const_i32 92)))))
+            (then (do
+              (if
+                (condition (eq_i32 (call_i32 wir_buffer_append_byte (param_get buffer) (const_i32 92)) (const_i32 0)))
+                (then (do (return (const_i32 0))))
+                (else (do)))
+              (let escaped i32 (local_get b))
+              (if
+                (condition (eq_i32 (local_get b) (const_i32 0)))
+                (then (do (set escaped (const_i32 48))))
+                (else (do)))
+              (if
+                (condition (eq_i32 (local_get b) (const_i32 10)))
+                (then (do (set escaped (const_i32 110))))
+                (else (do)))
+              (if
+                (condition (eq_i32 (call_i32 wir_buffer_append_byte (param_get buffer) (local_get escaped)) (const_i32 0)))
+                (then (do (return (const_i32 0))))
+                (else (do)))))
+            (else (do
+              (if
+                (condition (eq_i32 (call_i32 wir_buffer_append_byte (param_get buffer) (local_get b)) (const_i32 0)))
+                (then (do (return (const_i32 0))))
+                (else (do))))))
+          (set i (add_i64 (local_get i) (const_i64 1)))))
+      (return (call_i32 wir_buffer_append_byte (param_get buffer) (const_i32 34)))))
+
+  ; Compact structural serializer. The sibling-step and depth bounds are
+  ; defensive: malformed pre-#398 cyclic trees fail instead of hanging.
+  (fn wir_serialize_node_internal
+    (params (buffer ptr) (tree ptr) (node i64) (depth i64))
+    (returns i32)
+    (do
+      (let count i64 (call_i64 wir_tree_count (param_get tree)))
+      (if
+        (condition (or_bool
+          (lt_i64 (param_get node) (const_i64 0))
+          (ge_i64 (param_get node) (local_get count))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (gt_i64 (param_get depth) (local_get count)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let kind i32 (call_i32 wir_node_kind (param_get tree) (param_get node)))
+      (if
+        (condition (eq_i32 (local_get kind) (call_i32 wir_kind_atom)))
+        (then (do
+          (if
+            (condition (eq_i32 (call_i32 wir_ser_atom_valid (param_get tree) (param_get node)) (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (return (call_i32 wir_buffer_append_n
+            (param_get buffer)
+            (call_ptr wir_node_text (param_get tree) (param_get node))
+            (call_i64 wir_node_text_len (param_get tree) (param_get node))))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get kind) (call_i32 wir_kind_string)))
+        (then (do (return (call_i32 wir_serialize_string
+          (param_get buffer) (param_get tree) (param_get node)))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get kind) (call_i32 wir_kind_int)))
+        (then (do (return (call_i32 wir_buffer_append_i64
+          (param_get buffer) (call_i64 wir_node_int (param_get tree) (param_get node))))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (local_get kind) (call_i32 wir_kind_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_buffer_append_byte (param_get buffer) (const_i32 40)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let child i64 (call_i64 wir_node_first_child (param_get tree) (param_get node)))
+      (let first i32 (const_i32 1))
+      (let steps i64 (const_i64 0))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (set steps (add_i64 (local_get steps) (const_i64 1)))
+          (if
+            (condition (gt_i64 (local_get steps) (local_get count)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (if
+            (condition (ne_i64
+              (call_i64 wir_node_parent (param_get tree) (local_get child))
+              (param_get node)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (if
+            (condition (eq_i32 (local_get first) (const_i32 0)))
+            (then (do
+              (if
+                (condition (eq_i32 (call_i32 wir_buffer_append_byte (param_get buffer) (const_i32 32)) (const_i32 0)))
+                (then (do (return (const_i32 0))))
+                (else (do)))))
+            (else (do)))
+          (if
+            (condition (eq_i32
+              (call_i32 wir_serialize_node_internal
+                (param_get buffer) (param_get tree) (local_get child)
+                (add_i64 (param_get depth) (const_i64 1)))
+              (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set first (const_i32 0))
+          (set child (call_i64 wir_node_next_sibling (param_get tree) (local_get child)))))
+      (return (call_i32 wir_buffer_append_byte (param_get buffer) (const_i32 41)))))
+
+  (fn wir_serialize_into
+    (params (buffer ptr) (tree ptr) (root i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get buffer) (const_null))
+          (eq_ptr (param_get tree) (const_null))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 wir_buffer_failed (param_get buffer)) (const_i32 0))
+          (ne_i32 (call_i32 wir_tree_failed (param_get tree)) (const_i32 0))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let start i64 (call_i64 wir_buffer_length (param_get buffer)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_serialize_node_internal
+            (param_get buffer) (param_get tree) (param_get root) (const_i64 0))
+          (const_i32 0)))
+        (then (do
+          (call_i32 wir_buffer_truncate (param_get buffer) (local_get start))
+          (return (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+)
