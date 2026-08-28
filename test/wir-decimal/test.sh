@@ -15,6 +15,7 @@ trap 'rm -rf "$TMP"' EXIT
 "$WEAVEC" build \
   "$ROOT/src/core/extern.weave" \
   "$ROOT/src/wir/tree.weave" \
+  "$ROOT/src/wir/invariants.weave" \
   "$ROOT/src/wir/decimal.weave" \
   "$ROOT/test/wir-decimal/main.weave" \
   -o "$TMP/wir-decimal-test"

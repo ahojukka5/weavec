@@ -21,6 +21,7 @@ COMMON=(
   "$ROOT/src/core/io.weave"
   "$ROOT/src/core/util.weave"
   "$ROOT/src/wir/tree.weave"
+  "$ROOT/src/wir/invariants.weave"
   "$ROOT/src/wir/decimal.weave"
   "$ROOT/src/wir/serialize.weave"
 )
@@ -37,4 +38,6 @@ COMMON=(
   -o "$TMP/wir-serialize-decimal-test"
 "$TMP/wir-serialize-decimal-test"
 
-printf 'wir-serialize: canonical, rollback, and exact decimal round-trip passed\n'
+bash "$ROOT/test/wir-decimal/test.sh"
+
+printf 'wir-serialize: canonical, rollback, and decimal qualifications passed\n'

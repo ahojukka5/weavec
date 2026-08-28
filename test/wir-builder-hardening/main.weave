@@ -1,0 +1,157 @@
+; SPDX-License-Identifier: Apache-2.0
+; Executable qualification for integrated WIR builder hardening.
+
+(program
+  (name "wir_builder_hardening_test")
+  (version "0.1")
+
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      ; Allocation overflow must fail before realloc sees a wrapped byte count.
+      (let overflow_tree ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get overflow_tree) (const_null)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32
+          (call_i32 wir_tree_reserve_nodes
+            (local_get overflow_tree) (const_i64 128102389400760776))
+          (const_i32 0)))
+        (then (do (return (const_i32 2))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_tree_failed (local_get overflow_tree)) (const_i32 0))
+          (ne_i64 (call_i64 wir_tree_count (local_get overflow_tree)) (const_i64 0))))
+        (then (do (return (const_i32 3))))
+        (else (do)))
+      (call_void wir_tree_free (local_get overflow_tree))
+
+      ; Self-cycle rejection must leave an already-valid child link unchanged.
+      (let self_tree ptr (call_ptr wir_tree_new))
+      (let self_root i64 (call_i64 wir_list (local_get self_tree)))
+      (let self_child i64 (call_i64 wir_list (local_get self_tree)))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get self_tree) (const_null))
+          (or_bool
+            (lt_i64 (local_get self_root) (const_i64 0))
+            (lt_i64 (local_get self_child) (const_i64 0)))))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_append_child
+            (local_get self_tree) (local_get self_root) (local_get self_child))
+          (const_i32 0)))
+        (then (do (return (const_i32 5))))
+        (else (do)))
+      (if
+        (condition (ne_i32
+          (call_i32 wir_append_child
+            (local_get self_tree) (local_get self_root) (local_get self_root))
+          (const_i32 0)))
+        (then (do (return (const_i32 6))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_tree_failed (local_get self_tree)) (const_i32 0))
+          (or_bool
+            (ne_i64
+              (call_i64 wir_node_first_child (local_get self_tree) (local_get self_root))
+              (local_get self_child))
+            (or_bool
+              (ne_i64
+                (call_i64 wir_node_parent (local_get self_tree) (local_get self_root))
+                (const_i64 -1))
+              (or_bool
+                (ne_i64
+                  (call_i64 wir_node_parent (local_get self_tree) (local_get self_child))
+                  (local_get self_root))
+                (ne_i64
+                  (call_i64 wir_node_next_sibling (local_get self_tree) (local_get self_child))
+                  (const_i64 -1)))))))
+        (then (do (return (const_i32 7))))
+        (else (do)))
+      (call_void wir_tree_free (local_get self_tree))
+
+      ; Ancestor-cycle rejection must preserve the whole existing chain/order.
+      (let cycle_tree ptr (call_ptr wir_tree_new))
+      (let root i64 (call_i64 wir_list (local_get cycle_tree)))
+      (let child i64 (call_i64 wir_list (local_get cycle_tree)))
+      (let grandchild i64 (call_i64 wir_list (local_get cycle_tree)))
+      (let sibling i64 (call_i64 wir_list (local_get cycle_tree)))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get cycle_tree) (const_null))
+          (or_bool
+            (lt_i64 (local_get root) (const_i64 0))
+            (or_bool
+              (lt_i64 (local_get child) (const_i64 0))
+              (or_bool
+                (lt_i64 (local_get grandchild) (const_i64 0))
+                (lt_i64 (local_get sibling) (const_i64 0)))))))
+        (then (do (return (const_i32 8))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32
+            (call_i32 wir_append_child
+              (local_get cycle_tree) (local_get root) (local_get child))
+            (const_i32 0))
+          (or_bool
+            (eq_i32
+              (call_i32 wir_append_child
+                (local_get cycle_tree) (local_get child) (local_get grandchild))
+              (const_i32 0))
+            (eq_i32
+              (call_i32 wir_append_child
+                (local_get cycle_tree) (local_get root) (local_get sibling))
+              (const_i32 0)))))
+        (then (do (return (const_i32 9))))
+        (else (do)))
+      (if
+        (condition (ne_i32
+          (call_i32 wir_append_child
+            (local_get cycle_tree) (local_get grandchild) (local_get root))
+          (const_i32 0)))
+        (then (do (return (const_i32 10))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_tree_failed (local_get cycle_tree)) (const_i32 0))
+          (or_bool
+            (ne_i64
+              (call_i64 wir_node_first_child (local_get cycle_tree) (local_get root))
+              (local_get child))
+            (or_bool
+              (ne_i64
+                (call_i64 wir_node_next_sibling (local_get cycle_tree) (local_get child))
+                (local_get sibling))
+              (or_bool
+                (ne_i64
+                  (call_i64 wir_node_parent (local_get cycle_tree) (local_get child))
+                  (local_get root))
+                (or_bool
+                  (ne_i64
+                    (call_i64 wir_node_first_child (local_get cycle_tree) (local_get child))
+                    (local_get grandchild))
+                  (or_bool
+                    (ne_i64
+                      (call_i64 wir_node_parent (local_get cycle_tree) (local_get grandchild))
+                      (local_get child))
+                    (or_bool
+                      (ne_i64
+                        (call_i64 wir_node_parent (local_get cycle_tree) (local_get root))
+                        (const_i64 -1))
+                      (ne_i64
+                        (call_i64 wir_node_first_child (local_get cycle_tree) (local_get grandchild))
+                        (const_i64 -1))))))))))
+        (then (do (return (const_i32 11))))
+        (else (do)))
+      (call_void wir_tree_free (local_get cycle_tree))
+      (return (const_i32 0))))
+)

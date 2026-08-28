@@ -184,10 +184,17 @@
             (condition (le_i64 (local_get wtrn_next) (local_get wtrn_capacity)))
             (then (do (set wtrn_capacity (local_get wtrn_required))))
             (else (do (set wtrn_capacity (local_get wtrn_next)))))))
+      (let wtrn_bytes i64
+        (call_i64 wir_node_capacity_bytes (local_get wtrn_capacity)))
+      (if
+        (condition (lt_i64 (local_get wtrn_bytes) (const_i64 0)))
+        (then (do
+          (return (call_i32 wir_tree_mark_failed (param_get wtrn_tree)))))
+        (else (do)))
       (let wtrn_nodes ptr
         (call_ptr realloc
           (load_ptr (param_get wtrn_tree))
-          (mul_i64 (local_get wtrn_capacity) (call_i64 wir_node_size))))
+          (local_get wtrn_bytes)))
       (if
         (condition (eq_ptr (local_get wtrn_nodes) (const_null)))
         (then (do
@@ -437,6 +444,11 @@
         (condition (or_bool
           (eq_ptr (local_get wac_parent_node) (const_null))
           (eq_ptr (local_get wac_child_node) (const_null))))
+        (then (do (return (call_i32 wir_tree_mark_failed (param_get wac_tree)))))
+        (else (do)))
+      (if
+        (condition (call_bool wir_link_would_cycle
+          (param_get wac_tree) (param_get wac_parent) (param_get wac_child)))
         (then (do (return (call_i32 wir_tree_mark_failed (param_get wac_tree)))))
         (else (do)))
       (if
