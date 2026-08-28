@@ -4,11 +4,11 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WEAVEC="${WEAVEC:-$ROOT/build/weavec}"
-TMP="$(mktemp -d "${TMPDIR:-/tmp}/weavec-wir-tree-XXXXXX")"
+TMP="$(mktemp -d "${TMPDIR:-/tmp}/weavec-wir-builder-hardening-XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 
 [[ -x "$WEAVEC" ]] || {
-  printf 'wir-tree: compiler not found: %s\n' "$WEAVEC" >&2
+  printf 'wir-builder-hardening: compiler not found: %s\n' "$WEAVEC" >&2
   exit 1
 }
 
@@ -16,12 +16,9 @@ trap 'rm -rf "$TMP"' EXIT
   "$ROOT/src/core/extern.weave" \
   "$ROOT/src/wir/tree.weave" \
   "$ROOT/src/wir/invariants.weave" \
-  "$ROOT/test/wir-tree/main.weave" \
-  -o "$TMP/wir-tree-test"
+  "$ROOT/test/wir-builder-hardening/main.weave" \
+  -o "$TMP/wir-builder-hardening-test"
 
-"$TMP/wir-tree-test"
+"$TMP/wir-builder-hardening-test"
 
-bash "$ROOT/test/wir-invariants/test.sh"
-bash "$ROOT/test/wir-builder-hardening/test.sh"
-
-printf 'wir-tree: owned arena, builder, and invariants passed\n'
+printf 'wir-builder-hardening: cycle and allocation guards passed\n'
