@@ -41,5 +41,6 @@ COMMON=(
 bash "$ROOT/test/wir-decimal/test.sh"
 bash "$ROOT/test/wir-subtree/test.sh"
 bash "$ROOT/test/wir-scalar/test.sh"
+bash "$ROOT/test/wir-operator/test.sh"
 
-printf 'wir-serialize: canonical, rollback, decimal, subtree, and scalar qualifications passed\n'
+printf 'wir-serialize: canonical, rollback, decimal, subtree, scalar, and operator qualifications passed\n'

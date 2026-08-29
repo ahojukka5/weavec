@@ -1,0 +1,191 @@
+; SPDX-License-Identifier: Apache-2.0
+; wir_operator.weave — structural WIR builders for validated operators/casts
+;
+; This module owns representation only. Existing surface operator/cast semantic
+; code remains authoritative for admitted names, arity, operand types and cast
+; pairs. Callers pass canonical operator bases and canonical WIR type spellings.
+;
+; Generated heads are copied into arena-owned atom storage. No textual WIR is
+; emitted here and no source-AST recursion/backdoor exists.
+
+(program
+  (name "frontend.wir_operator")
+  (version "0.1")
+
+  (fn wir_operator_copy_part
+    (params (woc_dst ptr) (woc_offset i64) (woc_src ptr) (woc_length i64))
+    (returns i64)
+    (do
+      (let woc_i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get woc_i) (param_get woc_length)))
+        (do
+          (store_i8
+            (ptr_add (param_get woc_dst) (add_i64 (param_get woc_offset) (local_get woc_i)))
+            (load_u8 (ptr_add (param_get woc_src) (local_get woc_i))))
+          (set woc_i (add_i64 (local_get woc_i) (const_i64 1)))))
+      (return (add_i64 (param_get woc_offset) (param_get woc_length)))))
+
+  ; Build one arena-owned atom by concatenating five C-string parts. Empty parts
+  ; are allowed; null parts are not. The temporary buffer is never stored in WIR.
+  (fn wir_operator_join5_atom
+    (params
+      (woj_tree ptr) (woj_a ptr) (woj_b ptr) (woj_c ptr) (woj_d ptr) (woj_e ptr))
+    (returns i64)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get woj_tree) (const_null))
+          (or_bool
+            (or_bool (eq_ptr (param_get woj_a) (const_null)) (eq_ptr (param_get woj_b) (const_null)))
+            (or_bool
+              (eq_ptr (param_get woj_c) (const_null))
+              (or_bool (eq_ptr (param_get woj_d) (const_null)) (eq_ptr (param_get woj_e) (const_null)))))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get woj_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let woj_la i64 (call_i64 strlen (param_get woj_a)))
+      (let woj_lb i64 (call_i64 strlen (param_get woj_b)))
+      (let woj_lc i64 (call_i64 strlen (param_get woj_c)))
+      (let woj_ld i64 (call_i64 strlen (param_get woj_d)))
+      (let woj_le i64 (call_i64 strlen (param_get woj_e)))
+      (let woj_ab i64 (add_i64 (local_get woj_la) (local_get woj_lb)))
+      (let woj_abc i64 (add_i64 (local_get woj_ab) (local_get woj_lc)))
+      (let woj_abcd i64 (add_i64 (local_get woj_abc) (local_get woj_ld)))
+      (let woj_total i64 (add_i64 (local_get woj_abcd) (local_get woj_le)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get woj_ab) (local_get woj_la))
+          (or_bool
+            (lt_i64 (local_get woj_abc) (local_get woj_ab))
+            (or_bool
+              (lt_i64 (local_get woj_abcd) (local_get woj_abc))
+              (lt_i64 (local_get woj_total) (local_get woj_abcd))))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get woj_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (le_i64 (local_get woj_total) (const_i64 0)))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get woj_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let woj_tmp ptr (call_ptr malloc (local_get woj_total)))
+      (if
+        (condition (eq_ptr (local_get woj_tmp) (const_null)))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get woj_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let woj_offset i64 (const_i64 0))
+      (set woj_offset (call_i64 wir_operator_copy_part
+        (local_get woj_tmp) (local_get woj_offset) (param_get woj_a) (local_get woj_la)))
+      (set woj_offset (call_i64 wir_operator_copy_part
+        (local_get woj_tmp) (local_get woj_offset) (param_get woj_b) (local_get woj_lb)))
+      (set woj_offset (call_i64 wir_operator_copy_part
+        (local_get woj_tmp) (local_get woj_offset) (param_get woj_c) (local_get woj_lc)))
+      (set woj_offset (call_i64 wir_operator_copy_part
+        (local_get woj_tmp) (local_get woj_offset) (param_get woj_d) (local_get woj_ld)))
+      (set woj_offset (call_i64 wir_operator_copy_part
+        (local_get woj_tmp) (local_get woj_offset) (param_get woj_e) (local_get woj_le)))
+      (let woj_atom i64 (call_i64 wir_atom_n
+        (param_get woj_tree) (local_get woj_tmp) (local_get woj_total)))
+      (call_void free (local_get woj_tmp))
+      (return (local_get woj_atom))))
+
+  (fn wir_operator_typed_head
+    (params (woth_tree ptr) (woth_base ptr) (woth_type_name ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wir_operator_join5_atom
+        (param_get woth_tree)
+        (param_get woth_base) (const_string_ptr "_") (param_get woth_type_name)
+        (const_string_ptr "") (const_string_ptr "")))))
+
+  (fn wir_operator_cast_head
+    (params (woch_tree ptr) (woch_source_type_name ptr) (woch_target_type_name ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wir_operator_join5_atom
+        (param_get woch_tree)
+        (const_string_ptr "cast_") (param_get woch_source_type_name)
+        (const_string_ptr "_to_") (param_get woch_target_type_name) (const_string_ptr "")))))
+
+  (fn wir_operator_binary
+    (params
+      (wob_tree ptr) (wob_base ptr) (wob_type_name ptr)
+      (wob_left i64) (wob_right i64))
+    (returns i64)
+    (do
+      (let wob_list i64 (call_i64 wir_list (param_get wob_tree)))
+      (let wob_head i64 (call_i64 wir_operator_typed_head
+        (param_get wob_tree) (param_get wob_base) (param_get wob_type_name)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get wob_list) (const_i64 0))
+          (lt_i64 (local_get wob_head) (const_i64 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_append_child
+            (param_get wob_tree) (local_get wob_list) (local_get wob_head)) (const_i32 0))
+          (or_bool
+            (eq_i32 (call_i32 wir_append_child
+              (param_get wob_tree) (local_get wob_list) (param_get wob_left)) (const_i32 0))
+            (eq_i32 (call_i32 wir_append_child
+              (param_get wob_tree) (local_get wob_list) (param_get wob_right)) (const_i32 0)))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wob_list))))
+
+  (fn wir_operator_unary
+    (params
+      (wou_tree ptr) (wou_base ptr) (wou_type_name ptr) (wou_value i64))
+    (returns i64)
+    (do
+      (let wou_list i64 (call_i64 wir_list (param_get wou_tree)))
+      (let wou_head i64 (call_i64 wir_operator_typed_head
+        (param_get wou_tree) (param_get wou_base) (param_get wou_type_name)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get wou_list) (const_i64 0))
+          (lt_i64 (local_get wou_head) (const_i64 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_append_child
+            (param_get wou_tree) (local_get wou_list) (local_get wou_head)) (const_i32 0))
+          (eq_i32 (call_i32 wir_append_child
+            (param_get wou_tree) (local_get wou_list) (param_get wou_value)) (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wou_list))))
+
+  (fn wir_operator_cast
+    (params
+      (woc_tree ptr) (woc_source_type_name ptr) (woc_target_type_name ptr) (woc_value i64))
+    (returns i64)
+    (do
+      (let woc_list i64 (call_i64 wir_list (param_get woc_tree)))
+      (let woc_head i64 (call_i64 wir_operator_cast_head
+        (param_get woc_tree) (param_get woc_source_type_name) (param_get woc_target_type_name)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get woc_list) (const_i64 0))
+          (lt_i64 (local_get woc_head) (const_i64 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_append_child
+            (param_get woc_tree) (local_get woc_list) (local_get woc_head)) (const_i32 0))
+          (eq_i32 (call_i32 wir_append_child
+            (param_get woc_tree) (local_get woc_list) (param_get woc_value)) (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get woc_list))))
+)
