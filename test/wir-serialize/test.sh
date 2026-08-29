@@ -39,5 +39,6 @@ COMMON=(
 "$TMP/wir-serialize-decimal-test"
 
 bash "$ROOT/test/wir-decimal/test.sh"
+bash "$ROOT/test/wir-subtree/test.sh"
 
-printf 'wir-serialize: canonical, rollback, and decimal qualifications passed\n'
+printf 'wir-serialize: canonical, rollback, decimal, and subtree qualifications passed\n'

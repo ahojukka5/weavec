@@ -1,0 +1,75 @@
+; SPDX-License-Identifier: Apache-2.0
+; wir_subtree.weave — temporary complete-subtree publication seam for #270/#377
+;
+; A migrated producer builds a complete owned WIR tree/subtree first. This helper
+; serializes it transactionally into a temporary buffer and only then appends the
+; completed bytes to the existing buffered fd stream. No raw-text WIR node exists.
+;
+; The owned wir_tree itself is the migration builder context. Provenance remains
+; separate node metadata and is deliberately not serialized into WIR syntax.
+; Remove this hybrid fd seam in #384 when the complete module is tree-owned.
+
+(program
+  (name "frontend.wir_subtree")
+  (version "0.1")
+
+  ; Publish one complete WIR subtree to the current output stream.
+  ; Returns 0 on success, 1 on any construction/serialization/write failure.
+  (fn wir_subtree_publish
+    (params (wsp_fd i32) (wsp_tree ptr) (wsp_root i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get wsp_tree) (const_null))
+          (eq_i32
+            (call_i32 wir_tree_index_valid
+              (param_get wsp_tree) (param_get wsp_root))
+            (const_i32 0))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 wir_tree_failed (param_get wsp_tree)) (const_i32 0))
+          (ne_i32 (call_i32 write_failed) (const_i32 0))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+
+      (let wsp_buffer ptr (call_ptr wir_buffer_new))
+      (if
+        (condition (eq_ptr (local_get wsp_buffer) (const_null)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+
+      (if
+        (condition (eq_i32
+          (call_i32 wir_serialize_into
+            (local_get wsp_buffer) (param_get wsp_tree) (param_get wsp_root))
+          (const_i32 0)))
+        (then (do
+          (call_void wir_buffer_free (local_get wsp_buffer))
+          (return (const_i32 1))))
+        (else (do)))
+
+      (let wsp_length i64 (call_i64 wir_buffer_length (local_get wsp_buffer)))
+      (let wsp_data ptr (call_ptr wir_buffer_data (local_get wsp_buffer)))
+      (if
+        (condition (or_bool
+          (le_i64 (local_get wsp_length) (const_i64 0))
+          (eq_ptr (local_get wsp_data) (const_null))))
+        (then (do
+          (call_void wir_buffer_free (local_get wsp_buffer))
+          (return (const_i32 1))))
+        (else (do)))
+
+      ; This is the only point at which subtree bytes become visible to the
+      ; legacy module stream. All structural validation/serialization is done.
+      (call_void write_bytes
+        (param_get wsp_fd) (local_get wsp_data) (local_get wsp_length))
+      (call_void wir_buffer_free (local_get wsp_buffer))
+      (if
+        (condition (ne_i32 (call_i32 write_failed) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+)
