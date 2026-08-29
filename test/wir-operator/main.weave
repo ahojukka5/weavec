@@ -1,0 +1,145 @@
+; SPDX-License-Identifier: Apache-2.0
+; Qualification for structural operator/cast WIR builders.
+
+(program
+  (name "wir_operator_test")
+  (version "0.1")
+
+  (fn wot_copy
+    (params (wotc_dst ptr) (wotc_src ptr) (wotc_len i64))
+    (returns void)
+    (do
+      (let wotc_i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get wotc_i) (param_get wotc_len)))
+        (do
+          (store_i8
+            (ptr_add (param_get wotc_dst) (local_get wotc_i))
+            (load_u8 (ptr_add (param_get wotc_src) (local_get wotc_i))))
+          (set wotc_i (add_i64 (local_get wotc_i) (const_i64 1)))))
+      (store_i8 (ptr_add (param_get wotc_dst) (param_get wotc_len)) (const_i32 0))
+      (return_void)))
+
+  (fn wot_equals
+    (params (wote_tree ptr) (wote_root i64) (wote_expected ptr))
+    (returns i32)
+    (do
+      (let wote_buffer ptr (call_ptr wir_buffer_new))
+      (if
+        (condition (eq_ptr (local_get wote_buffer) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_serialize_into
+            (local_get wote_buffer) (param_get wote_tree) (param_get wote_root))
+          (const_i32 0)))
+        (then (do
+          (call_void wir_buffer_free (local_get wote_buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (let wote_len i64 (call_i64 wir_buffer_length (local_get wote_buffer)))
+      (let wote_expected_len i64 (call_i64 strlen (param_get wote_expected)))
+      (if
+        (condition (ne_i64 (local_get wote_len) (local_get wote_expected_len)))
+        (then (do
+          (call_void wir_buffer_free (local_get wote_buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (let wote_data ptr (call_ptr wir_buffer_data (local_get wote_buffer)))
+      (let wote_i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get wote_i) (local_get wote_len)))
+        (do
+          (if
+            (condition (ne_i32
+              (load_u8 (ptr_add (local_get wote_data) (local_get wote_i)))
+              (load_u8 (ptr_add (param_get wote_expected) (local_get wote_i)))))
+            (then (do
+              (call_void wir_buffer_free (local_get wote_buffer))
+              (return (const_i32 0))))
+            (else (do)))
+          (set wote_i (add_i64 (local_get wote_i) (const_i64 1)))))
+      (call_void wir_buffer_free (local_get wote_buffer))
+      (return (const_i32 1))))
+
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (let tree ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get tree) (const_null)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+
+      ; Generated typed heads must own their bytes, not borrow temporary parts.
+      (let base ptr (call_ptr malloc (const_i64 4)))
+      (let type_name ptr (call_ptr malloc (const_i64 4)))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get base) (const_null))
+          (eq_ptr (local_get type_name) (const_null))))
+        (then (do (return (const_i32 2))))
+        (else (do)))
+      (call_void wot_copy (local_get base) (const_string_ptr "add") (const_i64 3))
+      (call_void wot_copy (local_get type_name) (const_string_ptr "i32") (const_i64 3))
+      (let left i64 (call_i64 wir_scalar_const_i32 (local_get tree) (const_i64 2)))
+      (let right i64 (call_i64 wir_scalar_const_i32 (local_get tree) (const_i64 3)))
+      (let add_node i64 (call_i64 wir_operator_binary
+        (local_get tree) (local_get base) (local_get type_name)
+        (local_get left) (local_get right)))
+      (if
+        (condition (lt_i64 (local_get add_node) (const_i64 0)))
+        (then (do (return (const_i32 3))))
+        (else (do)))
+      (store_i8 (local_get base) (const_i32 88))
+      (store_i8 (local_get type_name) (const_i32 89))
+      (call_void free (local_get base))
+      (call_void free (local_get type_name))
+      (if
+        (condition (eq_i32 (call_i32 wot_equals
+          (local_get tree) (local_get add_node)
+          (const_string_ptr "(add_i32 (const_i32 2) (const_i32 3))")) (const_i32 0)))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+
+      ; Use the same canonical bool literal shape as production WIR.
+      (let unary_value i64 (call_i64 wir_scalar_headed_list
+        (local_get tree) (const_string_ptr "const_bool")))
+      (let unary_true i64 (call_i64 wir_atom
+        (local_get tree) (const_string_ptr "true")))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get unary_value) (const_i64 0))
+          (or_bool
+            (lt_i64 (local_get unary_true) (const_i64 0))
+            (eq_i32 (call_i32 wir_append_child
+              (local_get tree) (local_get unary_value) (local_get unary_true))
+              (const_i32 0)))))
+        (then (do (return (const_i32 5))))
+        (else (do)))
+      (let unary_node i64 (call_i64 wir_operator_unary
+        (local_get tree) (const_string_ptr "not") (const_string_ptr "bool")
+        (local_get unary_value)))
+      (if
+        (condition (eq_i32 (call_i32 wot_equals
+          (local_get tree) (local_get unary_node)
+          (const_string_ptr "(not_bool (const_bool true))")) (const_i32 0)))
+        (then (do (return (const_i32 6))))
+        (else (do)))
+
+      (let cast_value i64 (call_i64 wir_scalar_const_i64 (local_get tree) (const_i64 -9)))
+      (let cast_node i64 (call_i64 wir_operator_cast
+        (local_get tree) (const_string_ptr "i64") (const_string_ptr "i32")
+        (local_get cast_value)))
+      (if
+        (condition (eq_i32 (call_i32 wot_equals
+          (local_get tree) (local_get cast_node)
+          (const_string_ptr "(cast_i64_to_i32 (const_i64 -9))")) (const_i32 0)))
+        (then (do (return (const_i32 7))))
+        (else (do)))
+
+      (call_void wir_tree_free (local_get tree))
+      (return (const_i32 0))))
+)
