@@ -1,0 +1,141 @@
+; SPDX-License-Identifier: Apache-2.0
+; Qualification for the temporary complete-subtree publication seam.
+
+(program
+  (name "wir_subtree_test")
+  (version "0.1")
+
+  (fn link
+    (params (tree ptr) (parent i64) (child i64))
+    (returns i32)
+    (do
+      (return (call_i32 wir_append_child
+        (param_get tree) (param_get parent) (param_get child)))))
+
+  (fn build_synthetic
+    (params (tree ptr))
+    (returns i64)
+    (do
+      (let root i64 (call_i64 wir_list (param_get tree)))
+      (let head i64 (call_i64 wir_atom (param_get tree) (const_string_ptr "fn")))
+      (let name i64 (call_i64 wir_atom (param_get tree) (const_string_ptr "synthetic")))
+      (let params i64 (call_i64 wir_list (param_get tree)))
+      (let params_head i64 (call_i64 wir_atom (param_get tree) (const_string_ptr "params")))
+      (let returns i64 (call_i64 wir_list (param_get tree)))
+      (let returns_head i64 (call_i64 wir_atom (param_get tree) (const_string_ptr "returns")))
+      (let i32_type i64 (call_i64 wir_atom (param_get tree) (const_string_ptr "i32")))
+      (let do_node i64 (call_i64 wir_list (param_get tree)))
+      (let do_head i64 (call_i64 wir_atom (param_get tree) (const_string_ptr "do")))
+      (let return_node i64 (call_i64 wir_list (param_get tree)))
+      (let return_head i64 (call_i64 wir_atom (param_get tree) (const_string_ptr "return")))
+      (let const_node i64 (call_i64 wir_list (param_get tree)))
+      (let const_head i64 (call_i64 wir_atom (param_get tree) (const_string_ptr "const_i32")))
+      (let value i64 (call_i64 wir_int (param_get tree) (const_i64 7)))
+
+      (if
+        (condition (ne_i32 (call_i32 link (param_get tree) (local_get params) (local_get params_head)) (const_i32 1)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 link (param_get tree) (local_get returns) (local_get returns_head)) (const_i32 1))
+          (ne_i32 (call_i32 link (param_get tree) (local_get returns) (local_get i32_type)) (const_i32 1))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 link (param_get tree) (local_get const_node) (local_get const_head)) (const_i32 1))
+          (ne_i32 (call_i32 link (param_get tree) (local_get const_node) (local_get value)) (const_i32 1))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 link (param_get tree) (local_get return_node) (local_get return_head)) (const_i32 1))
+          (ne_i32 (call_i32 link (param_get tree) (local_get return_node) (local_get const_node)) (const_i32 1))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 link (param_get tree) (local_get do_node) (local_get do_head)) (const_i32 1))
+          (ne_i32 (call_i32 link (param_get tree) (local_get do_node) (local_get return_node)) (const_i32 1))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 link (param_get tree) (local_get root) (local_get head)) (const_i32 1))
+            (ne_i32 (call_i32 link (param_get tree) (local_get root) (local_get name)) (const_i32 1)))
+          (or_bool
+            (ne_i32 (call_i32 link (param_get tree) (local_get root) (local_get params)) (const_i32 1))
+            (or_bool
+              (ne_i32 (call_i32 link (param_get tree) (local_get root) (local_get returns)) (const_i32 1))
+              (ne_i32 (call_i32 link (param_get tree) (local_get root) (local_get do_node)) (const_i32 1))))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+
+      (if
+        (condition (eq_i32
+          (call_i32 wir_node_set_provenance (param_get tree) (local_get root) (const_i64 4242))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get root))))
+
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (let tree ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get tree) (const_null)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let root i64 (call_i64 build_synthetic (local_get tree)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get root) (const_i64 0))
+          (ne_i64 (call_i64 wir_node_provenance (local_get tree) (local_get root)) (const_i64 4242))))
+        (then (do (return (const_i32 2))))
+        (else (do)))
+
+      ; Legacy module bytes surround exactly one tree-built declaration.
+      (call_void write_cstr (const_i32 1) (const_string_ptr "(core-module (core-version 3) (decls "))
+      (if
+        (condition (ne_i32
+          (call_i32 wir_subtree_publish (const_i32 1) (local_get tree) (local_get root))
+          (const_i32 0)))
+        (then (do (return (const_i32 3))))
+        (else (do)))
+      (call_void write_cstr (const_i32 1) (const_string_ptr "))\n"))
+      (call_void wir_tree_free (local_get tree))
+
+      ; Invalid atom serialization must publish no bytes between sentinels.
+      (let invalid_tree ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get invalid_tree) (const_null)))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+      (let invalid_root i64 (call_i64 wir_list (local_get invalid_tree)))
+      (let invalid_atom i64 (call_i64 wir_atom (local_get invalid_tree) (const_string_ptr "@")))
+      (if
+        (condition (eq_i32
+          (call_i32 link (local_get invalid_tree) (local_get invalid_root) (local_get invalid_atom))
+          (const_i32 0)))
+        (then (do (return (const_i32 5))))
+        (else (do)))
+      (call_void write_cstr (const_i32 1) (const_string_ptr "before|"))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_subtree_publish (const_i32 1) (local_get invalid_tree) (local_get invalid_root))
+          (const_i32 0)))
+        (then (do (return (const_i32 6))))
+        (else (do)))
+      (call_void write_cstr (const_i32 1) (const_string_ptr "after\n"))
+      (call_void wir_tree_free (local_get invalid_tree))
+
+      (if
+        (condition (ne_i32 (call_i32 write_flush (const_i32 1)) (const_i32 0)))
+        (then (do (return (const_i32 7))))
+        (else (do)))
+      (return (const_i32 0))))
+)

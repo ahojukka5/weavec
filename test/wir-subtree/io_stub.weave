@@ -1,0 +1,51 @@
+; SPDX-License-Identifier: Apache-2.0
+; Test-local writer boundary for wir_subtree_publish.
+;
+; Production compiler builds link the seam against src/core/io.weave and the
+; host buffered writer. This qualification only needs a deterministic fd sink,
+; so it supplies the same Weave-level API directly on the POSIX write extern.
+
+(program
+  (name "wir_subtree_io_stub")
+  (version "0.1")
+
+  (fn write_bytes
+    (params (fd i32) (buf ptr) (n i64))
+    (returns void)
+    (do
+      (let offset i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get offset) (param_get n)))
+        (do
+          (let wrote i64
+            (call_i64 write
+              (param_get fd)
+              (ptr_add (param_get buf) (local_get offset))
+              (sub_i64 (param_get n) (local_get offset))))
+          (if
+            (condition (le_i64 (local_get wrote) (const_i64 0)))
+            (then (do (return_void)))
+            (else (do)))
+          (set offset (add_i64 (local_get offset) (local_get wrote)))))
+      (return_void)))
+
+  (fn write_cstr
+    (params (fd i32) (text ptr))
+    (returns void)
+    (do
+      (call_void write_bytes
+        (param_get fd) (param_get text) (call_i64 strlen (param_get text)))
+      (return_void)))
+
+  ; The test sink has no process-global sticky state. Any real write failure
+  ; truncates stdout and is caught by the byte-exact cmp in test.sh.
+  (fn write_failed
+    (params)
+    (returns i32)
+    (do (return (const_i32 0))))
+
+  (fn write_flush
+    (params (fd i32))
+    (returns i32)
+    (do (return (const_i32 0))))
+)
