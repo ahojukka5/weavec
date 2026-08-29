@@ -1,0 +1,170 @@
+; SPDX-License-Identifier: Apache-2.0
+; Qualification for explicit scalar WIR leaf builders.
+
+(program
+  (name "wir_scalar_test")
+  (version "0.1")
+
+  (fn wst_copy_cstr
+    (params (wstc_dst ptr) (wstc_src ptr) (wstc_len i64))
+    (returns void)
+    (do
+      (let wstc_i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get wstc_i) (param_get wstc_len)))
+        (do
+          (store_i8
+            (ptr_add (param_get wstc_dst) (local_get wstc_i))
+            (load_u8 (ptr_add (param_get wstc_src) (local_get wstc_i))))
+          (set wstc_i (add_i64 (local_get wstc_i) (const_i64 1)))))
+      (return_void)))
+
+  (fn wst_serialize_equals
+    (params (wste_tree ptr) (wste_root i64) (wste_expected ptr))
+    (returns i32)
+    (do
+      (let wste_buffer ptr (call_ptr wir_buffer_new))
+      (if
+        (condition (eq_ptr (local_get wste_buffer) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_serialize_into
+            (local_get wste_buffer) (param_get wste_tree) (param_get wste_root))
+          (const_i32 0)))
+        (then (do
+          (call_void wir_buffer_free (local_get wste_buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (let wste_length i64 (call_i64 wir_buffer_length (local_get wste_buffer)))
+      (let wste_expected_length i64 (call_i64 strlen (param_get wste_expected)))
+      (if
+        (condition (ne_i64 (local_get wste_length) (local_get wste_expected_length)))
+        (then (do
+          (call_void wir_buffer_free (local_get wste_buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (let wste_data ptr (call_ptr wir_buffer_data (local_get wste_buffer)))
+      (let wste_i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get wste_i) (local_get wste_length)))
+        (do
+          (if
+            (condition (ne_i32
+              (load_u8 (ptr_add (local_get wste_data) (local_get wste_i)))
+              (load_u8 (ptr_add (param_get wste_expected) (local_get wste_i)))))
+            (then (do
+              (call_void wir_buffer_free (local_get wste_buffer))
+              (return (const_i32 0))))
+            (else (do)))
+          (set wste_i (add_i64 (local_get wste_i) (const_i64 1)))))
+      (call_void wir_buffer_free (local_get wste_buffer))
+      (return (const_i32 1))))
+
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      ; Surface tree stores only source spans. WIR builders must copy these bytes.
+      (let wstm_source ptr (call_ptr malloc (const_i64 11)))
+      (if
+        (condition (eq_ptr (local_get wstm_source) (const_null)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (call_void wst_copy_cstr
+        (local_get wstm_source) (const_string_ptr "alpha beta") (const_i64 10))
+      (store_i8 (ptr_add (local_get wstm_source) (const_i64 10)) (const_i32 0))
+
+      (let wstm_surface ptr (call_ptr tree_new))
+      (if
+        (condition (eq_ptr (local_get wstm_surface) (const_null)))
+        (then (do (return (const_i32 2))))
+        (else (do)))
+      (let wstm_alpha i64 (call_i64 tree_append_node
+        (local_get wstm_surface) (call_i32 node_ident)
+        (const_i64 0) (const_i64 5)
+        (const_i64 -1) (const_i64 -1) (const_i64 0)))
+      (let wstm_beta i64 (call_i64 tree_append_node
+        (local_get wstm_surface) (call_i32 node_ident)
+        (const_i64 6) (const_i64 4)
+        (const_i64 -1) (const_i64 -1) (const_i64 0)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get wstm_alpha) (const_i64 0))
+          (lt_i64 (local_get wstm_beta) (const_i64 0))))
+        (then (do (return (const_i32 3))))
+        (else (do)))
+
+      (let wstm_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get wstm_wir) (const_null)))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+      (let wstm_local i64 (call_i64 wir_scalar_local_get
+        (local_get wstm_wir) (local_get wstm_source)
+        (local_get wstm_surface) (local_get wstm_alpha)))
+      (let wstm_param i64 (call_i64 wir_scalar_param_get
+        (local_get wstm_wir) (local_get wstm_source)
+        (local_get wstm_surface) (local_get wstm_beta)))
+      (let wstm_i32 i64 (call_i64 wir_scalar_const_i32
+        (local_get wstm_wir) (const_i64 7)))
+      (let wstm_i64 i64 (call_i64 wir_scalar_const_i64
+        (local_get wstm_wir) (const_i64 -9)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (lt_i64 (local_get wstm_local) (const_i64 0))
+            (lt_i64 (local_get wstm_param) (const_i64 0)))
+          (or_bool
+            (lt_i64 (local_get wstm_i32) (const_i64 0))
+            (lt_i64 (local_get wstm_i64) (const_i64 0)))))
+        (then (do (return (const_i32 5))))
+        (else (do)))
+
+      ; Destroy the bytes the parser nodes refer to. WIR-owned atoms must survive.
+      (let wstm_mut i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get wstm_mut) (const_i64 10)))
+        (do
+          (store_i8 (ptr_add (local_get wstm_source) (local_get wstm_mut)) (const_i32 88))
+          (set wstm_mut (add_i64 (local_get wstm_mut) (const_i64 1)))))
+      (call_void free (local_get wstm_source))
+
+      (if
+        (condition (eq_i32
+          (call_i32 wst_serialize_equals
+            (local_get wstm_wir) (local_get wstm_local)
+            (const_string_ptr "(local_get alpha)"))
+          (const_i32 0)))
+        (then (do (return (const_i32 6))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wst_serialize_equals
+            (local_get wstm_wir) (local_get wstm_param)
+            (const_string_ptr "(param_get beta)"))
+          (const_i32 0)))
+        (then (do (return (const_i32 7))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wst_serialize_equals
+            (local_get wstm_wir) (local_get wstm_i32)
+            (const_string_ptr "(const_i32 7)"))
+          (const_i32 0)))
+        (then (do (return (const_i32 8))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wst_serialize_equals
+            (local_get wstm_wir) (local_get wstm_i64)
+            (const_string_ptr "(const_i64 -9)"))
+          (const_i32 0)))
+        (then (do (return (const_i32 9))))
+        (else (do)))
+
+      (call_void wir_tree_free (local_get wstm_wir))
+      (call_void tree_free (local_get wstm_surface))
+      (return (const_i32 0))))
+)
