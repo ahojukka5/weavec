@@ -1,0 +1,178 @@
+; SPDX-License-Identifier: Apache-2.0
+; wir_scalar.weave — explicit owned WIR builders for scalar leaves
+;
+; This module deliberately does not provide a generic surface-tree copier.
+; Semantic families opt into structural WIR construction through named helpers.
+
+(program
+  (name "frontend.wir_scalar")
+  (version "0.1")
+
+  (fn wir_scalar_headed_list
+    (params (wsh_tree ptr) (wsh_head ptr))
+    (returns i64)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get wsh_tree) (const_null))
+          (eq_ptr (param_get wsh_head) (const_null))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wsh_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let wsh_list i64 (call_i64 wir_list (param_get wsh_tree)))
+      (let wsh_atom i64 (call_i64 wir_atom (param_get wsh_tree) (param_get wsh_head)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get wsh_list) (const_i64 0))
+          (lt_i64 (local_get wsh_atom) (const_i64 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_append_child
+            (param_get wsh_tree) (local_get wsh_list) (local_get wsh_atom))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wsh_list))))
+
+  ; Copy one surface identifier into WIR-owned atom storage. The returned WIR
+  ; node never borrows the surface source buffer.
+  (fn wir_scalar_source_ident
+    (params
+      (wsi_wir_tree ptr) (wsi_source ptr)
+      (wsi_surface_tree ptr) (wsi_surface_node i64))
+    (returns i64)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get wsi_wir_tree) (const_null))
+          (or_bool
+            (eq_ptr (param_get wsi_source) (const_null))
+            (eq_ptr (param_get wsi_surface_tree) (const_null)))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wsi_wir_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32
+            (call_i32 tree_index_valid
+              (param_get wsi_surface_tree) (param_get wsi_surface_node))
+            (const_i32 0))
+          (ne_i32
+            (call_i32 node_kind
+              (param_get wsi_surface_tree) (param_get wsi_surface_node))
+            (call_i32 node_ident))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wsi_wir_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let wsi_start i64 (call_i64 node_text_start
+        (param_get wsi_surface_tree) (param_get wsi_surface_node)))
+      (let wsi_length i64 (call_i64 node_text_len
+        (param_get wsi_surface_tree) (param_get wsi_surface_node)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get wsi_start) (const_i64 0))
+          (le_i64 (local_get wsi_length) (const_i64 0))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wsi_wir_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (return
+        (call_i64 wir_atom_n
+          (param_get wsi_wir_tree)
+          (ptr_add (param_get wsi_source) (local_get wsi_start))
+          (local_get wsi_length)))))
+
+  (fn wir_scalar_ref
+    (params
+      (wsr_wir_tree ptr) (wsr_head ptr) (wsr_source ptr)
+      (wsr_surface_tree ptr) (wsr_name_node i64))
+    (returns i64)
+    (do
+      (let wsr_list i64 (call_i64 wir_scalar_headed_list
+        (param_get wsr_wir_tree) (param_get wsr_head)))
+      (if
+        (condition (lt_i64 (local_get wsr_list) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let wsr_name i64 (call_i64 wir_scalar_source_ident
+        (param_get wsr_wir_tree) (param_get wsr_source)
+        (param_get wsr_surface_tree) (param_get wsr_name_node)))
+      (if
+        (condition (lt_i64 (local_get wsr_name) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_append_child
+            (param_get wsr_wir_tree) (local_get wsr_list) (local_get wsr_name))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wsr_list))))
+
+  (fn wir_scalar_local_get
+    (params (wsl_tree ptr) (wsl_source ptr) (wsl_surface_tree ptr) (wsl_name_node i64))
+    (returns i64)
+    (do
+      (return
+        (call_i64 wir_scalar_ref
+          (param_get wsl_tree) (const_string_ptr "local_get")
+          (param_get wsl_source) (param_get wsl_surface_tree)
+          (param_get wsl_name_node)))))
+
+  (fn wir_scalar_param_get
+    (params (wsp_tree ptr) (wsp_source ptr) (wsp_surface_tree ptr) (wsp_name_node i64))
+    (returns i64)
+    (do
+      (return
+        (call_i64 wir_scalar_ref
+          (param_get wsp_tree) (const_string_ptr "param_get")
+          (param_get wsp_source) (param_get wsp_surface_tree)
+          (param_get wsp_name_node)))))
+
+  (fn wir_scalar_int_const
+    (params (wsic_tree ptr) (wsic_head ptr) (wsic_value i64))
+    (returns i64)
+    (do
+      (let wsic_list i64 (call_i64 wir_scalar_headed_list
+        (param_get wsic_tree) (param_get wsic_head)))
+      (if
+        (condition (lt_i64 (local_get wsic_list) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let wsic_value_node i64 (call_i64 wir_int
+        (param_get wsic_tree) (param_get wsic_value)))
+      (if
+        (condition (lt_i64 (local_get wsic_value_node) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_append_child
+            (param_get wsic_tree) (local_get wsic_list) (local_get wsic_value_node))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wsic_list))))
+
+  (fn wir_scalar_const_i32
+    (params (wsc32_tree ptr) (wsc32_value i64))
+    (returns i64)
+    (do
+      (return (call_i64 wir_scalar_int_const
+        (param_get wsc32_tree) (const_string_ptr "const_i32")
+        (param_get wsc32_value)))))
+
+  (fn wir_scalar_const_i64
+    (params (wsc64_tree ptr) (wsc64_value i64))
+    (returns i64)
+    (do
+      (return (call_i64 wir_scalar_int_const
+        (param_get wsc64_tree) (const_string_ptr "const_i64")
+        (param_get wsc64_value)))))
+)
