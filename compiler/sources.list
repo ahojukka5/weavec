@@ -68,6 +68,7 @@ src/frontend/interp.weave
 src/frontend/emit_helpers.weave
 src/frontend/wir_subtree.weave
 src/frontend/wir_scalar.weave
+src/frontend/wir_scalar_literals.weave
 src/frontend/wir_operator.weave
 src/frontend/emit.weave
 src/frontend/contract_canonical.weave
