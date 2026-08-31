@@ -62,6 +62,28 @@
       (sop_left_node i64) (sop_right_node i64))
     (returns void)
     (do
+      ; Semantic name/arity/type validation has already completed in
+      ; surface_emit_canonical_op. Try the structural leaf-only migration path.
+      (let sop_tree_status i32 (call_i32 sop_tree_try_boolean_binary
+        (param_get sop_fd) (param_get sop_source) (param_get sop_tree)
+        (param_get sop_name_node) (param_get sop_left_node) (param_get sop_right_node)))
+      (if
+        (condition (eq_i32 (local_get sop_tree_status) (const_i32 1)))
+        (then (do (return_void)))
+        (else (do)))
+      (if
+        (condition (lt_i32 (local_get sop_tree_status) (const_i32 0)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "operator"))
+          (call_void write_cstr (const_i32 2)
+            (const_string_ptr "failed to build canonical boolean operator WIR"))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (call_void sop_emit_failure_expr (param_get sop_fd))
+          (return_void)))
+        (else (do)))
+
+      ; Unsupported nested operands have not allocated a WIR tree. Preserve the
+      ; legacy renderer until recursive expression migration reaches them.
       (call_void write_byte (param_get sop_fd) (const_i32 40))
       (call_void sop_emit_operator_name
         (param_get sop_fd) (param_get sop_tree) (param_get sop_source)
