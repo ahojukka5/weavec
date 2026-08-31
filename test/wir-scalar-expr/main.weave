@@ -1,0 +1,182 @@
+; SPDX-License-Identifier: Apache-2.0
+; Qualification for explicit non-recursive surface scalar leaf -> WIR adapter.
+
+(program
+  (name "wir_scalar_expr_test")
+  (version "0.1")
+
+  (fn wse_copy
+    (params (dst ptr) (src ptr) (n i64))
+    (returns void)
+    (do
+      (let i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get i) (param_get n)))
+        (do
+          (store_i8 (ptr_add (param_get dst) (local_get i))
+            (load_u8 (ptr_add (param_get src) (local_get i))))
+          (set i (add_i64 (local_get i) (const_i64 1)))))
+      (return_void)))
+
+  (fn wse_equals
+    (params (tree ptr) (root i64) (expected ptr))
+    (returns i32)
+    (do
+      (let buffer ptr (call_ptr wir_buffer_new))
+      (if
+        (condition (eq_ptr (local_get buffer) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_serialize_into
+          (local_get buffer) (param_get tree) (param_get root)) (const_i32 0)))
+        (then (do
+          (call_void wir_buffer_free (local_get buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (let n i64 (call_i64 wir_buffer_length (local_get buffer)))
+      (let en i64 (call_i64 strlen (param_get expected)))
+      (if
+        (condition (ne_i64 (local_get n) (local_get en)))
+        (then (do
+          (call_void wir_buffer_free (local_get buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (let bytes ptr (call_ptr wir_buffer_data (local_get buffer)))
+      (let i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get i) (local_get n)))
+        (do
+          (if
+            (condition (ne_i32
+              (load_u8 (ptr_add (local_get bytes) (local_get i)))
+              (load_u8 (ptr_add (param_get expected) (local_get i)))))
+            (then (do
+              (call_void wir_buffer_free (local_get buffer))
+              (return (const_i32 0))))
+            (else (do)))
+          (set i (add_i64 (local_get i) (const_i64 1)))))
+      (call_void wir_buffer_free (local_get buffer))
+      (return (const_i32 1))))
+
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (let fixture ptr (const_string_ptr "(alpha true false null 42 1.25 (const_i32 9) (const_f64 -2.5) (const_bool true) (const_null) (local_get x) (param_get y) (+ 1 2))"))
+      (let source_len i64 (call_i64 strlen (local_get fixture)))
+      (let source ptr (call_ptr malloc (add_i64 (local_get source_len) (const_i64 1))))
+      (if
+        (condition (eq_ptr (local_get source) (const_null)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (call_void wse_copy (local_get source) (local_get fixture) (local_get source_len))
+      (store_i8 (ptr_add (local_get source) (local_get source_len)) (const_i32 0))
+
+      (let tokens ptr (call_ptr lex (local_get source) (local_get source_len)))
+      (if
+        (condition (eq_ptr (local_get tokens) (const_null)))
+        (then (do (return (const_i32 2))))
+        (else (do)))
+      (let surface ptr (call_ptr parse (local_get tokens)))
+      (if
+        (condition (eq_ptr (local_get surface) (const_null)))
+        (then (do (return (const_i32 3))))
+        (else (do)))
+
+      (let alpha i64 (call_i64 nth_child (local_get surface) (const_i64 0) (const_i64 0)))
+      (let true_node i64 (call_i64 nth_child (local_get surface) (const_i64 0) (const_i64 1)))
+      (let false_node i64 (call_i64 nth_child (local_get surface) (const_i64 0) (const_i64 2)))
+      (let null_node i64 (call_i64 nth_child (local_get surface) (const_i64 0) (const_i64 3)))
+      (let int_node i64 (call_i64 nth_child (local_get surface) (const_i64 0) (const_i64 4)))
+      (let decimal_node i64 (call_i64 nth_child (local_get surface) (const_i64 0) (const_i64 5)))
+      (let explicit_i32 i64 (call_i64 nth_child (local_get surface) (const_i64 0) (const_i64 6)))
+      (let explicit_f64 i64 (call_i64 nth_child (local_get surface) (const_i64 0) (const_i64 7)))
+      (let explicit_bool i64 (call_i64 nth_child (local_get surface) (const_i64 0) (const_i64 8)))
+      (let explicit_null i64 (call_i64 nth_child (local_get surface) (const_i64 0) (const_i64 9)))
+      (let explicit_local i64 (call_i64 nth_child (local_get surface) (const_i64 0) (const_i64 10)))
+      (let explicit_param i64 (call_i64 nth_child (local_get surface) (const_i64 0) (const_i64 11)))
+      (let nested_op i64 (call_i64 nth_child (local_get surface) (const_i64 0) (const_i64 12)))
+
+      ; The first migration slice is deliberately leaf-only.
+      (if
+        (condition (ne_i32 (call_i32 wir_scalar_expr_leaf_supported
+          (local_get surface) (local_get source) (local_get nested_op)
+          (const_string_ptr "i32")) (const_i32 0)))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+
+      (let wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get wir) (const_null)))
+        (then (do (return (const_i32 5))))
+        (else (do)))
+      (let w_alpha i64 (call_i64 wir_scalar_expr_build_leaf
+        (local_get wir) (local_get source) (local_get surface) (local_get alpha)
+        (const_string_ptr "i32")))
+      (let w_true i64 (call_i64 wir_scalar_expr_build_leaf
+        (local_get wir) (local_get source) (local_get surface) (local_get true_node)
+        (const_string_ptr "bool")))
+      (let w_false i64 (call_i64 wir_scalar_expr_build_leaf
+        (local_get wir) (local_get source) (local_get surface) (local_get false_node)
+        (const_string_ptr "bool")))
+      (let w_null i64 (call_i64 wir_scalar_expr_build_leaf
+        (local_get wir) (local_get source) (local_get surface) (local_get null_node)
+        (const_string_ptr "ptr")))
+      (let w_i64 i64 (call_i64 wir_scalar_expr_build_leaf
+        (local_get wir) (local_get source) (local_get surface) (local_get int_node)
+        (const_string_ptr "i64")))
+      (let w_f64 i64 (call_i64 wir_scalar_expr_build_leaf
+        (local_get wir) (local_get source) (local_get surface) (local_get decimal_node)
+        (const_string_ptr "f64")))
+      (let w_exp_i32 i64 (call_i64 wir_scalar_expr_build_leaf
+        (local_get wir) (local_get source) (local_get surface) (local_get explicit_i32)
+        (const_string_ptr "i32")))
+      (let w_exp_f64 i64 (call_i64 wir_scalar_expr_build_leaf
+        (local_get wir) (local_get source) (local_get surface) (local_get explicit_f64)
+        (const_string_ptr "f64")))
+      (let w_exp_bool i64 (call_i64 wir_scalar_expr_build_leaf
+        (local_get wir) (local_get source) (local_get surface) (local_get explicit_bool)
+        (const_string_ptr "bool")))
+      (let w_exp_null i64 (call_i64 wir_scalar_expr_build_leaf
+        (local_get wir) (local_get source) (local_get surface) (local_get explicit_null)
+        (const_string_ptr "ptr")))
+      (let w_exp_local i64 (call_i64 wir_scalar_expr_build_leaf
+        (local_get wir) (local_get source) (local_get surface) (local_get explicit_local)
+        (const_string_ptr "i32")))
+      (let w_exp_param i64 (call_i64 wir_scalar_expr_build_leaf
+        (local_get wir) (local_get source) (local_get surface) (local_get explicit_param)
+        (const_string_ptr "i32")))
+
+      (if
+        (condition (ne_i32 (call_i32 wir_tree_failed (local_get wir)) (const_i32 0)))
+        (then (do (return (const_i32 6))))
+        (else (do)))
+
+      ; WIR text must survive complete source-buffer destruction.
+      (let i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get i) (local_get source_len)))
+        (do
+          (store_i8 (ptr_add (local_get source) (local_get i)) (const_i32 88))
+          (set i (add_i64 (local_get i) (const_i64 1)))))
+      (call_void free (local_get source))
+
+      (if (condition (eq_i32 (call_i32 wse_equals (local_get wir) (local_get w_alpha) (const_string_ptr "alpha")) (const_i32 0))) (then (do (return (const_i32 7)))) (else (do)))
+      (if (condition (eq_i32 (call_i32 wse_equals (local_get wir) (local_get w_true) (const_string_ptr "(const_bool true)")) (const_i32 0))) (then (do (return (const_i32 8)))) (else (do)))
+      (if (condition (eq_i32 (call_i32 wse_equals (local_get wir) (local_get w_false) (const_string_ptr "(const_bool false)")) (const_i32 0))) (then (do (return (const_i32 9)))) (else (do)))
+      (if (condition (eq_i32 (call_i32 wse_equals (local_get wir) (local_get w_null) (const_string_ptr "(const_null)")) (const_i32 0))) (then (do (return (const_i32 10)))) (else (do)))
+      (if (condition (eq_i32 (call_i32 wse_equals (local_get wir) (local_get w_i64) (const_string_ptr "(const_i64 42)")) (const_i32 0))) (then (do (return (const_i32 11)))) (else (do)))
+      (if (condition (eq_i32 (call_i32 wse_equals (local_get wir) (local_get w_f64) (const_string_ptr "(const_f64 1.25)")) (const_i32 0))) (then (do (return (const_i32 12)))) (else (do)))
+      (if (condition (eq_i32 (call_i32 wse_equals (local_get wir) (local_get w_exp_i32) (const_string_ptr "(const_i32 9)")) (const_i32 0))) (then (do (return (const_i32 13)))) (else (do)))
+      (if (condition (eq_i32 (call_i32 wse_equals (local_get wir) (local_get w_exp_f64) (const_string_ptr "(const_f64 -2.5)")) (const_i32 0))) (then (do (return (const_i32 14)))) (else (do)))
+      (if (condition (eq_i32 (call_i32 wse_equals (local_get wir) (local_get w_exp_bool) (const_string_ptr "(const_bool true)")) (const_i32 0))) (then (do (return (const_i32 15)))) (else (do)))
+      (if (condition (eq_i32 (call_i32 wse_equals (local_get wir) (local_get w_exp_null) (const_string_ptr "(const_null)")) (const_i32 0))) (then (do (return (const_i32 16)))) (else (do)))
+      (if (condition (eq_i32 (call_i32 wse_equals (local_get wir) (local_get w_exp_local) (const_string_ptr "(local_get x)")) (const_i32 0))) (then (do (return (const_i32 17)))) (else (do)))
+      (if (condition (eq_i32 (call_i32 wse_equals (local_get wir) (local_get w_exp_param) (const_string_ptr "(param_get y)")) (const_i32 0))) (then (do (return (const_i32 18)))) (else (do)))
+
+      (call_void wir_tree_free (local_get wir))
+      (call_void tree_free (local_get surface))
+      (call_void tokens_free (local_get tokens))
+      (return (const_i32 0))))
+)
