@@ -1,0 +1,83 @@
+; SPDX-License-Identifier: Apache-2.0
+; surface_op_tree.weave — bounded structural publication for validated operators
+;
+; Existing surface semantic validation remains authoritative. These helpers are
+; called only after name/arity/type checks succeed. A zero return means the
+; operand shape is not migrated yet and legacy rendering may be used. Once WIR
+; construction starts, failure returns -1 and callers must not text-fallback.
+
+(program
+  (name "surface_op_tree")
+  (version "0.1")
+
+  ; Try to publish one already-validated boolean binary operator.
+  ; Returns: 1 published, 0 unsupported leaf shape, -1 construction/publication failure.
+  (fn sop_tree_try_boolean_binary
+    (params
+      (stb_fd i32) (stb_source ptr) (stb_surface_tree ptr)
+      (stb_name_node i64) (stb_left_node i64) (stb_right_node i64))
+    (returns i32)
+    (do
+      ; Preflight every operand before allocating or mutating a WIR tree.
+      (if
+        (condition (eq_i32 (call_i32 wir_scalar_expr_leaf_supported
+          (param_get stb_surface_tree) (param_get stb_source)
+          (param_get stb_left_node) (const_string_ptr "bool")) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_scalar_expr_leaf_supported
+          (param_get stb_surface_tree) (param_get stb_source)
+          (param_get stb_right_node) (const_string_ptr "bool")) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+
+      (let stb_base ptr (call_ptr sop_canonical_base_ptr
+        (param_get stb_surface_tree) (param_get stb_source) (param_get stb_name_node)))
+      (if
+        (condition (eq_ptr (local_get stb_base) (const_null)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+
+      ; From this point onward a failure is loud: never fall back to text.
+      (let stb_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get stb_wir) (const_null)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (let stb_left i64 (call_i64 wir_scalar_expr_build_leaf
+        (local_get stb_wir) (param_get stb_source) (param_get stb_surface_tree)
+        (param_get stb_left_node) (const_string_ptr "bool")))
+      (if
+        (condition (lt_i64 (local_get stb_left) (const_i64 0)))
+        (then (do
+          (call_void wir_tree_free (local_get stb_wir))
+          (return (const_i32 -1))))
+        (else (do)))
+      (let stb_right i64 (call_i64 wir_scalar_expr_build_leaf
+        (local_get stb_wir) (param_get stb_source) (param_get stb_surface_tree)
+        (param_get stb_right_node) (const_string_ptr "bool")))
+      (if
+        (condition (lt_i64 (local_get stb_right) (const_i64 0)))
+        (then (do
+          (call_void wir_tree_free (local_get stb_wir))
+          (return (const_i32 -1))))
+        (else (do)))
+      (let stb_root i64 (call_i64 wir_operator_binary
+        (local_get stb_wir) (local_get stb_base) (const_string_ptr "bool")
+        (local_get stb_left) (local_get stb_right)))
+      (if
+        (condition (lt_i64 (local_get stb_root) (const_i64 0)))
+        (then (do
+          (call_void wir_tree_free (local_get stb_wir))
+          (return (const_i32 -1))))
+        (else (do)))
+      (let stb_publish i32 (call_i32 wir_subtree_publish
+        (param_get stb_fd) (local_get stb_wir) (local_get stb_root)))
+      (call_void wir_tree_free (local_get stb_wir))
+      (if
+        (condition (ne_i32 (local_get stb_publish) (const_i32 0)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (return (const_i32 1))))
+)
