@@ -1,0 +1,78 @@
+; SPDX-License-Identifier: Apache-2.0
+; wir_op_publish.weave — semantic-independent bounded operator publication
+;
+; Callers provide an already-canonical WIR operator base. This module only
+; preflights migrated leaf shapes, constructs an owned WIR subtree, and publishes
+; it transactionally through the #377 hybrid seam.
+
+(program
+  (name "frontend.wir_op_publish")
+  (version "0.1")
+
+  ; Returns: 1 published, 0 unsupported leaf shape, -1 construction/publication failure.
+  (fn wir_op_publish_boolean_binary_base
+    (params
+      (wob_fd i32) (wob_source ptr) (wob_surface_tree ptr) (wob_base ptr)
+      (wob_left_node i64) (wob_right_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_ptr (param_get wob_base) (const_null)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      ; Preflight every operand before allocating or mutating a WIR tree.
+      (if
+        (condition (eq_i32 (call_i32 wir_scalar_expr_leaf_supported
+          (param_get wob_surface_tree) (param_get wob_source)
+          (param_get wob_left_node) (const_string_ptr "bool")) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_scalar_expr_leaf_supported
+          (param_get wob_surface_tree) (param_get wob_source)
+          (param_get wob_right_node) (const_string_ptr "bool")) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+
+      ; From this point onward a failure is loud: never fall back to text.
+      (let wob_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get wob_wir) (const_null)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (let wob_left i64 (call_i64 wir_scalar_expr_build_leaf
+        (local_get wob_wir) (param_get wob_source) (param_get wob_surface_tree)
+        (param_get wob_left_node) (const_string_ptr "bool")))
+      (if
+        (condition (lt_i64 (local_get wob_left) (const_i64 0)))
+        (then (do
+          (call_void wir_tree_free (local_get wob_wir))
+          (return (const_i32 -1))))
+        (else (do)))
+      (let wob_right i64 (call_i64 wir_scalar_expr_build_leaf
+        (local_get wob_wir) (param_get wob_source) (param_get wob_surface_tree)
+        (param_get wob_right_node) (const_string_ptr "bool")))
+      (if
+        (condition (lt_i64 (local_get wob_right) (const_i64 0)))
+        (then (do
+          (call_void wir_tree_free (local_get wob_wir))
+          (return (const_i32 -1))))
+        (else (do)))
+      (let wob_root i64 (call_i64 wir_operator_binary
+        (local_get wob_wir) (param_get wob_base) (const_string_ptr "bool")
+        (local_get wob_left) (local_get wob_right)))
+      (if
+        (condition (lt_i64 (local_get wob_root) (const_i64 0)))
+        (then (do
+          (call_void wir_tree_free (local_get wob_wir))
+          (return (const_i32 -1))))
+        (else (do)))
+      (let wob_publish i32 (call_i32 wir_subtree_publish
+        (param_get wob_fd) (local_get wob_wir) (local_get wob_root)))
+      (call_void wir_tree_free (local_get wob_wir))
+      (if
+        (condition (ne_i32 (local_get wob_publish) (const_i32 0)))
+        (then (do (return (const_i32 -1))))
+        (else (do)))
+      (return (const_i32 1))))
+)
