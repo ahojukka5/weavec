@@ -71,6 +71,7 @@ src/frontend/wir_scalar.weave
 src/frontend/wir_scalar_literals.weave
 src/frontend/wir_scalar_expr.weave
 src/frontend/wir_operator.weave
+src/frontend/surface_op_tree.weave
 src/frontend/emit.weave
 src/frontend/contract_canonical.weave
 src/frontend/contract-lower.weave
