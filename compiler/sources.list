@@ -16,6 +16,7 @@ src/wir/serialize.weave
 src/core/struct_extern.weave
 src/core/io.weave
 src/core/util.weave
+src/core/cli_diagnostics.weave
 src/core/trace_registry.weave
 src/protocol/host.weave
 src/protocol/json.weave
