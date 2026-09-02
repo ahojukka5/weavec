@@ -233,12 +233,58 @@ The current version provides exact preflight spans for:
 - unmatched closing parentheses;
 - unclosed lists;
 - unterminated string literals;
+- sources holding no S-expression at all, reported as
+  `frontend.parse.unexpected-end-of-input` with a zero-width span at end of
+  input;
 - unreadable source files as source-level diagnostics without spans.
 
 It also provides exact propagated spans for backend unknown-expression,
 unknown-identifier, unresolved-call-target, wrong-arity, and expected-expression
 errors when the failing WIR token originated from a copied surface node. Direct or
 unannotated WIR retain conservative unique-token inference as a fallback.
+
+## Command-line and file-I/O diagnostics
+
+Every `weavec` command-line and file-I/O failure reports a stable code and a
+message on stderr. The low-level modes have no `--diagnostics-json`, so the code
+travels in the human line, using the shape the project and build drivers already
+emit:
+
+```text
+weavec: error: MESSAGE [CODE]
+weavec: error: PATH: MESSAGE [CODE]
+weavec: error: PATH:LINE:COLUMN: MESSAGE [CODE]
+```
+
+Lines are one-based and columns count Unicode code points, matching the byte and
+position rules used by `weavec-diagnostics-v1` spans.
+
+| Code | Meaning |
+|---|---|
+| `driver.usage.missing-command` | `weavec` was invoked with no command. |
+| `driver.usage.unknown-command` | The first argument is not a known command or mode. |
+| `driver.usage.invalid-arguments` | A known mode received the wrong argument list or an option value it does not accept. |
+| `driver.out-of-memory` | A host allocation failed. |
+| `driver.output-unwritable` | A requested output file could not be created or written. |
+| `frontend.source-unreadable` | A surface source input could not be opened or completely read. |
+| `frontend.parse.unclosed-list` | A surface source ended inside an open list. |
+| `frontend.parse.unmatched-closing-paren` | A surface source has a closing parenthesis with no open list. |
+| `frontend.parse.unexpected-end-of-input` | A surface source ended where an expression was required. |
+| `backend.input-unreadable` | A direct WIR input could not be opened or completely read. |
+| `backend.invalid-module` | A WIR module has no `(decls ...)` section. |
+| `backend.parse.unclosed-list` | A WIR input ended inside an open list. |
+| `backend.parse.unmatched-closing-paren` | A WIR input has a closing parenthesis with no open list. |
+| `backend.parse.unexpected-end-of-input` | A WIR input ended where an expression was required. |
+
+A malformed command line also prints the accepted invocation forms. Exit status
+is unchanged: the low-level modes still return `1`, and only `weavec build`
+with `--diagnostics-json` returns the stable phase codes above.
+
+The parser reports positions from a caller-owned parse-error record holding the
+byte offset where it stopped and the token it required. An unclosed list is
+reported at its own opening parenthesis, which is the same position the build
+driver's preflight scanner selects for that source. See
+[Command reference](command-reference.md) for the modes themselves.
 
 ## Human diagnostics
 
