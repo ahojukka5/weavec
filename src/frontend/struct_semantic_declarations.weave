@@ -120,6 +120,13 @@
               (const_i32 2) (param_get sst_source) (param_get sst_tree)
               (local_get sst_name_node))
             (call_void write_byte (const_i32 2) (const_i32 10))
+            (call_void sdiag_record
+              (param_get sst_tree) (param_get sst_source)
+              (local_get sst_name_node)
+              (const_string_ptr "frontend.declaration.reserved-syntax-name")
+              (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+              (const_i32 -1) (const_i32 -1) (const_i32 -1)
+              (const_string_ptr "name") (local_get sst_name_node) (const_i32 0))
             (return (const_i32 1))))
           (else (do)))
         (let sst_params_node i64 (call_i64 surface_fn_params_node
