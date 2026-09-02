@@ -315,6 +315,9 @@ bash "$ROOT/test/module-structs/test.sh"
 log 'module symbol names'
 bash "$ROOT/test/module-symbols/test.sh"
 
+log 'command-line and file-IO diagnostics'
+bash "$ROOT/test/cli-diagnostics/test.sh"
+
 log 'parse diagnostics'
 bash "$ROOT/test/parse-diagnostics/test.sh"
 

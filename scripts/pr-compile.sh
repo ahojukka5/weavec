@@ -18,6 +18,12 @@ bash "$ROOT/scripts/build.sh"
 log 'correctness suites'
 bash "$ROOT/test.sh"
 
+log 'command-line and file-IO diagnostics'
+bash "$ROOT/test/cli-diagnostics/test.sh"
+
+log 'parse diagnostics'
+bash "$ROOT/test/parse-diagnostics/test.sh"
+
 log 'diagnostic repairs'
 bash "$ROOT/test/diagnostic-repairs/test.sh"
 
