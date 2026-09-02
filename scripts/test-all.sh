@@ -249,6 +249,9 @@ bash "$ROOT/test/string-literals/test.sh"
 log 'string interpolation'
 bash "$ROOT/test/interp/test.sh"
 
+log 'standalone comment statements'
+bash "$ROOT/test/comment-statement/test.sh"
+
 log 'struct aliasing (known gap)'
 bash "$ROOT/test/struct-aliasing/test.sh"
 
