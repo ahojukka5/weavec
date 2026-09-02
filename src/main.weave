@@ -179,7 +179,9 @@
       (let len_buf ptr (call_ptr malloc (const_i64 8)))
       (if
         (condition (eq_ptr (local_get len_buf) (const_null)))
-        (then (do (return (const_i32 1))))
+        (then (do
+          (call_void cli_error_out_of_memory)
+          (return (const_i32 1))))
         (else (do)))
       (store_i64 (local_get len_buf) (const_i64 0))
       ; Open input
@@ -187,6 +189,7 @@
       (if
         (condition (lt_i32 (local_get in_fd) (const_i32 0)))
         (then (do
+          (call_void cli_error_unreadable (param_get input_path) (const_i32 1))
           (call_void free (local_get len_buf))
           (return (const_i32 1))))
         (else (do)))
@@ -195,6 +198,7 @@
       (if
         (condition (lt_i64 (local_get file_size) (const_i64 0)))
         (then (do
+          (call_void cli_error_unreadable (param_get input_path) (const_i32 1))
           (call_i32 close (local_get in_fd))
           (call_void free (local_get len_buf))
           (return (const_i32 1))))
@@ -206,6 +210,7 @@
       (if
         (condition (eq_ptr (local_get source) (const_null)))
         (then (do
+          (call_void cli_error_out_of_memory)
           (call_i32 close (local_get in_fd))
           (call_void free (local_get len_buf))
           (return (const_i32 1))))
@@ -216,6 +221,7 @@
       (if
         (condition (ne_i64 (local_get bytes_read) (local_get file_size)))
         (then (do
+          (call_void cli_error_unreadable (param_get input_path) (const_i32 1))
           (call_void free (local_get source))
           (call_void free (local_get len_buf))
           (return (const_i32 1))))
@@ -228,21 +234,31 @@
       (if
         (condition (eq_ptr (local_get tokens) (const_null)))
         (then (do
+          (call_void cli_error_out_of_memory)
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
-      (let tree ptr (call_ptr parse (local_get tokens)))
+      (let perr ptr (call_ptr malloc (call_i64 parse_error_size)))
+      (let tree ptr (call_ptr parse_recorded (local_get tokens) (local_get perr)))
       (if
         (condition (eq_ptr (local_get tree) (const_null)))
         (then (do
+          (call_void cli_error_parse
+            (param_get input_path) (local_get source) (local_get perr) (const_i32 1))
+          (call_void free (local_get perr))
+          (call_void tokens_free (local_get tokens))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
+      (call_void free (local_get perr))
       ; Validate the complete WIR declaration set before creating an output file.
       (let validation_ctx ptr (call_ptr ctx_new (const_i32 -1) (local_get source) (local_get tree)))
       (if
         (condition (eq_ptr (local_get validation_ctx) (const_null)))
         (then (do
+          (call_void cli_error_out_of_memory)
+          (call_void tree_free (local_get tree))
+          (call_void tokens_free (local_get tokens))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
@@ -251,6 +267,8 @@
           (local_get validation_ctx) (const_i64 0)) (const_i32 0)))
         (then (do
           (call_void ctx_free (local_get validation_ctx))
+          (call_void tree_free (local_get tree))
+          (call_void tokens_free (local_get tokens))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
@@ -258,7 +276,12 @@
       (if
         (condition (eq_i64 (local_get decls_node) (const_i64 -1)))
         (then (do
+          (call_void cli_error_path (param_get input_path)
+            (const_string_ptr "backend.invalid-module")
+            (const_string_ptr "WIR module has no (decls ...) section"))
           (call_void ctx_free (local_get validation_ctx))
+          (call_void tree_free (local_get tree))
+          (call_void tokens_free (local_get tokens))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
@@ -267,6 +290,8 @@
           (local_get validation_ctx) (local_get decls_node) (local_get decls_node)) (const_i32 0)))
         (then (do
           (call_void ctx_free (local_get validation_ctx))
+          (call_void tree_free (local_get tree))
+          (call_void tokens_free (local_get tokens))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
@@ -278,6 +303,9 @@
       (if
         (condition (lt_i32 (local_get out_fd) (const_i32 0)))
         (then (do
+          (call_void cli_error_unwritable (param_get output_path))
+          (call_void tree_free (local_get tree))
+          (call_void tokens_free (local_get tokens))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
@@ -287,7 +315,10 @@
       (if
         (condition (eq_ptr (local_get ctx) (const_null)))
         (then (do
+          (call_void cli_error_out_of_memory)
           (call_i32 write_finish (local_get out_fd))
+          (call_void tree_free (local_get tree))
+          (call_void tokens_free (local_get tokens))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
@@ -302,10 +333,15 @@
       (if
         (condition (ne_i32 (local_get write_rc) (const_i32 0)))
         (then (do
+          (call_void cli_error_unwritable (param_get output_path))
           (call_i32 unlink (param_get output_path))
+          (call_void tree_free (local_get tree))
+          (call_void tokens_free (local_get tokens))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
+      (call_void tree_free (local_get tree))
+      (call_void tokens_free (local_get tokens))
       (call_void free (local_get source))
       (return (local_get status))))
 
@@ -316,7 +352,11 @@
     (do
       (if
         (condition (lt_i32 (param_get argc) (const_i32 2)))
-        (then (do (return (const_i32 1))))
+        (then (do
+          (call_void cli_error_usage
+            (const_string_ptr "driver.usage.missing-command")
+            (const_string_ptr "missing command"))
+          (return (const_i32 1))))
         (else (do)))
       (let arg1 ptr (load_ptr (ptr_add (param_get argv) (const_i64 8))))
       (if
@@ -325,7 +365,9 @@
         (then (do
           (if
             (condition (ne_i32 (param_get argc) (const_i32 2)))
-            (then (do (return (const_i32 1))))
+            (then (do
+              (call_void cli_error_arguments (const_string_ptr "--version"))
+              (return (const_i32 1))))
             (else (do)))
           (return (call_i32 weave_rt_print_version))))
         (else (do)))
@@ -335,13 +377,20 @@
         (then (do
           (if
             (condition (ne_i32 (param_get argc) (const_i32 3)))
-            (then (do (return (const_i32 1))))
+            (then (do
+              (call_void cli_error_arguments (const_string_ptr "capabilities"))
+              (return (const_i32 1))))
             (else (do)))
           (let arg2_cap ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
           (if
             (condition (eq_i32 (call_i32 cstr_equals
               (local_get arg2_cap) (const_string_ptr "--json") (const_i64 6)) (const_i32 0)))
-            (then (do (return (const_i32 1))))
+            (then (do
+              (call_void cli_error_usage_detail
+                (const_string_ptr "driver.usage.invalid-arguments")
+                (const_string_ptr "capabilities accepts only --json, got")
+                (local_get arg2_cap))
+              (return (const_i32 1))))
             (else (do)))
           (return (call_i32 weave_rt_print_capabilities))))
         (else (do)))
@@ -365,16 +414,14 @@
           (return (call_i32 weave_rt_build_main (param_get argc) (param_get argv)))))
         (else (do)))
       (if
-        (condition (lt_i32 (param_get argc) (const_i32 3)))
-        (then (do (return (const_i32 1))))
-        (else (do)))
-      (if
         (condition (ne_i32 (call_i32 cstr_equals
           (local_get arg1) (const_string_ptr "--backend") (const_i64 9)) (const_i32 0)))
         (then (do
           (if
             (condition (ne_i32 (param_get argc) (const_i32 4)))
-            (then (do (return (const_i32 1))))
+            (then (do
+              (call_void cli_error_arguments (const_string_ptr "--backend"))
+              (return (const_i32 1))))
             (else (do)))
           (let input_path ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
           (let output_path ptr (load_ptr (ptr_add (param_get argv) (const_i64 24))))
@@ -386,7 +433,9 @@
         (then (do
           (if
             (condition (lt_i32 (param_get argc) (const_i32 4)))
-            (then (do (return (const_i32 1))))
+            (then (do
+              (call_void cli_error_arguments (const_string_ptr "--frontend"))
+              (return (const_i32 1))))
             (else (do)))
           (let out_idx i64 (const_i64 2))
           (let arg2 ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
@@ -397,7 +446,9 @@
             (else (do)))
           (if
             (condition (ge_i64 (local_get out_idx) (cast_i32_to_i64 (param_get argc))))
-            (then (do (return (const_i32 1))))
+            (then (do
+              (call_void cli_error_arguments (const_string_ptr "--frontend"))
+              (return (const_i32 1))))
             (else (do)))
           (let output_path2 ptr (load_ptr (ptr_add (param_get argv) (mul_i64 (local_get out_idx) (const_i64 8)))))
           (return (call_i32 lower_sources
@@ -409,7 +460,10 @@
         (then (do
           (if
             (condition (ne_i32 (param_get argc) (const_i32 4)))
-            (then (do (return (const_i32 1))))
+            (then (do
+              (call_void cli_error_arguments
+                (const_string_ptr "--dump-quantum-stats"))
+              (return (const_i32 1))))
             (else (do)))
           (let stats_out ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
           (let stats_in ptr (load_ptr (ptr_add (param_get argv) (const_i64 24))))
@@ -421,7 +475,9 @@
         (then (do
           (if
             (condition (ne_i32 (param_get argc) (const_i32 3)))
-            (then (do (return (const_i32 1))))
+            (then (do
+              (call_void cli_error_arguments (const_string_ptr "--explain-json"))
+              (return (const_i32 1))))
             (else (do)))
           (let explain_json_in ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
           (return (call_i32 explain_file_mode (local_get explain_json_in) (const_i32 1)))))
@@ -432,7 +488,9 @@
         (then (do
           (if
             (condition (ne_i32 (param_get argc) (const_i32 3)))
-            (then (do (return (const_i32 1))))
+            (then (do
+              (call_void cli_error_arguments (const_string_ptr "--explain"))
+              (return (const_i32 1))))
             (else (do)))
           (let explain_in ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
           (return (call_i32 explain_file (local_get explain_in)))))
@@ -443,7 +501,9 @@
         (then (do
           (if
             (condition (ne_i32 (param_get argc) (const_i32 3)))
-            (then (do (return (const_i32 1))))
+            (then (do
+              (call_void cli_error_arguments (const_string_ptr "--audit"))
+              (return (const_i32 1))))
             (else (do)))
           (let audit_in ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
           (return (call_i32 audit_file (local_get audit_in)))))
@@ -454,11 +514,17 @@
         (then (do
           (if
             (condition (ne_i32 (param_get argc) (const_i32 3)))
-            (then (do (return (const_i32 1))))
+            (then (do
+              (call_void cli_error_arguments (const_string_ptr "--audit-json"))
+              (return (const_i32 1))))
             (else (do)))
           (let audit_json_in ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
           (return (call_i32 audit_file_json (local_get audit_json_in)))))
         (else (do)))
       ; Unknown or incomplete command.
+      (call_void cli_error_usage_detail
+        (const_string_ptr "driver.usage.unknown-command")
+        (const_string_ptr "unknown command or option:")
+        (local_get arg1))
       (return (const_i32 1))))
 )

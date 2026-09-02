@@ -218,12 +218,15 @@
       (let in_fd i32 (call_i32 open (param_get input_path) (const_i32 0) (const_i32 0)))
       (if
         (condition (lt_i32 (local_get in_fd) (const_i32 0)))
-        (then (do (return (const_i32 1))))
+        (then (do
+          (call_void cli_error_unreadable (param_get input_path) (const_i32 0))
+          (return (const_i32 1))))
         (else (do)))
       (let file_size i64 (call_i64 lseek (local_get in_fd) (const_i64 0) (const_i32 2)))
       (if
         (condition (lt_i64 (local_get file_size) (const_i64 0)))
         (then (do
+          (call_void cli_error_unreadable (param_get input_path) (const_i32 0))
           (call_i32 close (local_get in_fd))
           (return (const_i32 1))))
         (else (do)))
@@ -232,6 +235,7 @@
       (if
         (condition (eq_ptr (local_get source) (const_null)))
         (then (do
+          (call_void cli_error_out_of_memory)
           (call_i32 close (local_get in_fd))
           (return (const_i32 1))))
         (else (do)))
@@ -240,6 +244,7 @@
       (if
         (condition (ne_i64 (local_get bytes_read) (local_get file_size)))
         (then (do
+          (call_void cli_error_unreadable (param_get input_path) (const_i32 0))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
@@ -248,20 +253,29 @@
       (if
         (condition (eq_ptr (local_get tokens) (const_null)))
         (then (do
+          (call_void cli_error_out_of_memory)
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
-      (let tree ptr (call_ptr parse (local_get tokens)))
+      (let perr ptr (call_ptr malloc (call_i64 parse_error_size)))
+      (let tree ptr (call_ptr parse_recorded (local_get tokens) (local_get perr)))
       (if
         (condition (eq_ptr (local_get tree) (const_null)))
         (then (do
+          (call_void cli_error_parse
+            (param_get input_path) (local_get source) (local_get perr) (const_i32 0))
+          (call_void free (local_get perr))
+          (call_void tokens_free (local_get tokens))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
+      (call_void free (local_get perr))
       (if
         (condition (ne_i32 (call_i32 validate_quantum_program
           (local_get tree) (local_get source)) (const_i32 0)))
         (then (do
+          (call_void tree_free (local_get tree))
+          (call_void tokens_free (local_get tokens))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
@@ -269,6 +283,9 @@
       (if
         (condition (eq_ptr (local_get ctx) (const_null)))
         (then (do
+          (call_void cli_error_out_of_memory)
+          (call_void tree_free (local_get tree))
+          (call_void tokens_free (local_get tokens))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
@@ -277,13 +294,23 @@
       (if
         (condition (lt_i32 (local_get out_fd) (const_i32 0)))
         (then (do
+          (call_void cli_error_unwritable (param_get output_path))
           (call_void stats_ctx_free (local_get ctx))
+          (call_void tree_free (local_get tree))
+          (call_void tokens_free (local_get tokens))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
       (call_void write_stats_file (local_get out_fd) (local_get ctx))
       (let write_rc i32 (call_i32 write_finish (local_get out_fd)))
+      (if
+        (condition (ne_i32 (local_get write_rc) (const_i32 0)))
+        (then (do
+          (call_void cli_error_unwritable (param_get output_path))))
+        (else (do)))
       (call_void stats_ctx_free (local_get ctx))
+      (call_void tree_free (local_get tree))
+      (call_void tokens_free (local_get tokens))
       (call_void free (local_get source))
       (return (local_get write_rc))))
 )
