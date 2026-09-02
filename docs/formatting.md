@@ -64,10 +64,10 @@ The normal form uses:
 - original declaration, statement, field, clause, and argument order.
 
 The column budget is not configurable. Vertical spacing remains derived from
-rendered structure; arbitrary input blank lines are discarded. Remaining
-header/body blank-line policy is issue #334. Comment nodes as first-class AST
-forms are issue #337; until then the printer recovers semicolon comments from
-source gaps.
+rendered structure; arbitrary input blank lines are discarded. Standalone
+`(comment ...)` nodes are printed structurally; semicolon comments remain
+lexical trivia that the printer recovers from source gaps. Preserving admitted
+comments into WIR and LLVM evidence is issue #374.
 
 Formatting never sorts declarations or children. Source order remains semantic
 and continues to be part of the bootstrap and multi-file compilation contract.
@@ -121,10 +121,39 @@ file supplies an unambiguous parameter or binding type. Unknown, ambiguous, or
 unsupported forms retain their original structural spelling rather than receiving
 a guessed rewrite.
 
-## Comments
+## Standalone comment nodes
 
-The bootstrap parser exposes exact node spans but not comment nodes. The formatter
-therefore recovers comments only from source gaps between parsed nodes:
+`(comment STRING...)` is a reserved surface statement, so the printer
+serializes the tree node instead of recovering text from a gap. It obeys the
+generic complete-form rule: one inline line when the whole form fits the
+80-column budget at its current indentation, otherwise the head alone followed
+by one string literal per line.
+
+```weave
+(comment "Compute the residual.")
+
+(comment
+  "The next iteration deliberately uses the previous residual."
+  "Do not reassociate this update.")
+```
+
+Unlike the generic list printer, a comment never keeps a run of leading string
+literals on the head line. Both renderings are byte-idempotent.
+
+For presentation only, a one-line comment immediately before a multiline
+sibling stays on the line above it: the blank separator, when one is needed, is
+emitted before the comment rather than between the two forms. This is a printer
+adjacency rule. The surface tree records no attachment, ownership, or
+paragraph state, and moving the sibling does not move the comment.
+
+A malformed comment — no text, or a non-string child — keeps its source
+structure so formatting does not conceal the compiler diagnostic.
+
+## Semicolon comments
+
+The parser exposes exact node spans but treats semicolon comments as lexical
+trivia. The formatter therefore recovers them only from source gaps between
+parsed nodes:
 
 - every semicolon comment is retained verbatim except trailing spaces and CR;
 - a comment is attached before the next structural node in the same list;
