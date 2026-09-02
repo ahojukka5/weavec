@@ -322,7 +322,9 @@ weavec --backend <input.wir> <output.ll>
 This mode validates and compiles WIR core version 3 to LLVM IR. Core versions 1
 and 2, missing or duplicate version declarations, and invalid module roots are
 rejected.
-Any backend failure removes a partial LLVM output.
+Any backend failure removes a partial LLVM output. An unreadable input and a
+malformed WIR document are reported with `backend.*` diagnostic codes and, for a
+parse failure, the exact line and column.
 
 The explicit `--backend` marker is required; the former implicit
 `weavec input.wir output.ll` syntax is rejected.
@@ -339,7 +341,9 @@ weavec --dump-quantum-stats <output.metrics> <input.weave>
 
 This mode parses one surface source and writes deterministic quantum-operation
 statistics used by the quantum regression suite. It does not execute a quantum
-program or provide a production hardware runtime.
+program or provide a production hardware runtime. An unreadable source, a
+positioned parse failure, and an uncreatable output are reported with the
+`frontend.*` and `driver.*` codes.
 
 ## Explain mode
 
@@ -366,10 +370,33 @@ unknown classifications. The JSON form is suitable for CI and other tools.
 
 See [Executable contracts and explain mode](contracts-and-explain.md).
 
+## Command-line and file-I/O failures
+
+Every mode reports a malformed command line, an unreadable input, an
+uncreatable output, and a positioned parse failure on stderr with a stable
+diagnostic code:
+
+```text
+$ weavec --backend missing.wir out.ll
+weavec: error: missing.wir: cannot read WIR input file [backend.input-unreadable]
+
+$ weavec --frontend out.wir truncated.weave
+weavec: error: truncated.weave:1:1: unclosed list [frontend.parse.unclosed-list]
+
+$ weavec --explain
+weavec: error: wrong arguments for --explain [driver.usage.invalid-arguments]
+usage:
+  ...
+```
+
+A malformed command line also prints the accepted invocation forms. The codes
+are listed in [Machine-readable diagnostics](diagnostics.md).
+
 ## Process exit behavior
 
 Without `--diagnostics-json`, low-level compiler modes retain their historical
-success or failure status and human-readable stderr.
+success or failure status. A failure now always carries a human-readable stderr
+message and a stable diagnostic code; the exit status is unchanged.
 
 When `weavec build` writes diagnostics JSON, the public stable phase exits are:
 

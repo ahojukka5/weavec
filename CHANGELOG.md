@@ -117,9 +117,18 @@ surface-language contract stabilises.
   WIR core version 2 or 1; the language reference no longer contradicts
   itself about decimal float literals and `interp`'s result type. Only
   the frozen bootstrap boundary still names core version 2.
+- A failed parse frees its partial tree, and the `--backend`,
+  `--explain`, `--audit`, and `--dump-quantum-stats` modes free their
+  tokens and tree on every path.
 
 ### Added
 
+- Command-line, file-I/O, and parse failures in every `weavec` mode
+  report a stable diagnostic code and a message on stderr instead of
+  exiting silently. The parser carries a byte offset and the expected
+  token, so a parse failure names its line and column. Exit codes and
+  `weavec-diagnostics-v1` are unchanged. See
+  [Machine-readable diagnostics](docs/diagnostics.md).
 - Paths, files, process exit, and environment lookup: `process_exit`,
   `file_write_text` as `Result bool FileError`, POSIX `path_join` /
   `path_basename` / `path_is_absolute`, and `env_get` as `Option

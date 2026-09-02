@@ -74,7 +74,8 @@ names used when they were released.
 - [Build manifest](build-manifest.md) — `weavec-build-manifest-v1` and the
   separate release-package `BUILD-MANIFEST`.
 - [Machine-readable diagnostics](diagnostics.md) —
-  `weavec-diagnostics-v1`, stable phase exits, and source-span provenance.
+  `weavec-diagnostics-v1`, stable phase exits, source-span provenance, and the
+  command-line and file-I/O diagnostic codes.
 - [Structured module diagnostics](module-diagnostics.md) — stable module,
   import, and export error codes, operand roles, and exact-span policy.
 - [Source-linked compilation trace](compilation-trace.md) —
