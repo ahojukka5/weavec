@@ -1,0 +1,307 @@
+; SPDX-License-Identifier: Apache-2.0
+; cli_diagnostics.weave — human diagnostics for weavec command and file I/O
+;
+; The low-level compiler modes historically failed with exit 1 and an empty
+; stderr. These helpers give every command-line and file-I/O failure a stable
+; diagnostic code and a message, using the same human line shape the C project
+; and build drivers already emit:
+;
+;   weavec: error: MESSAGE [CODE]
+;   weavec: error: PATH: MESSAGE [CODE]
+;   weavec: error: PATH:LINE:COLUMN: MESSAGE [CODE]
+;
+; Codes are documented in docs/diagnostics.md. Lines are one-based and columns
+; count Unicode code points, matching the byte-span rules of
+; weavec-diagnostics-v1. Reporting lives here rather than in the parser so the
+; parser stays independent of the compiler output layer.
+
+(program
+  (name "cli_diagnostics")
+  (version "0.1")
+
+  ; Stable stderr descriptor for compiler diagnostics.
+  (fn cli_diag_fd
+    (params)
+    (returns i32)
+    (do (return (const_i32 2))))
+
+  ; One-based line number of a byte offset in a NUL-terminated source buffer.
+  (fn cli_line_at
+    (params (source ptr) (offset i64))
+    (returns i64)
+    (do
+      (let cdg_line i64 (const_i64 1))
+      (let cdg_i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get cdg_i) (param_get offset)))
+        (do
+          (if
+            (condition (eq_i32
+              (load_u8 (ptr_add (param_get source) (local_get cdg_i)))
+              (const_i32 10)))
+            (then (do (set cdg_line (add_i64 (local_get cdg_line) (const_i64 1)))))
+            (else (do)))
+          (set cdg_i (add_i64 (local_get cdg_i) (const_i64 1)))))
+      (return (local_get cdg_line))))
+
+  ; One-based column of a byte offset, counting code points rather than the
+  ; UTF-8 continuation bytes 0x80..0xBF.
+  (fn cli_column_at
+    (params (source ptr) (offset i64))
+    (returns i64)
+    (do
+      (let cdg_column i64 (const_i64 1))
+      (let cdg_i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get cdg_i) (param_get offset)))
+        (do
+          (let cdg_ch i32 (load_u8 (ptr_add (param_get source) (local_get cdg_i))))
+          (if
+            (condition (eq_i32 (local_get cdg_ch) (const_i32 10)))
+            (then (do (set cdg_column (const_i64 1))))
+            (else (do
+              (if
+                (condition (or_bool
+                  (lt_i32 (local_get cdg_ch) (const_i32 128))
+                  (ge_i32 (local_get cdg_ch) (const_i32 192))))
+                (then (do
+                  (set cdg_column (add_i64 (local_get cdg_column) (const_i64 1)))))
+                (else (do))))))
+          (set cdg_i (add_i64 (local_get cdg_i) (const_i64 1)))))
+      (return (local_get cdg_column))))
+
+  ; Write " [CODE]" and end the diagnostic line.
+  (fn cli_diag_end
+    (params (code ptr))
+    (returns void)
+    (do
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr " ["))
+      (call_void write_cstr (call_i32 cli_diag_fd) (param_get code))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr "]\n"))
+      (return_void)))
+
+  ; weavec: error: MESSAGE [CODE]
+  (fn cli_error
+    (params (code ptr) (message ptr))
+    (returns void)
+    (do
+      (call_void write_cstr (call_i32 cli_diag_fd)
+        (const_string_ptr "weavec: error: "))
+      (call_void write_cstr (call_i32 cli_diag_fd) (param_get message))
+      (call_void cli_diag_end (param_get code))
+      (return_void)))
+
+  ; weavec: error: MESSAGE DETAIL [CODE]
+  ; The caller's message carries any punctuation before the detail.
+  (fn cli_error_detail
+    (params (code ptr) (message ptr) (detail ptr))
+    (returns void)
+    (do
+      (call_void write_cstr (call_i32 cli_diag_fd)
+        (const_string_ptr "weavec: error: "))
+      (call_void write_cstr (call_i32 cli_diag_fd) (param_get message))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr " "))
+      (call_void write_cstr (call_i32 cli_diag_fd) (param_get detail))
+      (call_void cli_diag_end (param_get code))
+      (return_void)))
+
+  ; weavec: error: PATH: MESSAGE [CODE]
+  (fn cli_error_path
+    (params (path ptr) (code ptr) (message ptr))
+    (returns void)
+    (do
+      (call_void write_cstr (call_i32 cli_diag_fd)
+        (const_string_ptr "weavec: error: "))
+      (call_void write_cstr (call_i32 cli_diag_fd) (param_get path))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr ": "))
+      (call_void write_cstr (call_i32 cli_diag_fd) (param_get message))
+      (call_void cli_diag_end (param_get code))
+      (return_void)))
+
+  ; weavec: error: PATH:LINE:COLUMN: MESSAGE [CODE]
+  (fn cli_error_at
+    (params (path ptr) (source ptr) (offset i64) (code ptr) (message ptr))
+    (returns void)
+    (do
+      (call_void write_cstr (call_i32 cli_diag_fd)
+        (const_string_ptr "weavec: error: "))
+      (call_void write_cstr (call_i32 cli_diag_fd) (param_get path))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr ":"))
+      (call_void write_i64_dec (call_i32 cli_diag_fd)
+        (call_i64 cli_line_at (param_get source) (param_get offset)))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr ":"))
+      (call_void write_i64_dec (call_i32 cli_diag_fd)
+        (call_i64 cli_column_at (param_get source) (param_get offset)))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr ": "))
+      (call_void write_cstr (call_i32 cli_diag_fd) (param_get message))
+      (call_void cli_diag_end (param_get code))
+      (return_void)))
+
+  ; Accepted invocation forms, printed after a command-line failure.
+  (fn cli_usage
+    (params)
+    (returns void)
+    (do
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr "usage:\n"))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr
+        "  weavec build <input.weave> [input2.weave ...] -o <program>\n"))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr
+        "  weavec build [--project <directory-or-manifest>] [-o <program>]\n"))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr
+        "  weavec analyze SOURCE... --semantic-index-json INDEX\n"))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr
+        "  weavec fmt [--check | --output OUTPUT] SOURCE\n"))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr
+        "  weavec capabilities --json\n"))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr
+        "  weavec --version\n"))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr
+        "  weavec --frontend [--strict-contracts] <output.wir> <input.weave> [input2.weave ...]\n"))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr
+        "  weavec --backend <input.wir> <output.ll>\n"))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr
+        "  weavec --dump-quantum-stats <output.metrics> <input.weave>\n"))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr
+        "  weavec --explain <input.weave>\n"))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr
+        "  weavec --explain-json <input.weave>\n"))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr
+        "  weavec --audit <input.weave>\n"))
+      (call_void write_cstr (call_i32 cli_diag_fd) (const_string_ptr
+        "  weavec --audit-json <input.weave>\n"))
+      (return_void)))
+
+  ; A malformed command line: report the failure and the accepted forms.
+  (fn cli_error_usage
+    (params (code ptr) (message ptr))
+    (returns void)
+    (do
+      (call_void cli_error (param_get code) (param_get message))
+      (call_void cli_usage)
+      (return_void)))
+
+  ; A malformed command line naming the offending argument.
+  (fn cli_error_usage_detail
+    (params (code ptr) (message ptr) (detail ptr))
+    (returns void)
+    (do
+      (call_void cli_error_detail
+        (param_get code) (param_get message) (param_get detail))
+      (call_void cli_usage)
+      (return_void)))
+
+  ; A recognized mode invoked with the wrong argument list.
+  (fn cli_error_arguments
+    (params (mode ptr))
+    (returns void)
+    (do
+      (call_void cli_error_usage_detail
+        (const_string_ptr "driver.usage.invalid-arguments")
+        (const_string_ptr "wrong arguments for")
+        (param_get mode))
+      (return_void)))
+
+  ; An input file that could not be opened or completely read. is_wir selects
+  ; the backend code family for direct WIR inputs.
+  (fn cli_error_unreadable
+    (params (path ptr) (is_wir i32))
+    (returns void)
+    (do
+      (if
+        (condition (ne_i32 (param_get is_wir) (const_i32 0)))
+        (then (do
+          (call_void cli_error_path (param_get path)
+            (const_string_ptr "backend.input-unreadable")
+            (const_string_ptr "cannot read WIR input file"))
+          (return_void)))
+        (else (do)))
+      (call_void cli_error_path (param_get path)
+        (const_string_ptr "frontend.source-unreadable")
+        (const_string_ptr "cannot read source file"))
+      (return_void)))
+
+  ; An output file that could not be created or written.
+  (fn cli_error_unwritable
+    (params (path ptr))
+    (returns void)
+    (do
+      (call_void cli_error_path (param_get path)
+        (const_string_ptr "driver.output-unwritable")
+        (const_string_ptr "cannot create output file"))
+      (return_void)))
+
+  ; A host allocation failure.
+  (fn cli_error_out_of_memory
+    (params)
+    (returns void)
+    (do
+      (call_void cli_error
+        (const_string_ptr "driver.out-of-memory")
+        (const_string_ptr "out of memory"))
+      (return_void)))
+
+  ; Report a recorded parse failure at its exact source position. is_wir
+  ; selects the backend code family for direct WIR inputs.
+  (fn cli_error_parse
+    (params (path ptr) (source ptr) (err ptr) (is_wir i32))
+    (returns void)
+    (do
+      (let cdg_expected i64 (call_i64 parse_error_expected (param_get err)))
+      (let cdg_offset i64 (call_i64 parse_error_offset (param_get err)))
+      ; No record means the parser failed before reading a token, which only
+      ; happens when tree or index allocation failed.
+      (if
+        (condition (eq_i64 (local_get cdg_expected) (call_i64 parse_expect_none)))
+        (then (do
+          (call_void cli_error_out_of_memory)
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i64 (local_get cdg_expected) (call_i64 parse_expect_rparen)))
+        (then (do
+          (if
+            (condition (ne_i32 (param_get is_wir) (const_i32 0)))
+            (then (do
+              (call_void cli_error_at (param_get path) (param_get source)
+                (local_get cdg_offset)
+                (const_string_ptr "backend.parse.unclosed-list")
+                (const_string_ptr "unclosed list"))))
+            (else (do
+              (call_void cli_error_at (param_get path) (param_get source)
+                (local_get cdg_offset)
+                (const_string_ptr "frontend.parse.unclosed-list")
+                (const_string_ptr "unclosed list")))))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 parse_error_found (param_get err)) (call_i32 token_rparen)))
+        (then (do
+          (if
+            (condition (ne_i32 (param_get is_wir) (const_i32 0)))
+            (then (do
+              (call_void cli_error_at (param_get path) (param_get source)
+                (local_get cdg_offset)
+                (const_string_ptr "backend.parse.unmatched-closing-paren")
+                (const_string_ptr "unmatched closing parenthesis"))))
+            (else (do
+              (call_void cli_error_at (param_get path) (param_get source)
+                (local_get cdg_offset)
+                (const_string_ptr "frontend.parse.unmatched-closing-paren")
+                (const_string_ptr "unmatched closing parenthesis")))))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (ne_i32 (param_get is_wir) (const_i32 0)))
+        (then (do
+          (call_void cli_error_at (param_get path) (param_get source)
+            (local_get cdg_offset)
+            (const_string_ptr "backend.parse.unexpected-end-of-input")
+            (const_string_ptr "unexpected end of input; expected an expression"))))
+        (else (do
+          (call_void cli_error_at (param_get path) (param_get source)
+            (local_get cdg_offset)
+            (const_string_ptr "frontend.parse.unexpected-end-of-input")
+            (const_string_ptr "unexpected end of input; expected an expression")))))
+      (return_void)))
+)
