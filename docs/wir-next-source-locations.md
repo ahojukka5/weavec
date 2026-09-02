@@ -232,7 +232,7 @@ If a `located` wrapper is present, both tables must be present and its location
 ID must resolve. Unreferenced source and location entries are noncanonical and
 should be rejected by strict validation.
 
-## Migration from WIR v2
+## Migration from WIR core version 3
 
 The transition must be coordinated across the parser, validator, frontend,
 backend, fixtures, bootstrap compiler, self-host stages, and released SDKs.
@@ -245,7 +245,7 @@ backend, fixtures, bootstrap compiler, self-host stages, and released SDKs.
 
 ### Phase 1: dual-read backend
 
-- retain full WIR v2 support;
+- retain full WIR core version 3 support;
 - add read-only support for the next version;
 - unwrap `located` before existing semantic validation and LLVM emission;
 - prove that metadata-present and metadata-stripped modules emit equivalent
@@ -254,7 +254,8 @@ backend, fixtures, bootstrap compiler, self-host stages, and released SDKs.
 ### Phase 2: opt-in frontend emission
 
 - add an explicit frontend option for the next WIR version;
-- keep WIR v2 as the default while lower compiler stages remain frozen;
+- keep WIR core version 3 as the default while lower compiler stages remain
+  frozen;
 - translate the existing comment-only source map into source and location
   tables when the new version is selected.
 
@@ -268,13 +269,13 @@ backend, fixtures, bootstrap compiler, self-host stages, and released SDKs.
 
 - make the next version the default only after all supported development and
   release paths pass the complete ladder;
-- retain an explicit WIR v2 reader and emitter for the documented compatibility
-  window;
+- retain an explicit WIR core version 3 reader and emitter for the documented
+  compatibility window;
 - remove private source-map comments only after every supported consumer uses
   first-class locations.
 
-No phase may reinterpret the existing WIR v2 comment channel as standardized
-v2 semantics.
+No phase may reinterpret the existing core-version-3 comment channel as
+standardized core-version-3 semantics.
 
 ## Required acceptance tests
 
@@ -289,13 +290,13 @@ The coordinated implementation should include:
 - unknown observational metadata preservation;
 - canonical and executable comparison modes;
 - metadata stripping with byte-identical LLVM output;
-- v2/vNext dual-read compatibility;
+- core-version-3/vNext dual-read compatibility;
 - frontend, backend, archive, and deep self-host fixed-point coverage.
 
-## Current WIR v2 bridge
+## Current core-version-3 bridge
 
-Until the coordinated transition, WIR v2 continues to use the deterministic,
-comment-only bridge:
+Until the coordinated transition, WIR core version 3 continues to use the
+deterministic, comment-only bridge:
 
 ```text
 ; weavec-source-file-v1 <source-index> "<path>"
@@ -303,4 +304,4 @@ comment-only bridge:
 ```
 
 Those comments remain private compiler transport. They are intentionally ignored
-by the WIR v2 lexer and do not alter WIR v2 semantics.
+by the WIR lexer and do not alter core-version-3 semantics.

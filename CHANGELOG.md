@@ -109,6 +109,10 @@ surface-language contract stabilises.
   one block are rejected. Unknown local and parameter lookups are
   errors instead of silent `i32`. Temps emit as `%.tN` so a parameter
   named `t0` cannot collide.
+- Live contract documents no longer describe the self-hosted compiler as
+  WIR core version 2 or 1; the language reference no longer contradicts
+  itself about decimal float literals and `interp`'s result type. Only
+  the frozen bootstrap boundary still names core version 2.
 
 ### Added
 

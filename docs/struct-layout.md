@@ -1,6 +1,6 @@
 # Struct layout and compatibility ABI
 
-Surface `(struct ...)` declarations lower to WIR core version 2 functions. The
+Surface `(struct ...)` declarations lower to WIR core version 3 functions. The
 canonical LLM-facing API is documented in [Semantic structs](semantic-structs.md);
 this document defines the generated storage and call ABI retained for low-level
 compatibility.
@@ -123,9 +123,10 @@ reorders fields into declaration order:
   ...)
 ```
 
-Both paths use the same validated layout and generated WIR-v2 implementation.
-The compatibility ABI may be removed only through an explicit future surface
-compatibility policy; WIR core version 2 is unchanged by semantic structs.
+Both paths use the same validated layout and generated WIR core-version-3
+implementation. The compatibility ABI may be removed only through an explicit
+future surface compatibility policy; WIR core version 3 is unchanged by semantic
+structs.
 
 ## Where these rules should live
 

@@ -520,12 +520,18 @@ String literals and expressions of type `i32`, `i64`, `bool`, or `ptr`
 are admitted. Integers print as decimal without leading zeros. Booleans
 print as `true` or `false`. A text pointer is copied as a C string.
 Floating values, `void`, `null`, and unknown types are rejected. The
-result is `ptr` until a `String` type exists. There is no printf-style
-format string and no interpolation inside `"..."`.
+result is a `ptr` text pointer. It is not the owned `String` of
+`stdlib/string.weave`; wrap it with `string_from_text` when an owned
+buffer is wanted. There is no printf-style format string and no
+interpolation inside `"..."`.
 
-Floating constants currently use integer literal tokens and lower through an
-integer-to-floating conversion. Decimal literal syntax is not yet part of the
-stable surface contract.
+Decimal floating literals are part of the surface contract. The admitted
+spelling is `-? DIGIT+ '.' DIGIT+`: a fractional part is accepted only when `.`
+is followed by at least one digit, so `1.5`, `-0.25`, and `2.0` are literals
+while `1.` and `.5` are not. A decimal literal is `f64` and keeps its exact
+source spelling through WIR core version 3, so no integer-to-floating
+conversion is involved. Exponent notation such as `1e9` or `1.5e-3` is not
+admitted.
 
 Canonical operators occupy Lisp head position:
 
@@ -673,6 +679,6 @@ The following are not current surface contracts:
 - implicit conversion from arbitrary `ptr` to a nominal struct;
 - aggregate-valued struct fields;
 - a separate quantum source format;
-- arbitrary decimal floating literals;
+- exponent notation in decimal floating literals, such as `1e9`;
 - private final-compiler WIR forms added without a coordinated version transition;
 - the removed implicit `weavec input.wir output.ll` backend command.

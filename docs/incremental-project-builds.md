@@ -161,6 +161,6 @@ macOS, extracted release packages, and the stage-2 deep self-host compiler.
 ## Compatibility boundary
 
 Incremental project builds do not change surface Weave syntax, `weave.project`
-format version 1, WIR core version 2, module interface hashing, generated symbol
+format version 1, WIR core version 3, module interface hashing, generated symbol
 names, the struct ABI, or existing diagnostic and project-protocol formats. The
 cache report is a separate additive protocol.

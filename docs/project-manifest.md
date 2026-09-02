@@ -278,7 +278,7 @@ and diagnostics JSON integration are implemented by #119.
 A valid selected project currently ends at the explicit
 `project.sources.pending` boundary. Issue #120 replaces that boundary with
 deterministic source membership. No current project-selection behavior changes
-surface Weave, module semantics, WIR core version 2, runtime packaging, or
+surface Weave, module semantics, WIR core version 3, runtime packaging, or
 existing explicit source-list builds.
 
 Format 1 contains no dependency declarations, lockfile, package registry,

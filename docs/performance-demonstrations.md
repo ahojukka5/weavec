@@ -1,7 +1,7 @@
 # Performance demonstrations
 
 Each fixture under `test/performance/wir/` is a small module in the current
-self-hosted core-version-1 WIR shape. Its pre-optimization LLVM output is checked
+self-hosted core-version-3 WIR shape. Its pre-optimization LLVM output is checked
 into `test/performance/expected-llvm/`. The suite is a deterministic backend
 regression and code-review corpus, not a runtime benchmark leaderboard.
 
