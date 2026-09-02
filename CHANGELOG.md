@@ -14,6 +14,12 @@ surface-language contract stabilises.
   lowering path. Production lowering is `lower_program_emit.weave`
   plus `lower_program_validate.weave`.
 
+### Fixed
+
+- `(qmeasure QUBIT NAME)` lowers again. The head was not reserved, so
+  direct-call resolution claimed it before the quantum dispatch and
+  reported `unresolved function qmeasure`.
+
 ### Changed
 
 - Compiler `.wir` and `.ll` emission uses a grow-once 64KiB host
