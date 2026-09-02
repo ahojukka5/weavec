@@ -29,13 +29,16 @@
       (let in_fd i32 (call_i32 open (param_get input_path) (const_i32 0) (const_i32 0)))
       (if
         (condition (lt_i32 (local_get in_fd) (const_i32 0)))
-        (then (do (return (const_i32 1))))
+        (then (do
+          (call_void cli_error_unreadable (param_get input_path) (const_i32 0))
+          (return (const_i32 1))))
         (else (do)))
       ; Get file size
       (let file_size i64 (call_i64 lseek (local_get in_fd) (const_i64 0) (const_i32 2)))
       (if
         (condition (lt_i64 (local_get file_size) (const_i64 0)))
         (then (do
+          (call_void cli_error_unreadable (param_get input_path) (const_i32 0))
           (call_i32 close (local_get in_fd))
           (return (const_i32 1))))
         (else (do)))
@@ -45,6 +48,7 @@
       (if
         (condition (eq_ptr (local_get source) (const_null)))
         (then (do
+          (call_void cli_error_out_of_memory)
           (call_i32 close (local_get in_fd))
           (return (const_i32 1))))
         (else (do)))
@@ -53,6 +57,7 @@
       (if
         (condition (ne_i64 (local_get bytes_read) (local_get file_size)))
         (then (do
+          (call_void cli_error_unreadable (param_get input_path) (const_i32 0))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
@@ -62,22 +67,29 @@
       (if
         (condition (eq_ptr (local_get tokens) (const_null)))
         (then (do
+          (call_void cli_error_out_of_memory)
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
-      (let tree ptr (call_ptr parse (local_get tokens)))
+      (let perr ptr (call_ptr malloc (call_i64 parse_error_size)))
+      (let tree ptr (call_ptr parse_recorded (local_get tokens) (local_get perr)))
       (if
         (condition (eq_ptr (local_get tree) (const_null)))
         (then (do
+          (call_void cli_error_parse
+            (param_get input_path) (local_get source) (local_get perr) (const_i32 0))
+          (call_void free (local_get perr))
           (call_void tokens_free (local_get tokens))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
+      (call_void free (local_get perr))
       ; Open output via the portability shim; see runtime/portable.c.
       (let out_fd i32 (call_i32 weave_rt_open_write_trunc (param_get output_path) (const_i32 420)))
       (if
         (condition (lt_i32 (local_get out_fd) (const_i32 0)))
         (then (do
+          (call_void cli_error_unwritable (param_get output_path))
           (call_void tree_free (local_get tree))
           (call_void tokens_free (local_get tokens))
           (call_void free (local_get source))
@@ -109,12 +121,15 @@
       (let in_fd i32 (call_i32 open (param_get input_path) (const_i32 0) (const_i32 0)))
       (if
         (condition (lt_i32 (local_get in_fd) (const_i32 0)))
-        (then (do (return (const_i32 1))))
+        (then (do
+          (call_void cli_error_unreadable (param_get input_path) (const_i32 0))
+          (return (const_i32 1))))
         (else (do)))
       (let file_size i64 (call_i64 lseek (local_get in_fd) (const_i64 0) (const_i32 2)))
       (if
         (condition (lt_i64 (local_get file_size) (const_i64 0)))
         (then (do
+          (call_void cli_error_unreadable (param_get input_path) (const_i32 0))
           (call_i32 close (local_get in_fd))
           (return (const_i32 1))))
         (else (do)))
@@ -123,6 +138,7 @@
       (if
         (condition (eq_ptr (local_get source) (const_null)))
         (then (do
+          (call_void cli_error_out_of_memory)
           (call_i32 close (local_get in_fd))
           (return (const_i32 1))))
         (else (do)))
@@ -131,6 +147,7 @@
       (if
         (condition (ne_i64 (local_get bytes_read) (local_get file_size)))
         (then (do
+          (call_void cli_error_unreadable (param_get input_path) (const_i32 0))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
@@ -139,17 +156,23 @@
       (if
         (condition (eq_ptr (local_get tokens) (const_null)))
         (then (do
+          (call_void cli_error_out_of_memory)
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
-      (let tree ptr (call_ptr parse (local_get tokens)))
+      (let perr ptr (call_ptr malloc (call_i64 parse_error_size)))
+      (let tree ptr (call_ptr parse_recorded (local_get tokens) (local_get perr)))
       (if
         (condition (eq_ptr (local_get tree) (const_null)))
         (then (do
+          (call_void cli_error_parse
+            (param_get input_path) (local_get source) (local_get perr) (const_i32 0))
+          (call_void free (local_get perr))
           (call_void tokens_free (local_get tokens))
           (call_void free (local_get source))
           (return (const_i32 1))))
         (else (do)))
+      (call_void free (local_get perr))
       (if
         (condition (eq_i32 (param_get pass_kind) (const_i32 0)))
         (then (do
@@ -195,12 +218,16 @@
           (set scan_idx (add_i64 (local_get scan_idx) (const_i64 1)))))
       (if
         (condition (le_i64 (cast_i32_to_i64 (param_get argc)) (param_get first_input_index)))
-        (then (do (return (const_i32 1))))
+        (then (do
+          (call_void cli_error_arguments (const_string_ptr "--frontend"))
+          (return (const_i32 1))))
         (else (do)))
       (let out_fd i32 (call_i32 weave_rt_open_write_trunc (param_get output_path) (const_i32 420)))
       (if
         (condition (lt_i32 (local_get out_fd) (const_i32 0)))
-        (then (do (return (const_i32 1))))
+        (then (do
+          (call_void cli_error_unwritable (param_get output_path))
+          (return (const_i32 1))))
         (else (do)))
       (call_i32 fchmod (local_get out_fd) (const_i32 420))
       (call_void emit_wir_header (local_get out_fd))
@@ -319,7 +346,9 @@
     (do
       (if
         (condition (lt_i32 (param_get argc) (const_i32 3)))
-        (then (do (return (const_i32 1))))
+        (then (do
+          (call_void cli_error_arguments (const_string_ptr "--frontend"))
+          (return (const_i32 1))))
         (else (do)))
       (let output_path ptr (load_ptr (ptr_add (param_get argv) (const_i64 8))))
       (return (call_i32 lower_sources
