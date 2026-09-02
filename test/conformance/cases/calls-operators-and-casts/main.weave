@@ -1,0 +1,40 @@
+; Canonical calls, operator heads, explicit casts, and contextual literals.
+(program
+  (name "calls-operators-and-casts")
+  (version "0.1")
+
+  (fn add-two ((left i32) (right i32)) i32
+    (return (+ left right)))
+
+  (fn classify ((value i32)) i32
+    (when (< value 0) (return -1))
+    (when (> value 0) (return 1))
+    (return 0))
+
+  (entry main () i32
+    (write_stdout "sum=")
+    (write_u32_decimal (add-two 40 2))
+    (write_stdout "\nproduct=")
+    (write_u32_decimal (* 6 7))
+    (write_stdout "\ndifference=")
+    (write_u32_decimal (- 50 8))
+    (write_stdout "\nquotient=")
+    (write_u32_decimal (/ 84 2))
+    (write_stdout "\nremainder=")
+    (write_u32_decimal (mod 44 5))
+    (write_stdout "\nbits=")
+    (write_u32_decimal (bit-or (bit-and 12 10) (shift-left 1 5)))
+    (write_stdout "\nclassify=")
+    (write_u32_decimal (+ (classify 7) 1))
+    (write_u32_decimal (+ (classify -7) 1))
+    (write_u32_decimal (+ (classify 0) 1))
+    (write_stdout "\nbool=")
+    (let ready bool (and true (not false)))
+    (let same bool (or ready (= 1 2)))
+    (when (and ready same) (write_stdout "true"))
+    (write_stdout "\nwidened=")
+    (let wide i64 (cast i64 21))
+    (let narrowed i32 (cast i32 (* wide 2)))
+    (write_u32_decimal narrowed)
+    (write_stdout "\n")
+    (return 0)))

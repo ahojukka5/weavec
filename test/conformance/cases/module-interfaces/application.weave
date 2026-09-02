@@ -1,0 +1,7 @@
+; An imported binding is available only after an explicit import clause.
+(module application
+  (import arithmetic (Counter add-two bump))
+
+  (entry main () i32
+    (let counter Counter (new Counter (value 39)))
+    (return (add-two (bump counter) 2))))

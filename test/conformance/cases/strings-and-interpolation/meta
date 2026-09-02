@@ -1,0 +1,7 @@
+# String literal forms and (interp PIECE...) formatting.
+mode: run
+area: strings
+stdlib: io.weave
+sources: main.weave
+exit: 0
+canonical: yes

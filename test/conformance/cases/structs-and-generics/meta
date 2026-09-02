@@ -1,0 +1,8 @@
+# Nominal structs, named constructors, field get/set, and explicit generics.
+# canonical is no because the current formatter drops (type-params ...).
+mode: run
+area: data-types
+stdlib: io.weave
+sources: main.weave
+exit: 0
+canonical: no

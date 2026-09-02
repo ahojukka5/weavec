@@ -1,0 +1,7 @@
+# when, compact if, expression if, and while.
+mode: run
+area: control-flow
+stdlib: io.weave
+sources: main.weave
+exit: 0
+canonical: yes

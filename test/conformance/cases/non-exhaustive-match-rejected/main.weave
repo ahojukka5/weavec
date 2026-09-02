@@ -1,0 +1,10 @@
+; A match without a wildcard must name every constructor; there is no silent
+; default arm.
+(program
+  (name "non-exhaustive-match-rejected")
+  (version "0.1")
+  (enum Shape (variant Circle i32) (variant Square i32))
+
+  (entry main () i32
+    (let shape Shape (variant Shape Circle 1))
+    (return (match Shape shape (case Circle radius radius)))))

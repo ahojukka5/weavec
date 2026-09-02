@@ -1,0 +1,7 @@
+# The Square constructor is missing and no wildcard is present.
+mode: compile-fail
+area: data-types
+sources: main.weave
+diagnostic: frontend.match.invalid
+exit: 10
+canonical: yes

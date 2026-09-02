@@ -1,0 +1,11 @@
+; A body that can reach its end without returning is rejected; `when` falls
+; through, so it never satisfies the returning rule.
+(program
+  (name "explicit-return-required")
+  (version "0.1")
+
+  (fn maybe ((flag bool)) i32
+    (when flag (return 1)))
+
+  (entry main () i32
+    (return (maybe true))))

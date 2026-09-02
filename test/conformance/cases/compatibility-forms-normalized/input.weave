@@ -1,0 +1,7 @@
+; leading comment
+(program(name "compatibility-forms")(version "0.1")
+(fn add-two(params(left i32)(right i32))(returns i32)(do(return(op add (param_get left)(param_get right)))))
+(fn guard(params(value i32))(returns i32)(do
+(if(condition(op less-than (param_get value)(const_i32 0)))(then(do(return(const_i32 0))))(else(do)))
+(return(param_get value))))
+(entry main(params)(returns i32)(do(let total i32(call add-two(const_i32 40)(const_i32 2)))(return(call guard(local_get total))))))

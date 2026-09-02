@@ -1,0 +1,7 @@
+# Canonical calls, operator heads, casts, and contextual literals.
+mode: run
+area: control-flow
+stdlib: io.weave
+sources: main.weave
+exit: 0
+canonical: yes

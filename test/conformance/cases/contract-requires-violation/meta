@@ -1,0 +1,7 @@
+# A failed requires reports "contract failed: requires" and exits 1.
+mode: run
+area: contracts
+stdlib: io.weave
+sources: main.weave
+exit: 1
+canonical: yes

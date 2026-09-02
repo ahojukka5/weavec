@@ -1,0 +1,7 @@
+# Satisfied requires/ensures and accepted effect declarations.
+mode: run
+area: contracts
+stdlib: io.weave
+sources: main.weave
+exit: 0
+canonical: yes

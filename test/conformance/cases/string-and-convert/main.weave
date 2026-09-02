@@ -1,0 +1,30 @@
+; String values, byte access through Option, and the convert/format helpers
+; that turn primitives into text and text back into Result values.
+(program
+  (name "string-and-convert")
+  (version "0.1")
+
+  (entry main () i32
+    (let text String (format_i32 42))
+    (write_stdout "len=")
+    (write_u32_decimal (string_len text))
+    (let first (type-app Option i32) (string_get text 0))
+    (write_stdout "\nfirst-byte=")
+    (write_u32_decimal (option_unwrap_or (type-args i32) first 0))
+    (let past (type-app Option i32) (string_get text 99))
+    (write_stdout "\npast-end-is-some=")
+    (let present bool (option_is_some (type-args i32) past))
+    (when (not present) (write_stdout "false"))
+    (let parsed (type-app Result i32 i32) (parse_i32 "42"))
+    (write_stdout "\nparsed=")
+
+    (let value i32
+      (match Result parsed (case Ok number number) (case Err code 0)))
+
+    (write_u32_decimal value)
+    (let rejected (type-app Result i32 i32) (parse_i32 "x"))
+    (write_stdout "\nrejected-is-err=")
+    (let failed bool (result_is_err (type-args i32 i32) rejected))
+    (when failed (write_stdout "true"))
+    (write_stdout "\n")
+    (return 0)))

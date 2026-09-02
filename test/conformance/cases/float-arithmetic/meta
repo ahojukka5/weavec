@@ -1,0 +1,8 @@
+# Decimal literal typing, f32/f64 casts, and float comparison.
+# canonical is no because the current formatter rewrites decimal literals to 0.
+mode: run
+area: control-flow
+stdlib: io.weave
+sources: main.weave
+exit: 0
+canonical: no

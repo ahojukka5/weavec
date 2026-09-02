@@ -1,0 +1,7 @@
+# Vec growth, indexing, Slice length, and the Option/bool bounds contract.
+mode: run
+area: stdlib
+stdlib: memory.weave option.weave vec.weave io.weave
+sources: main.weave
+exit: 0
+canonical: yes

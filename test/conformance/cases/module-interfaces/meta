@@ -1,0 +1,8 @@
+# Module roots, exports, imports, and a module-owned nominal type.
+# Module roots and legacy program roots cannot be mixed, so this case links no
+# standard-library module and reports its result through the process exit.
+mode: run
+area: functions-modules
+sources: arithmetic.weave application.weave
+exit: 42
+canonical: yes

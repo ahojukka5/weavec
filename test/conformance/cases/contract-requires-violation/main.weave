@@ -1,0 +1,14 @@
+; A violated precondition terminates the program through the contract runtime
+; with a stable message on stderr, after the earlier output is already written.
+(program
+  (name "contract-requires-violation")
+  (version "0.1")
+
+  (fn clamp-low ((value i32)) i32
+    (requires (>= value 0))
+
+    (return value))
+
+  (entry main () i32
+    (write_stdout "before\n")
+    (return (clamp-low -1))))

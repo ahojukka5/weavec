@@ -1,0 +1,42 @@
+; Option and Result are ordinary generic enums from the standard library, and
+; `try` is the single propagation form for a function returning Result.
+(program
+  (name "option-result-and-try")
+  (version "0.1")
+
+  (fn halve ((value i32)) (type-app Result i32 i32)
+    (when (!= (mod value 2) 0)
+      (return (variant Result (type-args i32 i32) Err 1)))
+
+    (return (variant Result (type-args i32 i32) Ok (/ value 2))))
+
+  (fn quarter ((value i32)) (type-app Result i32 i32)
+    (let half i32 (try (halve value)))
+    (let quart i32 (try (halve half)))
+    (return (variant Result (type-args i32 i32) Ok quart)))
+
+  (fn report ((value i32)) void
+    (let outcome (type-app Result i32 i32) (quarter value))
+    (write_u32_decimal value)
+    (write_stdout " -> ")
+
+    (let text ptr
+      (match Result outcome (case Ok quart "ok") (case Err code "err")))
+
+    (write_stdout text)
+    (write_stdout "\n")
+    (return))
+
+  (entry main () i32
+    (report 8)
+    (report 6)
+    (report 7)
+    (let present (type-app Option i32) (variant Option (type-args i32) Some 3))
+    (let absent (type-app Option i32) (variant Option (type-args i32) None))
+    (let here i32 (match Option present (case None 0) (case Some value value)))
+    (let gone i32 (match Option absent (case None 0) (case Some value value)))
+    (write_stdout "option=")
+    (write_u32_decimal here)
+    (write_u32_decimal gone)
+    (write_stdout "\n")
+    (return 0)))

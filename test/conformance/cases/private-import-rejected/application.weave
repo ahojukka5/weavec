@@ -1,0 +1,6 @@
+; `helper` is declared but not exported, so it cannot be imported.
+(module application
+  (import arithmetic (helper))
+
+  (entry main () i32
+    (return (helper 41))))

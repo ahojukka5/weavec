@@ -1,0 +1,12 @@
+; `result` names the return value and is available only inside ensures.
+(program
+  (name "result-in-requires-rejected")
+  (version "0.1")
+
+  (fn bad ((value i32)) i32
+    (requires (>= result 0))
+
+    (return value))
+
+  (entry main () i32
+    (return (bad 1))))

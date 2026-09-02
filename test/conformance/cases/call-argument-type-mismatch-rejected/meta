@@ -1,0 +1,7 @@
+# An i64 local does not satisfy an i32 parameter.
+mode: compile-fail
+area: functions-modules
+sources: main.weave
+diagnostic: frontend.call.argument-type-mismatch
+exit: 10
+canonical: yes

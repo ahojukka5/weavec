@@ -1,0 +1,48 @@
+; when, compact if, expression-valued if, and while.
+;
+; A counted `(for (range ...) ...)` case is deliberately absent: the current
+; compiler lowers `for` to a malformed `while` and the backend then rejects it,
+; so there is no verified public behavior to record yet.
+(program
+  (name "control-flow-statements")
+  (version "0.1")
+
+  (fn smaller ((left i32) (right i32)) i32
+    (if (<= left right) (return left) (return right)))
+
+  (fn triangle ((limit i32)) i32
+    (let total i32 0)
+    (let index i32 0)
+    (while (< index limit) (set index (+ index 1)) (set total (+ total index)))
+    (return total))
+
+  (fn even-sum ((limit i32)) i32
+    (let total i32 0)
+    (let index i32 0)
+
+    (while (< index limit)
+      (set index (+ index 1))
+      (when (= (mod index 2) 0) (set total (+ total index))))
+
+    (return total))
+
+  (fn guarded ((value i32)) i32
+    (when (< value 0) (return 0))
+    (return value))
+
+  (entry main () i32
+    (write_stdout "smaller=")
+    (write_u32_decimal (smaller 40 2))
+    (write_stdout "\ntriangle=")
+    (write_u32_decimal (triangle 8))
+    (write_stdout "\neven-sum=")
+    (write_u32_decimal (even-sum 10))
+    (write_stdout "\nguarded=")
+    (write_u32_decimal (guarded 42))
+    (write_u32_decimal (guarded -1))
+    (write_stdout "\nexpression-if=")
+    (let flag bool true)
+    (let chosen i32 (if flag 42 0))
+    (write_u32_decimal chosen)
+    (write_stdout "\n")
+    (return 0)))

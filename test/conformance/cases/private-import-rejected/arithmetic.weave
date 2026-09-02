@@ -1,0 +1,8 @@
+(module arithmetic
+  (export add-two)
+
+  (fn add-two ((left i32) (right i32)) i32
+    (return (+ left right)))
+
+  (fn helper ((value i32)) i32
+    (return (+ value 1))))

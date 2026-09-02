@@ -1,0 +1,7 @@
+# A declaration that is not exported stays private to its module.
+mode: compile-fail
+area: functions-modules
+sources: arithmetic.weave application.weave
+diagnostic: frontend.module.import-private-symbol
+exit: 10
+canonical: yes

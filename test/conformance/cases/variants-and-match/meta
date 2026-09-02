@@ -1,0 +1,7 @@
+# Enum declaration, variant construction, exhaustive match, and wildcard.
+mode: run
+area: data-types
+stdlib: io.weave
+sources: main.weave
+exit: 0
+canonical: yes

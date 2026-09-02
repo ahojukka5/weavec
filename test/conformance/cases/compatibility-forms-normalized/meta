@@ -1,0 +1,7 @@
+# Accepted compatibility input normalizes to the canonical form: head-position
+# calls, compact operator heads, compact signatures, an unwrapped body, `when`
+# for a no-else guard, and bare operand identifiers.
+mode: format
+area: formatting
+sources: input.weave
+canonical: no

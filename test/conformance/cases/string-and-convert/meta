@@ -1,0 +1,7 @@
+# String length and byte access, format_i32, and parse_i32 Result behavior.
+mode: run
+area: stdlib
+stdlib: memory.weave option.weave result.weave parse.weave io.weave bytes.weave string.weave convert.weave
+sources: main.weave
+exit: 0
+canonical: yes

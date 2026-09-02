@@ -1,0 +1,7 @@
+# A struct value is not an admitted interpolation piece.
+mode: compile-fail
+area: strings
+sources: main.weave
+diagnostic: frontend.interp.invalid
+exit: 10
+canonical: yes

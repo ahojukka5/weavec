@@ -1,0 +1,12 @@
+; A named struct constructor must name exactly the declared fields.
+(program
+  (name "unknown-constructor-field-rejected")
+  (version "0.1")
+
+  (struct Point
+    (field x i32)
+    (field y i32))
+
+  (entry main () i32
+    (let point Point (new Point (x 1) (z 2)))
+    (return (field-get point x))))
