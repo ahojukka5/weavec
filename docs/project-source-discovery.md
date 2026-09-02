@@ -5,7 +5,7 @@ Issues [#120](https://github.com/ahojukka5/weavec/issues/120) and
 `weave.project` manifest into a deterministic set of compiler-declared modules,
 a validated local dependency graph, and a complete project build. The project
 layer does not change surface Weave, explicit-module semantics, or WIR core
-version 2.
+version 3.
 
 ## Admitted sources
 

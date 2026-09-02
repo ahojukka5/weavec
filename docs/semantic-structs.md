@@ -2,7 +2,7 @@
 
 Weave structs are nominal surface types with a deterministic, compiler-owned
 layout. Source code uses semantic construction and field operations; generated
-constructor and accessor names remain a WIR-v2 compatibility detail.
+constructor and accessor names remain a WIR core-version-3 compatibility detail.
 
 The feature remains experimental while its broader surface contract stabilizes.
 The compiler semantics, type checking, diagnostics, native behavior, module
@@ -31,7 +31,7 @@ return declarations may use the struct name directly:
     (return value)))
 ```
 
-Nominal struct types lower physically to WIR `ptr`; WIR core version 2 is not
+Nominal struct types lower physically to WIR `ptr`; WIR core version 3 is not
 extended.
 
 ## Module interfaces

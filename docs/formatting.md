@@ -212,6 +212,6 @@ to the capability registry. Formatting does not promote a feature's stability.
 
 The formatter is linked into the final compiler runtime and traverses the same AST
 node API as frontend lowering. It does not use regular expressions, invoke an
-external formatter, change WIR core version 2, or move language authority into
+external formatter, change WIR core version 3, or move language authority into
 Jacquard. The capability registry marks `canonical-formatting` as stable and lists
 the public `fmt` command so tooling can discover it from the compiler binary.

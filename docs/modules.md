@@ -8,7 +8,7 @@ nominal types, and module-scoped identities.
 The completed issue #53 implementation series established the source interface,
 visibility model, deterministic private-symbol naming, module-scoped nominal
 types, structured diagnostics, and semantic-index representation without
-changing WIR core version 2. Project-system issue #122 extends those interfaces
+changing WIR core version 3. Project-system issue #122 extends those interfaces
 to public nominal struct types.
 
 ## Canonical roots

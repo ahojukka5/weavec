@@ -89,8 +89,8 @@ An explicit conversion names only its target type:
 (cast i32 wide-value)
 ```
 
-The compiler determines the source type and emits the corresponding WIR v2 cast.
-Only conversions already admitted by WIR are accepted:
+The compiler determines the source type and emits the corresponding WIR core
+version 3 cast. Only conversions already admitted by WIR are accepted:
 
 - `i64` to `i32`;
 - `i32` to `i64`, `f32`, or `f64`;
@@ -441,10 +441,10 @@ contain `result` at any nesting depth:
     (cast i64 result)))
 ```
 
-The compiler resolves and type-checks the canonical tree before emitting ordinary
-WIR v2 forms. A call argument or operator operand whose known type disagrees with
-the function return type is rejected; no conversion is inferred from the contract
-context. `result` remains invalid in `requires`.
+The compiler resolves and type-checks the canonical tree before emitting
+ordinary WIR core version 3 forms. A call argument or operator operand whose
+known type disagrees with the function return type is rejected; no conversion is
+inferred from the contract context. `result` remains invalid in `requires`.
 
 ## Implementation boundary
 
@@ -456,5 +456,5 @@ choose language semantics.
 
 Canonical operator, cast, contract-expression, and struct selection is
 implemented in dedicated self-hosted frontend modules. They consume compiler-owned
-semantic facts and emit only admitted WIR core-version-2 forms; they add no private
+semantic facts and emit only admitted WIR core-version-3 forms; they add no private
 WIR dialect or target-runtime semantic state.

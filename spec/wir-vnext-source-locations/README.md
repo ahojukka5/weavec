@@ -2,7 +2,7 @@
 
 These fixtures exercise the source-location proposal in
 `docs/wir-next-source-locations.md`. They are specification examples, not inputs
-accepted by the current WIR v2 backend.
+accepted by the current WIR core version 3 backend.
 
 The valid fixtures cover:
 

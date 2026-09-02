@@ -222,9 +222,9 @@ an exact or uniquely inferred span into their own source maps, but should retain
 `span_origin` in the resulting diagnostic.
 
 Diagnostics builds propagate exact source locations through comment-only WIR
-metadata. The comments are ignored by ordinary WIR consumers and do not alter the
-WIR v2 semantic contract. The unique-token inference remains a compatibility
-fallback for direct or older WIR without source-map comments.
+metadata. The comments are ignored by ordinary WIR consumers and do not alter
+the WIR core version 3 semantic contract. The unique-token inference remains a
+compatibility fallback for direct or older WIR without source-map comments.
 
 ## Current exact coverage
 

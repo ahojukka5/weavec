@@ -168,7 +168,7 @@ Failed frontend compilation publishes neither partial WIR nor a native output.
 
 ## WIR compatibility boundary
 
-This feature does not change WIR core version 2. Nominal values still lower
+This feature does not change WIR core version 3. Nominal values still lower
 physically to `ptr`. Generated constructor and accessor functions use the existing
 deterministic defining-module name:
 

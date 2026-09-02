@@ -177,7 +177,7 @@ completion rule to incremental compilation.
 ## Compatibility boundary
 
 Project facts and incremental compilation do not change surface syntax,
-`weave.project` format version 1, WIR core version 2, generated symbol names, the
+`weave.project` format version 1, WIR core version 3, generated symbol names, the
 struct ABI, or existing diagnostic codes. Project context remains additive in
 permissive version-one host protocols, while incremental reuse publishes the
 separate `weavec-project-module-cache-v1` document described in
