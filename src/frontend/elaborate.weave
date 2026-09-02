@@ -451,6 +451,15 @@
                 (const_i32 0))))))
         (then (do (return (const_i32 1))))
         (else (do)))
+      ; emit_node tests for a direct call before the quantum heads, so an
+      ; unreserved `qmeasure` resolves as an unknown callable instead of a
+      ; measurement.
+      (if
+        (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source)
+          (param_get node) (const_string_ptr "qmeasure") (const_i64 8))
+          (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
       ; `comment` is a reserved annotation head. Keeping it here excludes it
       ; from direct-call resolution and rejects a function declared with that
       ; name, so a comment can never become a call site.
