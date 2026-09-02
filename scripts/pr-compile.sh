@@ -24,6 +24,9 @@ bash "$ROOT/test/cli-diagnostics/test.sh"
 log 'parse diagnostics'
 bash "$ROOT/test/parse-diagnostics/test.sh"
 
+log 'surface conformance corpus'
+bash "$ROOT/test/conformance/run.sh"
+
 log 'diagnostic repairs'
 bash "$ROOT/test/diagnostic-repairs/test.sh"
 

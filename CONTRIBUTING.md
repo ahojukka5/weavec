@@ -246,8 +246,9 @@ portable across supported hosts and covered by the complete platform matrix.
 Pull-request CI builds the compiler and runs the fast behavioral subset on
 GitHub-hosted runners. The required PR checks are commit-message lint, the
 file-based contract smoke (`scripts/pr-check.sh`), and the compile gate
-(`scripts/pr-compile.sh`: `build.sh`, `test.sh`, diagnostic repairs, formatter,
-and Option/Result suites). They do not occupy the self-hosted ladder fleet.
+(`scripts/pr-compile.sh`: `build.sh`, `test.sh`, the surface conformance
+corpus, diagnostic repairs, formatter, and Option/Result suites). They do not
+occupy the self-hosted ladder fleet.
 
 A pull request is ready for review when those PR checks for the exact current
 head have completed successfully.
