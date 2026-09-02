@@ -11,6 +11,11 @@
 ;
 ; Tree structure uses first_child/next_sibling links:
 ;   (a b c) becomes: LIST -> first_child=a, a->next_sibling=b, b->next_sibling=c
+;
+; Failures are recorded in a caller-owned parse-error record so a parse failure
+; carries a byte offset and the token the parser required. The parser never
+; writes diagnostics itself: reporting belongs to the command layer, which owns
+; the input path and the human stderr format.
 
 (program
   (name "parser.parser")
@@ -61,14 +66,115 @@
     (return (load_i64 (ptr_add (param_get tokens) (const_i64 32))))))
 
 ; =============================================================================
+; Parse-error record
+; =============================================================================
+;
+; A caller-owned block of parse_error_size bytes:
+;   +0   i64  byte offset in source where the parser stopped
+;   +8   i64  expected-token code (parse_expect_*)
+;   +16  i64  token kind found at that offset (token_* value)
+;
+; Only the first failure is recorded. A nested failure propagates outward
+; unchanged so the innermost open list keeps the reported position. Every
+; accessor tolerates a null record, which is how the compatibility `parse`
+; entry point discards positions it does not need.
+
+; Byte size of one parse-error record.
+(fn parse_error_size
+  (params)
+  (returns i64)
+  (do (return (const_i64 24))))
+
+; Expected-token code: no failure recorded.
+(fn parse_expect_none
+  (params)
+  (returns i64)
+  (do (return (const_i64 0))))
+
+; Expected-token code: an S-expression (list or atom) was required.
+(fn parse_expect_expression
+  (params)
+  (returns i64)
+  (do (return (const_i64 1))))
+
+; Expected-token code: a closing parenthesis was required for an open list.
+(fn parse_expect_rparen
+  (params)
+  (returns i64)
+  (do (return (const_i64 2))))
+
+; Reset a record to "no failure".
+(fn parse_error_clear
+  (params (err ptr))
+  (returns void)
+  (do
+    (if
+      (condition (eq_ptr (param_get err) (const_null)))
+      (then (do (return_void)))
+      (else (do)))
+    (store_i64 (param_get err) (const_i64 0))
+    (store_i64 (ptr_add (param_get err) (const_i64 8)) (const_i64 0))
+    (store_i64 (ptr_add (param_get err) (const_i64 16)) (const_i64 0))
+    (return_void)))
+
+; Record one parse failure. Callers report it; the parser never prints.
+(fn parse_error_set
+  (params (err ptr) (offset i64) (expected i64) (found i32))
+  (returns void)
+  (do
+    (if
+      (condition (eq_ptr (param_get err) (const_null)))
+      (then (do (return_void)))
+      (else (do)))
+    (store_i64 (param_get err) (param_get offset))
+    (store_i64 (ptr_add (param_get err) (const_i64 8)) (param_get expected))
+    (store_i64 (ptr_add (param_get err) (const_i64 16))
+      (cast_i32_to_i64 (param_get found)))
+    (return_void)))
+
+; Byte offset where the parser stopped.
+(fn parse_error_offset
+  (params (err ptr))
+  (returns i64)
+  (do
+    (if
+      (condition (eq_ptr (param_get err) (const_null)))
+      (then (do (return (const_i64 0))))
+      (else (do)))
+    (return (load_i64 (param_get err)))))
+
+; Expected-token code for the recorded failure.
+(fn parse_error_expected
+  (params (err ptr))
+  (returns i64)
+  (do
+    (if
+      (condition (eq_ptr (param_get err) (const_null)))
+      (then (do (return (const_i64 0))))
+      (else (do)))
+    (return (load_i64 (ptr_add (param_get err) (const_i64 8))))))
+
+; Token kind found where the parser stopped.
+(fn parse_error_found
+  (params (err ptr))
+  (returns i32)
+  (do
+    (if
+      (condition (eq_ptr (param_get err) (const_null)))
+      (then (do (return (const_i32 0))))
+      (else (do)))
+    (return (cast_i64_to_i32
+      (load_i64 (ptr_add (param_get err) (const_i64 16)))))))
+
+; =============================================================================
 ; Parser implementation
 ; =============================================================================
 
 ; Parse a single S-expression (list or atom)
 ; Updates token_index_ptr to point to next token
-; Returns: node_index, or -1 on error
+; Returns: node_index, or -1 after recording the failure in err
 (fn parse_sexpr
-  (params (tokens ptr) (tree ptr) (token_index_ptr ptr))
+  (params (tokens ptr) (tree ptr) (token_index_ptr ptr) (err ptr))
   (returns i64)
   (do
     (let token_index i64 (load_i64 (param_get token_index_ptr)))
@@ -77,7 +183,13 @@
     ; Check for EOF
     (if
       (condition (eq_i32 (local_get kind) (call_i32 token_eof)))
-      (then (do (return (const_i64 -1))))
+      (then (do
+        (call_void parse_error_set
+          (param_get err)
+          (call_i64 token_start_at (param_get tokens) (local_get token_index))
+          (call_i64 parse_expect_expression)
+          (local_get kind))
+        (return (const_i64 -1))))
       (else (do)))
 
     ; Check for left paren (list)
@@ -87,20 +199,22 @@
         (return (call_i64 parse_list
           (param_get tokens)
           (param_get tree)
-          (param_get token_index_ptr)))))
+          (param_get token_index_ptr)
+          (param_get err)))))
       (else (do)))
 
     ; Otherwise, parse as atom
     (return (call_i64 parse_atom
       (param_get tokens)
       (param_get tree)
-      (param_get token_index_ptr)))))
+      (param_get token_index_ptr)
+      (param_get err)))))
 
 ; Parse an atom (ident, string, or int)
 ; Updates token_index_ptr to point to next token
-; Returns: node_index
+; Returns: node_index, or -1 after recording an unexpected token in err
 (fn parse_atom
-  (params (tokens ptr) (tree ptr) (token_index_ptr ptr))
+  (params (tokens ptr) (tree ptr) (token_index_ptr ptr) (err ptr))
   (returns i64)
   (do
     (let token_index i64 (load_i64 (param_get token_index_ptr)))
@@ -127,6 +241,19 @@
       (then (do (set node_kind (call_i32 node_int))))
       (else (do)))
 
+    ; A token that is not an atom cannot start an S-expression here. Node kind
+    ; zero is not a tree kind, so refuse instead of appending a malformed node.
+    (if
+      (condition (eq_i32 (local_get node_kind) (const_i32 0)))
+      (then (do
+        (call_void parse_error_set
+          (param_get err)
+          (local_get start)
+          (call_i64 parse_expect_expression)
+          (local_get kind))
+        (return (const_i64 -1))))
+      (else (do)))
+
     ; Create node
     (let node_index i64
       (call_i64 tree_append_node
@@ -145,9 +272,11 @@
 
 ; Parse a list: LPAREN sexpr* RPAREN
 ; Updates token_index_ptr to point to next token after closing paren
-; Returns: node_index
+; Returns: node_index, or -1 after recording the failure in err. An unclosed
+; list reports the offset of its own opening parenthesis, which matches the
+; span the driver's preflight scanner selects for the same source.
 (fn parse_list
-  (params (tokens ptr) (tree ptr) (token_index_ptr ptr))
+  (params (tokens ptr) (tree ptr) (token_index_ptr ptr) (err ptr))
   (returns i64)
   (do
     (let token_index i64 (load_i64 (param_get token_index_ptr)))
@@ -180,7 +309,13 @@
         ; Check for EOF
         (if
           (condition (eq_i32 (local_get kind) (call_i32 token_eof)))
-          (then (do (return (const_i64 -1))))
+          (then (do
+            (call_void parse_error_set
+              (param_get err)
+              (local_get list_start)
+              (call_i64 parse_expect_rparen)
+              (local_get kind))
+            (return (const_i64 -1))))
           (else (do)))
 
         ; Check for closing paren
@@ -209,7 +344,8 @@
           (call_i64 parse_sexpr
             (param_get tokens)
             (param_get tree)
-            (param_get token_index_ptr)))
+            (param_get token_index_ptr)
+            (param_get err)))
 
         ; Check for error
         (if
@@ -230,7 +366,12 @@
 
         (set prev_child (local_get child_node))))
 
-    ; Error: unclosed list
+    ; Error: unclosed list, with no EOF token left to observe.
+    (call_void parse_error_set
+      (param_get err)
+      (local_get list_start)
+      (call_i64 parse_expect_rparen)
+      (call_i32 token_eof))
     (return (const_i64 -1))))
 
 
@@ -238,12 +379,14 @@
 ; Main parse entry point
 ; =============================================================================
 
-; Parse tokens into tree
-; Returns tree with root node at index 0, or null on error
-(fn parse
-  (params (tokens ptr))
+; Parse tokens into a tree, recording the first failure in err.
+; Returns the tree with its root node at index 0, or null after freeing the
+; partially built tree. err may be null when the caller wants no position.
+(fn parse_recorded
+  (params (tokens ptr) (err ptr))
   (returns ptr)
   (do
+    (call_void parse_error_clear (param_get err))
     (let tree ptr (call_ptr tree_new))
     (if
       (condition (eq_ptr (local_get tree) (const_null)))
@@ -252,6 +395,12 @@
 
     ; Allocate token index variable
     (let token_index_ptr ptr (call_ptr malloc (const_i64 8)))
+    (if
+      (condition (eq_ptr (local_get token_index_ptr) (const_null)))
+      (then (do
+        (call_void tree_free (local_get tree))
+        (return (const_null))))
+      (else (do)))
     (store_i64 (local_get token_index_ptr) (const_i64 0))
 
     ; Parse the root S-expression
@@ -259,16 +408,28 @@
       (call_i64 parse_sexpr
         (param_get tokens)
         (local_get tree)
-        (local_get token_index_ptr)))
+        (local_get token_index_ptr)
+        (param_get err)))
 
     ; Free token index
     (call_void free (local_get token_index_ptr))
 
-    ; Check for error
+    ; Check for error. The partial tree is owned here, so release it rather
+    ; than leaking every node appended before the failure.
     (if
       (condition (eq_i64 (local_get result) (const_i64 -1)))
-      (then (do (return (const_null))))
+      (then (do
+        (call_void tree_free (local_get tree))
+        (return (const_null))))
       (else (do)))
 
     (return (local_get tree))))
+
+; Parse tokens into tree, discarding failure positions.
+; Returns tree with root node at index 0, or null on error.
+(fn parse
+  (params (tokens ptr))
+  (returns ptr)
+  (do
+    (return (call_ptr parse_recorded (param_get tokens) (const_null)))))
 )
