@@ -1,0 +1,27 @@
+; A recoverable failure is a value: the program reports it on stderr and
+; terminates through an ordinary exit status rather than aborting.
+(program
+  (name "recoverable-failure-exit")
+  (version "0.1")
+
+  (fn checked ((value i32)) (type-app Result i32 i32)
+    (when (< value 0) (return (variant Result (type-args i32 i32) Err 2)))
+    (return (variant Result (type-args i32 i32) Ok value)))
+
+  (entry main () i32
+    (let good (type-app Result i32 i32) (checked 7))
+
+    (let accepted i32
+      (match Result good (case Ok value value) (case Err code 0)))
+
+    (write_stdout "accepted=")
+    (write_u32_decimal accepted)
+    (write_stdout "\n")
+    (let bad (type-app Result i32 i32) (checked -1))
+    (let status i32 (match Result bad (case Ok value 0) (case Err code code)))
+
+    (when (!= status 0)
+      (write_stderr "error: value out of range\n")
+      (return status))
+
+    (return 0)))

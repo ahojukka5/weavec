@@ -1,0 +1,25 @@
+# Registered surface conformance cases, one directory name per line.
+# The runner and scripts/check_conformance_corpus.py both require this list
+# to match the discovered case directories exactly, in both directions.
+call-argument-type-mismatch-rejected
+calls-operators-and-casts
+compatibility-forms-normalized
+contract-requires-satisfied
+contract-requires-violation
+control-flow-statements
+explicit-return-required
+float-arithmetic
+interp-unsupported-type-rejected
+module-interfaces
+non-exhaustive-match-rejected
+option-result-and-try
+private-import-rejected
+recoverable-failure-exit
+result-in-requires-rejected
+string-and-convert
+strings-and-interpolation
+structs-and-generics
+unknown-constructor-field-rejected
+unsupported-cast-rejected
+variants-and-match
+vec-and-option-bounds

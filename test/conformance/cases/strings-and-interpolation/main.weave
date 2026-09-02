@@ -1,0 +1,22 @@
+; Ordinary, raw, and multiline string literals plus deterministic
+; interpolation over i32, i64, and bool pieces.
+(program
+  (name "strings-and-interpolation")
+  (version "0.1")
+
+  (entry main () i32
+    (let count i32 7)
+    (let total i64 128)
+    (let ready bool true)
+
+    (let message ptr
+      (interp "count=" count " total=" total " ready=" ready "\n"))
+
+    (write_stdout message)
+    (write_stdout "escaped\\nnewline\n")
+    (write_stdout #"raw\no\escape")
+    (write_stdout "\n")
+    (write_stdout """
+multiline
+""")
+    (return 0)))

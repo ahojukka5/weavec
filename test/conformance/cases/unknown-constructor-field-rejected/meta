@@ -1,0 +1,7 @@
+# `z` is not a field of Point.
+mode: compile-fail
+area: data-types
+sources: main.weave
+diagnostic: frontend.struct.constructor.unknown-field
+exit: 10
+canonical: yes

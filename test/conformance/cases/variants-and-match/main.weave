@@ -1,0 +1,29 @@
+; Tagged variants with and without payloads, exhaustive match, and the
+; explicit trailing wildcard.
+(program
+  (name "variants-and-match")
+  (version "0.1")
+  (enum Shape (variant Circle i32) (variant Square i32) (variant Empty))
+
+  (fn area ((shape Shape)) i32
+    (return
+      (match Shape shape
+        (case Circle radius (* 3 (* radius radius)))
+        (case Square side (* side side))
+        (case Empty 0))))
+
+  (fn is-empty ((shape Shape)) i32
+    (return (match Shape shape (case Empty 1) (case _ 0))))
+
+  (entry main () i32
+    (write_stdout "circle=")
+    (write_u32_decimal (area (variant Shape Circle 2)))
+    (write_stdout "\nsquare=")
+    (write_u32_decimal (area (variant Shape Square 5)))
+    (write_stdout "\nempty=")
+    (write_u32_decimal (area (variant Shape Empty)))
+    (write_stdout "\nwildcard=")
+    (write_u32_decimal (is-empty (variant Shape Circle 1)))
+    (write_u32_decimal (is-empty (variant Shape Empty)))
+    (write_stdout "\n")
+    (return 0)))

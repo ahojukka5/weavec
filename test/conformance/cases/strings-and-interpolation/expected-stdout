@@ -1,0 +1,5 @@
+count=7 total=128 ready=true
+escaped\nnewline
+raw\no\escape
+
+multiline

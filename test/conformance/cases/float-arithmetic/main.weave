@@ -1,0 +1,29 @@
+; Decimal literals are f64 by default, an authoritative f32 context lowers the
+; same spelling to f32, and there is no implicit numeric promotion.
+;
+; The sources of this case are deliberately not declared canonical: the current
+; `weavec fmt` rewrites every decimal literal to `0`, so running the formatter
+; over this file would corrupt it.
+(program
+  (name "float-arithmetic")
+  (version "0.1")
+
+  (fn scale ((value f64)) f64
+    (return (* value 1.5)))
+
+  (entry main () i32
+    (let scaled f64 (scale 4.0))
+    (let rounded i32 (cast i32 scaled))
+    (write_stdout "scaled=")
+    (write_u32_decimal rounded)
+    (let narrow f32 0.5)
+    (let widened f64 (cast f64 narrow))
+    (let doubled f64 (+ widened widened))
+    (let whole i32 (cast i32 doubled))
+    (write_stdout "\nwidened=")
+    (write_u32_decimal whole)
+    (write_stdout "\ncompared=")
+    (when (< 1.25 2.5)
+      (write_stdout "true"))
+    (write_stdout "\n")
+    (return 0)))

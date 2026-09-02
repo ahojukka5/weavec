@@ -1,0 +1,11 @@
+; Known argument types must match exactly; integer widths are never promoted.
+(program
+  (name "call-argument-type-mismatch-rejected")
+  (version "0.1")
+
+  (fn consume ((value i32)) i32
+    (return value))
+
+  (entry main () i32
+    (let wide i64 1)
+    (return (consume wide))))

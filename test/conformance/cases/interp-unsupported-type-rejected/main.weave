@@ -1,0 +1,17 @@
+; Interpolation admits i32, i64, bool, and text pieces. A nominal struct value
+; is rejected instead of formatted by an arbitrary rule.
+(program
+  (name "interp-unsupported-type-rejected")
+  (version "0.1")
+
+  (struct Point
+    (field x i32))
+
+  (entry main () i32
+    (let point Point
+      (new Point
+        (x 1)
+      ))
+
+    (let message ptr (interp "point=" point))
+    (return 0)))

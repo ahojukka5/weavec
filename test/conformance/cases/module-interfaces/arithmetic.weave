@@ -1,0 +1,15 @@
+; An explicit module publishes exactly the names it exports.
+(module arithmetic
+  (export Counter add-two bump)
+
+  (struct Counter
+    (field value i32))
+
+  (fn add-two ((left i32) (right i32)) i32
+    (return (+ left right)))
+
+  (fn bump ((counter Counter)) i32
+    (return (helper (field-get counter value))))
+
+  (fn helper ((value i32)) i32
+    (return (+ value 1))))

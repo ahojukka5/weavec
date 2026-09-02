@@ -1,0 +1,7 @@
+# result cannot appear in a requires clause.
+mode: compile-fail
+area: contracts
+sources: main.weave
+diagnostic: frontend.contract.result-in-requires
+exit: 10
+canonical: yes

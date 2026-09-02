@@ -1,0 +1,36 @@
+; Semantic struct construction and field access, plus one generic function
+; instantiated with explicit type arguments.
+;
+; The sources of this case are deliberately not declared canonical: the current
+; `weavec fmt` drops the `(type-params ...)` clause when it rewrites a generic
+; declaration into the compact signature, which produces source the compiler
+; then rejects.
+(program
+  (name "structs-and-generics")
+  (version "0.1")
+
+  (struct Point
+    (field x i32)
+    (field y i32))
+
+  (fn identity
+    (type-params T)
+    (params (value T))
+    (returns T)
+    (do
+      (return value)))
+
+  (fn manhattan ((point Point)) i32
+    (return (+ (field-get point x) (field-get point y))))
+
+  (entry main () i32
+    (let point Point (new Point (x 40) (y 2)))
+    (write_stdout "manhattan=")
+    (write_u32_decimal (manhattan point))
+    (field-set point x 1)
+    (write_stdout "\nupdated=")
+    (write_u32_decimal (manhattan point))
+    (write_stdout "\nidentity=")
+    (write_u32_decimal (identity (type-args i32) 7))
+    (write_stdout "\n")
+    (return 0)))

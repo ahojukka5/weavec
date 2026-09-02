@@ -1,0 +1,7 @@
+# A Result error becomes a stderr message and a nonzero exit, not an abort.
+mode: run
+area: option-result
+stdlib: option.weave result.weave io.weave
+sources: main.weave
+exit: 2
+canonical: yes

@@ -1,0 +1,10 @@
+; Only conversions admitted by the compiler are accepted; there is no implicit
+; conversion and no guessed conversion path.
+(program
+  (name "unsupported-cast-rejected")
+  (version "0.1")
+
+  (entry main () i32
+    (let flag bool true)
+    (let value i32 (cast i32 flag))
+    (return value)))

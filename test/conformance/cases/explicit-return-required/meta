@@ -1,0 +1,7 @@
+# Every function body must transfer control out on every path.
+mode: compile-fail
+area: control-flow
+sources: main.weave
+diagnostic: frontend.function.missing-return
+exit: 10
+canonical: yes

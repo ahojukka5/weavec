@@ -1,0 +1,7 @@
+# Result construction, try propagation, Option absence, and match over both.
+mode: run
+area: option-result
+stdlib: option.weave result.weave io.weave
+sources: main.weave
+exit: 0
+canonical: yes

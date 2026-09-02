@@ -1,0 +1,28 @@
+; Executable contracts and grouped effect declarations on a function whose
+; preconditions and postconditions hold on every call.
+(program
+  (name "contract-requires-satisfied")
+  (version "0.1")
+
+  (fn clamp-low ((value i32)) i32
+    (doc "Reject negative input and never return a negative result.")
+    (effects pure)
+    (requires (>= value 0))
+    (ensures (>= result 0))
+
+    (return value))
+
+  (fn double ((value i32)) i32
+    (effects pure deterministic)
+    (requires (>= value 0))
+    (ensures (= result (* value 2)))
+
+    (return (* value 2)))
+
+  (entry main () i32
+    (write_stdout "clamped=")
+    (write_u32_decimal (clamp-low 21))
+    (write_stdout "\ndoubled=")
+    (write_u32_decimal (double 21))
+    (write_stdout "\n")
+    (return 0)))

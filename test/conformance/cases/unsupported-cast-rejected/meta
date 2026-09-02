@@ -1,0 +1,7 @@
+# bool is not an admitted cast source.
+mode: compile-fail
+area: control-flow
+sources: main.weave
+diagnostic: frontend.cast.invalid
+exit: 10
+canonical: yes
