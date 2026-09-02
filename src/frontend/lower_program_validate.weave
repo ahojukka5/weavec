@@ -135,9 +135,11 @@
       (return (call_i32 parse_surface_type
         (param_get tree) (param_get source) (local_get type_node)))))
 
-  ; Last child of a list, or -1 when it has none.
+  ; Last executable child of a list, or -1 when it has none. An erased
+  ; `(comment ...)` is skipped: appending or removing a comment must not change
+  ; whether a body returns.
   (fn last_child
-    (params (tree ptr) (node i64))
+    (params (tree ptr) (source ptr) (node i64))
     (returns i64)
     (do
       (let child i64 (call_i64 node_first_child (param_get tree) (param_get node)))
@@ -145,7 +147,12 @@
       (while
         (condition (ne_i64 (local_get child) (const_i64 -1)))
         (do
-          (set previous (local_get child))
+          (if
+            (condition (eq_i32 (call_i32 comment_is_node
+              (param_get tree) (param_get source) (local_get child))
+              (const_i32 0)))
+            (then (do (set previous (local_get child))))
+            (else (do)))
           (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
       (return (local_get previous))))
 
@@ -182,7 +189,8 @@
           (param_get node) (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
         (then (do
           (return (call_i32 stmt_terminates (param_get tree) (param_get source)
-            (call_i64 last_child (param_get tree) (param_get node))))))
+            (call_i64 last_child
+              (param_get tree) (param_get source) (param_get node))))))
         (else (do)))
       (if
         (condition (ne_i32 (call_i32 head_equals (param_get tree) (param_get source)
@@ -442,6 +450,14 @@
           (else (do)))
         (if
           (condition (ne_i32 (call_i32 sst_register_program_decls
+            (param_get tree) (param_get source)) (const_i32 0)))
+          (then (do (return (const_i32 1))))
+          (else (do)))
+        ; Admit standalone comments before lowering erases them, so the
+        ; erasure is a deliberate step after admission rather than trivia
+        ; recovery.
+        (if
+          (condition (ne_i32 (call_i32 comment_validate_program
             (param_get tree) (param_get source)) (const_i32 0)))
           (then (do (return (const_i32 1))))
           (else (do)))

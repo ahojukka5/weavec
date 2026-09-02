@@ -45,10 +45,16 @@
           (while
             (condition (ne_i64 (local_get fe_stmt) (const_i64 -1)))
             (do
-              (call_void write_byte (param_get fd) (const_i32 32))
-              (call_void emit_node
-                (param_get fd) (param_get source) (param_get tree)
-                (local_get fe_stmt))
+              (if
+                (condition (eq_i32 (call_i32 comment_is_node
+                  (param_get tree) (param_get source) (local_get fe_stmt))
+                  (const_i32 0)))
+                (then (do
+                  (call_void write_byte (param_get fd) (const_i32 32))
+                  (call_void emit_node
+                    (param_get fd) (param_get source) (param_get tree)
+                    (local_get fe_stmt))))
+                (else (do)))
               (set fe_stmt (call_i64 node_next_sibling
                 (param_get tree) (local_get fe_stmt))))))))
       (call_void write_byte (param_get fd) (const_i32 41))
@@ -94,6 +100,14 @@
     (params (fd i32) (source ptr) (tree ptr) (node i64))
     (returns void)
     (do
+      ; An admitted `(comment ...)` is erased here. Admission already happened
+      ; in comment_validate_program, so this is a deliberate lowering step and
+      ; not trivia handling. WIR/LLVM preservation is issue #374.
+      (if
+        (condition (ne_i32 (call_i32 comment_is_node
+          (param_get tree) (param_get source) (param_get node)) (const_i32 0)))
+        (then (do (return_void)))
+        (else (do)))
       (call_void emit_source_span_for_node
         (param_get fd) (param_get source) (param_get tree) (param_get node))
       (let kind i32 (call_i32 node_kind (param_get tree) (param_get node)))

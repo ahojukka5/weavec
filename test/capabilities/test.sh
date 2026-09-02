@@ -173,6 +173,7 @@ assert {
     "when",
     "requires",
     "ensures",
+    "comment",
 }.issubset(form_heads)
 
 known_features = set(feature_ids)

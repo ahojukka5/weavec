@@ -653,10 +653,16 @@
       (while
         (condition (ne_i64 (local_get ie_when_stmt) (const_i64 -1)))
         (do
-          (call_void write_byte (param_get fd) (const_i32 32))
-          (call_void emit_node
-            (param_get fd) (param_get source) (param_get tree)
-            (local_get ie_when_stmt))
+          (if
+            (condition (eq_i32 (call_i32 comment_is_node
+              (param_get tree) (param_get source) (local_get ie_when_stmt))
+              (const_i32 0)))
+            (then (do
+              (call_void write_byte (param_get fd) (const_i32 32))
+              (call_void emit_node
+                (param_get fd) (param_get source) (param_get tree)
+                (local_get ie_when_stmt))))
+            (else (do)))
           (set ie_when_stmt (call_i64 node_next_sibling
             (param_get tree) (local_get ie_when_stmt)))))
       (call_void write_cstr (param_get fd) (const_string_ptr ")) (else (do)))"))

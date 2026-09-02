@@ -474,6 +474,12 @@
       (call_void cap_write_role (param_get cf_writer) (const_string_ptr "value") (const_i64 2) (const_string_ptr "one") (const_string_ptr "expression"))
       (call_void cap_form_finish (param_get cf_writer))
 
+      (call_void cap_form_begin (param_get cf_writer) (const_string_ptr "comment")
+        (const_string_ptr "canonical") (const_i64 1) (const_i64 -1)
+        (const_string_ptr "none") (const_string_ptr "source-comments") (const_null))
+      (call_void cap_write_role (param_get cf_writer) (const_string_ptr "text") (const_i64 0) (const_string_ptr "one-or-more") (const_string_ptr "string"))
+      (call_void cap_form_finish (param_get cf_writer))
+
       (call_void cap_form_begin (param_get cf_writer) (const_string_ptr "qgate")
         (const_string_ptr "experimental") (const_i64 2) (const_i64 -1)
         (const_string_ptr "semantic") (const_string_ptr "quantum-surface") (const_null))

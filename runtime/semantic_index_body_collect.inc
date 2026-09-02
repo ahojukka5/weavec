@@ -421,10 +421,14 @@ static int weave_si_collect_expression_references(
                weave_si_typed_compatibility_head(head)) {
         result = weave_si_collect_children_from(
             model, source_index, caller_symbol_index, node, 1);
-    } else if (strcmp(head, "return_void") == 0 ||
+    } else if (strcmp(head, "comment") == 0 ||
+               strcmp(head, "return_void") == 0 ||
                strcmp(head, "pure") == 0 ||
                strcmp(head, "no_alloc") == 0 ||
                strcmp(head, "deterministic") == 0) {
+        /* A comment holds only string literals, so it contributes no symbol,
+         * type, or call references and never makes the body index
+         * incomplete. */
         result = 1;
     } else {
         weave_si_mark_body_incomplete(model);

@@ -477,6 +477,49 @@ Falling off the end of a function is a frontend error with code
 `frontend.function.missing-return`. The diagnostic names the function and
 spans the statement that can fall through.
 
+## Comment annotations
+
+`(comment STRING...)` is a reserved standalone statement that carries source
+text and nothing else:
+
+```weave
+(comment "Compute the repeated-root case.")
+
+(comment
+  "The next iteration deliberately uses the previous residual."
+  "Do not reassociate this update.")
+```
+
+The rules are:
+
+- `comment` is a reserved surface head. It is never resolved as a callable, and
+  a function or entry declared with that name is rejected with
+  `weavec: surface declaration: function name collides with reserved syntax
+  comment`.
+- A comment is admitted only where a no-op statement is legal: the
+  declaration body of a `program` or `module`, a `fn` or `entry` body, a
+  `do` body, and the variadic statement list of `when`, compact `while`, or a
+  `for` body's `do`. In an expression position it is rejected with code
+  `frontend.comment.expression-position`.
+- Children are one or more string literals. `(comment)` is rejected with code
+  `frontend.comment.missing-text`, and a non-string child with
+  `frontend.comment.non-string-text`. Nothing inside a comment is evaluated.
+- A comment has no executable semantics. It contributes no WIR, and adding or
+  removing one changes neither program output nor exit code. It is also
+  invisible to the returning rule, so a trailing comment cannot turn a
+  returning body into a fall-through body.
+- A comment is a sibling node with no attachment to or ownership of a
+  neighbouring statement. Moving an adjacent statement does not move it.
+
+The current frontend erases an admitted comment during lowering. That erasure
+is a deliberate step after admission, not trivia handling. Preserving admitted
+comments into WIR and LLVM evidence is issue
+[#374](https://github.com/ahojukka5/weavec/issues/374).
+
+Semicolon line comments remain accepted compatibility input. They are lexical
+trivia recovered by the formatter from source gaps, not the canonical
+preserved annotation representation.
+
 ## Constants and scalar operations
 
 Explicit constant forms include:

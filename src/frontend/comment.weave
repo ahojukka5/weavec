@@ -1,0 +1,286 @@
+; SPDX-License-Identifier: Apache-2.0
+; comment.weave — standalone `(comment ...)` surface admission
+;
+; `comment` is a reserved surface head, never a callable name. A comment is an
+; explicit tree node with zero executable semantics: it is admitted in
+; statement and declaration-body positions, its children must be string
+; literals, and nothing inside it is evaluated.
+;
+; This slice erases the node during lowering. The erasure is intentional and
+; happens after admission: `comment_validate_program` accepts or rejects the
+; form first, and `emit_node` then produces no WIR for it. A comment is never
+; treated as parser trivia, and it never attaches to a neighbouring statement.
+; Preserving admitted comments into WIR and LLVM evidence is issue #374.
+
+(program
+  (name "comment")
+  (version "0.1")
+
+  ; Whether NODE is a `(comment ...)` list.
+  (fn comment_is_node
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (param_get node) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 node_kind (param_get tree) (param_get node))
+          (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 head_equals
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "comment") (const_i64 7)))))
+
+  ; `(comment STRING...)` needs at least one child and every child must be a
+  ; string literal. A non-string child is rejected rather than evaluated so a
+  ; comment can never carry a hidden expression.
+  (fn comment_validate_text
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (let cmt_head i64 (call_i64 node_first_child
+        (param_get tree) (param_get node)))
+      (let cmt_text i64 (call_i64 node_next_sibling
+        (param_get tree) (local_get cmt_head)))
+      (if
+        (condition (eq_i64 (local_get cmt_text) (const_i64 -1)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "comment"))
+          (call_void write_cstr (const_i32 2)
+            (const_string_ptr "(comment) needs at least one string literal"))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (call_void sdiag_record
+            (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "frontend.comment.missing-text")
+            (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+            (const_i32 -1) (const_i32 1) (const_i32 0)
+            (const_string_ptr "text") (const_i64 -1) (const_i32 0))
+          (return (const_i32 1))))
+        (else (do)))
+      (while
+        (condition (ne_i64 (local_get cmt_text) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 node_kind
+              (param_get tree) (local_get cmt_text)) (call_i32 node_string)))
+            (then (do
+              (call_void surface_error_prefix (const_string_ptr "comment"))
+              (call_void write_cstr (const_i32 2)
+                (const_string_ptr "comment text must be a string literal"))
+              (call_void write_byte (const_i32 2) (const_i32 10))
+              (call_void sdiag_record
+                (param_get tree) (param_get source) (local_get cmt_text)
+                (const_string_ptr "frontend.comment.non-string-text")
+                (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+                (const_i32 -1) (const_i32 -1) (const_i32 -1)
+                (const_string_ptr "text") (const_i64 -1) (const_i32 0))
+              (return (const_i32 1))))
+            (else (do)))
+          (set cmt_text (call_i64 node_next_sibling
+            (param_get tree) (local_get cmt_text)))))
+      (return (const_i32 0))))
+
+  ; A comment has no value, so it cannot stand where an expression is required.
+  (fn comment_reject_expression
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (call_void surface_error_prefix (const_string_ptr "comment"))
+      (call_void write_cstr (const_i32 2)
+        (const_string_ptr "comment is a statement, not an expression"))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (call_void sdiag_record
+        (param_get tree) (param_get source) (param_get node)
+        (const_string_ptr "frontend.comment.expression-position")
+        (call_i32 surface_type_unknown) (call_i32 surface_type_unknown)
+        (const_i32 -1) (const_i32 -1) (const_i32 -1)
+        (const_string_ptr "statement") (const_i64 -1) (const_i32 0))
+      (return (const_i32 1))))
+
+  ; Walk a sibling chain. STMT_OK marks a chain of statement or declaration
+  ; bodies, where a no-op statement is legal.
+  (fn comment_walk_chain
+    (params (tree ptr) (source ptr) (first i64) (stmt_ok i32))
+    (returns i32)
+    (do
+      (let cmt_sib i64 (param_get first))
+      (while
+        (condition (ne_i64 (local_get cmt_sib) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 comment_walk_node
+              (param_get tree) (param_get source) (local_get cmt_sib)
+              (param_get stmt_ok)) (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))
+          (set cmt_sib (call_i64 node_next_sibling
+            (param_get tree) (local_get cmt_sib)))))
+      (return (const_i32 0))))
+
+  ; `fn` and `entry`: the signature and header clauses are not statement
+  ; positions; the executable body is.
+  (fn comment_walk_callable
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (let cmt_body i64 (call_i64 surface_fn_body_first_stmt
+        (param_get tree) (param_get source) (param_get node)))
+      (let cmt_head2 i64 (call_i64 node_first_child
+        (param_get tree) (param_get node)))
+      (let cmt_scan i64 (call_i64 node_next_sibling
+        (param_get tree) (local_get cmt_head2)))
+      (while
+        (condition (ne_i64 (local_get cmt_scan) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i64 (local_get cmt_scan) (local_get cmt_body)))
+            (then (do (set cmt_scan (const_i64 -1))))
+            (else (do
+              (if
+                (condition (ne_i32 (call_i32 comment_walk_node
+                  (param_get tree) (param_get source) (local_get cmt_scan)
+                  (const_i32 0)) (const_i32 0)))
+                (then (do (return (const_i32 1))))
+                (else (do)))
+              (set cmt_scan (call_i64 node_next_sibling
+                (param_get tree) (local_get cmt_scan))))))))
+      (return (call_i32 comment_walk_chain
+        (param_get tree) (param_get source) (local_get cmt_body)
+        (const_i32 1)))))
+
+  ; A variadic control body: the first child is the condition, the rest are
+  ; statements.
+  (fn comment_walk_variadic_body
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (let cmt_head3 i64 (call_i64 node_first_child
+        (param_get tree) (param_get node)))
+      (let cmt_cond i64 (call_i64 node_next_sibling
+        (param_get tree) (local_get cmt_head3)))
+      (if
+        (condition (eq_i64 (local_get cmt_cond) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 comment_walk_node
+          (param_get tree) (param_get source) (local_get cmt_cond)
+          (const_i32 0)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (call_i32 comment_walk_chain
+        (param_get tree) (param_get source)
+        (call_i64 node_next_sibling (param_get tree) (local_get cmt_cond))
+        (const_i32 1)))))
+
+  ; Whether NODE opens a variadic statement body after one condition child.
+  ; `when` always does; `while` does unless it uses the verbose
+  ; `(while (condition C) (do ...))` spelling, whose body is reached through
+  ; the wrapping `do`.
+  (fn comment_opens_variadic_body
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "when") (const_i64 4)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "while") (const_i64 5)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 head_equals
+          (param_get tree) (param_get source)
+          (call_i64 nth_child (param_get tree) (param_get node) (const_i64 1))
+          (const_string_ptr "condition") (const_i64 9)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do (return (const_i32 1)))))))
+
+  ; Admit or reject every `(comment ...)` reachable from NODE. STMT_OK says
+  ; whether NODE itself sits in a statement or declaration-body position.
+  (fn comment_walk_node
+    (params (tree ptr) (source ptr) (node i64) (stmt_ok i32))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (param_get node) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 node_kind (param_get tree) (param_get node))
+          (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 comment_is_node
+          (param_get tree) (param_get source) (param_get node)) (const_i32 0)))
+        (then (do
+          (if
+            (condition (eq_i32 (param_get stmt_ok) (const_i32 0)))
+            (then (do
+              (return (call_i32 comment_reject_expression
+                (param_get tree) (param_get source) (param_get node)))))
+            (else (do)))
+          (return (call_i32 comment_validate_text
+            (param_get tree) (param_get source) (param_get node)))))
+        (else (do)))
+      (let cmt_h i64 (call_i64 node_first_child
+        (param_get tree) (param_get node)))
+      (let cmt_kids i64 (call_i64 node_next_sibling
+        (param_get tree) (local_get cmt_h)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 head_equals
+            (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "program") (const_i64 7)) (const_i32 0))
+          (or_bool
+            (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "module") (const_i64 6)) (const_i32 0))
+            (ne_i32 (call_i32 head_equals
+              (param_get tree) (param_get source) (param_get node)
+              (const_string_ptr "do") (const_i64 2)) (const_i32 0)))))
+        (then (do
+          (return (call_i32 comment_walk_chain
+            (param_get tree) (param_get source) (local_get cmt_kids)
+            (const_i32 1)))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 head_equals
+            (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "fn") (const_i64 2)) (const_i32 0))
+          (ne_i32 (call_i32 head_equals
+            (param_get tree) (param_get source) (param_get node)
+            (const_string_ptr "entry") (const_i64 5)) (const_i32 0))))
+        (then (do
+          (return (call_i32 comment_walk_callable
+            (param_get tree) (param_get source) (param_get node)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 comment_opens_variadic_body
+          (param_get tree) (param_get source) (param_get node)) (const_i32 0)))
+        (then (do
+          (return (call_i32 comment_walk_variadic_body
+            (param_get tree) (param_get source) (param_get node)))))
+        (else (do)))
+      (return (call_i32 comment_walk_chain
+        (param_get tree) (param_get source) (local_get cmt_kids)
+        (const_i32 0)))))
+
+  ; Admit every comment in one parsed root before lowering erases them.
+  (fn comment_validate_program
+    (params (tree ptr) (source ptr))
+    (returns i32)
+    (do
+      (return (call_i32 comment_walk_node
+        (param_get tree) (param_get source) (const_i64 0) (const_i32 0)))))
+)

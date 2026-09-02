@@ -318,6 +318,8 @@
             (param_get tree) (local_get fs_head)))))
         (else (do (return (local_get fs_body)))))))
 
+  ; Last executable body statement. An erased `(comment ...)` is skipped so a
+  ; trailing comment cannot change whether the body returns.
   (fn surface_fn_last_body_stmt
     (params (tree ptr) (source ptr) (decl i64))
     (returns i64)
@@ -328,7 +330,12 @@
       (while
         (condition (ne_i64 (local_get fs_stmt) (const_i64 -1)))
         (do
-          (set fs_prev (local_get fs_stmt))
+          (if
+            (condition (eq_i32 (call_i32 comment_is_node
+              (param_get tree) (param_get source) (local_get fs_stmt))
+              (const_i32 0)))
+            (then (do (set fs_prev (local_get fs_stmt))))
+            (else (do)))
           (set fs_stmt (call_i64 node_next_sibling
             (param_get tree) (local_get fs_stmt)))))
       (return (local_get fs_prev))))
