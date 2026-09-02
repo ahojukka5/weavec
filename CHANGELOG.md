@@ -140,6 +140,11 @@ surface-language contract stabilises.
   erased after admission. `weavec fmt` prints it inline within 80
   columns and otherwise one literal per line. See
   [Canonical LLM-facing surface forms](docs/canonical-surface.md).
+- Compiler-independent surface conformance corpus under
+  `test/conformance/`, one command runnable against any `WEAVEC` binary,
+  with a file-based completeness guard in
+  `scripts/check_conformance_corpus.py`. See
+  [Surface conformance corpus](docs/conformance.md).
 - Paths, files, process exit, and environment lookup: `process_exit`,
   `file_write_text` as `Result bool FileError`, POSIX `path_join` /
   `path_basename` / `path_is_absolute`, and `env_get` as `Option

@@ -38,6 +38,9 @@ names used when they were released.
   compiler-development overrides, and low-level compiler modes.
 - [Language testing](testing.md) — specified `test` forms, assertions,
   `weavec test` exits, and `weavec-test-results-v1`.
+- [Surface conformance corpus](conformance.md) — the compiler-independent
+  public language contract, how to run it against any `weavec` binary, and
+  where to add behavior conformance.
 - [Compiler capability and grammar registry](capabilities.md) —
   `weavec-capabilities-v1`, installed targets, protocol versions, feature status,
   and the compiler-authoritative LLM-facing grammar contract.

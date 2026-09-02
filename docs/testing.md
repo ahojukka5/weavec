@@ -231,6 +231,14 @@ First-milestone diagnostic codes:
 | `test.expect-eq-type` | `expect-eq` / `expect-ne` operands are missing, mixed, or not an admitted equality type. |
 | `test.private-cross-module` | A test used a private declaration from another module. |
 
+## Relationship to the conformance corpus
+
+`weavec test` is the in-language test facility specified here. It is separate
+from the [surface conformance corpus](conformance.md), which is a
+compiler-independent public-behavior contract driven from the command line and
+runnable against any `weavec` binary. The corpus does not depend on `test`
+declarations and does not wait for this command.
+
 ## Non-goals
 
 The first milestone does not include coverage, property testing, fuzzing,
