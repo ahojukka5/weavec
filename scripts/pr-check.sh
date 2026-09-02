@@ -36,6 +36,9 @@ python3 "$ROOT/scripts/check_project_manifest_spec.py"
 log 'language testing contract'
 python3 "$ROOT/scripts/check_testing_spec.py"
 
+log 'surface conformance corpus completeness'
+python3 "$ROOT/scripts/check_conformance_corpus.py"
+
 log 'compiler source manifest'
 bash "$ROOT/test/compiler-sources/test.sh"
 

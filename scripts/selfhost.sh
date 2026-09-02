@@ -175,6 +175,11 @@ WEAVEC="$STAGE2" \
 WEAVEC_TEST_BUILD_DIR="$STAGE2_TEST_DIR/correctness" \
   bash "$ROOT/test.sh"
 
+log "stage2 surface conformance corpus"
+WEAVEC="$STAGE2" \
+WEAVEC_RUNTIME="$ROOT/runtime/program.c" \
+  bash "$ROOT/test/conformance/run.sh"
+
 log "stage2 diagnostics protocol suite"
 WEAVEC="$STAGE2" \
 WEAVEC_RUNTIME="$ROOT/runtime/program.c" \
