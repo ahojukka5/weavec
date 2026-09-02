@@ -84,6 +84,10 @@ surface-language contract stabilises.
   `test.sh` plus diagnostic, formatter, and Option/Result suites.
   The full ladder and deep self-host still run only after merge on
   `master`. Versioned releases wait for that ladder on the same SHA.
+- `scripts/check_doc_wir_versions.py`, run by `scripts/pr-check.sh`,
+  fails with the offending file and line when authored Markdown names a
+  superseded WIR core version without attributing it to a frozen stage
+  or stating that it is refused.
 
 ### Fixed
 

@@ -15,6 +15,9 @@ log() {
 log 'WIR core-version audit'
 python3 "$ROOT/scripts/check_wir_core_version.py"
 
+log 'documentation WIR core-version claims'
+python3 "$ROOT/scripts/check_doc_wir_versions.py"
+
 log 'documentation links'
 python3 "$ROOT/scripts/check_doc_links.py"
 
