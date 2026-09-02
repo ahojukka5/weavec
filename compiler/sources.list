@@ -66,6 +66,7 @@ src/frontend/if_expr.weave
 src/frontend/let_infer.weave
 src/frontend/loop.weave
 src/frontend/interp.weave
+src/frontend/comment.weave
 src/frontend/emit_helpers.weave
 src/frontend/wir_subtree.weave
 src/frontend/wir_scalar.weave

@@ -319,6 +319,33 @@ Mixing the two — an expression `if` as a statement, or a `do` body as a value 
 is rejected. Verbose `(if (condition ...) (then (do ...)) (else (do)))` remains
 accepted; `weavec fmt` rewrites it to `when` or compact `if`.
 
+## Comment annotations
+
+A preserved source comment is an explicit tree node, not parser trivia:
+
+```weave
+(comment "Compute the repeated-root case.")
+
+(comment
+  "The next iteration deliberately uses the previous residual."
+  "Do not reassociate this update.")
+```
+
+`comment` is a reserved head that never reaches callable name resolution, so
+`(fn comment ...)` is rejected. The form takes one or more string literals and
+is admitted only where a no-op statement is legal: a `program` or `module`
+declaration body, a `fn` or `entry` body, a `do` body, and the variadic
+statement list of `when` or compact `while`. Using it where a value is required
+is an error, and nothing inside it is evaluated.
+
+A comment has no executable semantics and no attachment to a neighbouring
+statement. The current frontend erases it after admission; it emits no WIR and
+does not change the core version. Preserving admitted comments through WIR and
+LLVM evidence is issue #374.
+
+Semicolon line comments remain accepted compatibility input and are not the
+canonical preserved annotation representation.
+
 ## Canonical function signatures
 
 Canonical declarations use a direct parameter list and a direct return type.

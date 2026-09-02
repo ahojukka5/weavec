@@ -166,13 +166,19 @@
       (while
         (condition (ne_i64 (local_get lp_stmt) (const_i64 -1)))
         (do
-          (call_void write_byte (param_get fd) (const_i32 32))
-          (call_void weave_surface_loop_write_gate_open
-            (param_get fd) (param_get id))
-          (call_void emit_node
-            (param_get fd) (param_get source) (param_get tree)
-            (local_get lp_stmt))
-          (call_void weave_surface_loop_write_gate_close (param_get fd))
+          (if
+            (condition (eq_i32 (call_i32 comment_is_node
+              (param_get tree) (param_get source) (local_get lp_stmt))
+              (const_i32 0)))
+            (then (do
+              (call_void write_byte (param_get fd) (const_i32 32))
+              (call_void weave_surface_loop_write_gate_open
+                (param_get fd) (param_get id))
+              (call_void emit_node
+                (param_get fd) (param_get source) (param_get tree)
+                (local_get lp_stmt))
+              (call_void weave_surface_loop_write_gate_close (param_get fd))))
+            (else (do)))
           (set lp_stmt (call_i64 node_next_sibling
             (param_get tree) (local_get lp_stmt)))))
       (call_void write_byte (param_get fd) (const_i32 41))
@@ -234,10 +240,16 @@
           (while
             (condition (ne_i64 (local_get lp_cwalk) (const_i64 -1)))
             (do
-              (call_void write_byte (param_get fd) (const_i32 32))
-              (call_void emit_node
-                (param_get fd) (param_get source) (param_get tree)
-                (local_get lp_cwalk))
+              (if
+                (condition (eq_i32 (call_i32 comment_is_node
+                  (param_get tree) (param_get source) (local_get lp_cwalk))
+                  (const_i32 0)))
+                (then (do
+                  (call_void write_byte (param_get fd) (const_i32 32))
+                  (call_void emit_node
+                    (param_get fd) (param_get source) (param_get tree)
+                    (local_get lp_cwalk))))
+                (else (do)))
               (set lp_cwalk (call_i64 node_next_sibling
                 (param_get tree) (local_get lp_cwalk)))))
           (call_void write_cstr (param_get fd) (const_string_ptr "))"))

@@ -111,6 +111,14 @@ The `string-interpolation` feature is experimental. It publishes
 [#240](https://github.com/ahojukka5/weavec/issues/240). Admitted pieces
 are `i32`, `i64`, `bool`, and text pointers. The result is `ptr`.
 
+The `source-comments` feature is experimental. It publishes the canonical
+`comment` form and links to issue
+[#337](https://github.com/ahojukka5/weavec/issues/337). The form is admitted as
+a zero-semantics statement with one or more string children; the current
+frontend erases it after admission, so nothing reaches WIR and the core version
+is unchanged. Preservation into WIR and LLVM evidence is issue
+[#374](https://github.com/ahojukka5/weavec/issues/374).
+
 The `enum-no-identity` feature is stable. Equality operators admit
 `i32`, `i64`, `f32`, `f64`, and `ptr` only. Enum values, including
 `Option` and `Result`, cannot be compared with `=` / `!=` or `eq_ptr`

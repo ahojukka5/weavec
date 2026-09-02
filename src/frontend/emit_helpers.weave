@@ -175,10 +175,17 @@
   ; - the current child becomes the new pending if it is a self-inverse qgate
   ; - or is emitted directly and the new pending is -1.
   ; Returns the new pending node id (or -1).
+  ; An admitted `(comment ...)` is erased without disturbing the peephole, so
+  ; adding or removing a comment cannot change the emitted WIR.
   (fn emit_do_step
     (params (fd i32) (source ptr) (tree ptr) (pending i64) (child i64))
     (returns i64)
     (do
+      (if
+        (condition (ne_i32 (call_i32 comment_is_node
+          (param_get tree) (param_get source) (param_get child)) (const_i32 0)))
+        (then (do (return (param_get pending))))
+        (else (do)))
       (if
         (condition (ne_i32 (call_i32 qgate_is_self_inverse_candidate
           (param_get tree) (param_get source) (param_get child)) (const_i32 0)))

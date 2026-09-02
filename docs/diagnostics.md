@@ -197,6 +197,9 @@ The current compiler produces complete machine-actionable entries for:
 - canonical operator arity and operand type mismatches;
 - unsupported canonical operators for resolved operand types;
 - invalid canonical casts and unknown cast types;
+- malformed standalone comments: `frontend.comment.missing-text`,
+  `frontend.comment.non-string-text`, and
+  `frontend.comment.expression-position`;
 - a declaration whose name collides with reserved syntax:
   `frontend.declaration.reserved-syntax-name`.
 

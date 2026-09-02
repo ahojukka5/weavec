@@ -129,6 +129,11 @@ surface-language contract stabilises.
   token, so a parse failure names its line and column. Exit codes and
   `weavec-diagnostics-v1` are unchanged. See
   [Machine-readable diagnostics](docs/diagnostics.md).
+- Standalone `(comment STRING...)` is a reserved zero-semantics surface
+  statement, admitted in statement and declaration-body positions and
+  erased after admission. `weavec fmt` prints it inline within 80
+  columns and otherwise one literal per line. See
+  [Canonical LLM-facing surface forms](docs/canonical-surface.md).
 - Paths, files, process exit, and environment lookup: `process_exit`,
   `file_write_text` as `Result bool FileError`, POSIX `path_join` /
   `path_basename` / `path_is_absolute`, and `env_get` as `Option
