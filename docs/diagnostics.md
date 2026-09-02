@@ -196,7 +196,9 @@ The current compiler produces complete machine-actionable entries for:
 - canonical call argument type mismatches;
 - canonical operator arity and operand type mismatches;
 - unsupported canonical operators for resolved operand types;
-- invalid canonical casts and unknown cast types.
+- invalid canonical casts and unknown cast types;
+- a declaration whose name collides with reserved syntax:
+  `frontend.declaration.reserved-syntax-name`.
 
 This coverage is additive to the existing parse and backend diagnostics. Future
 language features should publish their semantic failures through the same typed
