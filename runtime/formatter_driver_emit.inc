@@ -26,6 +26,13 @@ static int weave_fmt_format_list(
         return 0;
     }
 
+    if (weave_fmt_is_comment_form(context, list)) {
+        int formatted = weave_fmt_format_comment(
+            context, list, head, indentation, force_inline);
+        if (!formatted) weave_fmt_fail(context);
+        return formatted;
+    }
+
     int64_t access_name = -1;
     if (weave_fmt_can_unwrap_access(context, list, head, &access_name)) {
         return weave_fmt_write_atom(context, access_name);
@@ -144,6 +151,7 @@ static int weave_fmt_format_list(
     int multiline_started = head_gap.comments != 0;
     int previous_form_on_line = 0;
     int previous_form_multiline = 0;
+    int previous_form_holds_next = 0;
     while (child != -1) {
         size_t child_start = weave_fmt_node_start(context, child);
         weave_fmt_gap gap = weave_fmt_scan_gap(context, cursor, child_start);
@@ -168,14 +176,18 @@ static int weave_fmt_format_list(
             multiline_started = 1;
             previous_form_on_line = 0;
             previous_form_multiline = 0;
+            previous_form_holds_next = 0;
         }
         if (inline_mode || (!multiline_started && scalar_prefix && gap.comments == 0)) {
             if (!weave_fmt_write_char(context, ' ')) goto failure;
         } else {
+            int child_opens_group = child_is_form &&
+                weave_fmt_spacing_opens_group(context, child, indentation + 2);
             int separate_forms = gap.comments == 0 &&
                 previous_form_on_line &&
                 child_is_form &&
-                (previous_form_multiline || child_form_multiline);
+                !previous_form_holds_next &&
+                (previous_form_multiline || child_opens_group);
             if (!weave_fmt_write_newline(context) ||
                 (separate_forms && !weave_fmt_write_char(context, '\n'))) {
                 goto failure;
@@ -207,9 +219,12 @@ static int weave_fmt_format_list(
             multiline_started = !inline_mode;
             previous_form_on_line = !inline_mode;
             previous_form_multiline = child_form_multiline;
+            previous_form_holds_next = weave_fmt_spacing_holds_next(
+                context, child, indentation + 2);
         } else {
             previous_form_on_line = 0;
             previous_form_multiline = 0;
+            previous_form_holds_next = 0;
         }
         cursor = weave_fmt_node_end(context, child);
         if (cursor == 0) goto failure;

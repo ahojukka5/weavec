@@ -23,6 +23,45 @@ static int weave_fmt_spacing_node_fits_inline(
         weave_fmt_column_budget(indentation)) >= 0;
 }
 
+/* Printer adjacency for standalone comments. A one-line comment immediately
+ * before a multiline sibling stays on the line above it, and the blank
+ * separator, when one is needed, is emitted before the comment rather than
+ * between the two forms. This is presentation only: the surface tree records
+ * no attachment, ownership, or paragraph state. */
+static int weave_fmt_spacing_is_one_line_comment(
+    weave_fmt_context *context,
+    int64_t node,
+    size_t indentation) {
+    return weave_fmt_is_comment_form(context, node) &&
+        weave_fmt_spacing_node_fits_inline(context, node, indentation);
+}
+
+/* Whether NODE begins a visually multiline group: either NODE itself renders
+ * multiline, or it is a run of one-line comments introducing one that does. */
+static int weave_fmt_spacing_opens_group(
+    weave_fmt_context *context,
+    int64_t node,
+    size_t indentation) {
+    while (weave_fmt_spacing_is_one_line_comment(context, node, indentation)) {
+        node = node_next_sibling(context->tree, node);
+        if (node == -1) return 0;
+    }
+    return !weave_fmt_spacing_node_fits_inline(context, node, indentation);
+}
+
+/* Whether NODE is a one-line comment that must stay adjacent to its next
+ * sibling, suppressing the blank line that would otherwise separate them. */
+static int weave_fmt_spacing_holds_next(
+    weave_fmt_context *context,
+    int64_t node,
+    size_t indentation) {
+    if (!weave_fmt_spacing_is_one_line_comment(context, node, indentation)) {
+        return 0;
+    }
+    return weave_fmt_spacing_opens_group(
+        context, node_next_sibling(context->tree, node), indentation);
+}
+
 static int weave_fmt_emit_control_stmt_separator(
     weave_fmt_context *context,
     int blank_line) {
@@ -41,12 +80,15 @@ static int weave_fmt_emit_control_stmts(
         int64_t stmt = body;
         int first = 1;
         int previous_multiline = 0;
+        int previous_holds_next = 0;
         while (stmt != -1) {
             int current_multiline = !weave_fmt_spacing_node_fits_inline(
                 context, stmt, indentation);
-            if (!weave_fmt_emit_control_stmt_separator(
-                    context,
-                    !first && (previous_multiline || current_multiline)) ||
+            int current_opens_group = weave_fmt_spacing_opens_group(
+                context, stmt, indentation);
+            int blank_line = !first && !previous_holds_next &&
+                (previous_multiline || current_opens_group);
+            if (!weave_fmt_emit_control_stmt_separator(context, blank_line) ||
                 !weave_fmt_write_indent(context, indentation) ||
                 !weave_fmt_format_node(
                     context, stmt, indentation, WEAVE_FMT_UNKNOWN, 0)) {
@@ -54,6 +96,8 @@ static int weave_fmt_emit_control_stmts(
             }
             first = 0;
             previous_multiline = current_multiline;
+            previous_holds_next = weave_fmt_spacing_holds_next(
+                context, stmt, indentation);
             stmt = node_next_sibling(context->tree, stmt);
         }
         return 1;

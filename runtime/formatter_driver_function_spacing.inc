@@ -26,12 +26,16 @@ static int weave_fmt_emit_function_body_item(
     size_t indentation,
     int header_present,
     int *emitted_body,
-    int *previous_multiline) {
+    int *previous_multiline,
+    int *previous_holds_next) {
     int current_multiline = !weave_fmt_spacing_node_fits_inline(
+        context, node, indentation);
+    int current_opens_group = weave_fmt_spacing_opens_group(
         context, node, indentation);
     int blank_line = !*emitted_body
         ? header_present
-        : (*previous_multiline || current_multiline);
+        : (!*previous_holds_next &&
+           (*previous_multiline || current_opens_group));
     if (!weave_fmt_write_newline(context) ||
         (blank_line && !weave_fmt_write_char(context, '\n')) ||
         !weave_fmt_write_indent(context, indentation) ||
@@ -41,6 +45,8 @@ static int weave_fmt_emit_function_body_item(
     }
     *emitted_body = 1;
     *previous_multiline = current_multiline;
+    *previous_holds_next = weave_fmt_spacing_holds_next(
+        context, node, indentation);
     return 1;
 }
 
@@ -172,6 +178,7 @@ static int weave_fmt_format_function(
     int64_t previous_source_node = signature_end_node;
     int emitted_body = 0;
     int previous_multiline = 0;
+    int previous_holds_next = 0;
     scan = cursor;
     while (scan != -1) {
         if (weave_fmt_is_fn_header(context, scan) ||
@@ -200,7 +207,8 @@ static int weave_fmt_format_function(
                         indentation + 2,
                         emitted_header,
                         &emitted_body,
-                        &previous_multiline)) {
+                        &previous_multiline,
+                        &previous_holds_next)) {
                     return 0;
                 }
                 stmt = node_next_sibling(context->tree, stmt);
@@ -215,7 +223,8 @@ static int weave_fmt_format_function(
                 indentation + 2,
                 emitted_header,
                 &emitted_body,
-                &previous_multiline)) {
+                &previous_multiline,
+                &previous_holds_next)) {
             return 0;
         }
         previous_source_node = scan;
