@@ -39,6 +39,9 @@ bash "$ROOT/test/formatter-function-spacing/test.sh"
 log 'canonical generic sibling spacing'
 bash "$ROOT/test/formatter-generic-spacing/test.sh"
 
+log 'standalone comment statements'
+bash "$ROOT/test/comment-statement/test.sh"
+
 log 'owned in-memory WIR tree and builder invariants'
 bash "$ROOT/test/wir-tree/test.sh"
 
