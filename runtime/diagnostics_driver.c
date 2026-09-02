@@ -122,6 +122,7 @@ static int weave_diag_preflight_source(
 
     int in_string = 0;
     int in_comment = 0;
+    int saw_content = 0;
     size_t string_start = 0;
     for (size_t i = 0; i < length; ++i) {
         unsigned char ch = data[i];
@@ -158,6 +159,9 @@ static int weave_diag_preflight_source(
         if (ch == ';') {
             in_comment = 1;
             continue;
+        }
+        if (!isspace(ch)) {
+            saw_content = 1;
         }
         if (ch == '#' && i + 1 < length && data[i + 1] == '"') {
             string_start = i;
@@ -226,6 +230,23 @@ static int weave_diag_preflight_source(
         record->source = path;
         record->span_origin = "compiler-preflight";
         record->start_byte = string_start;
+        record->end_byte = length;
+        record->has_span = 1;
+        free(stack);
+        free(data);
+        return 1;
+    }
+    if (!saw_content) {
+        // An empty source, or one holding only whitespace and comments, has no
+        // S-expression for the parser to read. Without this the frontend used
+        // to fail with an empty stderr.
+        record->code = "frontend.parse.unexpected-end-of-input";
+        record->severity = "error";
+        record->phase = "frontend";
+        record->message = "unexpected end of input; expected an expression";
+        record->source = path;
+        record->span_origin = "compiler-preflight";
+        record->start_byte = length;
         record->end_byte = length;
         record->has_span = 1;
         free(stack);
