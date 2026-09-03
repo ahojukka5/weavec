@@ -76,6 +76,13 @@ their ABI shape.
 ## What this does not settle
 
 - Borrow spelling and whether borrows are inferred.
+- How borrows cross the frontend/WIR boundary. Core version 3 carries
+  no borrow, lifetime, or region information; lowering consumes the
+  exclusive-borrow fact above as a `noalias` attribute and keeps
+  nothing a later non-lexical analysis could refine. Whether WIR should
+  carry regions instead is a coordinated core-version question
+  ([WIR](wir.md)), not a frontend detail, and it is cheapest to settle
+  before lexical borrowing ships.
 - The exact `Copy` set.
 - Automatic cleanup at scope exit.
 - A GPU or thread runtime.
