@@ -708,8 +708,35 @@ assert manifest_doc["format"] == "weavec-build-manifest-v1"
 print("structured-types-qualify: example protocols passed")
 PY
 
+# An evidence flag sends the build down the full protocol path, which does not
+# use the module cache (#435). Prove that combination reports itself rather
+# than silently dropping --cache-report, then run the caching sequence below
+# without one so the module decisions are meaningful.
 "$WEAVEC" build --project "$TMP/boxes" \
   --emit-wir "$TMP/boxes-build.wir" \
+  --cache-dir "$TMP/cache-bypassed" \
+  --cache-report "$TMP/boxes-cache-bypassed.json"
+[[ -f "$TMP/boxes-cache-bypassed.json" ]] || {
+  printf 'structured-types-qualify: --cache-report wrote no file\n' >&2
+  exit 1
+}
+python3 - "$TMP/boxes-cache-bypassed.json" <<'PY'
+import json
+import pathlib
+import sys
+
+report = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert report["format"] == "weavec-project-module-cache-v1", report["format"]
+assert report["status"] == "bypassed", report["status"]
+assert report["bypassed_by"] == "--emit-wir", report["bypassed_by"]
+assert report["cache_dir"] == "", report["cache_dir"]
+assert report["modules"] == [], report["modules"]
+assert report["exit_code"] == 0, report["exit_code"]
+print("structured-types-qualify: bypassed cache report passed")
+PY
+rm -f "$TMP/boxes/boxes"
+
+"$WEAVEC" build --project "$TMP/boxes" \
   --cache-dir "$TMP/cache" \
   --cache-report "$TMP/boxes-cache-first.json"
 set +e
