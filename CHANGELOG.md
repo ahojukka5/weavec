@@ -28,6 +28,9 @@ surface-language contract stabilises.
   the required `else`, so every loop program was rejected by the
   backend. `test/loop-control` now links and runs each shape instead of
   grepping emitted text.
+- `weavec fmt` preserves decimal literals. It reprinted a decimal atom
+  from the integer value of its node, so every literal became `0` in the
+  rewritten source file.
 
 ### Changed
 
