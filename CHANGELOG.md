@@ -31,6 +31,13 @@ surface-language contract stabilises.
 
 ### Changed
 
+- `runtime/BOUNDARY-MANIFEST` registers every C file under `runtime/` as
+  either a justified `host` boundary or `port-pending` behavior awaiting
+  its Weave port. `scripts/check_runtime_boundary.py` fails
+  `scripts/pr-check.sh` when an unregistered C file appears or a
+  registered one grows past its ceiling, so the runtime boundary stops
+  eroding while the port proceeds. See
+  [Runtime implementation boundary](docs/runtime-boundary.md).
 - Compiler `.wir` and `.ll` emission uses a grow-once 64KiB host
   buffer, flushed before close. `write_byte` no longer allocates and
   syscalls per byte. See
