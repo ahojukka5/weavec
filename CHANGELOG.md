@@ -31,6 +31,11 @@ surface-language contract stabilises.
 - `weavec fmt` preserves decimal literals. It reprinted a decimal atom
   from the integer value of its node, so every literal became `0` in the
   rewritten source file.
+- `cast_f64_to_i32` and `cast_f32_to_i32` report `i32` as their
+  expression type instead of the float they convert from. In call
+  argument position the backend typed the call site from the pre-cast
+  operand and emitted `call i32 @f(double %t)`, which the assembler
+  rejected with a raw LLVM error carrying no span or diagnostic code.
 
 ### Changed
 
