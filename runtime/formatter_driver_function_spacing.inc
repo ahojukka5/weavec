@@ -56,6 +56,7 @@ static int weave_fmt_format_function(
     int64_t head,
     size_t indentation) {
     int64_t name = weave_fmt_nth_child(context, list, 1);
+    int64_t type_params = weave_fmt_find_clause(context, list, "type-params");
     int64_t params = weave_fmt_find_clause(context, list, "params");
     if (params == -1) {
         params = weave_fmt_nth_child(context, list, 2);
@@ -74,10 +75,18 @@ static int weave_fmt_format_function(
         !weave_fmt_write_atom(context, head) ||
         !weave_fmt_write_char(context, ' ') ||
         !weave_fmt_write_atom(context, name) ||
-        !weave_fmt_write_char(context, ' ') ||
-        !weave_fmt_write_char(context, '(')) {
+        !weave_fmt_write_char(context, ' ')) {
         return 0;
     }
+    /* (type-params ...) is a clause immediately after the declaration name. */
+    if (type_params != -1) {
+        if (!weave_fmt_format_node(
+                context, type_params, indentation + 2, WEAVE_FMT_UNKNOWN, 1) ||
+            !weave_fmt_write_char(context, ' ')) {
+            return 0;
+        }
+    }
+    if (!weave_fmt_write_char(context, '(')) return 0;
     int64_t params_head = node_first_child(context->tree, params);
     int64_t pair = (params_head != -1 &&
         weave_fmt_node_text_equals(context, params_head, "params"))
