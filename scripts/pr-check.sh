@@ -18,6 +18,9 @@ python3 "$ROOT/scripts/check_runtime_boundary.py"
 log 'surface head dispatch order'
 python3 "$ROOT/scripts/check_head_dispatch.py"
 
+log 'suite execution classification'
+python3 "$ROOT/scripts/check_suite_execution.py"
+
 log 'WIR core-version audit'
 python3 "$ROOT/scripts/check_wir_core_version.py"
 

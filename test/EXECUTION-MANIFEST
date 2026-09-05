@@ -1,0 +1,145 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# How each suite verifies its subject, enforced by
+# scripts/check_suite_execution.py and explained in CONTRIBUTING.md.
+#
+#   <class> <suite directory name>
+#
+# Classes
+#
+#   executes    Builds a program and runs it, asserting an exit value or
+#               output. Detected mechanically: the suite invokes a produced
+#               artifact in command position.
+#
+#   contract    Deliberately inspects text, JSON, or a diagnostic rather than
+#               running a program, because that IS its subject: emitted IR
+#               shape, a diagnostic message, a published document, a script
+#               contract. Classifying a suite here asserts that no runtime
+#               behavior of its feature is left unverified.
+#
+#   unreviewed  Not yet classified. These never run a produced program, and
+#               nobody has yet confirmed whether that is correct. Five of the
+#               seven defects fixed on 2026-09-04/05 hid behind suites of
+#               exactly this shape -- test/loop-control asserted substrings
+#               of emitted WIR while no `for` program could be built at all.
+#
+# The unreviewed count is a ratchet: it may fall, never rise. Reclassify a
+# suite by reading it and deciding whether its feature has runtime behavior
+# that nothing executes. If it does, add an execution case and mark it
+# `executes`; if it does not, mark it `contract`.
+#
+# A new suite must be registered. New suites should not be `unreviewed`.
+
+unreviewed backend-binding-soundness
+contract backend-call-arg
+contract backend-call-validation
+unreviewed backend-stmt-call-float
+executes backend-string-escape
+contract backend-table-limits
+unreviewed build-boundary
+contract capabilities
+contract cli-diagnostics
+executes cli-io
+executes comment-statement
+executes compiler-sources
+unreviewed compiler-write
+unreviewed contract-result-requires
+executes convert-format
+contract development-entrypoints
+unreviewed diagnostic-repairs
+contract diagnostics-publication
+unreviewed enum-identity
+executes ergonomic-stdlib-qualify
+unreviewed examples-index
+unreviewed expr-if
+unreviewed f32-literals
+executes file-statistics
+executes fixed-f64-output
+unreviewed float-arithmetic
+executes formatter
+unreviewed formatter-function-spacing
+unreviewed formatter-generic-spacing
+unreviewed formatter-layout
+executes function-terminators
+unreviewed generic-monomorphization
+executes generic-type-params
+unreviewed interp
+executes io-stderr
+contract json-publication
+unreviewed let-infer
+executes llvm-provenance
+executes loop-control
+contract manifest-publication
+unreviewed matrix-vector
+unreviewed module-body-selection
+executes module-collisions
+executes module-diagnostics
+executes module-structs
+executes module-symbols
+executes module-type-interfaces
+executes modules
+unreviewed newton-root
+executes optimization-evidence
+executes option-helpers
+unreviewed option-result
+executes optional-else
+executes parse-diagnostics
+unreviewed parse-digits
+executes parse-f64
+unreviewed performance
+unreviewed process-arguments
+unreviewed project-acceptance
+contract project-cache-contract
+executes project-discovery
+unreviewed project-incremental-cache
+unreviewed project-protocol-contract
+unreviewed project-protocols
+unreviewed project-source-discovery
+unreviewed projectile-motion
+unreviewed protocol-boundary
+unreviewed pythagoras
+unreviewed quadratic
+unreviewed quantum
+unreviewed selfhost
+unreviewed selfhost-fixed-point
+unreviewed selfhost-link-policy
+unreviewed semantic-index
+contract semantic-index-contract
+unreviewed semantic-index-module-order
+executes semantic-structs
+unreviewed semantic-type-facts
+executes semantic-type-graph
+executes sqrt-f64
+unreviewed statistics
+unreviewed stdlib-layout
+executes string-bytes
+unreviewed string-literals
+executes struct-aliasing
+unreviewed struct-cost
+unreviewed struct-forms
+executes struct-layout
+executes structured-types-qualify
+executes surface-elaboration
+executes surface-symbols
+unreviewed tagged-variants
+unreviewed tooling-artifacts
+executes trace
+unreviewed trace-publication
+unreviewed trigonometry-math
+unreviewed trigonometry-table
+executes type-annotations
+unreviewed variant-match
+executes vec-slice
+unreviewed vector-dot
+unreviewed vector-geometry
+unreviewed version
+executes wir-builder-hardening
+executes wir-decimal
+executes wir-invariants
+executes wir-operator
+executes wir-scalar
+executes wir-scalar-expr
+executes wir-scalar-literals
+executes wir-serialize
+executes wir-subtree
+executes wir-tree
