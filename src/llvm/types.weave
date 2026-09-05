@@ -289,7 +289,7 @@
       (if
         (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get op_node)
           (const_string_ptr "cast_f32_to_i32") (const_i64 15)) (const_i32 0)))
-        (then (do (return (const_i32 5))))
+        (then (do (return (const_i32 1))))
         (else (do)))
       (if
         (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get op_node)
@@ -345,7 +345,7 @@
       (if
         (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get op_node)
           (const_string_ptr "cast_f64_to_i32") (const_i64 15)) (const_i32 0)))
-        (then (do (return (const_i32 6))))
+        (then (do (return (const_i32 1))))
         (else (do)))
       (if
         (condition (ne_i32 (call_i32 ident_equals (param_get tree) (param_get source) (param_get op_node)
