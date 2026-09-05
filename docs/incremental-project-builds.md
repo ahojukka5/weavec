@@ -124,11 +124,31 @@ Example:
 }
 ```
 
+A build that bypasses the module cache still publishes a report. Its `status`
+is `bypassed`, `bypassed_by` names the argument that selected the full protocol
+path, `cache_dir` is empty, and `modules` is empty because no module was
+considered for reuse:
+
+```json
+{
+  "format": "weavec-project-module-cache-v1",
+  "status": "bypassed",
+  "cache_dir": "",
+  "exit_code": 0,
+  "bypassed_by": "--emit-wir",
+  "modules": []
+}
+```
+
+`--cache-report` therefore always produces a file or a diagnostic. It is never
+silently ignored.
+
 ## Protocol and safety boundary
 
 Builds that request diagnostics, traces, semantic indexes, manifests, contracts,
 audits, or phase artifacts run through the established full project protocol path.
-The cache does not replace or synthesize those documents.
+The cache does not replace or synthesize those documents, and it records that it
+did not run through the `bypassed` report above.
 
 Manifest UTF-8 and forbidden-NUL checks, output alias protection, source admission,
 symlink policy, graph validation, and failure publication run before cache use.

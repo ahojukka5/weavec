@@ -12,9 +12,10 @@
   ],
   "properties": {
     "format": {"const": "weavec-project-module-cache-v1"},
-    "status": {"enum": ["succeeded", "failed"]},
+    "status": {"enum": ["succeeded", "failed", "bypassed"]},
     "cache_dir": {"type": "string"},
     "exit_code": {"type": "integer", "minimum": 0},
+    "bypassed_by": {"type": "string", "minLength": 1},
     "modules": {
       "type": "array",
       "items": {"$ref": "#/$defs/module"}
@@ -35,6 +36,19 @@
             "minItems": 1,
             "items": {"$ref": "#/$defs/successful_module"}
           }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"status": {"const": "bypassed"}},
+        "required": ["status"]
+      },
+      "then": {
+        "required": ["bypassed_by"],
+        "properties": {
+          "cache_dir": {"const": ""},
+          "modules": {"type": "array", "maxItems": 0}
         }
       }
     }

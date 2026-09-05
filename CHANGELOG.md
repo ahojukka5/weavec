@@ -36,6 +36,13 @@ surface-language contract stabilises.
   argument position the backend typed the call site from the pre-cast
   operand and emitted `call i32 @f(double %t)`, which the assembler
   rejected with a raw LLVM error carrying no span or diagnostic code.
+- `--cache-report` always publishes a report. A build that also requests
+  diagnostics, a trace, a semantic index, a manifest, contracts, or a
+  phase artifact runs through the full project protocol path, which does
+  not use the module cache; that combination wrote no file and no
+  diagnostic and exited 0. It now publishes `status` `bypassed` with
+  `bypassed_by` naming the argument responsible. See
+  [Incremental project builds](docs/incremental-project-builds.md).
 
 ### Changed
 
