@@ -1,0 +1,128 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Runtime implementation boundary ledger, enforced by
+# scripts/check_runtime_boundary.py and documented in
+# docs/runtime-boundary.md.
+#
+# Every C file under runtime/ must be registered here as exactly one line:
+#
+#   <category> <ceiling> <path>
+#
+# `ceiling` is the maximum line count admitted for that file. The check fails
+# when a file grows past its ceiling or when an unregistered C file appears, so
+# the boundary cannot erode one small commit at a time.
+#
+# Categories
+#
+#   host          A genuine platform, libc, or toolchain ABI operation that
+#                 Weave cannot yet express directly and safely. Policy-
+#                 compliant. A new `host` entry must carry a `why:` comment
+#                 stating what Weave cannot express; keep it mechanical, and
+#                 delete it when the Weave capability lands.
+#
+#   port-pending  Pre-existing portable language behavior that the policy says
+#                 belongs in Weave, kept only until it is ported. Issue #432
+#                 owns the port. Ceilings here are a ratchet: they may be
+#                 lowered as code moves to Weave, and a raise is a deliberate,
+#                 reviewable line in this file that needs a stated reason. Do
+#                 not add new `port-pending` entries — new portable behavior
+#                 goes in src/ as Weave.
+#
+# Lowering a ceiling after porting is encouraged and needs no justification.
+
+# ---------------------------------------------------------------------------
+# host — platform and toolchain ABI
+# ---------------------------------------------------------------------------
+# why: fork/exec of clang and llc, and host CPU feature flags.
+host 320 runtime/llvm_toolchain.c
+# why: realpath and platform path validation against the host filesystem.
+host 215 runtime/path_safety.c
+# why: POSIX write/open/flush and host IEEE bit conversion; weavec1 cannot
+# compile f64 compiler sources, so Weave cannot own the bit step yet.
+host 461 runtime/portable.c
+# why: argv/argc access for produced programs.
+host 24 runtime/process_args.inc
+# why: private runtime linked into produced programs, not into the compiler.
+host 23 runtime/program.c
+# why: test-only quantum stub; production behavior is out of scope per
+# CONTRIBUTING.md.
+host 272 runtime/quantum_runtime.c
+
+# ---------------------------------------------------------------------------
+# port-pending — canonical formatter (#432, bugs #428 and #430 landed here)
+# ---------------------------------------------------------------------------
+port-pending 189 runtime/formatter_driver.c
+port-pending 256 runtime/formatter_driver_cli.inc
+port-pending 66 runtime/formatter_driver_comments.inc
+port-pending 163 runtime/formatter_driver_control_layout.inc
+port-pending 73 runtime/formatter_driver_control_plans.inc
+port-pending 109 runtime/formatter_driver_control_spacing.inc
+port-pending 284 runtime/formatter_driver_emit.inc
+port-pending 604 runtime/formatter_driver_emit_helpers.inc
+port-pending 243 runtime/formatter_driver_function_spacing.inc
+port-pending 160 runtime/formatter_driver_gaps.inc
+port-pending 263 runtime/formatter_driver_io.inc
+port-pending 195 runtime/formatter_driver_measure.inc
+port-pending 280 runtime/formatter_driver_normalize.inc
+port-pending 213 runtime/formatter_driver_plans.inc
+port-pending 299 runtime/formatter_driver_structs.inc
+port-pending 140 runtime/formatter_driver_symbols.inc
+port-pending 299 runtime/formatter_driver_types.inc
+
+# ---------------------------------------------------------------------------
+# port-pending — surface and WIR text emission called from Weave (#427)
+# ---------------------------------------------------------------------------
+port-pending 294 runtime/module_struct_names.c
+port-pending 225 runtime/module_wir_names.c
+port-pending 792 runtime/source_locations.c
+port-pending 2245 runtime/surface_symbols.c
+
+# ---------------------------------------------------------------------------
+# port-pending — semantic index
+# ---------------------------------------------------------------------------
+port-pending 233 runtime/semantic_index.c
+port-pending 801 runtime/semantic_index_ast.inc
+port-pending 657 runtime/semantic_index_body_collect.inc
+port-pending 558 runtime/semantic_index_body_lookup.inc
+port-pending 348 runtime/semantic_index_calls.inc
+port-pending 246 runtime/semantic_index_collect.inc
+port-pending 254 runtime/semantic_index_driver.inc
+port-pending 514 runtime/semantic_index_emit.inc
+port-pending 244 runtime/semantic_index_hash.inc
+port-pending 54 runtime/semantic_surface_types.c
+port-pending 22 runtime/semantic_type_graph.c
+
+# ---------------------------------------------------------------------------
+# port-pending — project system and build driver
+# ---------------------------------------------------------------------------
+port-pending 1122 runtime/build_driver.c
+port-pending 783 runtime/project_cache.c
+port-pending 97 runtime/project_cache_capabilities.c
+port-pending 37 runtime/project_cache_dispatch.c
+port-pending 17 runtime/project_cache_json_optional.c
+port-pending 102 runtime/project_cache_outer.c
+port-pending 24 runtime/project_cache_selection.c
+port-pending 1284 runtime/project_driver.c
+port-pending 647 runtime/project_graph.c
+port-pending 686 runtime/project_module_cache.c
+port-pending 185 runtime/project_module_interfaces.c
+port-pending 40 runtime/project_protocol_publish.c
+port-pending 57 runtime/project_protocol_safety.c
+port-pending 590 runtime/project_protocols.c
+port-pending 225 runtime/project_safety.c
+port-pending 834 runtime/project_sources.c
+
+# ---------------------------------------------------------------------------
+# port-pending — diagnostics, publication, and JSON
+# ---------------------------------------------------------------------------
+port-pending 112 runtime/build_manifest_json.c
+port-pending 24 runtime/capabilities_json.c
+port-pending 892 runtime/diagnostics_driver.c
+port-pending 250 runtime/diagnostics_json.c
+port-pending 182 runtime/document_publish.c
+port-pending 356 runtime/json_writer.c
+port-pending 112 runtime/json_writer_bridge.c
+port-pending 170 runtime/semantic_diagnostic_record.c
+port-pending 142 runtime/semantic_diagnostic_transport.c
+port-pending 52 runtime/semantic_diagnostic_wrapper.c
+port-pending 135 runtime/trace_runtime.c
