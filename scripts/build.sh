@@ -45,6 +45,51 @@ require_tool() {
   command -v "$1" >/dev/null 2>&1 || fail "required tool not found: $1"
 }
 
+# Major version of an LLVM-family tool, or empty when it cannot be read.
+llvm_tool_major() {
+  "$1" --version 2>/dev/null |
+    awk 'match($0, /version [0-9]+/) {
+      print substr($0, RSTART + 8, RLENGTH - 8); exit
+    }'
+}
+
+# weavec compiles a program by producing IR with the optimizer (clang) and
+# feeding that IR to the code generator (llc). A clang newer than llc emits
+# IR syntax llc cannot parse -- `captures(none)` and `range(...)` are the
+# forms seen in practice -- and the failure surfaces as an LLVM parse error
+# against <stdin> that names no Weave source. Detect the skew here instead.
+check_llvm_toolchain() {
+  local optimizer codegen optimizer_major codegen_major
+  optimizer="${WEAVEC_OPTIMIZER:-${WEAVEC_CODEGEN:-clang}}"
+  codegen="${WEAVEC_TARGET_CODEGEN:-${WEAVEC_LLC:-llc}}"
+
+  # Building weavec itself does not need the code generator, but every
+  # `weavec build` does, so say so rather than letting it fail later.
+  if ! command -v "$codegen" >/dev/null 2>&1; then
+    log "warning: code generator not found: $codegen"
+    log "  weavec will build, but 'weavec build' cannot produce a program."
+    return 0
+  fi
+
+  optimizer_major="$(llvm_tool_major "$optimizer")"
+  codegen_major="$(llvm_tool_major "$codegen")"
+  [[ -n "$optimizer_major" && -n "$codegen_major" ]] || return 0
+
+  if (( optimizer_major > codegen_major )); then
+    printf '[weavec] error: LLVM toolchain skew\n' >&2
+    printf '  %s is version %s but %s is version %s.\n' \
+      "$optimizer" "$optimizer_major" "$codegen" "$codegen_major" >&2
+    printf '  weavec produces IR with %s and generates code with %s, so\n' \
+      "$optimizer" "$codegen" >&2
+    printf '  the newer compiler emits IR the older code generator cannot\n' >&2
+    printf '  parse and every native build fails.\n' >&2
+    printf '  Install a code generator at least as new as %s, or point\n' \
+      "$optimizer" >&2
+    printf '  WEAVEC_TARGET_CODEGEN at one. See issue #441.\n' >&2
+    exit 1
+  fi
+}
+
 resolve_sdk_suffix() {
   local system machine
   system="$(uname -s)"
@@ -240,6 +285,9 @@ build_weavec() {
 
 main() {
   require_tool awk
+  # Report toolchain skew before demanding the rest of the toolchain: it is
+  # the more informative failure, and it does not depend on the others.
+  check_llvm_toolchain
   require_tool clang
   require_tool llvm-as
   require_tool llvm-link
