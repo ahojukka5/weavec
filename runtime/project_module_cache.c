@@ -391,12 +391,16 @@ static int weave_project_module_link(
     return 0;
 }
 
+// `bypassed_by`, when not NULL, names the argument that selected the full
+// project protocol path instead of the module cache. Such a report carries
+// status "bypassed" and no decisions. See docs/incremental-project-builds.md.
 static int weave_project_module_write_report(
     const char *path,
     const char *cache_root,
     int exit_code,
     weave_project_module_decision *decisions,
-    size_t count) {
+    size_t count,
+    const char *bypassed_by) {
     if (path == NULL) return 1;
     char temporary[PATH_MAX];
     if (snprintf(
@@ -417,10 +421,18 @@ static int weave_project_module_write_report(
             stream, WEAVE_PROJECT_MODULE_CACHE_FORMAT) &&
         fputs(",\"status\":", stream) >= 0 &&
         weave_project_cache_json_string(
-            stream, exit_code == 0 ? "succeeded" : "failed") &&
+            stream,
+            bypassed_by != NULL
+                ? "bypassed"
+                : (exit_code == 0 ? "succeeded" : "failed")) &&
         fputs(",\"cache_dir\":", stream) >= 0 &&
         weave_project_cache_json_string(stream, cache_root) &&
-        fprintf(stream, ",\"exit_code\":%d,\"modules\":[", exit_code) >= 0;
+        fprintf(stream, ",\"exit_code\":%d", exit_code) >= 0;
+    if (ok && bypassed_by != NULL) {
+        ok = fputs(",\"bypassed_by\":", stream) >= 0 &&
+            weave_project_cache_json_string(stream, bypassed_by);
+    }
+    ok = ok && fputs(",\"modules\":[", stream) >= 0;
     for (size_t i = 0; ok && i < count; ++i) {
         if (i > 0 && fputc(',', stream) == EOF) ok = 0;
         ok = ok && fputs("{\"name\":", stream) >= 0 &&
@@ -652,7 +664,7 @@ static int weave_project_module_build(
     if (!weave_project_module_write_report(
             options->report,
             cache_ready ? module_root : "",
-            result, decisions, count) && result == 0) {
+            result, decisions, count, NULL) && result == 0) {
         result = 2;
     }
 

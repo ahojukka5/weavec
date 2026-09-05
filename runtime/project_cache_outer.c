@@ -74,6 +74,30 @@ static int weave_project_cache_has_internal_reporters(void) {
         (graph != NULL && *graph != '\0');
 }
 
+// Name the argument that sent this build down the full protocol path, so a
+// bypass report can say why the module cache did not run.
+static const char *weave_project_cache_bypass_reason(int argc, char **argv) {
+    for (int index = 2; index < argc; ++index) {
+        if (weave_project_cache_protocol_argument(argv[index])) {
+            return argv[index];
+        }
+    }
+    return "internal-project-reporters";
+}
+
+// A requested --cache-report must always be published. Builds that ask for
+// diagnostics, traces, indexes, manifests, contracts, or phase artifacts run
+// through the full project protocol path, which does not use the module cache
+// (see docs/incremental-project-builds.md). Report that as `bypassed` rather
+// than writing nothing, which left the caller with no file and no diagnostic.
+static int weave_project_cache_write_bypass_report(
+    const char *path,
+    const char *bypassed_by,
+    int exit_code) {
+    return weave_project_module_write_report(
+        path, "", exit_code, NULL, 0, bypassed_by);
+}
+
 int weave_rt_build_main(int argc, char **argv) {
     weave_project_cache_options options = {0};
     if (!weave_project_cache_parse_options(argc, argv, &options)) {
@@ -87,6 +111,14 @@ int weave_rt_build_main(int argc, char **argv) {
         weave_project_cache_has_internal_reporters()) {
         result = weave_rt_build_main_project_cache_legacy(
             options.argc, options.argv);
+        if (!weave_project_cache_write_bypass_report(
+                options.report,
+                weave_project_cache_bypass_reason(
+                    options.argc, options.argv),
+                result)) {
+            fputs("weavec: cannot publish project cache report\n", stderr);
+            if (result == 0) result = 2;
+        }
         weave_project_cache_options_clear(&options);
         return result;
     }
