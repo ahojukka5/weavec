@@ -110,12 +110,8 @@ Type parameters and type applications use named heads so they cannot be
 confused with a value call or with reserved ownership spellings:
 
 ```weave
-(fn identity
-  (type-params T)
-  (params (value T))
-  (returns T)
-  (do
-    (return value)))
+(fn identity (type-params T) ((value T)) T
+  (return value))
 
 (struct Box
   (type-params T)
@@ -127,6 +123,12 @@ confused with a value call or with reserved ownership spellings:
 `(type-params ...)` is an optional clause immediately after the declaration
 name. `(type-app CONSTRUCTOR ARG...)` is the only compound type form. Other
 compound types such as `(owned T)` remain rejected.
+
+A compact function signature keeps the clause in that position, between the
+name and the parameter list: `(fn NAME (type-params T ...) ((x T) ...) Ret
+...)`. The verbose `(params ...)` / `(returns ...)` spelling remains accepted
+input, and `weavec fmt` rewrites it to the compact form without dropping the
+clause.
 
 A generic call names its type arguments explicitly:
 

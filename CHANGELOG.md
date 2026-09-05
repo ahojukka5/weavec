@@ -19,6 +19,9 @@ surface-language contract stabilises.
 - `(qmeasure QUBIT NAME)` lowers again. The head was not reserved, so
   direct-call resolution claimed it before the quantum dispatch and
   reported `unresolved function qmeasure`.
+- `weavec fmt` keeps `(type-params ...)` when it rewrites a generic
+  function into a compact signature. The clause stays between the name
+  and the parameter list, so the formatted source still compiles.
 
 ### Changed
 
