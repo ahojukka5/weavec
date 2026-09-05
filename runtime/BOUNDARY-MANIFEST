@@ -104,11 +104,16 @@ port-pending 783 runtime/project_cache.c
 port-pending 97 runtime/project_cache_capabilities.c
 port-pending 37 runtime/project_cache_dispatch.c
 port-pending 17 runtime/project_cache_json_optional.c
-port-pending 102 runtime/project_cache_outer.c
+# raised by 32 for #435: publishing a bypass report requires the decision to
+# be made where the bypass happens. Reusing the module-cache writer kept this
+# to a call plus the reason lookup instead of a second atomic-write path.
+port-pending 134 runtime/project_cache_outer.c
 port-pending 24 runtime/project_cache_selection.c
 port-pending 1284 runtime/project_driver.c
 port-pending 647 runtime/project_graph.c
-port-pending 686 runtime/project_module_cache.c
+# raised by 12 for #435: the one report writer now also emits the bypassed
+# status, which is smaller than duplicating its atomic-write path elsewhere.
+port-pending 698 runtime/project_module_cache.c
 port-pending 185 runtime/project_module_interfaces.c
 port-pending 40 runtime/project_protocol_publish.c
 port-pending 57 runtime/project_protocol_safety.c
