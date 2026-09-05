@@ -65,6 +65,15 @@ explicit specification bump across the complete compiler chain.
   incompatible WIR semantics as a versioned compiler-chain change.
 - **No feature without a regression.** Add correctness, performance, quantum,
   diagnostics, package, or self-host coverage matching the changed boundary.
+- **A regression that cannot fail is not a regression.** If a feature has
+  runtime behavior, at least one case must build a program, run it, and assert
+  its exit value or output. Grepping emitted WIR or LLVM proves a substring was
+  written, not that the program links, runs, or computes the right answer.
+  `test/loop-control` matched every substring it asserted while no `for`,
+  `break`, or `continue` program could be built at all. Text assertions stay
+  correct where the text *is* the subject: an IR contract, a diagnostic
+  message, a published document. Record which kind a suite is in
+  [`test/EXECUTION-MANIFEST`](test/EXECUTION-MANIFEST).
 - **Review LLVM goldens.** Regenerate them only after intentional backend-output
   changes and inspect the complete diff.
 - **Keep self-hosting green.** The normal ladder and deep two-generation

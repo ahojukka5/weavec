@@ -52,6 +52,12 @@ surface-language contract stabilises.
   emits IR an older `llc` cannot parse, which previously surfaced as an
   LLVM parse error against `<stdin>` naming no Weave source. See
   [Development builds](docs/development-builds.md).
+- `test/EXECUTION-MANIFEST` records whether each suite runs a produced
+  program or deliberately asserts a contract, and
+  `scripts/check_suite_execution.py` fails `scripts/pr-check.sh` when a
+  suite is unregistered, when an `executes` suite stops running one, or
+  when the unreviewed backlog grows. See
+  [Contributing](CONTRIBUTING.md).
 - `scripts/check_head_dispatch.py`, run by `scripts/pr-check.sh`, fails
   when `emit_node` dispatches a surface head after its
   `surface_is_call_node` test without reserving it in
