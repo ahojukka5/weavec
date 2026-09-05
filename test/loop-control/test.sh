@@ -212,4 +212,37 @@ assert doc["analysis"]["complete"] is True
 print("loop-control: semantic index passed")
 PY
 
+# Grepping emitted WIR proves nothing about whether a loop program links and
+# runs. The mis-nested lowering fixed in #427 satisfied every substring
+# assertion above while emitting WIR the backend rejected, and `for`, `break`,
+# and `continue` never produced a runnable program. Build and execute each
+# shape, and assert its exit value.
+run_expect() {
+  local name="$1"
+  local expected="$2"
+
+  "$WEAVEC" build "$TMP/$name.weave" -o "$TMP/$name.bin" \
+    2>"$TMP/$name.build.stderr" || {
+    printf 'loop-control: %s failed to build\n' "$name" >&2
+    cat "$TMP/$name.build.stderr" >&2
+    exit 1
+  }
+  set +e
+  "$TMP/$name.bin"
+  local status="$?"
+  set -e
+  [[ "$status" -eq "$expected" ]] || {
+    printf 'loop-control: %s exited %s, expected %s\n' \
+      "$name" "$status" "$expected" >&2
+    exit 1
+  }
+}
+
+run_expect sum 6            # 0+1+2+3 over the half-open range [0,4)
+run_expect break 3          # break at i == 3: 0+1+2
+run_expect continue 5       # continue at i == 1: 0+2+3
+run_expect while-plain 3    # hand-written while must keep working
+run_expect while-break 2    # break out of a hand-written while
+printf 'loop-control: execution passed\n'
+
 printf 'loop-control: passed\n'
