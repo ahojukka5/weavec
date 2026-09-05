@@ -64,7 +64,11 @@ port-pending 160 runtime/formatter_driver_gaps.inc
 port-pending 263 runtime/formatter_driver_io.inc
 port-pending 195 runtime/formatter_driver_measure.inc
 port-pending 280 runtime/formatter_driver_normalize.inc
-port-pending 213 runtime/formatter_driver_plans.inc
+# raised by 5 for #428: preserving decimal literals needs the check where the
+# atom is written, and there is no Weave formatter to hold it yet. Losing a
+# literal corrupts source, so the fix could not wait for the port. Lower this
+# again when formatter_driver_plans.inc moves to Weave.
+port-pending 218 runtime/formatter_driver_plans.inc
 port-pending 299 runtime/formatter_driver_structs.inc
 port-pending 140 runtime/formatter_driver_symbols.inc
 port-pending 299 runtime/formatter_driver_types.inc
