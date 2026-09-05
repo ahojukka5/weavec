@@ -12,6 +12,9 @@ log() {
   printf '[weavec-pr-check] %s\n' "$*"
 }
 
+log 'runtime implementation boundary'
+python3 "$ROOT/scripts/check_runtime_boundary.py"
+
 log 'WIR core-version audit'
 python3 "$ROOT/scripts/check_wir_core_version.py"
 
