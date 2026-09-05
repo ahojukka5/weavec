@@ -42,6 +42,9 @@ bash "$ROOT/test/formatter-function-spacing/test.sh"
 log 'canonical generic sibling spacing'
 bash "$ROOT/test/formatter-generic-spacing/test.sh"
 
+log 'explicit generic type parameters'
+bash "$ROOT/test/generic-type-params/test.sh"
+
 log 'standalone comment statements'
 bash "$ROOT/test/comment-statement/test.sh"
 
