@@ -17,6 +17,34 @@ scripts/selfhost.sh
 The root `build.sh`, `test-all.sh`, and `selfhost.sh` paths are compatibility
 symlinks. New documentation and automation should use the canonical paths.
 
+## Host LLVM toolchain
+
+`scripts/build.sh` needs `clang`, `llvm-as`, and `llvm-link` to build the
+compiler. Producing a program with `weavec build` additionally needs a code
+generator, `llc` by default.
+
+**The code generator must be at least as new as the compiler that produces the
+IR.** `weavec` optimizes with `clang` and generates code with `llc`, so a newer
+`clang` emits IR syntax an older `llc` cannot parse — `captures(none)` and
+`range(...)` are the forms seen in practice. Otherwise the failure surfaces as
+an LLVM parse error against `<stdin>` naming no Weave source, and every native
+build fails while frontend-only and backend-only paths keep working.
+
+`scripts/build.sh` compares the two major versions and refuses to build on a
+mismatch, naming both. A missing code generator is a warning rather than an
+error, since building the compiler itself does not need one.
+
+Override either tool when the defaults are not the ones to use:
+
+| Variable | Selects |
+|---|---|
+| `WEAVEC_OPTIMIZER`, or `WEAVEC_CODEGEN` | the compiler that produces IR |
+| `WEAVEC_TARGET_CODEGEN`, or `WEAVEC_LLC` | the code generator |
+| `WEAVEC_LINKER` | the linker |
+
+A macOS host with Xcode's `clang` and a separately installed LLVM is the usual
+way to hit this; see issue #441.
+
 ## Released lower-stage SDKs
 
 `scripts/build.sh` consumes two versioned release packages:
