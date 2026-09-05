@@ -435,4 +435,63 @@ if ! grep -Fq "$TMP/corpus-spaces.weave" "$TMP/check-noncanonical.stderr"; then
   exit 1
 fi
 
+# Decimal literals (#428). The lexer records a decimal atom as an integer node
+# that keeps its exact source span, so a formatter that reprints such nodes
+# from their integer value silently rewrites every literal to 0 -- over the
+# source file, since fmt formats in place by default.
+cat > "$TMP/decimals.weave" <<'EOF'
+(program
+  (name "decimals")
+  (version "0.1")
+
+  (fn scale ((value f64)) f64
+    (return (* value 1.5)))
+
+  (entry main () i32
+    (let a f64 1.5)
+    (let b f64 -0.25)
+    (let c f64 3.0)
+    (let d f32 0.125)
+    (let e f64 12345.6789)
+    (let n i32 42)
+    (return 0)))
+EOF
+cp "$TMP/decimals.weave" "$TMP/decimals.expected"
+"$WEAVEC" fmt "$TMP/decimals.weave"
+if ! cmp -s "$TMP/decimals.expected" "$TMP/decimals.weave"; then
+  printf 'formatter: formatting changed a canonical decimal program\n' >&2
+  diff "$TMP/decimals.expected" "$TMP/decimals.weave" >&2 || true
+  exit 1
+fi
+for literal in '1.5' '-0.25' '3.0' '0.125' '12345.6789'; do
+  if ! grep -Fq -- "$literal" "$TMP/decimals.weave"; then
+    printf 'formatter: decimal literal %s did not survive\n' "$literal" >&2
+    cat "$TMP/decimals.weave" >&2
+    exit 1
+  fi
+done
+# Integers keep their normalized spelling, and no decimal becomes one.
+grep -Fq '(let n i32 42)' "$TMP/decimals.weave"
+if grep -Eq '\(let [abcde] f(32|64) -?[0-9]+\)' "$TMP/decimals.weave"; then
+  printf 'formatter: a decimal literal was rewritten as an integer\n' >&2
+  cat "$TMP/decimals.weave" >&2
+  exit 1
+fi
+"$WEAVEC" fmt --check "$TMP/decimals.weave"
+"$WEAVEC" fmt --output "$TMP/decimals.again" "$TMP/decimals.weave"
+cmp -s "$TMP/decimals.weave" "$TMP/decimals.again" || {
+  printf 'formatter: decimal formatting is not idempotent\n' >&2
+  diff "$TMP/decimals.weave" "$TMP/decimals.again" >&2 || true
+  exit 1
+}
+# The formatted source must still compile: a lost literal changes the program.
+"$WEAVEC" --frontend "$TMP/decimals.wir" "$TMP/decimals.weave" \
+  2>"$TMP/decimals.stderr" || {
+  printf 'formatter: formatted decimal program was rejected\n' >&2
+  cat "$TMP/decimals.stderr" >&2
+  exit 1
+}
+grep -Fq '1.5' "$TMP/decimals.wir"
+printf 'formatter: decimal literals passed\n'
+
 printf 'formatter: canonicalization, structs, comments, and atomicity passed\n'
