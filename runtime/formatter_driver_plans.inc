@@ -181,7 +181,12 @@ static int weave_fmt_write_atom(
             return 0;
         }
     }
-    if (kind == node_int()) {
+    /* A decimal atom is an integer node that keeps its exact source span;
+       node_value holds no usable value for it, so reprint only real integers
+       and copy a decimal lexeme through untouched. */
+    if (kind == node_int() &&
+        memchr(context->source + (size_t)start_raw, '.',
+               (size_t)length_raw) == NULL) {
         char buffer[32];
         int length = snprintf(
             buffer, sizeof(buffer), "%lld", (long long)node_value(context->tree, node));
