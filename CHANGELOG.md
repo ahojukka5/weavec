@@ -22,6 +22,12 @@ surface-language contract stabilises.
 - `weavec fmt` keeps `(type-params ...)` when it rewrites a generic
   function into a compact signature. The clause stays between the name
   and the parameter list, so the formatted source still compiles.
+- `for`, `break`, and `continue` produce runnable programs. Loop
+  lowering nested the body inside `(condition ...)`, emitted the
+  increment guard as a third `while` child, and wrote `(if ...)` without
+  the required `else`, so every loop program was rejected by the
+  backend. `test/loop-control` now links and runs each shape instead of
+  grepping emitted text.
 
 ### Changed
 
