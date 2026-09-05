@@ -75,7 +75,7 @@ port-pending 299 runtime/formatter_driver_types.inc
 port-pending 294 runtime/module_struct_names.c
 port-pending 225 runtime/module_wir_names.c
 port-pending 792 runtime/source_locations.c
-port-pending 2245 runtime/surface_symbols.c
+port-pending 2250 runtime/surface_symbols.c
 
 # ---------------------------------------------------------------------------
 # port-pending — semantic index

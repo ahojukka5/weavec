@@ -22,6 +22,50 @@ compiler implementation language.
 - WIR is an intermediate representation and fixture format, not a production
   implementation language used to bypass the surface-Weave ownership rule.
 
+## Current state
+
+The policy above describes where the code belongs. It is not where the code is.
+Of roughly 21,800 lines of C under `runtime/`, about **1,300 are a genuine host
+boundary** and about **20,500 are portable behavior awaiting a Weave port**: the
+canonical formatter, the semantic index, the project system and build driver,
+diagnostics publication, and surface and WIR text emission.
+
+Three mechanisms produced that gap, and naming them is the point of this
+section:
+
+1. `src/main.weave` hands whole subcommands to a single extern —
+   `weave_rt_format_main`, `weave_rt_semantic_index_main`, `weave_rt_build_main`.
+   Behind that one call there is no boundary, so every feature the command needs
+   grows in C.
+2. `src/core/extern.weave` declares 124 `weave_surface_*` helpers, so Weave code
+   emits Weave syntax through C string writers. A missing parenthesis in one of
+   them is a language bug, not a host bug.
+3. Nothing checked. The policy was prose, and new work reasonably followed the
+   code next to it.
+
+Issue #432 owns the port. `src/wir/serialize.weave` is the precedent that the
+language can already do this work: it serializes an owned tree to canonical text
+in Weave, with buffer management, escaping, and transactional rollback.
+
+## Enforcement
+
+`runtime/BOUNDARY-MANIFEST` registers every C file under `runtime/` with a
+category and a line-count ceiling, and `scripts/check_runtime_boundary.py`
+enforces it from `scripts/pr-check.sh`. The check is file-based and never builds
+the compiler.
+
+- `host` — a real platform, libc, or toolchain ABI operation. Each entry must
+  carry a `# why:` comment stating what Weave cannot express, which is the
+  written justification this policy already required.
+- `port-pending` — pre-existing portable behavior kept only until it is ported.
+  Do not add new entries in this category.
+
+Ceilings are a ratchet. A file that grows past its ceiling fails the check, and
+an unregistered C file fails the check, so the boundary cannot erode one small
+commit at a time. Lowering a ceiling after moving code to Weave always passes
+and needs no justification. Raising one is a deliberate line in the manifest
+diff that a reviewer has to accept.
+
 ## Floating-point example
 
 `src/parser/lexer.weave` recognizes decimal numeric atoms and preserves their exact
