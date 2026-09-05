@@ -1924,7 +1924,8 @@ void weave_surface_loop_write_gate_open(int32_t fd, int32_t id) {
 }
 
 void weave_surface_loop_write_gate_close(int32_t fd) {
-    weave_surface_enum_write(fd, ")))");
+    /* WIR (if ...) takes condition, then, and else. */
+    weave_surface_enum_write(fd, ")) (else (do)))");
 }
 
 void weave_surface_loop_write_lt_name(
@@ -1973,7 +1974,9 @@ void weave_surface_loop_write_while_open(int32_t fd) {
 }
 
 void weave_surface_loop_write_while_do(int32_t fd) {
-    weave_surface_enum_write(fd, " (do ");
+    /* Close (condition before opening the body, the way the and_bool path
+       closes it in weave_surface_loop_write_and_close_do. */
+    weave_surface_enum_write(fd, ") (do ");
 }
 
 void weave_surface_loop_write_close2(int32_t fd) {
@@ -1989,11 +1992,13 @@ void weave_surface_loop_write_inc_if_open(int32_t fd) {
 }
 
 void weave_surface_loop_write_inc_if_then(int32_t fd) {
-    weave_surface_enum_write(fd, " (then (do ");
+    /* Close (condition before (then, as the loop body writer does. */
+    weave_surface_enum_write(fd, ") (then (do ");
 }
 
 void weave_surface_loop_write_inc_if_close(int32_t fd) {
-    weave_surface_enum_write(fd, ")))");
+    /* WIR (if ...) takes condition, then, and else. */
+    weave_surface_enum_write(fd, ")) (else (do)))");
 }
 
 void weave_surface_write_string_quoted(

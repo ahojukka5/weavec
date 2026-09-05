@@ -151,6 +151,9 @@
         (const_string_ptr "skip") (const_i32 1))
       (return_void)))
 
+  ; Emits the gated loop body and leaves the (do list open, so a caller that
+  ; must place further statements inside the body -- a for loop's increment
+  ; guard -- can do so before closing it. Every caller closes the list.
   (fn lp_emit_gated_do
     (params (fd i32) (source ptr) (tree ptr) (do_node i64) (id i32))
     (returns void)
@@ -181,7 +184,6 @@
             (else (do)))
           (set lp_stmt (call_i64 node_next_sibling
             (param_get tree) (local_get lp_stmt)))))
-      (call_void write_byte (param_get fd) (const_i32 41))
       (return_void)))
 
   (fn lp_while_is_wrapped
@@ -366,6 +368,8 @@
       (call_void lp_emit_gated_do
         (param_get fd) (param_get source) (param_get tree)
         (local_get lp_body) (local_get lp_id3))
+      ; Close the body (do, then the (while.
+      (call_void write_byte (param_get fd) (const_i32 41))
       (call_void write_byte (param_get fd) (const_i32 41))
       (call_void weave_surface_loop_pop)
       (return (const_i32 1))))
@@ -530,6 +534,9 @@
             (call_i64 node_text_start (param_get tree) (local_get lp_name))
             (call_i64 node_text_len (param_get tree) (local_get lp_name)))
           (call_void weave_surface_loop_write_inc_if_close (param_get fd))
+          ; The increment guard belongs inside the body, so close the (do
+          ; after it, then the (while.
+          (call_void write_byte (param_get fd) (const_i32 41))
           (call_void write_byte (param_get fd) (const_i32 41))))
         (else (do
           (call_void emit_do_body
