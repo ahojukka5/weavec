@@ -34,6 +34,12 @@ surface-language contract stabilises.
 
 ### Changed
 
+- `scripts/check_head_dispatch.py`, run by `scripts/pr-check.sh`, fails
+  when `emit_node` dispatches a surface head after its
+  `surface_is_call_node` test without reserving it in
+  `surface_ident_is_reserved_syntax`. Such a head is shaped like a call,
+  so direct-call resolution claims it first and the form is reported as
+  an unresolved function.
 - `runtime/BOUNDARY-MANIFEST` registers every C file under `runtime/` as
   either a justified `host` boundary or `port-pending` behavior awaiting
   its Weave port. `scripts/check_runtime_boundary.py` fails
