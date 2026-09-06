@@ -46,9 +46,10 @@ surface-language contract stabilises.
 
 ### Changed
 
-- `scripts/build.sh` refuses to build when the compiler that produces IR
-  is newer than the code generator that consumes it, naming both
-  versions, and warns when no code generator is present. A newer `clang`
+- `scripts/build.sh` warns when the compiler that produces IR is newer
+  than the code generator that consumes it, naming both versions, and
+  when no code generator is present. The compiler build itself is
+  unaffected by the skew; only `weavec build` of a target program is. A newer `clang`
   emits IR an older `llc` cannot parse, which previously surfaced as an
   LLVM parse error against `<stdin>` naming no Weave source. See
   [Development builds](docs/development-builds.md).

@@ -30,9 +30,11 @@ IR.** `weavec` optimizes with `clang` and generates code with `llc`, so a newer
 an LLVM parse error against `<stdin>` naming no Weave source, and every native
 build fails while frontend-only and backend-only paths keep working.
 
-`scripts/build.sh` compares the two major versions and refuses to build on a
-mismatch, naming both. A missing code generator is a warning rather than an
-error, since building the compiler itself does not need one.
+`scripts/build.sh` compares the two major versions and warns on a mismatch,
+naming both. It warns rather than refuses because building the compiler uses
+`clang`, `llvm-as`, and `llvm-link` and succeeds under skew; only `weavec
+build` of a target program fails. A missing code generator is likewise a
+warning.
 
 Override either tool when the defaults are not the ones to use:
 
