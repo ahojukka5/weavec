@@ -64,6 +64,7 @@ src/frontend/match.weave
 src/frontend/try.weave
 src/frontend/if_expr.weave
 src/frontend/let_infer.weave
+src/frontend/loop_text.weave
 src/frontend/loop.weave
 src/frontend/interp.weave
 src/frontend/comment.weave
