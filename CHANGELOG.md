@@ -46,6 +46,13 @@ surface-language contract stabilises.
 
 ### Changed
 
+- String interpolation emits its WIR text, including the
+  `__weave_interp_*` runtime helpers, from
+  `src/frontend/interp_text.weave` instead of C string helpers. The
+  emitted bytes are unchanged. Only the "interpolation was used" flag
+  stays in C, behind `weave_surface_interp_is_used`, and the caller now
+  owns the decision to emit the helpers. `runtime/surface_symbols.c`
+  falls from 2125 to 2012 lines.
 - Loop lowering emits its WIR text from `src/frontend/loop_text.weave`
   instead of C string helpers in `runtime/surface_symbols.c`. The
   emitted bytes are unchanged; the language now owns the syntax it
