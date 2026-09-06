@@ -1,0 +1,223 @@
+; SPDX-License-Identifier: Apache-2.0
+; loop_text.weave — WIR text emitted by for, break, and continue lowering
+;
+; These writers produce the WIR fragments that loop.weave assembles. They were
+; C string helpers in runtime/surface_symbols.c until the port started
+; (issue #432). Nothing here touches the host: it is byte output through
+; io.weave, and the language owns its own syntax.
+;
+; A missing parenthesis in the C versions nested a loop body inside
+; (condition ...) and omitted the else of an (if ...), so no for, break, or
+; continue program could be built at all (issue #427). Keeping the spelling
+; here means a WIR shape change is a Weave change.
+;
+; Loop-local names are l<ID>_<SUFFIX>: l0_run, l0_skip, l0_end.
+
+(program
+  (name "loop_text")
+  (version "0.1")
+
+  ; l<id>_<suffix>
+  (fn lpt_write_ident
+    (params (fd i32) (id i32) (suffix ptr))
+    (returns void)
+    (do
+      (call_void write_byte (param_get fd) (const_i32 108))
+      (call_void write_i64_dec (param_get fd) (cast_i32_to_i64 (param_get id)))
+      (call_void write_byte (param_get fd) (const_i32 95))
+      (call_void write_cstr (param_get fd) (param_get suffix))
+      (return_void)))
+
+  ; A source span, or nothing when the span is absent.
+  (fn lpt_write_source_span
+    (params (fd i32) (source ptr) (start i64) (length i64))
+    (returns void)
+    (do
+      (if
+        (condition (and_bool
+          (ne_ptr (param_get source) (const_null))
+          (and_bool
+            (ge_i64 (param_get start) (const_i64 0))
+            (gt_i64 (param_get length) (const_i64 0)))))
+        (then (do
+          (call_void write_bytes (param_get fd)
+            (ptr_add (param_get source) (param_get start))
+            (param_get length))))
+        (else (do)))
+      (return_void)))
+
+  ; (let l<id>_<suffix> i32 (const_i32 VALUE))
+  (fn lpt_write_let_flag
+    (params (fd i32) (id i32) (suffix ptr) (value i32))
+    (returns void)
+    (do
+      (call_void write_cstr (param_get fd) (const_string_ptr "(let "))
+      (call_void lpt_write_ident
+        (param_get fd) (param_get id) (param_get suffix))
+      (call_void write_cstr (param_get fd) (const_string_ptr " i32 (const_i32 "))
+      (call_void write_i64_dec
+        (param_get fd) (cast_i32_to_i64 (param_get value)))
+      (call_void write_cstr (param_get fd) (const_string_ptr "))"))
+      (return_void)))
+
+  ; (set l<id>_<suffix> (const_i32 VALUE))
+  (fn lpt_write_set_flag
+    (params (fd i32) (id i32) (suffix ptr) (value i32))
+    (returns void)
+    (do
+      (call_void write_cstr (param_get fd) (const_string_ptr "(set "))
+      (call_void lpt_write_ident
+        (param_get fd) (param_get id) (param_get suffix))
+      (call_void write_cstr (param_get fd) (const_string_ptr " (const_i32 "))
+      (call_void write_i64_dec
+        (param_get fd) (cast_i32_to_i64 (param_get value)))
+      (call_void write_cstr (param_get fd) (const_string_ptr "))"))
+      (return_void)))
+
+  ; (eq_i32 (local_get l<id>_run) (const_i32 1))
+  (fn lpt_write_run_live
+    (params (fd i32) (id i32))
+    (returns void)
+    (do
+      (call_void write_cstr
+        (param_get fd) (const_string_ptr "(eq_i32 (local_get "))
+      (call_void lpt_write_ident
+        (param_get fd) (param_get id) (const_string_ptr "run"))
+      (call_void write_cstr
+        (param_get fd) (const_string_ptr ") (const_i32 1))"))
+      (return_void)))
+
+  ; Opens the per-statement gate: the statement runs only while the loop is
+  ; live and this iteration is not skipped.
+  (fn lpt_write_gate_open
+    (params (fd i32) (id i32))
+    (returns void)
+    (do
+      (call_void write_cstr (param_get fd)
+        (const_string_ptr "(if (condition (and_bool (eq_i32 (local_get "))
+      (call_void lpt_write_ident
+        (param_get fd) (param_get id) (const_string_ptr "run"))
+      (call_void write_cstr (param_get fd)
+        (const_string_ptr ") (const_i32 1)) (eq_i32 (local_get "))
+      (call_void lpt_write_ident
+        (param_get fd) (param_get id) (const_string_ptr "skip"))
+      (call_void write_cstr (param_get fd)
+        (const_string_ptr ") (const_i32 0)))) (then (do "))
+      (return_void)))
+
+  ; Closes the gate. WIR (if ...) takes condition, then, and else.
+  (fn lpt_write_gate_close
+    (params (fd i32))
+    (returns void)
+    (do
+      (call_void write_cstr
+        (param_get fd) (const_string_ptr ")) (else (do)))"))
+      (return_void)))
+
+  ; (lt_i32 (local_get NAME) (local_get l<id>_end))
+  (fn lpt_write_lt_name
+    (params (fd i32) (source ptr) (start i64) (length i64) (id i32))
+    (returns void)
+    (do
+      (call_void write_cstr
+        (param_get fd) (const_string_ptr "(lt_i32 (local_get "))
+      (call_void lpt_write_source_span
+        (param_get fd) (param_get source) (param_get start) (param_get length))
+      (call_void write_cstr
+        (param_get fd) (const_string_ptr ") (local_get "))
+      (call_void lpt_write_ident
+        (param_get fd) (param_get id) (const_string_ptr "end"))
+      (call_void write_cstr (param_get fd) (const_string_ptr "))"))
+      (return_void)))
+
+  ; (set NAME (add_i32 (local_get NAME) (const_i32 1)))
+  (fn lpt_write_inc_name
+    (params (fd i32) (source ptr) (start i64) (length i64))
+    (returns void)
+    (do
+      (call_void write_cstr (param_get fd) (const_string_ptr "(set "))
+      (call_void lpt_write_source_span
+        (param_get fd) (param_get source) (param_get start) (param_get length))
+      (call_void write_cstr
+        (param_get fd) (const_string_ptr " (add_i32 (local_get "))
+      (call_void lpt_write_source_span
+        (param_get fd) (param_get source) (param_get start) (param_get length))
+      (call_void write_cstr
+        (param_get fd) (const_string_ptr ") (const_i32 1)))"))
+      (return_void)))
+
+  ; (let l<id>_end i32 ... — the caller writes the bound and closes it.
+  (fn lpt_write_let_end_head
+    (params (fd i32) (id i32))
+    (returns void)
+    (do
+      (call_void write_cstr (param_get fd) (const_string_ptr "(let "))
+      (call_void lpt_write_ident
+        (param_get fd) (param_get id) (const_string_ptr "end"))
+      (call_void write_cstr (param_get fd) (const_string_ptr " i32 "))
+      (return_void)))
+
+  (fn lpt_write_while_and_open
+    (params (fd i32))
+    (returns void)
+    (do
+      (call_void write_cstr (param_get fd)
+        (const_string_ptr "(while (condition (and_bool "))
+      (return_void)))
+
+  (fn lpt_write_while_open
+    (params (fd i32))
+    (returns void)
+    (do
+      (call_void write_cstr
+        (param_get fd) (const_string_ptr "(while (condition "))
+      (return_void)))
+
+  ; Closes (condition before opening the body, as the and_bool path does.
+  (fn lpt_write_while_do
+    (params (fd i32))
+    (returns void)
+    (do
+      (call_void write_cstr (param_get fd) (const_string_ptr ") (do "))
+      (return_void)))
+
+  (fn lpt_write_close2
+    (params (fd i32))
+    (returns void)
+    (do
+      (call_void write_cstr (param_get fd) (const_string_ptr "))"))
+      (return_void)))
+
+  ; Closes and_bool and condition, then a space before the body.
+  (fn lpt_write_and_close_do
+    (params (fd i32))
+    (returns void)
+    (do
+      (call_void write_cstr (param_get fd) (const_string_ptr ")) "))
+      (return_void)))
+
+  (fn lpt_write_inc_if_open
+    (params (fd i32))
+    (returns void)
+    (do
+      (call_void write_cstr
+        (param_get fd) (const_string_ptr "(if (condition "))
+      (return_void)))
+
+  ; Closes (condition before (then, as the body writer does.
+  (fn lpt_write_inc_if_then
+    (params (fd i32))
+    (returns void)
+    (do
+      (call_void write_cstr
+        (param_get fd) (const_string_ptr ") (then (do "))
+      (return_void)))
+
+  ; Closes do, then, adds the required else, and closes the if.
+  (fn lpt_write_inc_if_close
+    (params (fd i32))
+    (returns void)
+    (do
+      (call_void write_cstr
+        (param_get fd) (const_string_ptr ")) (else (do)))"))
+      (return_void))))
