@@ -76,17 +76,21 @@ check_llvm_toolchain() {
   [[ -n "$optimizer_major" && -n "$codegen_major" ]] || return 0
 
   if (( optimizer_major > codegen_major )); then
-    printf '[weavec] error: LLVM toolchain skew\n' >&2
+    # A warning, not an error: building the compiler uses clang, llvm-as, and
+    # llvm-link, none of which involve the code generator, and that build
+    # succeeds under skew. Only `weavec build` of a target program fails, so
+    # refusing here would block work that would otherwise complete.
+    printf '[weavec] warning: LLVM toolchain skew\n' >&2
     printf '  %s is version %s but %s is version %s.\n' \
       "$optimizer" "$optimizer_major" "$codegen" "$codegen_major" >&2
     printf '  weavec produces IR with %s and generates code with %s, so\n' \
       "$optimizer" "$codegen" >&2
     printf '  the newer compiler emits IR the older code generator cannot\n' >&2
-    printf '  parse and every native build fails.\n' >&2
+    printf '  parse. The compiler will build; every native build of a target\n' >&2
+    printf '  program will fail with an LLVM parse error against <stdin>.\n' >&2
     printf '  Install a code generator at least as new as %s, or point\n' \
       "$optimizer" >&2
     printf '  WEAVEC_TARGET_CODEGEN at one. See issue #441.\n' >&2
-    exit 1
   fi
 }
 
