@@ -46,13 +46,18 @@ surface-language contract stabilises.
 
 ### Changed
 
+- Loop lowering emits its WIR text from `src/frontend/loop_text.weave`
+  instead of C string helpers in `runtime/surface_symbols.c`. The
+  emitted bytes are unchanged; the language now owns the syntax it
+  writes, and the file's boundary ceiling falls from 2250 to 2125. See
+  [Runtime implementation boundary](docs/runtime-boundary.md).
 - `scripts/build.sh` warns when the compiler that produces IR is newer
   than the code generator that consumes it, naming both versions, and
   when no code generator is present. The compiler build itself is
-  unaffected by the skew; only `weavec build` of a target program is. A newer `clang`
-  emits IR an older `llc` cannot parse, which previously surfaced as an
-  LLVM parse error against `<stdin>` naming no Weave source. See
-  [Development builds](docs/development-builds.md).
+  unaffected by the skew; only `weavec build` of a target program is. A
+  newer `clang` emits IR an older `llc` cannot parse, which previously
+  surfaced as an LLVM parse error against `<stdin>` naming no Weave
+  source. See [Development builds](docs/development-builds.md).
 - `test/EXECUTION-MANIFEST` records whether each suite runs a produced
   program or deliberately asserts a contract, and
   `scripts/check_suite_execution.py` fails `scripts/pr-check.sh` when a
