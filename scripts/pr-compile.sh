@@ -62,6 +62,9 @@ bash "$ROOT/test/generic-monomorphization/test.sh"
 log 'string interpolation'
 bash "$ROOT/test/interp/test.sh"
 
+log 'tagged variants'
+bash "$ROOT/test/tagged-variants/test.sh"
+
 log 'standalone comment statements'
 bash "$ROOT/test/comment-statement/test.sh"
 
