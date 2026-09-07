@@ -45,7 +45,8 @@ Override either tool when the defaults are not the ones to use:
 | `WEAVEC_LINKER` | the linker |
 
 A macOS host with Xcode's `clang` and a separately installed LLVM is the usual
-way to hit this; see issue #441.
+way to hit this; see issue #441. Continuous integration avoids it by taking
+both tools from one Homebrew LLVM, which is the simplest local fix as well.
 
 ## Released lower-stage SDKs
 
