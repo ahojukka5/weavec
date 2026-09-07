@@ -143,4 +143,30 @@ assert doc["analysis"]["complete"] is True
 print("interp: semantic index passed")
 PY
 
+# Execution coverage (#440). Everything above inspects emitted WIR, which
+# stays green when interpolation emits plausible-but-wrong text. The helper
+# block is 82 lines of generated WIR, so run the program and read what it
+# actually prints.
+"$WEAVEC" build "$TMP/ok.weave" -o "$TMP/ok.bin" 2>"$TMP/ok.build.stderr" || {
+  printf 'interp: ok failed to build\n' >&2
+  cat "$TMP/ok.build.stderr" >&2
+  exit 1
+}
+set +e
+LC_ALL=C "$TMP/ok.bin" >"$TMP/ok.stdout" 2>"$TMP/ok.runtime.stderr"
+ok_status="$?"
+set -e
+[[ "$ok_status" -eq 0 ]] || {
+  printf 'interp: ok exited %s, expected 0\n' "$ok_status" >&2
+  cat "$TMP/ok.runtime.stderr" >&2
+  exit 1
+}
+printf 'n=7 ok=true\n' > "$TMP/ok.expected"
+cmp "$TMP/ok.expected" "$TMP/ok.stdout" || {
+  printf 'interp: interpolated output mismatch\n' >&2
+  diff -u "$TMP/ok.expected" "$TMP/ok.stdout" >&2 || true
+  exit 1
+}
+printf 'interp: execution passed\n'
+
 printf 'interp: passed\n'

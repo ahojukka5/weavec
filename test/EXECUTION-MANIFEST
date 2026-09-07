@@ -63,7 +63,7 @@ unreviewed formatter-layout
 executes function-terminators
 executes generic-monomorphization
 executes generic-type-params
-unreviewed interp
+executes interp
 executes io-stderr
 contract json-publication
 executes let-infer
