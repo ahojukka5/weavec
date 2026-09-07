@@ -82,6 +82,51 @@ jobs:
         shell: bash
         run: bash scripts/pr-compile.sh
 
+  pr-compile-macos:
+    name: "check: compile and fast suites (macOS)"
+    if: github.event_name == 'pull_request'
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # weavec produces IR with clang and generates code with llc. Xcode's
+      # clang is routinely newer than any separately installed LLVM, and the
+      # newer compiler emits IR the older code generator cannot parse
+      # (issue #441). Take both tools from one Homebrew LLVM so the versions
+      # cannot drift apart.
+      - name: Install a matched LLVM toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install llvm
+          prefix="$(brew --prefix llvm)"
+          printf '%s/bin\n' "$prefix" >> "$GITHUB_PATH"
+          "$prefix/bin/clang" --version
+          "$prefix/bin/llc" --version | head -2
+
+      - name: Cache published SDKs
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/downloads
+            build/vendor
+          key: pr-sdk-${{ runner.os }}-${{ runner.arch }}-weavec1-v0.3.2-bootstrap-v0.3.1
+
+      - name: Confirm the toolchain is not skewed
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v clang llc
+          clang --version | head -1
+          llc --version | head -2
+
+      - name: Build compiler and run fast suites
+        shell: bash
+        run: bash scripts/pr-compile.sh
+
   test:
     name: "test: compile & run full ladder (${{ matrix.name }})"
     if: github.event_name == 'push'

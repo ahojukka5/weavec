@@ -46,6 +46,11 @@ surface-language contract stabilises.
 
 ### Changed
 
+- Pull requests build the compiler and run the fast suites on
+  `macos-latest` as well as Linux. macOS is a supported build host and
+  had no job, so a macOS-only regression could only be found by hand.
+  The job takes `clang` and `llc` from one Homebrew LLVM to avoid the
+  version skew described in issue #441.
 - String interpolation emits its WIR text, including the
   `__weave_interp_*` runtime helpers, from
   `src/frontend/interp_text.weave` instead of C string helpers. The

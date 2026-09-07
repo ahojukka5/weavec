@@ -277,10 +277,20 @@ head have completed successfully.
 Do not wait for the full ladder or deep self-host on a pull request. Those jobs
 run only after merge, on `master`, with Linux glibc SDKs and Linux musl SDKs.
 A red post-merge check is a follow-up fix, not a reason to keep the original
-PR open. There is no macOS job. macOS is a supported build host, so a change
-that could behave differently there should be run locally and the result stated
-in the pull request. Versioned GitHub releases wait for that post-merge ladder
-on the same SHA before publishing.
+PR open. Versioned GitHub releases wait for that post-merge ladder on the same
+SHA before publishing.
+
+macOS is a supported build host, and pull requests build and run the fast
+suites there too, on `macos-latest`. That job takes `clang` and `llc` from one
+Homebrew LLVM, because a host whose `clang` is newer than its `llc` cannot
+produce a native program at all: the newer compiler emits IR the older code
+generator rejects, and every `weavec build` fails with an LLVM parse error
+naming no Weave source. See
+[Development builds](docs/development-builds.md) and issue #441.
+
+A contributor whose local macOS toolchain is skewed can still work — the
+compiler builds and frontend-only suites run — but should say so in the pull
+request rather than implying the native path was exercised.
 
 ## Documentation-only changes
 
