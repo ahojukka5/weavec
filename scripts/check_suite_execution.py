@@ -35,13 +35,20 @@ CLASSES = ("executes", "contract", "unreviewed")
 
 # The mechanical signal for `executes`: a produced artifact appears in command
 # position, rather than only as an argument to grep or python.
+# Two shapes count as running a produced artifact, both in command position:
+# a path under the suite's temporary directory, and a binary held in a
+# variable such as BIN, optionally behind environment assignments like
+# `LC_ALL=C "$BIN" ...`. The second shape is how every example-program suite
+# invokes what it built, and missing it understates the ledger.
 RUNS_ARTIFACT = re.compile(
-    r'^\s*(?:"?\$\{?(?:TMP|WORK|OUT|BUILD)\b[^"\s]*"?)\s*(?:>|2>|\||;|&&|\|\||$)',
+    r'^\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*'
+    r'"?\$\{?(?:TMP|WORK|OUT|BUILD|BIN|PROGRAM|EXE)\b[^"\s]*"?'
+    r'(?:"|\s|$)[^\n]*$',
     re.M,
 )
 
 # Lowered as suites are reviewed. Never raise it: classify instead.
-UNREVIEWED_CEILING = 50
+UNREVIEWED_CEILING = 39
 
 
 def fail(problems: list[str]) -> None:
