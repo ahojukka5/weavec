@@ -30,10 +30,12 @@
 #
 # A new suite must be registered. New suites should not be `unreviewed`.
 
-unreviewed backend-binding-soundness
+# backend rejection and binding soundness over hand-written WIR
+contract backend-binding-soundness
 contract backend-call-arg
 contract backend-call-validation
-unreviewed backend-stmt-call-float
+# IR shape for statement-position float calls; execution is covered by float-arithmetic
+contract backend-stmt-call-float
 executes backend-string-escape
 contract backend-table-limits
 unreviewed build-boundary
@@ -42,24 +44,30 @@ contract cli-diagnostics
 executes cli-io
 executes comment-statement
 executes compiler-sources
-unreviewed compiler-write
+# output buffering and write-failure diagnostics
+contract compiler-write
 unreviewed contract-result-requires
 executes convert-format
 contract development-entrypoints
 unreviewed diagnostic-repairs
 contract diagnostics-publication
-unreviewed enum-identity
+# rejection diagnostics; the point is that these forms never compile
+contract enum-identity
 executes ergonomic-stdlib-qualify
-unreviewed examples-index
+# the examples index file must match the tree
+contract examples-index
 executes expr-if
 unreviewed f32-literals
 executes file-statistics
 executes fixed-f64-output
 executes float-arithmetic
 executes formatter
-unreviewed formatter-function-spacing
-unreviewed formatter-generic-spacing
-unreviewed formatter-layout
+# formatter output is the subject
+contract formatter-function-spacing
+# formatter output is the subject
+contract formatter-generic-spacing
+# formatter output is the subject
+contract formatter-layout
 executes function-terminators
 executes generic-monomorphization
 executes generic-type-params
@@ -81,12 +89,13 @@ executes modules
 executes newton-root
 executes optimization-evidence
 executes option-helpers
-unreviewed option-result
+executes option-result
 executes optional-else
 executes parse-diagnostics
 executes parse-digits
 executes parse-f64
-unreviewed performance
+# LLVM goldens; the emitted IR is the subject
+contract performance
 unreviewed process-arguments
 unreviewed project-acceptance
 contract project-cache-contract
@@ -116,12 +125,13 @@ executes string-bytes
 unreviewed string-literals
 executes struct-aliasing
 unreviewed struct-cost
-unreviewed struct-forms
+# asserts specific LLVM instructions from hand-written WIR; struct execution is covered by matrix-vector and struct-cost
+contract struct-forms
 executes struct-layout
 executes structured-types-qualify
 executes surface-elaboration
 executes surface-symbols
-unreviewed tagged-variants
+executes tagged-variants
 unreviewed tooling-artifacts
 executes trace
 unreviewed trace-publication
@@ -132,7 +142,8 @@ executes variant-match
 executes vec-slice
 executes vector-dot
 executes vector-geometry
-unreviewed version
+# version output and exit codes
+contract version
 executes wir-builder-hardening
 executes wir-decimal
 executes wir-invariants

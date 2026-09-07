@@ -134,4 +134,35 @@ cat > "$TMP/err-mismatch.weave" <<'EOF'
 EOF
 expect_rejected err-mismatch 'try error type does not match the function Result'
 
+SUITE=option-result
+
+# Execution coverage (#440). Everything above inspects emitted WIR, which
+# stays green when lowering emits plausible-but-wrong text -- how #427 hid a
+# `for` lowering the backend rejected outright. Build a program already
+# checked above and assert the value it computes.
+run_expect() {
+  local name="$1"
+  local expected="$2"
+  shift 2
+
+  "$WEAVEC" build "$@" -o "$TMP/$name.bin" 2>"$TMP/$name.build.stderr" || {
+    printf '%s: %s failed to build\n' "$SUITE" "$name" >&2
+    cat "$TMP/$name.build.stderr" >&2
+    exit 1
+  }
+  set +e
+  "$TMP/$name.bin"
+  local status="$?"
+  set -e
+  [[ "$status" -eq "$expected" ]] || {
+    printf '%s: %s exited %s, expected %s\n' \
+      "$SUITE" "$name" "$status" "$expected" >&2
+    exit 1
+  }
+}
+
+# parse-digit 3 is Ok 3, double makes Ok 6, and the match yields it.
+run_expect app 6 "$OPTION" "$RESULT" "$TMP/parse.weave" "$TMP/app.weave"
+printf 'option-result: execution passed\n'
+
 printf 'option-result: passed\n'

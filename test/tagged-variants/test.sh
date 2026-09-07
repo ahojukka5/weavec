@@ -154,4 +154,35 @@ cat > "$TMP/nullary-payload.weave" <<'EOF'
 EOF
 expect_rejected nullary-payload 'variant constructor takes no payload'
 
+SUITE=tagged-variants
+
+# Execution coverage (#440). Everything above inspects emitted WIR, which
+# stays green when lowering emits plausible-but-wrong text -- how #427 hid a
+# `for` lowering the backend rejected outright. Build a program already
+# checked above and assert the value it computes.
+run_expect() {
+  local name="$1"
+  local expected="$2"
+  shift 2
+
+  "$WEAVEC" build "$@" -o "$TMP/$name.bin" 2>"$TMP/$name.build.stderr" || {
+    printf '%s: %s failed to build\n' "$SUITE" "$name" >&2
+    cat "$TMP/$name.build.stderr" >&2
+    exit 1
+  }
+  set +e
+  "$TMP/$name.bin"
+  local status="$?"
+  set -e
+  [[ "$status" -eq "$expected" ]] || {
+    printf '%s: %s exited %s, expected %s\n' \
+      "$SUITE" "$name" "$status" "$expected" >&2
+    exit 1
+  }
+}
+
+# tag(Red) is 0 and the Blue payload is 7.
+run_expect color 7 "$TMP/color.weave"
+printf 'tagged-variants: execution passed\n'
+
 printf 'tagged-variants: passed\n'
