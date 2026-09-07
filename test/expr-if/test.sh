@@ -138,4 +138,46 @@ cat > "$TMP/as-stmt.weave" <<'EOF'
 EOF
 expect_rejected as-stmt 'expression if must initialize a let or be returned'
 
+SUITE=expr-if
+
+# Execution coverage (#440). The assertions above inspect emitted WIR, which
+# stays green when the feature emits plausible-but-wrong text: that is how
+# #427 hid a `for` lowering that produced WIR the backend rejected outright.
+# Build each program and assert the value it computes.
+run_expect() {
+  local name="$1"
+  local expected="$2"
+
+  "$WEAVEC" build "$TMP/$name.weave" -o "$TMP/$name.bin" \
+    2>"$TMP/$name.build.stderr" || {
+    printf '%s: %s failed to build\n' "$SUITE" "$name" >&2
+    cat "$TMP/$name.build.stderr" >&2
+    exit 1
+  }
+  set +e
+  "$TMP/$name.bin"
+  local status="$?"
+  set -e
+  [[ "$status" -eq "$expected" ]] || {
+    printf '%s: %s exited %s, expected %s\n' \
+      "$SUITE" "$name" "$status" "$expected" >&2
+    exit 1
+  }
+}
+
+cat > "$TMP/run-pick.weave" <<'EOF'
+(program
+  (name "run-pick")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let n 7)
+      (let pick (if (condition (op less-than n 10)) (then 3) (else 9)))
+      (return (op add pick 4)))))
+EOF
+run_expect run-pick 7
+printf 'expr-if: execution passed\n'
+
 printf 'expr-if: passed\n'

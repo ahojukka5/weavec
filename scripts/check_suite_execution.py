@@ -41,7 +41,7 @@ RUNS_ARTIFACT = re.compile(
 )
 
 # Lowered as suites are reviewed. Never raise it: classify instead.
-UNREVIEWED_CEILING = 54
+UNREVIEWED_CEILING = 50
 
 
 def fail(problems: list[str]) -> None:
