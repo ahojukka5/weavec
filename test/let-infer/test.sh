@@ -184,4 +184,46 @@ assert doc["analysis"]["complete"] is True
 print("let-infer: semantic index passed")
 PY
 
+SUITE=let-infer
+
+# Execution coverage (#440). The assertions above inspect emitted WIR, which
+# stays green when the feature emits plausible-but-wrong text: that is how
+# #427 hid a `for` lowering that produced WIR the backend rejected outright.
+# Build each program and assert the value it computes.
+run_expect() {
+  local name="$1"
+  local expected="$2"
+
+  "$WEAVEC" build "$TMP/$name.weave" -o "$TMP/$name.bin" \
+    2>"$TMP/$name.build.stderr" || {
+    printf '%s: %s failed to build\n' "$SUITE" "$name" >&2
+    cat "$TMP/$name.build.stderr" >&2
+    exit 1
+  }
+  set +e
+  "$TMP/$name.bin"
+  local status="$?"
+  set -e
+  [[ "$status" -eq "$expected" ]] || {
+    printf '%s: %s exited %s, expected %s\n' \
+      "$SUITE" "$name" "$status" "$expected" >&2
+    exit 1
+  }
+}
+
+cat > "$TMP/run-inferred.weave" <<'EOF'
+(program
+  (name "run-inferred")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let a 5)
+      (let b (op mul a 2))
+      (return (op add b 2)))))
+EOF
+run_expect run-inferred 12
+printf 'let-infer: execution passed\n'
+
 printf 'let-infer: passed\n'

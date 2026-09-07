@@ -51,7 +51,7 @@ contract diagnostics-publication
 unreviewed enum-identity
 executes ergonomic-stdlib-qualify
 unreviewed examples-index
-unreviewed expr-if
+executes expr-if
 unreviewed f32-literals
 executes file-statistics
 executes fixed-f64-output
@@ -61,12 +61,12 @@ unreviewed formatter-function-spacing
 unreviewed formatter-generic-spacing
 unreviewed formatter-layout
 executes function-terminators
-unreviewed generic-monomorphization
+executes generic-monomorphization
 executes generic-type-params
 unreviewed interp
 executes io-stderr
 contract json-publication
-unreviewed let-infer
+executes let-infer
 executes llvm-provenance
 executes loop-control
 contract manifest-publication
@@ -128,7 +128,7 @@ unreviewed trace-publication
 unreviewed trigonometry-math
 unreviewed trigonometry-table
 executes type-annotations
-unreviewed variant-match
+executes variant-match
 executes vec-slice
 unreviewed vector-dot
 unreviewed vector-geometry
