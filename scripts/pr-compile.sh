@@ -45,6 +45,20 @@ bash "$ROOT/test/formatter-generic-spacing/test.sh"
 log 'explicit generic type parameters'
 bash "$ROOT/test/generic-type-params/test.sh"
 
+# Suites reclassified 'executes' in test/EXECUTION-MANIFEST run here, so the
+# program they build is proven before merge rather than only in the ladder.
+log 'expression-valued if'
+bash "$ROOT/test/expr-if/test.sh"
+
+log 'let type inference'
+bash "$ROOT/test/let-infer/test.sh"
+
+log 'variants and match'
+bash "$ROOT/test/variant-match/test.sh"
+
+log 'generic monomorphization'
+bash "$ROOT/test/generic-monomorphization/test.sh"
+
 log 'standalone comment statements'
 bash "$ROOT/test/comment-statement/test.sh"
 
