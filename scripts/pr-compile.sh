@@ -59,6 +59,9 @@ bash "$ROOT/test/variant-match/test.sh"
 log 'generic monomorphization'
 bash "$ROOT/test/generic-monomorphization/test.sh"
 
+log 'string interpolation'
+bash "$ROOT/test/interp/test.sh"
+
 log 'standalone comment statements'
 bash "$ROOT/test/comment-statement/test.sh"
 
