@@ -34,21 +34,26 @@ MANIFEST = TESTS / "EXECUTION-MANIFEST"
 CLASSES = ("executes", "contract", "unreviewed")
 
 # The mechanical signal for `executes`: a produced artifact appears in command
-# position, rather than only as an argument to grep or python.
-# Two shapes count as running a produced artifact, both in command position:
-# a path under the suite's temporary directory, and a binary held in a
-# variable such as BIN, optionally behind environment assignments like
-# `LC_ALL=C "$BIN" ...`. The second shape is how every example-program suite
-# invokes what it built, and missing it understates the ledger.
+# position, rather than only as an argument to grep or python. Three shapes
+# occur in this tree — a path under the suite's temporary directory, an
+# upper-case variable such as BIN, and a lower-case local such as `binary` —
+# each optionally behind environment assignments like `LC_ALL=C "$BIN" ...`.
+#
+# This detection is a helper, not the authority. It has produced false
+# negatives twice: it missed every example suite until #449, and missed
+# `trigonometry-math`'s `"$binary"` until this change. The manifest is the
+# record, written by reading the suite; the detector only holds an `executes`
+# entry to its word.
 RUNS_ARTIFACT = re.compile(
     r'^\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*'
-    r'"?\$\{?(?:TMP|WORK|OUT|BUILD|BIN|PROGRAM|EXE)\b[^"\s]*"?'
+    r'"?\$\{?(?:TMP|WORK|OUT|BUILD|BIN|PROGRAM|EXE'
+    r'|binary|bin|program|exe)\b[^"\s]*"?'
     r'(?:"|\s|$)[^\n]*$',
     re.M,
 )
 
 # Lowered as suites are reviewed. Never raise it: classify instead.
-UNREVIEWED_CEILING = 25
+UNREVIEWED_CEILING = 0
 
 
 def fail(problems: list[str]) -> None:

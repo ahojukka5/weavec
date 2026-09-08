@@ -17,18 +17,23 @@
 #               contract. Classifying a suite here asserts that no runtime
 #               behavior of its feature is left unverified.
 #
-#   unreviewed  Not yet classified. These never run a produced program, and
-#               nobody has yet confirmed whether that is correct. Five of the
-#               seven defects fixed on 2026-09-04/05 hid behind suites of
-#               exactly this shape -- test/loop-control asserted substrings
-#               of emitted WIR while no `for` program could be built at all.
+#   unreviewed  Not yet classified. The backlog is empty and the ceiling is
+#               zero, so this class now exists only to describe the process:
+#               a suite reaches `executes` or `contract` by being read, never
+#               by a pattern match. Five of the seven defects fixed on
+#               2026-09-04/05 hid behind suites that only asserted substrings
+#               of emitted WIR -- test/loop-control matched every substring it
+#               looked for while no `for` program could be built at all.
 #
-# The unreviewed count is a ratchet: it may fall, never rise. Reclassify a
-# suite by reading it and deciding whether its feature has runtime behavior
-# that nothing executes. If it does, add an execution case and mark it
-# `executes`; if it does not, mark it `contract`.
+# Every suite is classified and the ceiling is 0, so a new suite must be
+# classified in the same commit that adds it. Decide by reading it: if the
+# feature has runtime behaviour nothing executes, add an execution case and
+# mark it `executes`; if emitted text, a diagnostic, or a published document
+# is genuinely the subject, mark it `contract` and say why on the line above.
 #
-# A new suite must be registered. New suites should not be `unreviewed`.
+# A `contract` rationale should name where the feature's runtime behaviour is
+# executed, when it is executed somewhere else. That keeps the claim checkable
+# instead of trusting the label.
 
 # backend rejection and binding soundness over hand-written WIR
 contract backend-binding-soundness
@@ -38,7 +43,8 @@ contract backend-call-validation
 contract backend-stmt-call-float
 executes backend-string-escape
 contract backend-table-limits
-unreviewed build-boundary
+# build and SDK boundary policy over the checkout
+contract build-boundary
 contract capabilities
 contract cli-diagnostics
 executes cli-io
@@ -46,10 +52,12 @@ executes comment-statement
 executes compiler-sources
 # output buffering and write-failure diagnostics
 contract compiler-write
-unreviewed contract-result-requires
+# contract diagnostics and their published JSON
+contract contract-result-requires
 executes convert-format
 contract development-entrypoints
-unreviewed diagnostic-repairs
+# diagnostics and repair hints; the documents are the subject
+contract diagnostic-repairs
 contract diagnostics-publication
 # rejection diagnostics; the point is that these forms never compile
 contract enum-identity
@@ -57,7 +65,8 @@ executes ergonomic-stdlib-qualify
 # the examples index file must match the tree
 contract examples-index
 executes expr-if
-unreviewed f32-literals
+# decimal constants must be valid LLVM; float execution is covered by float-arithmetic and trigonometry-math
+contract f32-literals
 executes file-statistics
 executes fixed-f64-output
 executes float-arithmetic
@@ -79,7 +88,8 @@ executes llvm-provenance
 executes loop-control
 contract manifest-publication
 executes matrix-vector
-unreviewed module-body-selection
+# which module body the entry selects, read from emitted WIR
+contract module-body-selection
 executes module-collisions
 executes module-diagnostics
 executes module-structs
@@ -96,35 +106,52 @@ executes parse-digits
 executes parse-f64
 # LLVM goldens; the emitted IR is the subject
 contract performance
-unreviewed process-arguments
-unreviewed project-acceptance
+# builds a program and runs it twice, asserting exit 0 and the arity exit 10
+executes process-arguments
+# project acceptance policy and its refusals
+contract project-acceptance
 contract project-cache-contract
 executes project-discovery
-unreviewed project-incremental-cache
-unreviewed project-protocol-contract
-unreviewed project-protocols
-unreviewed project-source-discovery
+# cache reports; weavec-project-module-cache-v1 is the subject
+contract project-incremental-cache
+# the project protocol schema
+contract project-protocol-contract
+# published project protocol documents
+contract project-protocols
+# source discovery documents and refusals
+contract project-source-discovery
 executes projectile-motion
-unreviewed protocol-boundary
+# which components may publish which protocol, checked over source
+contract protocol-boundary
 executes pythagoras
 executes quadratic
-unreviewed quantum
-unreviewed selfhost
-unreviewed selfhost-fixed-point
-unreviewed selfhost-link-policy
-unreviewed semantic-index
+# quantum WIR goldens and statistics documents
+contract quantum
+# self-host generation evidence
+contract selfhost
+# stage1 and stage2 fixed-point evidence
+contract selfhost-fixed-point
+# link policy refusals
+contract selfhost-link-policy
+# weavec-semantic-index-v1 documents
+contract semantic-index
 contract semantic-index-contract
-unreviewed semantic-index-module-order
+# deterministic module order in the published index
+contract semantic-index-module-order
 executes semantic-structs
-unreviewed semantic-type-facts
+# type facts in the published index
+contract semantic-type-facts
 executes semantic-type-graph
 executes sqrt-f64
 executes statistics
-unreviewed stdlib-layout
+# standard library layout policy
+contract stdlib-layout
 executes string-bytes
-unreviewed string-literals
+# escape and raw-string encoding in emitted WIR; printing strings is executed by interp and the example suites
+contract string-literals
 executes struct-aliasing
-unreviewed struct-cost
+# struct representation cost in emitted IR; struct execution is covered by matrix-vector and vector-geometry
+contract struct-cost
 # asserts specific LLVM instructions from hand-written WIR; struct execution is covered by matrix-vector and struct-cost
 contract struct-forms
 executes struct-layout
@@ -132,10 +159,13 @@ executes structured-types-qualify
 executes surface-elaboration
 executes surface-symbols
 executes tagged-variants
-unreviewed tooling-artifacts
+# tooling artifact documents
+contract tooling-artifacts
 executes trace
-unreviewed trace-publication
-unreviewed trigonometry-math
+# weavec-compilation-trace-v1 documents
+contract trace-publication
+# builds each case against stdlib math and runs it, asserting exit 0
+executes trigonometry-math
 executes trigonometry-table
 executes type-annotations
 executes variant-match

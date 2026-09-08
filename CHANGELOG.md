@@ -46,6 +46,12 @@ surface-language contract stabilises.
 
 ### Changed
 
+- Every suite in `test/` is classified in `test/EXECUTION-MANIFEST` as
+  running a program or asserting a contract, with a reason recorded for
+  each contract. 68 execute a program and 45 assert a contract; the
+  unreviewed backlog is empty and its ceiling is zero, so a new suite
+  must be classified in the commit that adds it. See
+  [Contributing](CONTRIBUTING.md).
 - Pull requests build the compiler and run the fast suites on
   `macos-latest` as well as Linux. macOS is a supported build host and
   had no job, so a macOS-only regression could only be found by hand.
