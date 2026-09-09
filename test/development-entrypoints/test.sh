@@ -95,6 +95,30 @@ if grep -Fq 'LLVM toolchain skew' "$TOOLCHAIN_TMP/match.err"; then
   cat "$TOOLCHAIN_TMP/match.err" >&2
   exit 1
 fi
+# A tool that refuses --version must not stop the build. Probing one is
+# advisory, and piping it into awk under `set -o pipefail` propagated its exit
+# status and aborted the script, which broke test/build-boundary on any host
+# with llc installed. That failure was silent: the build died before doing
+# anything, and the suite's grep found an empty log.
+make_stub "$TOOLCHAIN_TMP/refuses-version" ignored 0
+printf '#!/bin/sh\nexit 1\n' > "$TOOLCHAIN_TMP/refuses-version"
+chmod +x "$TOOLCHAIN_TMP/refuses-version"
+
+set +e
+WEAVEC_OPTIMIZER="$TOOLCHAIN_TMP/refuses-version" \
+  WEAVEC_TARGET_CODEGEN="$TOOLCHAIN_TMP/new-llc" \
+  bash "$ROOT/scripts/build.sh" >"$TOOLCHAIN_TMP/refuse.out" \
+  2>"$TOOLCHAIN_TMP/refuse.err"
+set -e
+# The build proceeds past the probe and fails later for its own reasons; what
+# matters is that it got past it rather than dying inside the version check.
+if ! grep -qE 'weavec1|SDK|required tool' "$TOOLCHAIN_TMP/refuse.err"; then
+  printf 'development-entrypoints: version probe stopped the build\n' >&2
+  cat "$TOOLCHAIN_TMP/refuse.err" >&2
+  exit 1
+fi
+printf 'development-entrypoints: version probe is advisory\n'
+
 printf 'development-entrypoints: toolchain skew detection passed\n'
 
 printf 'development-entrypoints: SDK-only canonical scripts passed\n'

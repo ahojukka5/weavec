@@ -16,6 +16,12 @@ surface-language contract stabilises.
 
 ### Fixed
 
+- `scripts/build.sh` no longer aborts when an LLVM tool refuses
+  `--version`. Probing the tool is advisory, but piping it into `awk`
+  under `set -o pipefail` propagated its exit status and killed the
+  build, so `test/build-boundary` — which stubs `clang` with a script
+  that rejects `--version` — failed on any host that also has `llc`
+  installed.
 - `(qmeasure QUBIT NAME)` lowers again. The head was not reserved, so
   direct-call resolution claimed it before the quantum dispatch and
   reported `unresolved function qmeasure`.

@@ -46,8 +46,17 @@ require_tool() {
 }
 
 # Major version of an LLVM-family tool, or empty when it cannot be read.
+#
+# Probing a tool is advisory and must never stop the build. Capture the output
+# separately and swallow a failure: piping the tool straight into awk under
+# `set -o pipefail` propagates the tool's exit status, so a tool that rejects
+# --version aborts the whole script. test/build-boundary stubs clang with a
+# script that does exactly that, which broke the ladder on every host that
+# also has llc installed.
 llvm_tool_major() {
-  "$1" --version 2>/dev/null |
+  local text=""
+  text="$("$1" --version 2>/dev/null)" || text=""
+  printf '%s\n' "$text" |
     awk 'match($0, /version [0-9]+/) {
       print substr($0, RSTART + 8, RLENGTH - 8); exit
     }'
