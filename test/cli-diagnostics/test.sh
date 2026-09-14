@@ -318,6 +318,81 @@ PY
   exit 1
 }
 
+# A clang newer than llc used to fail inside llc with an IR parse error
+# against <stdin> and no Weave source (#441). weavec build must name both
+# tools and stop before that round trip.
+make_version_stub() {
+  local path="$1"
+  local label="$2"
+  local major="$3"
+  cat > "$path" <<EOF
+#!/usr/bin/env bash
+if [[ "\${1:-}" == --version ]]; then
+  printf '%s version %s.0.0\\n' "$label" "$major"
+  exit 0
+fi
+printf 'ran %s\\n' "\$*" >> "$TMP/toolchain.invoked"
+exit 99
+EOF
+  chmod +x "$path"
+}
+make_version_stub "$TMP/clang-21" 'Apple clang' 21
+make_version_stub "$TMP/llc-18" 'LLVM' 18
+make_version_stub "$TMP/llc-21" 'LLVM' 21
+
+expect_failure build-toolchain-skew 12 \
+  "weavec: error: LLVM toolchain skew" \
+  "is version 21" \
+  "is version 18" \
+  "--target-codegen" \
+  -- build "$TMP/valid.weave" -o "$TMP/skew-program" \
+  --optimizer "$TMP/clang-21" \
+  --llc "$TMP/llc-18" \
+  --diagnostics-json "$TMP/skew.diagnostics.json" \
+  --emit-llvm "$TMP/skew.raw.ll"
+
+[[ ! -e "$TMP/skew-program" ]] || {
+  printf 'cli-diagnostics: skewed build published an executable\n' >&2
+  exit 1
+}
+[[ -s "$TMP/skew.raw.ll" ]] || {
+  printf 'cli-diagnostics: skewed build dropped raw LLVM\n' >&2
+  exit 1
+}
+[[ ! -e "$TMP/toolchain.invoked" ]] || {
+  printf 'cli-diagnostics: skewed build still invoked clang or llc\n' >&2
+  cat "$TMP/toolchain.invoked" >&2
+  exit 1
+}
+python3 - "$TMP/skew.diagnostics.json" <<'PY'
+import json
+import sys
+
+document = json.load(open(sys.argv[1]))
+assert document["phase"] == "codegen", document["phase"]
+assert document["exit_code"] == 12, document["exit_code"]
+assert document["diagnostics"][0]["code"] == "codegen.failed"
+assert "LLVM toolchain skew" in document["diagnostics"][0]["message"]
+PY
+
+set +e
+"$WEAVEC" build "$TMP/valid.weave" -o "$TMP/matched-program" \
+  --optimizer "$TMP/clang-21" \
+  --llc "$TMP/llc-21" \
+  >"$TMP/matched.stdout" 2>"$TMP/matched.stderr"
+matched_status="$?"
+set -e
+if grep -Fq 'LLVM toolchain skew' "$TMP/matched.stderr"; then
+  printf 'cli-diagnostics: matching toolchain was reported as skewed\n' >&2
+  cat "$TMP/matched.stderr" >&2
+  exit 1
+fi
+[[ "$matched_status" -ne 0 ]] || {
+  printf 'cli-diagnostics: stub optimizer unexpectedly produced a program\n' >&2
+  exit 1
+}
+checks=$((checks + 1))
+
 # A missing explicit source keeps its existing classification.
 expect_failure build-missing-json 10 \
   "weavec: error: $MISSING: cannot read source file" \

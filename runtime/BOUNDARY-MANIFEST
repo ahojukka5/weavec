@@ -33,8 +33,10 @@
 # ---------------------------------------------------------------------------
 # host — platform and toolchain ABI
 # ---------------------------------------------------------------------------
-# why: fork/exec of clang and llc, and host CPU feature flags.
-host 320 runtime/llvm_toolchain.c
+# why: fork/exec of clang and llc, host CPU feature flags, and probing
+# those tools' --version text so a clang/llc major skew is a weavec
+# diagnostic instead of an llc parse error against <stdin> (#441).
+host 410 runtime/llvm_toolchain.c
 # why: realpath and platform path validation against the host filesystem.
 host 215 runtime/path_safety.c
 # why: POSIX write/open/flush and host IEEE bit conversion; weavec1 cannot
@@ -99,7 +101,8 @@ port-pending 22 runtime/semantic_type_graph.c
 # ---------------------------------------------------------------------------
 # port-pending — project system and build driver
 # ---------------------------------------------------------------------------
-port-pending 1122 runtime/build_driver.c
+# raised by 4 for #441: refuse weavec build before llc when clang is newer.
+port-pending 1126 runtime/build_driver.c
 port-pending 783 runtime/project_cache.c
 port-pending 97 runtime/project_cache_capabilities.c
 port-pending 37 runtime/project_cache_dispatch.c

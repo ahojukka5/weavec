@@ -963,6 +963,10 @@ int weave_rt_build_main(int argc, char **argv) {
         FAIL_BUILD("publish", 1);
     }
 
+    if (weave_llvm_check_toolchain(&llvm) != 0) {
+        FAIL_BUILD("codegen", 1);
+    }
+
     status = weave_llvm_optimize_ir(
         &llvm,
         paths.raw_llvm,
