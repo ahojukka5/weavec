@@ -135,6 +135,12 @@ implemented rules prove the pair redundant.
 These are deterministic compiler rewrites, not runtime circuit optimization.
 They must preserve expected WIR/LLVM fixtures and quantum statistics.
 
+A separate circuit-IR engine in
+[Circuit IR and compiled local rewrites](circuit-rewrite.md) expresses the
+same self-inverse cancellation as a generic rule, plus identity drop and
+rotation fusion. It is the #457 comparison arm. It is not yet wired into
+this emit path.
+
 ## Runtime boundary
 
 Quantum lowering currently emits external `qrt_*` calls. The repository contains:

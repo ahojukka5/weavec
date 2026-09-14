@@ -231,6 +231,9 @@ bash "$ROOT/test/parse-digits/test.sh"
 log 'typed deterministic rewrite semantics'
 bash "$ROOT/test/rewrite-semantics/test.sh"
 
+log 'circuit IR and compiled local rewrites'
+bash "$ROOT/test/circuit-rewrite/test.sh"
+
 log 'examples index'
 bash "$ROOT/test/examples-index/test.sh"
 

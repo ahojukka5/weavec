@@ -17,6 +17,13 @@ surface-language contract stabilises.
   search. `test/rewrite-semantics` runs an ordinary-Weave witness that
   applies two trusted sequence rules and two graph rules without new
   syntax or WIR forms. See issue #456.
+- A circuit IR and generic local rewrite engine compared with the
+  current self-inverse peephole on a frozen corpus. Three exact rules
+  (self-inverse cancel, identity drop, rotation fusion) share one
+  matcher; `H·H` is not a special case. Production `qgate` lowering is
+  unchanged. See
+  [Circuit IR and compiled local rewrites](docs/circuit-rewrite.md)
+  and issue #457.
 
 ### Removed
 
