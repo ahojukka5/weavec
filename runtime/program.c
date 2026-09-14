@@ -21,3 +21,9 @@ void weave_rt_contract_fail(const char *msg) {
     (void)write(2, &nl, 1);
     _exit(1);
 }
+
+/* Parser.weave calls this. The compiler host (portable.c) may skip the
+ * bound for internal WIR re-parse. Produced programs always enforce it. */
+int weave_rt_tree_walk_limit_active(void) {
+    return 1;
+}

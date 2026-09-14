@@ -52,6 +52,8 @@ names used when they were released.
   and the compiler-authoritative LLM-facing grammar contract.
 - [Canonical Weave formatting](formatting.md) — parser-backed deterministic
   normal form, compatibility normalization, comment policy, and atomic updates.
+- [Syntax tree-walk depth budget](syntax-depth.md) — the compiler-owned
+  nesting limit, diagnostics, and which walks remain recursive.
 - [Compiler version identity](compiler-version.md) — release and development
   version strings, build-time embedding, and reproducibility semantics.
 - [Language reference](language-reference.md) — the implemented surface-Weave
@@ -114,6 +116,7 @@ names used when they were released.
 - [Ownership requirements for concurrency and GPU](ownership-concurrency.md)
 - [Typed deterministic rewrite semantics](rewrite-semantics.md)
 - [Circuit IR and compiled local rewrites](circuit-rewrite.md)
+- [Syntax tree-walk depth budget](syntax-depth.md)
 - [Quantum surface support](quantum.md)
 
 ## Backend and performance notes

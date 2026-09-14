@@ -336,6 +336,9 @@ bash "$ROOT/test/cli-diagnostics/test.sh"
 log 'parse diagnostics'
 bash "$ROOT/test/parse-diagnostics/test.sh"
 
+log 'tree-walk depth budget'
+bash "$ROOT/test/tree-walk-depth/test.sh"
+
 log 'diagnostics'
 bash "$ROOT/test/diagnostics/test-build-diagnostics.sh"
 

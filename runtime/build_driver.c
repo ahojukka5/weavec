@@ -934,6 +934,12 @@ int weave_rt_build_main(int argc, char **argv) {
     if (llvm_provenance) {
         (void)setenv(WEAVEC_LLVM_PROVENANCE_ENV, "1", 1);
     }
+    char *saved_internal_wir = NULL;
+    const char *existing_internal_wir = getenv("WEAVEC_INTERNAL_WIR_PARSE");
+    if (existing_internal_wir != NULL) {
+        saved_internal_wir = strdup(existing_internal_wir);
+    }
+    (void)setenv("WEAVEC_INTERNAL_WIR_PARSE", "1", 1);
     char *backend[] = {
         compiler,
         "--backend",
@@ -942,6 +948,12 @@ int weave_rt_build_main(int argc, char **argv) {
         NULL,
     };
     status = weave_run_process(backend);
+    if (saved_internal_wir != NULL) {
+        (void)setenv("WEAVEC_INTERNAL_WIR_PARSE", saved_internal_wir, 1);
+        free(saved_internal_wir);
+    } else {
+        (void)unsetenv("WEAVEC_INTERNAL_WIR_PARSE");
+    }
     if (llvm_provenance) {
         if (saved_llvm_provenance != NULL) {
             (void)setenv(

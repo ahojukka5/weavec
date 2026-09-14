@@ -39,13 +39,15 @@
 host 410 runtime/llvm_toolchain.c
 # why: realpath and platform path validation against the host filesystem.
 host 215 runtime/path_safety.c
-# why: POSIX write/open/flush and host IEEE bit conversion; weavec1 cannot
-# compile f64 compiler sources, so Weave cannot own the bit step yet.
-host 461 runtime/portable.c
+# why: POSIX write/open/flush, host IEEE bit conversion, and the
+# WEAVEC_INTERNAL_WIR_PARSE probe weavec1 cannot type as getenv(ptr).
+host 473 runtime/portable.c
 # why: argv/argc access for produced programs.
 host 24 runtime/process_args.inc
 # why: private runtime linked into produced programs, not into the compiler.
-host 23 runtime/program.c
+# raised by 6 for #386: programs that embed the parser (WIR tests) need the
+# depth-limit probe; produced programs always enforce the budget.
+host 29 runtime/program.c
 # why: test-only quantum stub; production behavior is out of scope per
 # CONTRIBUTING.md.
 host 272 runtime/quantum_runtime.c
@@ -53,8 +55,10 @@ host 272 runtime/quantum_runtime.c
 # ---------------------------------------------------------------------------
 # port-pending — canonical formatter (#432, bugs #428 and #430 landed here)
 # ---------------------------------------------------------------------------
-port-pending 189 runtime/formatter_driver.c
-port-pending 256 runtime/formatter_driver_cli.inc
+port-pending 196 runtime/formatter_driver.c
+# raised by 9 for #386: fmt uses parse_recorded so depth failures get a
+# structured parse diagnostic instead of a generic parse-failed line.
+port-pending 265 runtime/formatter_driver_cli.inc
 port-pending 66 runtime/formatter_driver_comments.inc
 port-pending 163 runtime/formatter_driver_control_layout.inc
 port-pending 73 runtime/formatter_driver_control_plans.inc
@@ -102,7 +106,10 @@ port-pending 22 runtime/semantic_type_graph.c
 # port-pending — project system and build driver
 # ---------------------------------------------------------------------------
 # raised by 4 for #441: refuse weavec build before llc when clang is newer.
-port-pending 1126 runtime/build_driver.c
+# raised by 12 for #386: mark the child --backend as internal WIR parse
+# so a legal surface program is not rejected when its WIR is one list
+# deeper than the input budget.
+port-pending 1138 runtime/build_driver.c
 port-pending 783 runtime/project_cache.c
 port-pending 97 runtime/project_cache_capabilities.c
 port-pending 37 runtime/project_cache_dispatch.c
@@ -129,7 +136,9 @@ port-pending 834 runtime/project_sources.c
 # ---------------------------------------------------------------------------
 port-pending 112 runtime/build_manifest_json.c
 port-pending 24 runtime/capabilities_json.c
-port-pending 892 runtime/diagnostics_driver.c
+# raised by 22 for #386: preflight rejects S-expression nesting past the
+# compiler depth budget with a spanned diagnostic instead of overflowing.
+port-pending 914 runtime/diagnostics_driver.c
 port-pending 250 runtime/diagnostics_json.c
 port-pending 182 runtime/document_publish.c
 port-pending 356 runtime/json_writer.c

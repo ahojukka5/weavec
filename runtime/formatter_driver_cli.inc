@@ -77,13 +77,22 @@ static int weave_fmt_format_file_to_fd(
         free(source);
         return 3;
     }
-    void *tree = parse(tokens);
-    if (tree == NULL) {
-        fprintf(stderr, "weavec: fmt: parse failed for %s\n", input_path);
+    void *err = malloc((size_t)parse_error_size());
+    if (err == NULL) {
+        fprintf(stderr, "weavec: fmt: out of memory\n");
         tokens_free(tokens);
         free(source);
         return 3;
     }
+    void *tree = parse_recorded(tokens, err);
+    if (tree == NULL) {
+        cli_error_parse(input_path, (const char *)source, err, 0);
+        free(err);
+        tokens_free(tokens);
+        free(source);
+        return 3;
+    }
+    free(err);
     FILE *output = fdopen(output_fd, "wb");
     if (output == NULL) {
         fprintf(stderr, "weavec: fmt: cannot open temporary output\n");

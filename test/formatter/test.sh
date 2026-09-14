@@ -125,7 +125,7 @@ set -e
   exit 1
 }
 cmp "$TMP/atomic.before" "$TMP/atomic.weave"
-grep -Eq 'lexical analysis failed|parse failed|formatting failed' "$TMP/broken.stderr"
+grep -Eq 'lexical analysis failed|parse failed|formatting failed|nesting exceeds the compiler depth budget|frontend.parse.' "$TMP/broken.stderr"
 
 set +e
 "$WEAVEC" fmt --unknown "$TMP/formatted.weave" 2>"$TMP/usage.stderr"
