@@ -283,9 +283,9 @@ SHA before publishing.
 macOS is a supported build host, and pull requests build and run the fast
 suites there too, on `macos-latest`. That job takes `clang` and `llc` from one
 Homebrew LLVM, because a host whose `clang` is newer than its `llc` cannot
-produce a native program at all: the newer compiler emits IR the older code
-generator rejects, and every `weavec build` fails with an LLVM parse error
-naming no Weave source. See
+produce a native program: the newer compiler emits IR the older code
+generator rejects. `weavec build` reports that pairing as a toolchain
+diagnostic rather than an LLVM parse error naming no Weave source. See
 [Development builds](docs/development-builds.md) and issue #441.
 
 A contributor whose local macOS toolchain is skewed can still work — the

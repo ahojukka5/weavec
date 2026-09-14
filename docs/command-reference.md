@@ -135,9 +135,11 @@ and can be selected with `-O0`, `-O1`, `-O2`, `-O3`, `-Os`, or `-Oz`.
 familiar aliases. Native artifacts may not run on another machine.
 
 The current subprocess adapter uses Clang for the LLVM IR optimization profile
-and `llc` for target assembly and object generation. These are public semantic
-build choices, not a permanent commitment to subprocess invocation; a future
-in-process LLVM implementation must preserve the same behavior.
+and `llc` for target assembly and object generation. If Clang's major version
+is newer than `llc`, `weavec build` stops with a toolchain diagnostic before
+that round trip. These are public semantic build choices, not a permanent
+commitment to subprocess invocation; a future in-process LLVM implementation
+must preserve the same behavior.
 
 ### Native-code evidence outputs
 

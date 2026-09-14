@@ -34,6 +34,11 @@ surface-language contract stabilises.
 
 ### Fixed
 
+- `weavec build` reports a clang/`llc` major-version skew as a weavec
+  toolchain diagnostic and stops before `llc` parses the optimized IR.
+  `scripts/build.sh` still only warns, because building the compiler
+  does not need the code generator. See
+  [Development builds](docs/development-builds.md) and issue #441.
 - `scripts/build.sh` no longer aborts when an LLVM tool refuses
   `--version`. Probing the tool is advisory, but piping it into `awk`
   under `set -o pipefail` propagated its exit status and killed the

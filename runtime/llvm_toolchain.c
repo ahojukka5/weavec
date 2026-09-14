@@ -212,6 +212,96 @@ static size_t weave_llc_codegen_args(
     return index;
 }
 
+static int weave_llvm_tool_major(const char *tool) {
+    int fds[2];
+    if (tool == NULL || *tool == '\0' || pipe(fds) != 0) {
+        return -1;
+    }
+    pid_t pid = fork();
+    if (pid < 0) {
+        close(fds[0]);
+        close(fds[1]);
+        return -1;
+    }
+    if (pid == 0) {
+        close(fds[0]);
+        if (dup2(fds[1], STDOUT_FILENO) < 0) {
+            _exit(127);
+        }
+        close(fds[1]);
+        char *args[] = {(char *)tool, "--version", NULL};
+        execvp(args[0], args);
+        _exit(127);
+    }
+    close(fds[1]);
+    char text[2048];
+    size_t used = 0;
+    for (;;) {
+        ssize_t got = read(fds[0], text + used, sizeof(text) - 1 - used);
+        if (got < 0 && errno == EINTR) {
+            continue;
+        }
+        if (got <= 0) {
+            break;
+        }
+        used += (size_t)got;
+        if (used >= sizeof(text) - 1) {
+            break;
+        }
+    }
+    text[used] = '\0';
+    close(fds[0]);
+    int status = 0;
+    while (waitpid(pid, &status, 0) < 0) {
+        if (errno != EINTR) {
+            return -1;
+        }
+    }
+    const char *cursor = text;
+    while ((cursor = strstr(cursor, "version ")) != NULL) {
+        cursor += 8;
+        if (*cursor >= '0' && *cursor <= '9') {
+            return atoi(cursor);
+        }
+    }
+    return -1;
+}
+
+static int weave_llvm_check_toolchain(const weave_llvm_config *config) {
+    int optimizer_major = weave_llvm_tool_major(config->optimizer);
+    int codegen_major = weave_llvm_tool_major(config->codegen);
+    if (optimizer_major < 0 || codegen_major < 0) {
+        return 0;
+    }
+    if (optimizer_major <= codegen_major) {
+        return 0;
+    }
+    fprintf(stderr, "weavec: error: LLVM toolchain skew\n");
+    fprintf(
+        stderr,
+        "  %s is version %d but %s is version %d.\n",
+        config->optimizer,
+        optimizer_major,
+        config->codegen,
+        codegen_major);
+    fputs(
+        "  weavec produces IR with the optimizer and generates code\n",
+        stderr);
+    fputs(
+        "  with the code generator, so the newer compiler emits IR\n",
+        stderr);
+    fputs(
+        "  the older code generator cannot parse. Install a code\n",
+        stderr);
+    fputs(
+        "  generator at least as new as the optimizer, or pass\n",
+        stderr);
+    fputs(
+        "  --target-codegen. See docs/development-builds.md.\n",
+        stderr);
+    return 1;
+}
+
 static int weave_llvm_optimize_ir(
     const weave_llvm_config *config,
     const char *input,

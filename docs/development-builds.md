@@ -26,15 +26,17 @@ generator, `llc` by default.
 **The code generator must be at least as new as the compiler that produces the
 IR.** `weavec` optimizes with `clang` and generates code with `llc`, so a newer
 `clang` emits IR syntax an older `llc` cannot parse — `captures(none)` and
-`range(...)` are the forms seen in practice. Otherwise the failure surfaces as
-an LLVM parse error against `<stdin>` naming no Weave source, and every native
-build fails while frontend-only and backend-only paths keep working.
+`range(...)` are the forms seen in practice.
 
-`scripts/build.sh` compares the two major versions and warns on a mismatch,
-naming both. It warns rather than refuses because building the compiler uses
-`clang`, `llvm-as`, and `llvm-link` and succeeds under skew; only `weavec
-build` of a target program fails. A missing code generator is likewise a
-warning.
+`scripts/build.sh` compares the two major versions and **warns** on a
+mismatch, naming both. It warns rather than refuses because building the
+compiler uses `clang`, `llvm-as`, and `llvm-link` and succeeds under skew.
+A missing code generator is likewise a warning.
+
+`weavec build` of a target program **refuses** the same mismatch before
+the optimizer or `llc` run. The diagnostic names both tools and versions.
+It does not surface as an LLVM parse error against `<stdin>`. Frontend and
+backend still run, so `--emit-llvm` can publish raw IR.
 
 Override either tool when the defaults are not the ones to use:
 

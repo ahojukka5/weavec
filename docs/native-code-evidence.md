@@ -91,8 +91,9 @@ The artifacts answer different questions:
 | build/trace/diagnostics JSON | Which compiler, profile, phases, transformations, and failures produced the evidence? |
 
 The published optimized LLVM is the exact module passed to `llc` for both
-assembly and object generation. The target generator does not rerun the LLVM IR
-optimization pipeline.
+assembly and object generation, unless `weavec build` stops earlier because
+the optimizer's major version is newer than the code generator's. The
+target generator does not rerun the LLVM IR optimization pipeline.
 
 `--emit-llvm` deliberately means **raw backend LLVM**. It is not silently
 redefined by optimization. The optimized view is explicitly named because both
