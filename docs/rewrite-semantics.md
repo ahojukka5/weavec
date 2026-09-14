@@ -376,11 +376,13 @@ Those remain later milestones of #455, or are explicitly deferred.
 
 ## Follow-on use
 
-[#457](https://github.com/ahojukka5/weavec/issues/457) implements circuit
-matching by supplying a sequence-family adapter over a real gate IR,
-reusing this match key, provenance split, and trusted-only default. See
+[#457](https://github.com/ahojukka5/weavec/issues/457) supplies a
+sequence-family adapter over a real gate IR, reusing this match key,
+provenance split, and trusted-only default. The stop-rule measurement
+kept production peephole lowering: the generic engine is a prototype,
+not a replacement. See
 [Circuit IR and compiled local rewrites](circuit-rewrite.md).
-[#458](https://github.com/ahojukka5/weavec/issues/458) should supply a
-graph-family adapter rather than a second engine.
+[#458](https://github.com/ahojukka5/weavec/issues/458) is a later
+graph-family issue, not a continuation of an unresolved #457 gate.
 [#459](https://github.com/ahojukka5/weavec/issues/459) may add strategies
 but must not fold cost into guards.

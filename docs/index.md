@@ -24,8 +24,8 @@ names used when they were released.
   compiled-rewriting contract: pattern variables, guards, replacements, rule
   identity, provenance, match order, and cost/search separation.
 - [Circuit IR and compiled local rewrites](circuit-rewrite.md) — the M1
-  sequence-family adapter, three exact local rules, and the peephole
-  comparison on a frozen circuit corpus.
+  sequence-family adapter, three exact local rules, and the #457
+  stop-rule comparison against a special-case scan of the same rules.
 - [Structured semantic type graph](structured-type-graph.md) — canonical type
   identities, interning, node kinds, legacy migration, and the WIR-v3 boundary.
 - [Weave project manifest version 1](project-manifest.md) — canonical

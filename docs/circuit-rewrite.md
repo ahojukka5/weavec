@@ -1,13 +1,23 @@
 # Circuit IR and compiled local rewrites
 
-Status: first executable circuit matcher under
-[#457](https://github.com/ahojukka5/weavec/issues/457), using the M0
-contract in [Typed deterministic rewrite semantics](rewrite-semantics.md).
+Status: #457 stop-rule measurement on a frozen three-rule set.
+Uses the M0 contract in
+[Typed deterministic rewrite semantics](rewrite-semantics.md).
 
-This is not public rewrite syntax and not a WIR change. The production
-quantum peephole in `src/frontend/quantum_optimize.weave` still owns
-surface `qgate` lowering. The engine here is an ordinary-Weave circuit
-optimizer compared against that peephole on a frozen in-memory corpus.
+This is not public rewrite syntax and not a WIR change. Production
+quantum peephole lowering in `src/frontend/quantum_optimize.weave` and
+`emit_do_step` is unchanged. The engine here is an ordinary-Weave
+circuit optimizer.
+
+## Decision
+
+**STOP.** The generic matcher is acceptable as a sequence-family
+prototype, but it must not replace the special-case production path.
+
+On the same three local rules, the special-case linear scan is smaller
+and much faster. Keep `qgate` peephole lowering as-is. Do not start ZX
+(#458) as a follow-on of this gate: #457 is resolved as a negative
+engineering result.
 
 ## Circuit representation
 
@@ -49,63 +59,80 @@ span, then rule id):
 Search policy is trusted-only fixed-point greedy with a step bound.
 Cost is remaining gate count and is not used as a guard.
 
+The special-case arm implements the **same three rules** as a pending
+buffer: drop identity, fuse adjacent same-axis rotations, then cancel
+adjacent self-inverses, and repeat until a fixpoint. It is not the
+production self-inverse-only peephole. That production pass stays
+narrower on purpose.
+
 ## Comparison arms
 
 On the same `Vec` corpus:
 
-- **hand-written peephole** — pending-pair scan copied from
-  `emit_do_step`: only self-inverse cancellation, one left-to-right
-  pass;
-- **generic engine** — the three rules above, full rescan after each
-  rewrite.
+- **generic engine** — enumerate the three rules, apply one M0 winner,
+  rescan, bound;
+- **special-case scan** — one left-to-right pending-buffer pass per
+  sweep, same three identities, repeat to fixpoint.
 
-The production compiler is unchanged, so current quantum surface
-fixtures stay valid.
+`test/circuit-rewrite` asserts that both arms produce the same circuit
+on the small corpus and on the 200-gate bench block.
 
-## Frozen corpus and results
+## Frozen corpus
 
-`test/circuit-rewrite` encodes the cases and asserts them on every run:
-
-| Circuit | Peephole | Generic |
-| --- | --- | --- |
-| `H H` | empty | empty |
-| `X q0; X q1` | two `X` | two `X` |
-| `CNOT CNOT` | empty | empty |
-| `H I H` | three gates | empty |
-| `RZ(2) RZ(3)` | two `RZ` | one `RZ(5)` |
-| `RZ(3) RZ(-3)` | two `RZ` | empty, repeat-identical |
-
-Self-inverse-only circuits match both arms. Identity elimination and
-rotation fusion make the generic engine strictly stronger on the last
-three rows. That is expected: those identities are in the generic rule
-set and not in today's AST peephole.
+| Circuit | Both arms |
+| --- | --- |
+| `H H` | empty |
+| `X q0; X q1` | two `X` |
+| `CNOT CNOT` | empty |
+| `H I H` | empty |
+| `RZ(2) RZ(3)` | one `RZ(5)` |
+| `RZ(3) RZ(-3)` | empty, repeat-identical |
+| bench block `H H I X X RZ(1) RZ(2) RZ(-3) CNOT CNOT` | empty |
 
 Repeated generic runs on `RZ(3) RZ(-3)` produce the same empty circuit.
 
 ## Engineering metrics
 
-Source size is measured by the suite from the files themselves:
+Source size is the marked arm regions in
+`test/circuit-rewrite/main.weave` (shared IR helpers are excluded from
+both counts). The suite prints the counts on every run:
 
-- generic witness (`test/circuit-rewrite/main.weave`): 573 lines, including
-  IR, three rules, engine, peephole twin, and corpus driver;
-- hand-written predicate module
-  (`src/frontend/quantum_optimize.weave`): 173 lines.
+| Arm | Lines |
+| --- | --- |
+| generic (`circ_find_match`, three rules, apply, rewrite) | 225 |
+| special (`circ_special_scan` + `circ_special`) | 117 |
 
-Wall time of one optimized corpus process was `0.001` s on the LUMI
-debug runner that executed the suite. Max RSS from GNU `time` was not a
-usable figure (`0` KB). These are smoke numbers: the circuits are too
-small to decide the #455 stop rule. The qualitative result is that the
-generic matcher is more code than the special-case predicate, and
-faster-or-slower is not yet a meaningful comparison.
+The generic arm is almost twice the special-case source. Compactness
+does not favor replacement.
+
+Timed work is 20 copies of the 10-gate bench block (200 gates) reduced
+to empty, repeated many times in-process. Wall time is Python
+`perf_counter` around the child. Peak RSS is Linux `ru_maxrss` of that
+child, in KiB. LUMI `debug`, account `project_462001519`, LLVM 20
+Clang, `--mem=2G`:
+
+| Job | Reps | Generic wall | Generic RSS | Special wall | Special RSS |
+| --- | --- | --- | --- | --- | --- |
+| 22043233 | 4000 | 1.1863 s | 16384 KiB | 0.0051 s | 4624 KiB |
+| 22043258 | 20000 | 5.9324 s | 86016 KiB | 0.0192 s | 2792 KiB |
+
+Wall time scales with reps: generic is about **230–310×** the
+special-case arm. Special-case time at 20000 reps is 19.2 ms, well
+above the 0.001 s smoke floor. Generic peak RSS grows with rewrite
+steps because each greedy apply allocates a new circuit vector;
+special-case RSS stays a few MiB. Neither compactness nor time nor
+memory favors replacement.
+
+The default suite uses 4000 reps so GitHub PR compile stays short.
+Override with `CIRCUIT_REWRITE_BLOCKS` / `CIRCUIT_REWRITE_REPS`.
 
 ## Stop-rule note
 
-Do not replace `emit_do_step` yet. The generic engine is not materially
-more compact than the current pass once IR, apply, and the comparison
-driver are counted, and it has not been shown faster on realistic
-circuits. Keep the AST peephole as the production path. Use this engine
-as the sequence-family adapter for later ZX work rather than hiding
-cost with a native special case.
+Do not replace `emit_do_step`. The generic engine is slower and larger
+on this bounded three-rule sequence problem. Keep it as the
+sequence-family adapter and the deterministic test of the M0 match
+key. Do not hide the cost with a native matcher, and do not treat ZX
+as the next step of this issue.
 
 ## Non-goals
 
