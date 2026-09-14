@@ -9,6 +9,8 @@
 #include <ctype.h>
 #include <stdint.h>
 
+#include "tree_walk_depth.h"
+
 #define WEAVEC_EXIT_FRONTEND 10
 #define WEAVEC_EXIT_BACKEND 11
 #define WEAVEC_EXIT_CODEGEN 12
@@ -185,6 +187,26 @@ static int weave_diag_preflight_source(
             continue;
         }
         if (ch == '(') {
+            if (stack_size >= (size_t)WEAVEC_TREE_WALK_MAX_DEPTH) {
+                static char nesting_message[80];
+                snprintf(
+                    nesting_message,
+                    sizeof(nesting_message),
+                    "nesting exceeds the compiler depth budget of %d",
+                    WEAVEC_TREE_WALK_MAX_DEPTH);
+                record->code = "frontend.parse.nesting-too-deep";
+                record->severity = "error";
+                record->phase = "frontend";
+                record->message = nesting_message;
+                record->source = path;
+                record->span_origin = "compiler-preflight";
+                record->start_byte = i;
+                record->end_byte = i + 1;
+                record->has_span = 1;
+                free(stack);
+                free(data);
+                return 1;
+            }
             if (stack_size == stack_capacity) {
                 size_t new_capacity = stack_capacity * 2;
                 size_t *new_stack = realloc(stack, new_capacity * sizeof(*stack));

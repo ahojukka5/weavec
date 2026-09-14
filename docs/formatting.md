@@ -168,10 +168,13 @@ Any non-whitespace, non-comment bytes found outside parsed node spans cause exit
 ## Invalid and partial source
 
 Formatting requires a complete parse tree. Lexically or structurally malformed
-source is rejected and no destination is published. The formatter does not infer
-missing parentheses, choose among ambiguous symbols, add declarations, or apply
-semantic diagnostic repairs. Use `weavec build --diagnostics-json` for structured
-failure context and bounded repairs, then run the formatter again after editing.
+source, including nesting past the compiler depth budget, is rejected and no
+destination is published. Depth failures use the same
+`frontend.parse.nesting-too-deep` diagnostic as `weavec --frontend`. The
+formatter does not infer missing parentheses, choose among ambiguous symbols,
+add declarations, or apply semantic diagnostic repairs. Use
+`weavec build --diagnostics-json` for structured failure context and bounded
+repairs, then run the formatter again after editing.
 
 Semantically invalid but parseable forms may still receive whitespace
 normalization. Compatibility rewrites are intentionally conservative: a rewrite

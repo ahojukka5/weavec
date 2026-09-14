@@ -44,6 +44,18 @@ int weave_rt_open_write_trunc(const char *path, int mode) {
     return open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
 }
 
+/* weavec build re-parses frontend WIR in a child --backend. That text
+ * can nest one list deeper than the admitted surface tree. The child
+ * sets WEAVEC_INTERNAL_WIR_PARSE so the parser bound applies only to
+ * untrusted source and WIR. */
+int weave_rt_tree_walk_limit_active(void) {
+    const char *flag = getenv("WEAVEC_INTERNAL_WIR_PARSE");
+    if (flag == NULL || flag[0] == '\0') {
+        return 1;
+    }
+    return 0;
+}
+
 /* Grow-once compiler output buffer. Weave io.weave and C emission helpers
  * share the same fd, so the host owns the buffer: surface Weave has no
  * process globals, and a Weave-only buffer would interleave with C write().

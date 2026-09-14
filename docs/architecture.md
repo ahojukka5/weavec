@@ -132,9 +132,10 @@ action strings at each lowering site.
 
 These modules own the token store, syntax tree, lexer, and parser used by final
 `weavec`. They are ordinary ordered compiler sources, not a separately linked
-runtime. The lower bootstrap frontend parses these files only so it can lower
-them into the initial seed compiler; stage 1 and stage 2 compile the same source
-set with `weavec` itself.
+runtime. Untrusted source and WIR share one nesting budget; see
+[Syntax tree-walk depth budget](syntax-depth.md). The lower bootstrap frontend
+parses these files only so it can lower them into the initial seed compiler;
+stage 1 and stage 2 compile the same source set with `weavec` itself.
 
 WIR is an intermediate representation, not a production implementation language.
 Repository WIR files may be backend inputs, golden fixtures, performance corpora,

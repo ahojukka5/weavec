@@ -242,6 +242,8 @@ The current version provides exact preflight spans for:
   `frontend.parse.unexpected-end-of-input` with a zero-width span at end of
   input;
 - unreadable source files as source-level diagnostics without spans.
+- nesting past the compiler depth budget of 64, reported as
+  `frontend.parse.nesting-too-deep` at the `(` that would exceed it.
 
 It also provides exact propagated spans for backend unknown-expression,
 unknown-identifier, unresolved-call-target, wrong-arity, and expected-expression
@@ -275,11 +277,13 @@ position rules used by `weavec-diagnostics-v1` spans.
 | `frontend.parse.unclosed-list` | A surface source ended inside an open list. |
 | `frontend.parse.unmatched-closing-paren` | A surface source has a closing parenthesis with no open list. |
 | `frontend.parse.unexpected-end-of-input` | A surface source ended where an expression was required. |
+| `frontend.parse.nesting-too-deep` | A surface source opened more lists than the compiler depth budget. |
 | `backend.input-unreadable` | A direct WIR input could not be opened or completely read. |
 | `backend.invalid-module` | A WIR module has no `(decls ...)` section. |
 | `backend.parse.unclosed-list` | A WIR input ended inside an open list. |
 | `backend.parse.unmatched-closing-paren` | A WIR input has a closing parenthesis with no open list. |
 | `backend.parse.unexpected-end-of-input` | A WIR input ended where an expression was required. |
+| `backend.parse.nesting-too-deep` | A WIR input opened more lists than the compiler depth budget. |
 
 A malformed command line also prints the accepted invocation forms. Exit status
 is unchanged: the low-level modes still return `1`, and only `weavec build`

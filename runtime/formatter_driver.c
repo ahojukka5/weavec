@@ -37,6 +37,13 @@ extern int32_t sop_cast_pair_supported(int32_t source, int32_t target);
 
 extern void *lex(const char *source, int64_t length);
 extern void *parse(void *tokens);
+extern void *parse_recorded(void *tokens, void *err);
+extern int64_t parse_error_size(void);
+extern void cli_error_parse(
+    const char *path,
+    const char *source,
+    void *err,
+    int32_t is_wir);
 extern void tokens_free(void *tokens);
 extern void tree_free(void *tree);
 extern int32_t node_kind(void *tree, int64_t index);

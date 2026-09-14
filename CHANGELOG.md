@@ -25,6 +25,11 @@ surface-language contract stabilises.
   peephole lowering stays unchanged. See
   [Circuit IR and compiled local rewrites](docs/circuit-rewrite.md)
   and issue #457.
+- A compiler-owned S-expression nesting budget of 64. Deeper generated
+  source, WIR, or formatter input fails with
+  `frontend.parse.nesting-too-deep` or `backend.parse.nesting-too-deep`
+  instead of overflowing the host stack. See
+  [Syntax tree-walk depth budget](docs/syntax-depth.md) and issue #386.
 
 ### Removed
 

@@ -103,6 +103,31 @@
   (returns i64)
   (do (return (const_i64 2))))
 
+; Expected-token code: a list opened past the compiler depth budget.
+(fn parse_expect_depth
+  (params)
+  (returns i64)
+  (do (return (const_i64 3))))
+
+; Maximum S-expression nesting. One compiler-owned budget for parser,
+; formatter, and backend walks of untrusted source or WIR. Documented in
+; docs/syntax-depth.md. Keep the integer identical to
+; WEAVEC_TREE_WALK_MAX_DEPTH in runtime/tree_walk_depth.h.
+(fn tree_walk_max_depth
+  (params)
+  (returns i64)
+  (do (return (const_i64 64))))
+
+; weavec build re-parses frontend WIR in a child --backend. That text
+; can be one list deeper than the admitted surface tree, so the child
+; sets WEAVEC_INTERNAL_WIR_PARSE and skips this bound. Direct
+; --backend of untrusted WIR still checks.
+(fn tree_walk_limit_active
+  (params)
+  (returns i32)
+  (do
+    (return (call_i32 weave_rt_tree_walk_limit_active))))
+
 ; Reset a record to "no failure".
 (fn parse_error_clear
   (params (err ptr))
@@ -174,7 +199,7 @@
 ; Updates token_index_ptr to point to next token
 ; Returns: node_index, or -1 after recording the failure in err
 (fn parse_sexpr
-  (params (tokens ptr) (tree ptr) (token_index_ptr ptr) (err ptr))
+  (params (tokens ptr) (tree ptr) (token_index_ptr ptr) (err ptr) (depth i64))
   (returns i64)
   (do
     (let token_index i64 (load_i64 (param_get token_index_ptr)))
@@ -196,11 +221,27 @@
     (if
       (condition (eq_i32 (local_get kind) (call_i32 token_lparen)))
       (then (do
+        (let next_depth i64 (add_i64 (param_get depth) (const_i64 1)))
+        (if
+          (condition (gt_i64 (local_get next_depth) (call_i64 tree_walk_max_depth)))
+          (then (do
+            (if
+              (condition (ne_i32 (call_i32 tree_walk_limit_active) (const_i32 0)))
+              (then (do
+                (call_void parse_error_set
+                  (param_get err)
+                  (call_i64 token_start_at (param_get tokens) (local_get token_index))
+                  (call_i64 parse_expect_depth)
+                  (local_get kind))
+                (return (const_i64 -1))))
+              (else (do)))))
+          (else (do)))
         (return (call_i64 parse_list
           (param_get tokens)
           (param_get tree)
           (param_get token_index_ptr)
-          (param_get err)))))
+          (param_get err)
+          (local_get next_depth)))))
       (else (do)))
 
     ; Otherwise, parse as atom
@@ -276,7 +317,7 @@
 ; list reports the offset of its own opening parenthesis, which matches the
 ; span the driver's preflight scanner selects for the same source.
 (fn parse_list
-  (params (tokens ptr) (tree ptr) (token_index_ptr ptr) (err ptr))
+  (params (tokens ptr) (tree ptr) (token_index_ptr ptr) (err ptr) (depth i64))
   (returns i64)
   (do
     (let token_index i64 (load_i64 (param_get token_index_ptr)))
@@ -345,7 +386,8 @@
             (param_get tokens)
             (param_get tree)
             (param_get token_index_ptr)
-            (param_get err)))
+            (param_get err)
+            (param_get depth)))
 
         ; Check for error
         (if
@@ -379,6 +421,47 @@
 ; Main parse entry point
 ; =============================================================================
 
+; Byte offset of the `(` that would exceed the budget, or -1.
+; Walks tokens on the heap so over-limit input never enters parse_sexpr.
+(fn tokens_nesting_fail_offset
+  (params (tokens ptr))
+  (returns i64)
+  (do
+    (if
+      (condition (eq_i32 (call_i32 tree_walk_limit_active) (const_i32 0)))
+      (then (do (return (const_i64 -1))))
+      (else (do)))
+    (let depth i64 (const_i64 0))
+    (let index i64 (const_i64 0))
+    (let count i64 (call_i64 token_count (param_get tokens)))
+    (let budget i64 (call_i64 tree_walk_max_depth))
+    (while
+      (condition (lt_i64 (local_get index) (local_get count)))
+      (do
+        (let kind i32 (call_i32 token_kind_at (param_get tokens) (local_get index)))
+        (if
+          (condition (eq_i32 (local_get kind) (call_i32 token_lparen)))
+          (then (do
+            (set depth (add_i64 (local_get depth) (const_i64 1)))
+            (if
+              (condition (gt_i64 (local_get depth) (local_get budget)))
+              (then (do
+                (return (call_i64 token_start_at
+                  (param_get tokens) (local_get index)))))
+              (else (do)))))
+          (else (do)))
+        (if
+          (condition (eq_i32 (local_get kind) (call_i32 token_rparen)))
+          (then (do
+            (if
+              (condition (gt_i64 (local_get depth) (const_i64 0)))
+              (then (do
+                (set depth (sub_i64 (local_get depth) (const_i64 1)))))
+              (else (do)))))
+          (else (do)))
+        (set index (add_i64 (local_get index) (const_i64 1)))))
+    (return (const_i64 -1))))
+
 ; Parse tokens into a tree, recording the first failure in err.
 ; Returns the tree with its root node at index 0, or null after freeing the
 ; partially built tree. err may be null when the caller wants no position.
@@ -403,13 +486,29 @@
       (else (do)))
     (store_i64 (local_get token_index_ptr) (const_i64 0))
 
+    (let nesting_fail i64
+      (call_i64 tokens_nesting_fail_offset (param_get tokens)))
+    (if
+      (condition (ne_i64 (local_get nesting_fail) (const_i64 -1)))
+      (then (do
+        (call_void parse_error_set
+          (param_get err)
+          (local_get nesting_fail)
+          (call_i64 parse_expect_depth)
+          (call_i32 token_lparen))
+        (call_void free (local_get token_index_ptr))
+        (call_void tree_free (local_get tree))
+        (return (const_null))))
+      (else (do)))
+
     ; Parse the root S-expression
     (let result i64
       (call_i64 parse_sexpr
         (param_get tokens)
         (local_get tree)
         (local_get token_index_ptr)
-        (param_get err)))
+        (param_get err)
+        (const_i64 0)))
 
     ; Free token index
     (call_void free (local_get token_index_ptr))

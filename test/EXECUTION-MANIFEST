@@ -168,6 +168,8 @@ contract tooling-artifacts
 executes trace
 # weavec-compilation-trace-v1 documents
 contract trace-publication
+# compiles a program at the nesting budget and diagnoses one level past it
+executes tree-walk-depth
 # builds each case against stdlib math and runs it, asserting exit 0
 executes trigonometry-math
 executes trigonometry-table
