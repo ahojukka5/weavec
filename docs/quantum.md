@@ -136,10 +136,12 @@ These are deterministic compiler rewrites, not runtime circuit optimization.
 They must preserve expected WIR/LLVM fixtures and quantum statistics.
 
 A separate circuit-IR engine in
-[Circuit IR and compiled local rewrites](circuit-rewrite.md) expresses the
-same self-inverse cancellation as a generic rule, plus identity drop and
-rotation fusion. It is the #457 comparison arm. It is not yet wired into
-this emit path.
+[Circuit IR and compiled local rewrites](circuit-rewrite.md) expresses
+self-inverse cancellation, identity drop, and rotation fusion through
+one generic matcher. The #457 stop rule compared that matcher with a
+special-case scan of the same three rules. The generic path is slower
+and larger, so this emit path stays the production peephole. ZX is not
+the next step of that issue.
 
 ## Runtime boundary
 
