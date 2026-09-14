@@ -18,8 +18,12 @@ names used when they were released.
   bootstrap boundary, runtime ownership, self-hosting, and verification model.
 - [Runtime implementation boundary](runtime-boundary.md) — Weave-first portable
   behavior, the narrow C/host ABI role, and removal rules for temporary helpers.
-- [Application-language roadmap](roadmap.md) — the five usability epics,
-  dependency order, subissue workflow, compatibility rules, and deferred work.
+- [Application-language roadmap](roadmap.md) — application foundations plus the
+  compiled-rewriting / quantum-compiler flagship lane, dependency order,
+  subissue workflow, compatibility rules, and deferred work.
+- [Compiled rewriting](compiled-rewriting.md) — the planned domain-neutral
+  transformation substrate, the distinction from macros, the quantum flagship,
+  target packs, measurement rules, and deferred search machinery.
 - [Structured semantic type graph](structured-type-graph.md) — canonical type
   identities, interning, node kinds, legacy migration, and the WIR-v3 boundary.
 - [Weave project manifest version 1](project-manifest.md) — canonical
@@ -106,7 +110,7 @@ names used when they were released.
 - [Struct layout and compatibility ABI](struct-layout.md)
 - [Struct value semantics](struct-ownership.md)
 - [Ownership requirements for concurrency and GPU](ownership-concurrency.md)
-- [Quantum surface support](quantum.md)
+- [Quantum compiler flagship and current surface support](quantum.md)
 
 ## Backend and performance notes
 

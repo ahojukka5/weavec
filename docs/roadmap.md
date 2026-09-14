@@ -10,6 +10,12 @@ programming work. New compiler-observability protocols and WIR-next experiments
 remain valuable, but they no longer take precedence over the missing
 application-language foundations described here.
 
+Alongside those foundations, the project has one strategic flagship lane:
+**compiled declarative rewriting**, with quantum circuit and ZX-calculus
+optimization as the first demanding application. That lane must reuse the same
+structured type, ownership, determinism, package, and compiler-IR foundations
+rather than becoming a parallel language.
+
 ## Roadmap epics
 
 ### 1. Project manifests and package-ready modules
@@ -74,6 +80,43 @@ corpus, not an implementation to port verbatim. The new implementation must stat
 and prove the guarantees delivered by each stage before claiming Rust-like
 safety.
 
+### 6. Compiled rewriting and the quantum-compiler flagship
+
+Issue [#455](https://github.com/ahojukka5/weavec/issues/455) makes structured
+transformations themselves a programmable compiler capability and uses quantum
+circuit / ZX-calculus optimization as the first flagship application.
+
+The reusable capability is not quantum syntax. It is a typed deterministic
+rewrite substrate over compiler-owned structured representations with explicit
+rule provenance, side conditions, cost functions, and bounded search policy.
+Quantum is a demanding proving ground because circuit compilation already relies
+on large transformation spaces, graph rewriting, target gate sets, and difficult
+rewrite ordering.
+
+The first implementation deliberately avoids public rewrite syntax. It starts
+with ordinary Weave data structures and functions, then measures whether the
+model is compact and fast enough to justify a later declarative surface.
+
+The bounded sequence is:
+
+1. [#456](https://github.com/ahojukka5/weavec/issues/456) — typed deterministic
+   rewrite semantics;
+2. [#457](https://github.com/ahojukka5/weavec/issues/457) — circuit IR and
+   compiled local rewrites;
+3. [#458](https://github.com/ahojukka5/weavec/issues/458) — ZX graph rewrites and
+   deterministic circuit extraction;
+4. [#459](https://github.com/ahojukka5/weavec/issues/459) — bounded search and
+   target/domain packs;
+5. [#460](https://github.com/ahojukka5/weavec/issues/460) — frozen benchmark
+   against the current Weave quantum path and PyZX.
+
+The flagship does not supersede the HPC trajectory in #310. The shared design
+claim is broader: compiled structured transformations should become useful
+infrastructure that can later be evaluated outside quantum as well.
+
+See [Compiled rewriting](compiled-rewriting.md) and
+[Quantum compiler flagship and current surface support](quantum.md).
+
 ## Recommended execution order
 
 The roadmap is dependency ordered, but not fully serial:
@@ -87,9 +130,14 @@ The roadmap is dependency ordered, but not fully serial:
    and I/O layers of #113.
 5. Build ownership qualifiers and cleanup from #115 on the structured type model
    and recoverable-error control flow.
+6. Specify #456 in parallel, but defer deep integration of the quantum rewrite
+   flagship until #270 has a real structural compiler boundary and the relevant
+   type-graph work no longer erases `Qubit` identity.
 
 Small, independent surface improvements from #113 may proceed earlier when they
-do not pre-empt type, project, or safety decisions.
+do not pre-empt type, project, or safety decisions. The quantum flagship should
+likewise begin with standalone data structures and benchmarkable transformation
+code rather than coupling itself prematurely to unfinished compiler internals.
 
 ## Epic and subissue workflow
 
@@ -130,6 +178,8 @@ acceptance example works from an extracted release package.
   changes.
 - Every roadmap slice must preserve bootstrap reproducibility and deep self-host
   fixed-point qualification.
+- Keep domain optimization IR above ordinary WIR unless a coordinated WIR change
+  is independently justified; do not create a private quantum WIR dialect.
 
 ## Deferred work
 
@@ -141,4 +191,5 @@ is deferred while the application-language epics establish practical user value.
 Hygienic metaprogramming is also deferred. The archived non-hygienic direct AST
 substitution design must not be ported as-is. A future macro design must be
 module-scoped, deterministic, source-provenance preserving, inspectable, and
-represented in compiler capabilities.
+represented in compiler capabilities. Macros are source-expansion machinery and
+must remain distinct from the compiled optimization-rewrite semantics in #455.
