@@ -228,6 +228,9 @@ bash "$ROOT/test/ergonomic-stdlib-qualify/test.sh"
 log 'parse digits with Option and Result'
 bash "$ROOT/test/parse-digits/test.sh"
 
+log 'typed deterministic rewrite semantics'
+bash "$ROOT/test/rewrite-semantics/test.sh"
+
 log 'examples index'
 bash "$ROOT/test/examples-index/test.sh"
 

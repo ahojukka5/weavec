@@ -1,0 +1,612 @@
+; SPDX-License-Identifier: Apache-2.0
+; Toy witness for the typed deterministic rewrite contract (#456).
+; Ordinary Weave only: no rewrite syntax, no WIR extension.
+
+(program
+  (name "rewrite-semantics")
+  (version "0.1")
+
+  ; Soundness classes: 0 trusted-algebraic, 1 independently-checked,
+  ; 2 heuristic. The engine filters on this tag; it is not a guard.
+  (enum Soundness
+    (variant TrustedAlgebraic)
+    (variant IndependentlyChecked)
+    (variant Heuristic))
+
+  (struct RewriteMatch
+    (field rule i32)
+    (field start i32)
+    (field span i32)
+    (field extra i32))
+
+  ; Sequence alphabet: 0 = I, 1 = A (self-inverse), 2 = B (self-inverse).
+  ; Rule ids: 1 cancel-pair, 2 drop-identity, 3 drop-A (heuristic).
+  ; Graph rule ids: 11 fuse-equal, 12 drop-isolated-I.
+
+  (fn seq_get
+    (params (seq (type-app Vec i32)) (index i32))
+    (returns i32)
+    (do
+      (return (call option_unwrap_or (type-args i32)
+        (call vec_get (type-args i32) seq index)
+        99))))
+
+  (fn seq_pop
+    (params (seq (type-app Vec i32)))
+    (returns (type-app Vec i32))
+    (do
+      (let pop_n i32 (call vec_len (type-args i32) seq))
+      (if
+        (condition (op equal pop_n 0))
+        (then (do (return seq)))
+        (else (do)))
+      (field-set seq len (op sub pop_n 1))
+      (return seq)))
+
+  (fn seq_copy_skip
+    (params
+      (seq (type-app Vec i32))
+      (skip_start i32)
+      (skip_span i32))
+    (returns (type-app Vec i32))
+    (do
+      (let out (call vec_new (type-args i32)))
+      (let copy_i i32 0)
+      (let copy_n i32 (call vec_len (type-args i32) seq))
+      (let skip_end i32 (op add skip_start skip_span))
+      (while
+        (condition (op less-than copy_i copy_n))
+        (do
+          (if
+            (condition (op and
+              (op greater-or-equal copy_i skip_start)
+              (op less-than copy_i skip_end)))
+            (then (do))
+            (else (do
+              (set out (call vec_push (type-args i32) out
+                (call seq_get seq copy_i))))))
+          (set copy_i (op add copy_i 1))))
+      (return out)))
+
+  (fn seq_equal
+    (params (left (type-app Vec i32)) (right (type-app Vec i32)))
+    (returns bool)
+    (do
+      (let left_n i32 (call vec_len (type-args i32) left))
+      (let right_n i32 (call vec_len (type-args i32) right))
+      (if
+        (condition (op not-equal left_n right_n))
+        (then (do (return false)))
+        (else (do)))
+      (let eq_i i32 0)
+      (while
+        (condition (op less-than eq_i left_n))
+        (do
+          (if
+            (condition (op not-equal
+              (call seq_get left eq_i)
+              (call seq_get right eq_i)))
+            (then (do (return false)))
+            (else (do)))
+          (set eq_i (op add eq_i 1))))
+      (return true)))
+
+  (fn seq_print
+    (params (seq (type-app Vec i32)))
+    (returns void)
+    (do
+      (let print_n i32 (call vec_len (type-args i32) seq))
+      (if
+        (condition (op equal print_n 0))
+        (then (do
+          (call write_stdout "\n")
+          (return_void)))
+        (else (do)))
+      (let print_i i32 0)
+      (while
+        (condition (op less-than print_i print_n))
+        (do
+          (if
+            (condition (op greater-than print_i 0))
+            (then (do (call write_stdout " ")))
+            (else (do)))
+          (call write_u32_decimal (call seq_get seq print_i))
+          (set print_i (op add print_i 1))))
+      (call write_stdout "\n")
+      (return_void)))
+
+  (fn is_self_inverse
+    (params (token i32))
+    (returns bool)
+    (do
+      (return (op or
+        (op equal token 1)
+        (op equal token 2)))))
+
+  ; Independent oracle: skip I; cancel adjacent self-inverse pairs on a stack.
+  (fn seq_normal_form
+    (params (seq (type-app Vec i32)))
+    (returns (type-app Vec i32))
+    (do
+      (let stack (call vec_new (type-args i32)))
+      (let nf_i i32 0)
+      (let nf_n i32 (call vec_len (type-args i32) seq))
+      (while
+        (condition (op less-than nf_i nf_n))
+        (do
+          (let tok i32 (call seq_get seq nf_i))
+          (if
+            (condition (op not-equal tok 0))
+            (then (do
+              (let stack_n i32 (call vec_len (type-args i32) stack))
+              (let cancelled i32 0)
+              (if
+                (condition (op greater-than stack_n 0))
+                (then (do
+                  (let top i32 (call seq_get stack (op sub stack_n 1)))
+                  (if
+                    (condition (op and
+                      (call is_self_inverse tok)
+                      (op equal top tok)))
+                    (then (do
+                      (set stack (call seq_pop stack))
+                      (set cancelled 1)))
+                    (else (do)))))
+                (else (do)))
+              (if
+                (condition (op equal cancelled 0))
+                (then (do
+                  (set stack (call vec_push (type-args i32) stack tok))))
+                (else (do)))))
+            (else (do)))
+          (set nf_i (op add nf_i 1))))
+      (return stack)))
+
+  (fn match_none
+    (params)
+    (returns RewriteMatch)
+    (do
+      (return (new RewriteMatch
+        (rule 0)
+        (start 0)
+        (span 0)
+        (extra 0)))))
+
+  ; True when candidate should replace current under the contract key:
+  ; site ascending, span descending, rule-id ascending, payload ascending.
+  (fn match_better
+    (params (current RewriteMatch) (candidate RewriteMatch))
+    (returns bool)
+    (do
+      (if
+        (condition (op equal (field-get candidate rule) 0))
+        (then (do (return false)))
+        (else (do)))
+      (if
+        (condition (op equal (field-get current rule) 0))
+        (then (do (return true)))
+        (else (do)))
+      (if
+        (condition (op less-than
+          (field-get candidate start)
+          (field-get current start)))
+        (then (do (return true)))
+        (else (do)))
+      (if
+        (condition (op greater-than
+          (field-get candidate start)
+          (field-get current start)))
+        (then (do (return false)))
+        (else (do)))
+      (if
+        (condition (op greater-than
+          (field-get candidate span)
+          (field-get current span)))
+        (then (do (return true)))
+        (else (do)))
+      (if
+        (condition (op less-than
+          (field-get candidate span)
+          (field-get current span)))
+        (then (do (return false)))
+        (else (do)))
+      (if
+        (condition (op less-than
+          (field-get candidate rule)
+          (field-get current rule)))
+        (then (do (return true)))
+        (else (do)))
+      (if
+        (condition (op greater-than
+          (field-get candidate rule)
+          (field-get current rule)))
+        (then (do (return false)))
+        (else (do)))
+      (return (op less-than
+        (field-get candidate extra)
+        (field-get current extra)))))
+
+  (fn rule_soundness
+    (params (rule i32))
+    (returns Soundness)
+    (do
+      (if
+        (condition (op equal rule 3))
+        (then (do (return (variant Soundness Heuristic))))
+        (else (do)))
+      (return (variant Soundness TrustedAlgebraic))))
+
+  (fn rule_admitted
+    (params (rule i32) (allow_heuristic bool))
+    (returns bool)
+    (do
+      (return (match Soundness (call rule_soundness rule)
+        (case Heuristic allow_heuristic)
+        (case TrustedAlgebraic true)
+        (case IndependentlyChecked true)))))
+
+  (fn seq_find_match
+    (params (seq (type-app Vec i32)) (allow_heuristic bool))
+    (returns RewriteMatch)
+    (do
+      (let best RewriteMatch (call match_none))
+      (let find_n i32 (call vec_len (type-args i32) seq))
+      (let find_i i32 0)
+      (while
+        (condition (op less-than find_i find_n))
+        (do
+          (let tok i32 (call seq_get seq find_i))
+          (if
+            (condition (op and
+              (call rule_admitted 2 allow_heuristic)
+              (op equal tok 0)))
+            (then (do
+              (let drop_i RewriteMatch
+                (new RewriteMatch
+                  (rule 2)
+                  (start find_i)
+                  (span 1)
+                  (extra 0)))
+              (if
+                (condition (call match_better best drop_i))
+                (then (do (set best drop_i)))
+                (else (do)))))
+            (else (do)))
+          (if
+            (condition (op and
+              (call rule_admitted 1 allow_heuristic)
+              (op less-than (op add find_i 1) find_n)))
+            (then (do
+              (let nxt i32 (call seq_get seq (op add find_i 1)))
+              (if
+                (condition (op and
+                  (call is_self_inverse tok)
+                  (op equal tok nxt)))
+                (then (do
+                  (let pair RewriteMatch
+                    (new RewriteMatch
+                      (rule 1)
+                      (start find_i)
+                      (span 2)
+                      (extra 0)))
+                  (if
+                    (condition (call match_better best pair))
+                    (then (do (set best pair)))
+                    (else (do)))))
+                (else (do)))))
+            (else (do)))
+          (if
+            (condition (op and
+              (call rule_admitted 3 allow_heuristic)
+              (op equal tok 1)))
+            (then (do
+              (let drop_a RewriteMatch
+                (new RewriteMatch
+                  (rule 3)
+                  (start find_i)
+                  (span 1)
+                  (extra 0)))
+              (if
+                (condition (call match_better best drop_a))
+                (then (do (set best drop_a)))
+                (else (do)))))
+            (else (do)))
+          (set find_i (op add find_i 1))))
+      (return best)))
+
+  (fn seq_apply
+    (params (seq (type-app Vec i32)) (m RewriteMatch))
+    (returns (type-app Vec i32))
+    (do
+      (return (call seq_copy_skip seq
+        (field-get m start)
+        (field-get m span)))))
+
+  (fn seq_cost
+    (params (seq (type-app Vec i32)))
+    (returns i32)
+    (do
+      (return (call vec_len (type-args i32) seq))))
+
+  (fn seq_rewrite
+    (params
+      (seq (type-app Vec i32))
+      (allow_heuristic bool)
+      (bound i32))
+    (returns (type-app Vec i32))
+    (do
+      (let cur (type-app Vec i32) seq)
+      (let step i32 0)
+      (while
+        (condition (op less-than step bound))
+        (do
+          (let m RewriteMatch (call seq_find_match cur allow_heuristic))
+          (if
+            (condition (op equal (field-get m rule) 0))
+            (then (do (return cur)))
+            (else (do)))
+          (set cur (call seq_apply cur m))
+          (set step (op add step 1))))
+      (return cur)))
+
+  (fn g_index
+    (params (n i32) (row i32) (col i32))
+    (returns i32)
+    (do
+      (let acc i32 0)
+      (let k i32 0)
+      (while
+        (condition (op less-than k row))
+        (do
+          (set acc (op add acc n))
+          (set k (op add k 1))))
+      (return (op add acc col))))
+
+  (fn g_adj
+    (params (adj (type-app Vec i32)) (n i32) (row i32) (col i32))
+    (returns i32)
+    (do
+      (return (call seq_get adj (call g_index n row col)))))
+
+  (fn g_degree
+    (params (adj (type-app Vec i32)) (n i32) (node i32))
+    (returns i32)
+    (do
+      (let deg i32 0)
+      (let d_k i32 0)
+      (while
+        (condition (op less-than d_k n))
+        (do
+          (if
+            (condition (op and
+              (op not-equal d_k node)
+              (op not-equal (call g_adj adj n node d_k) 0)))
+            (then (do (set deg (op add deg 1))))
+            (else (do)))
+          (set d_k (op add d_k 1))))
+      (return deg)))
+
+  (fn g_map_old
+    (params (new_index i32) (removed i32))
+    (returns i32)
+    (do
+      (if
+        (condition (op greater-or-equal new_index removed))
+        (then (do (return (op add new_index 1))))
+        (else (do (return new_index))))))
+
+  (fn g_remove_adj
+    (params
+      (adj (type-app Vec i32))
+      (old_n i32)
+      (removed i32))
+    (returns (type-app Vec i32))
+    (do
+      (let new_n i32 (op sub old_n 1))
+      (let new_adj (call vec_new (type-args i32)))
+      (let ri i32 0)
+      (while
+        (condition (op less-than ri new_n))
+        (do
+          (let rj i32 0)
+          (while
+            (condition (op less-than rj new_n))
+            (do
+              (let oi i32 (call g_map_old ri removed))
+              (let oj i32 (call g_map_old rj removed))
+              (set new_adj (call vec_push (type-args i32) new_adj
+                (call g_adj adj old_n oi oj)))
+              (set rj (op add rj 1))))
+          (set ri (op add ri 1))))
+      (return new_adj)))
+
+  (fn g_remove_labels
+    (params (labels (type-app Vec i32)) (removed i32))
+    (returns (type-app Vec i32))
+    (do
+      (let old_n i32 (call vec_len (type-args i32) labels))
+      (let new_labels (call vec_new (type-args i32)))
+      (let rl i32 0)
+      (while
+        (condition (op less-than rl old_n))
+        (do
+          (if
+            (condition (op not-equal rl removed))
+            (then (do
+              (set new_labels (call vec_push (type-args i32) new_labels
+                (call seq_get labels rl)))))
+            (else (do)))
+          (set rl (op add rl 1))))
+      (return new_labels)))
+
+  (fn g_fuse
+    (params
+      (labels (type-app Vec i32))
+      (adj (type-app Vec i32))
+      (keep i32)
+      (drop i32))
+    (returns (type-app Vec i32))
+    (do
+      (let n i32 (call vec_len (type-args i32) labels))
+      (let k i32 0)
+      (while
+        (condition (op less-than k n))
+        (do
+          (if
+            (condition (op and
+              (op not-equal k keep)
+              (op not-equal k drop)))
+            (then (do
+              (if
+                (condition (op or
+                  (op not-equal (call g_adj adj n drop k) 0)
+                  (op not-equal (call g_adj adj n keep k) 0)))
+                (then (do
+                  (call vec_set (type-args i32) adj (call g_index n keep k) 1)
+                  (call vec_set (type-args i32) adj (call g_index n k keep) 1)))
+                (else (do)))))
+            (else (do)))
+          (set k (op add k 1))))
+      (return labels)))
+
+  (fn g_find_match
+    (params (labels (type-app Vec i32)) (adj (type-app Vec i32)))
+    (returns RewriteMatch)
+    (do
+      (let best RewriteMatch (call match_none))
+      (let n i32 (call vec_len (type-args i32) labels))
+      (let i i32 0)
+      (while
+        (condition (op less-than i n))
+        (do
+          (let lab i32 (call seq_get labels i))
+          (if
+            (condition (op and
+              (op equal lab 0)
+              (op equal (call g_degree adj n i) 0)))
+            (then (do
+              (let drop_i RewriteMatch
+                (new RewriteMatch
+                  (rule 12)
+                  (start i)
+                  (span 1)
+                  (extra 0)))
+              (if
+                (condition (call match_better best drop_i))
+                (then (do (set best drop_i)))
+                (else (do)))))
+            (else (do)))
+          (let j i32 (op add i 1))
+          (while
+            (condition (op less-than j n))
+            (do
+              (if
+                (condition (op and
+                  (op not-equal (call g_adj adj n i j) 0)
+                  (op and
+                    (op not-equal lab 0)
+                    (op equal lab (call seq_get labels j)))))
+                (then (do
+                  (let fuse RewriteMatch
+                    (new RewriteMatch
+                      (rule 11)
+                      (start i)
+                      (span 2)
+                      (extra j)))
+                  (if
+                    (condition (call match_better best fuse))
+                    (then (do (set best fuse)))
+                    (else (do)))))
+                (else (do)))
+              (set j (op add j 1))))
+          (set i (op add i 1))))
+      (return best)))
+
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      ; Sequence H H X X H I -> trusted rewrite and oracle both yield H.
+      (let seq (call vec_new (type-args i32)))
+      (set seq (call vec_push (type-args i32) seq 1))
+      (set seq (call vec_push (type-args i32) seq 1))
+      (set seq (call vec_push (type-args i32) seq 2))
+      (set seq (call vec_push (type-args i32) seq 2))
+      (set seq (call vec_push (type-args i32) seq 1))
+      (set seq (call vec_push (type-args i32) seq 0))
+      (let trusted (call seq_rewrite seq false 32))
+      (let oracle (call seq_normal_form seq))
+      (if
+        (condition (op not (call seq_equal trusted oracle)))
+        (then (do (return 1)))
+        (else (do)))
+      (if
+        (condition (op not-equal (call seq_cost trusted) 1))
+        (then (do (return 2)))
+        (else (do)))
+      (if
+        (condition (op not-equal (call seq_get trusted 0) 1))
+        (then (do (return 3)))
+        (else (do)))
+      (let heuristic (call seq_rewrite seq true 32))
+      (if
+        (condition (op not-equal (call vec_len (type-args i32) heuristic) 0))
+        (then (do (return 4)))
+        (else (do)))
+      (call write_stdout "seq ")
+      (call seq_print trusted)
+
+      ; Graph: two adjacent A nodes fused, then B remains attached.
+      (let glabels (call vec_new (type-args i32)))
+      (set glabels (call vec_push (type-args i32) glabels 1))
+      (set glabels (call vec_push (type-args i32) glabels 1))
+      (set glabels (call vec_push (type-args i32) glabels 2))
+      (let gadj (call vec_new (type-args i32)))
+      (let fill i32 0)
+      (while
+        (condition (op less-than fill 9))
+        (do
+          (set gadj (call vec_push (type-args i32) gadj 0))
+          (set fill (op add fill 1))))
+      (call vec_set (type-args i32) gadj (call g_index 3 0 1) 1)
+      (call vec_set (type-args i32) gadj (call g_index 3 1 0) 1)
+      (call vec_set (type-args i32) gadj (call g_index 3 1 2) 1)
+      (call vec_set (type-args i32) gadj (call g_index 3 2 1) 1)
+      (let gm RewriteMatch (call g_find_match glabels gadj))
+      (if
+        (condition (op not-equal (field-get gm rule) 11))
+        (then (do (return 5)))
+        (else (do)))
+      (let keep i32 (field-get gm start))
+      (let drop i32 (field-get gm extra))
+      (call g_fuse glabels gadj keep drop)
+      (set glabels (call g_remove_labels glabels drop))
+      (set gadj (call g_remove_adj gadj 3 drop))
+      (let gm2 RewriteMatch (call g_find_match glabels gadj))
+      (if
+        (condition (op not-equal (field-get gm2 rule) 0))
+        (then (do (return 6)))
+        (else (do)))
+      (if
+        (condition (op not-equal (call vec_len (type-args i32) glabels) 2))
+        (then (do (return 7)))
+        (else (do)))
+      (call write_stdout "graph ")
+      (call seq_print glabels)
+
+      ; Isolated identity node is dropped by the second graph rule.
+      (let ilabels (call vec_new (type-args i32)))
+      (set ilabels (call vec_push (type-args i32) ilabels 0))
+      (let iadj (call vec_new (type-args i32)))
+      (set iadj (call vec_push (type-args i32) iadj 0))
+      (let im RewriteMatch (call g_find_match ilabels iadj))
+      (if
+        (condition (op not-equal (field-get im rule) 12))
+        (then (do (return 8)))
+        (else (do)))
+      (set ilabels (call g_remove_labels ilabels (field-get im start)))
+      (if
+        (condition (op not-equal (call vec_len (type-args i32) ilabels) 0))
+        (then (do (return 9)))
+        (else (do)))
+      (return 0))))
