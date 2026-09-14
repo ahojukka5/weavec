@@ -8,6 +8,16 @@ surface-language contract stabilises.
 
 ## [Unreleased]
 
+### Added
+
+- The typed deterministic rewrite contract for compiled optimization.
+  [Rewrite rule semantics](docs/rewrite-semantics.md) specifies pattern
+  variables, guards, replacements, rule identity, soundness provenance,
+  match enumeration, conflict order, and the split between cost and
+  search. `test/rewrite-semantics` runs an ordinary-Weave witness that
+  applies two trusted sequence rules and two graph rules without new
+  syntax or WIR forms. See issue #456.
+
 ### Removed
 
 - `src/frontend/lower.weave`, a leftover second surface-to-WIR

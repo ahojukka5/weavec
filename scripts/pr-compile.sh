@@ -80,4 +80,7 @@ bash "$ROOT/test/option-result/test.sh"
 log 'option helpers'
 bash "$ROOT/test/option-helpers/test.sh"
 
+log 'typed deterministic rewrite semantics'
+bash "$ROOT/test/rewrite-semantics/test.sh"
+
 log 'passed'

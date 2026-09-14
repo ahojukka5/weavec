@@ -125,6 +125,8 @@ executes projectile-motion
 contract protocol-boundary
 executes pythagoras
 executes quadratic
+# ordinary-Weave rewrite-contract witness; runtime is the subject
+executes rewrite-semantics
 # quantum WIR goldens and statistics documents
 contract quantum
 # self-host generation evidence

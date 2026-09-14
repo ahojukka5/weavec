@@ -20,6 +20,9 @@ names used when they were released.
   behavior, the narrow C/host ABI role, and removal rules for temporary helpers.
 - [Application-language roadmap](roadmap.md) — the five usability epics,
   dependency order, subissue workflow, compatibility rules, and deferred work.
+- [Typed deterministic rewrite semantics](rewrite-semantics.md) — the M0
+  compiled-rewriting contract: pattern variables, guards, replacements, rule
+  identity, provenance, match order, and cost/search separation.
 - [Structured semantic type graph](structured-type-graph.md) — canonical type
   identities, interning, node kinds, legacy migration, and the WIR-v3 boundary.
 - [Weave project manifest version 1](project-manifest.md) — canonical
@@ -106,6 +109,7 @@ names used when they were released.
 - [Struct layout and compatibility ABI](struct-layout.md)
 - [Struct value semantics](struct-ownership.md)
 - [Ownership requirements for concurrency and GPU](ownership-concurrency.md)
+- [Typed deterministic rewrite semantics](rewrite-semantics.md)
 - [Quantum surface support](quantum.md)
 
 ## Backend and performance notes
