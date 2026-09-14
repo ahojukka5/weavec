@@ -83,4 +83,7 @@ bash "$ROOT/test/option-helpers/test.sh"
 log 'typed deterministic rewrite semantics'
 bash "$ROOT/test/rewrite-semantics/test.sh"
 
+log 'circuit IR and compiled local rewrites'
+bash "$ROOT/test/circuit-rewrite/test.sh"
+
 log 'passed'

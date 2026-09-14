@@ -49,6 +49,8 @@ contract capabilities
 contract cli-diagnostics
 executes cli-io
 executes comment-statement
+# circuit IR generic matcher vs handwritten peephole; the program is the subject
+executes circuit-rewrite
 executes compiler-sources
 # output buffering and write-failure diagnostics
 contract compiler-write
