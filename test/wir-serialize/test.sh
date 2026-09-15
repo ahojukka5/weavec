@@ -44,5 +44,6 @@ bash "$ROOT/test/wir-scalar/test.sh"
 bash "$ROOT/test/wir-scalar-literals/test.sh"
 bash "$ROOT/test/wir-scalar-expr/test.sh"
 bash "$ROOT/test/wir-operator/test.sh"
+bash "$ROOT/test/wir-call/test.sh"
 
-printf 'wir-serialize: canonical, rollback, decimal, subtree, scalar leaf, and operator qualifications passed\n'
+printf 'wir-serialize: canonical, rollback, decimal, subtree, scalar leaf, operator, and call qualifications passed\n'

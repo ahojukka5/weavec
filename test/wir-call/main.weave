@@ -1,0 +1,180 @@
+; SPDX-License-Identifier: Apache-2.0
+; Qualification for structural ordinary/typed call WIR builders.
+
+(program
+  (name "wir_call_test")
+  (version "0.1")
+
+  (fn wct_copy
+    (params (wctc_dst ptr) (wctc_src ptr) (wctc_len i64))
+    (returns void)
+    (do
+      (let wctc_i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get wctc_i) (param_get wctc_len)))
+        (do
+          (store_i8
+            (ptr_add (param_get wctc_dst) (local_get wctc_i))
+            (load_u8 (ptr_add (param_get wctc_src) (local_get wctc_i))))
+          (set wctc_i (add_i64 (local_get wctc_i) (const_i64 1)))))
+      (store_i8 (ptr_add (param_get wctc_dst) (param_get wctc_len)) (const_i32 0))
+      (return_void)))
+
+  (fn wct_equals
+    (params (wcte_tree ptr) (wcte_root i64) (wcte_expected ptr))
+    (returns i32)
+    (do
+      (let wcte_buffer ptr (call_ptr wir_buffer_new))
+      (if
+        (condition (eq_ptr (local_get wcte_buffer) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (call_i32 wir_serialize_into
+            (local_get wcte_buffer) (param_get wcte_tree) (param_get wcte_root))
+          (const_i32 0)))
+        (then (do
+          (call_void wir_buffer_free (local_get wcte_buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (let wcte_len i64 (call_i64 wir_buffer_length (local_get wcte_buffer)))
+      (let wcte_expected_len i64 (call_i64 strlen (param_get wcte_expected)))
+      (if
+        (condition (ne_i64 (local_get wcte_len) (local_get wcte_expected_len)))
+        (then (do
+          (call_void wir_buffer_free (local_get wcte_buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (let wcte_data ptr (call_ptr wir_buffer_data (local_get wcte_buffer)))
+      (let wcte_i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get wcte_i) (local_get wcte_len)))
+        (do
+          (if
+            (condition (ne_i32
+              (load_u8 (ptr_add (local_get wcte_data) (local_get wcte_i)))
+              (load_u8 (ptr_add (param_get wcte_expected) (local_get wcte_i)))))
+            (then (do
+              (call_void wir_buffer_free (local_get wcte_buffer))
+              (return (const_i32 0))))
+            (else (do)))
+          (set wcte_i (add_i64 (local_get wcte_i) (const_i64 1)))))
+      (call_void wir_buffer_free (local_get wcte_buffer))
+      (return (const_i32 1))))
+
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (let tree ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get tree) (const_null)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+
+      ; Generated heads and callee atoms must own their bytes.
+      (let type_name ptr (call_ptr malloc (const_i64 4)))
+      (let callee_name ptr (call_ptr malloc (const_i64 6)))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get type_name) (const_null))
+          (eq_ptr (local_get callee_name) (const_null))))
+        (then (do (return (const_i32 2))))
+        (else (do)))
+      (call_void wct_copy (local_get type_name) (const_string_ptr "i32") (const_i64 3))
+      (call_void wct_copy (local_get callee_name) (const_string_ptr "forty") (const_i64 5))
+      (let callee i64 (call_i64 wir_call_callee_atom
+        (local_get tree) (local_get callee_name)))
+      (let zero i64 (call_i64 wir_call_begin
+        (local_get tree) (local_get type_name) (local_get callee)))
+      (if
+        (condition (lt_i64 (local_get zero) (const_i64 0)))
+        (then (do (return (const_i32 3))))
+        (else (do)))
+      (store_i8 (local_get type_name) (const_i32 88))
+      (store_i8 (local_get callee_name) (const_i32 89))
+      (call_void free (local_get type_name))
+      (call_void free (local_get callee_name))
+      (if
+        (condition (eq_i32 (call_i32 wct_equals
+          (local_get tree) (local_get zero)
+          (const_string_ptr "(call_i32 forty)")) (const_i32 0)))
+        (then (do (return (const_i32 4))))
+        (else (do)))
+
+      (let one_callee i64 (call_i64 wir_call_callee_atom
+        (local_get tree) (const_string_ptr "inc")))
+      (let one_call i64 (call_i64 wir_call_begin
+        (local_get tree) (const_string_ptr "i32") (local_get one_callee)))
+      (let one_arg i64 (call_i64 wir_scalar_const_i32
+        (local_get tree) (const_i64 41)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get one_call) (const_i64 0))
+          (eq_i32 (call_i32 wir_call_append_arg
+            (local_get tree) (local_get one_call) (local_get one_arg))
+            (const_i32 0))))
+        (then (do (return (const_i32 5))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wct_equals
+          (local_get tree) (local_get one_call)
+          (const_string_ptr "(call_i32 inc (const_i32 41))")) (const_i32 0)))
+        (then (do (return (const_i32 6))))
+        (else (do)))
+
+      (let multi_callee i64 (call_i64 wir_call_callee_atom
+        (local_get tree) (const_string_ptr "add")))
+      (let multi_call i64 (call_i64 wir_call_begin
+        (local_get tree) (const_string_ptr "i32") (local_get multi_callee)))
+      (let left i64 (call_i64 wir_scalar_const_i32 (local_get tree) (const_i64 40)))
+      (let right i64 (call_i64 wir_scalar_const_i32 (local_get tree) (const_i64 2)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_call_append_arg
+            (local_get tree) (local_get multi_call) (local_get left))
+            (const_i32 0))
+          (eq_i32 (call_i32 wir_call_append_arg
+            (local_get tree) (local_get multi_call) (local_get right))
+            (const_i32 0))))
+        (then (do (return (const_i32 7))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wct_equals
+          (local_get tree) (local_get multi_call)
+          (const_string_ptr "(call_i32 add (const_i32 40) (const_i32 2))"))
+          (const_i32 0)))
+        (then (do (return (const_i32 8))))
+        (else (do)))
+
+      (let void_callee i64 (call_i64 wir_call_callee_atom
+        (local_get tree) (const_string_ptr "free")))
+      (let void_call i64 (call_i64 wir_call_begin
+        (local_get tree) (const_string_ptr "void") (local_get void_callee)))
+      (let null_arg i64 (call_i64 wir_scalar_const_null (local_get tree)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get void_call) (const_i64 0))
+          (eq_i32 (call_i32 wir_call_append_arg
+            (local_get tree) (local_get void_call) (local_get null_arg))
+            (const_i32 0))))
+        (then (do (return (const_i32 9))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wct_equals
+          (local_get tree) (local_get void_call)
+          (const_string_ptr "(call_void free (const_null))")) (const_i32 0)))
+        (then (do (return (const_i32 10))))
+        (else (do)))
+
+      (let failed i64 (call_i64 wir_call_begin
+        (local_get tree) (const_string_ptr "i32") (const_i64 -1)))
+      (if
+        (condition (ge_i64 (local_get failed) (const_i64 0)))
+        (then (do (return (const_i32 11))))
+        (else (do)))
+
+      (call_void wir_tree_free (local_get tree))
+      (return (const_i32 0))))
+)
