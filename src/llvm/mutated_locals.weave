@@ -1,0 +1,491 @@
+; SPDX-License-Identifier: Apache-2.0
+; mutated_locals.weave — one per-function mutated-local identity table
+;
+; Binding identity is the let-name AST node, not a spelling. A later
+; resolve/typecheck phase (#271) can query the same table; emission must
+; not grow a second symbol model. Collection walks each body node once.
+
+(program
+  (name "mutated_locals")
+  (version "0.1")
+
+  ; Table layout (96 bytes):
+  ;   0  flags ptr      u8 per parser node id
+  ;   8  flag_count i64
+  ;  16  bindings ptr    24-byte {name_start, name_len, binding_node}
+  ;  24  binding_count i64
+  ;  32  binding_cap i64
+  ;  40  scopes ptr     i64 watermarks into bindings
+  ;  48  scope_count i64
+  ;  56  scope_cap i64
+  ;  64  has_set i64
+  ;  72  visit_count i64
+  ;  80  tree ptr       valid only during ml_collect
+  ;  88  source ptr
+
+  (fn ml_fail
+    (params (detail ptr))
+    (returns i32)
+    (do
+      (call_void write_cstr (const_i32 2) (const_string_ptr "weavec: error: "))
+      (call_void write_cstr (const_i32 2) (param_get detail))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (return (const_i32 1))))
+
+  (fn ml_table_new
+    (params)
+    (returns ptr)
+    (do
+      (let ml_tab ptr (call_ptr malloc (const_i64 96)))
+      (if
+        (condition (eq_ptr (local_get ml_tab) (const_null)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (store_ptr (local_get ml_tab) (const_null))
+      (store_i64 (ptr_add (local_get ml_tab) (const_i64 8)) (const_i64 0))
+      (store_ptr (ptr_add (local_get ml_tab) (const_i64 16)) (const_null))
+      (store_i64 (ptr_add (local_get ml_tab) (const_i64 24)) (const_i64 0))
+      (store_i64 (ptr_add (local_get ml_tab) (const_i64 32)) (const_i64 0))
+      (store_ptr (ptr_add (local_get ml_tab) (const_i64 40)) (const_null))
+      (store_i64 (ptr_add (local_get ml_tab) (const_i64 48)) (const_i64 0))
+      (store_i64 (ptr_add (local_get ml_tab) (const_i64 56)) (const_i64 0))
+      (store_i64 (ptr_add (local_get ml_tab) (const_i64 64)) (const_i64 0))
+      (store_i64 (ptr_add (local_get ml_tab) (const_i64 72)) (const_i64 0))
+      (store_ptr (ptr_add (local_get ml_tab) (const_i64 80)) (const_null))
+      (store_ptr (ptr_add (local_get ml_tab) (const_i64 88)) (const_null))
+      (return (local_get ml_tab))))
+
+  (fn ml_table_free
+    (params (table ptr))
+    (returns void)
+    (do
+      (if
+        (condition (eq_ptr (param_get table) (const_null)))
+        (then (do (return_void)))
+        (else (do)))
+      (let ml_flags ptr (load_ptr (param_get table)))
+      (if
+        (condition (ne_ptr (local_get ml_flags) (const_null)))
+        (then (do (call_void free (local_get ml_flags))))
+        (else (do)))
+      (let ml_binds ptr (load_ptr (ptr_add (param_get table) (const_i64 16))))
+      (if
+        (condition (ne_ptr (local_get ml_binds) (const_null)))
+        (then (do (call_void free (local_get ml_binds))))
+        (else (do)))
+      (let ml_scopes ptr (load_ptr (ptr_add (param_get table) (const_i64 40))))
+      (if
+        (condition (ne_ptr (local_get ml_scopes) (const_null)))
+        (then (do (call_void free (local_get ml_scopes))))
+        (else (do)))
+      (call_void free (param_get table))
+      (return_void)))
+
+  (fn ml_has_set
+    (params (table ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_ptr (param_get table) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i64
+          (load_i64 (ptr_add (param_get table) (const_i64 64)))
+          (const_i64 0)))
+        (then (do (return (const_i32 0))))
+        (else (do (return (const_i32 1)))))))
+
+  (fn ml_visit_count
+    (params (table ptr))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_ptr (param_get table) (const_null)))
+        (then (do (return (const_i64 0))))
+        (else (do)))
+      (return (load_i64 (ptr_add (param_get table) (const_i64 72))))))
+
+  (fn ml_binding_mutated
+    (params (table ptr) (binding_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_ptr (param_get table) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (lt_i64 (param_get binding_node) (const_i64 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let ml_n i64 (load_i64 (ptr_add (param_get table) (const_i64 8))))
+      (if
+        (condition (ge_i64 (param_get binding_node) (local_get ml_n)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let ml_flags ptr (load_ptr (param_get table)))
+      (if
+        (condition (eq_ptr (local_get ml_flags) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32
+          (load_u8 (ptr_add (local_get ml_flags) (param_get binding_node)))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do (return (const_i32 1)))))))
+
+  (fn ml_grow_bytes
+    (params (old ptr) (old_cap i64) (elem i64))
+    (returns ptr)
+    (do
+      (let ml_next i64 (const_i64 8))
+      (if
+        (condition (ne_i64 (param_get old_cap) (const_i64 0)))
+        (then (do
+          (set ml_next (mul_i64 (param_get old_cap) (const_i64 2)))))
+        (else (do)))
+      (if
+        (condition (le_i64 (local_get ml_next) (param_get old_cap)))
+        (then (do (return (const_null))))
+        (else (do)))
+      (if
+        (condition (gt_i64 (local_get ml_next)
+          (div_i64 (const_i64 9223372036854775807) (param_get elem))))
+        (then (do (return (const_null))))
+        (else (do)))
+      (return (call_ptr realloc
+        (param_get old)
+        (mul_i64 (local_get ml_next) (param_get elem))))))
+
+  (fn ml_ensure_bindings
+    (params (table ptr))
+    (returns i32)
+    (do
+      (let ml_n i64 (load_i64 (ptr_add (param_get table) (const_i64 24))))
+      (let ml_cap i64 (load_i64 (ptr_add (param_get table) (const_i64 32))))
+      (if
+        (condition (lt_i64 (local_get ml_n) (local_get ml_cap)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let ml_old ptr (load_ptr (ptr_add (param_get table) (const_i64 16))))
+      (let ml_grew ptr (call_ptr ml_grow_bytes
+        (local_get ml_old) (local_get ml_cap) (const_i64 24)))
+      (if
+        (condition (eq_ptr (local_get ml_grew) (const_null)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (store_ptr (ptr_add (param_get table) (const_i64 16)) (local_get ml_grew))
+      (if
+        (condition (eq_i64 (local_get ml_cap) (const_i64 0)))
+        (then (do
+          (store_i64 (ptr_add (param_get table) (const_i64 32)) (const_i64 8))))
+        (else (do
+          (store_i64 (ptr_add (param_get table) (const_i64 32))
+            (mul_i64 (local_get ml_cap) (const_i64 2))))))
+      (return (const_i32 0))))
+
+  (fn ml_ensure_scopes
+    (params (table ptr))
+    (returns i32)
+    (do
+      (let ml_n i64 (load_i64 (ptr_add (param_get table) (const_i64 48))))
+      (let ml_cap i64 (load_i64 (ptr_add (param_get table) (const_i64 56))))
+      (if
+        (condition (lt_i64 (local_get ml_n) (local_get ml_cap)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let ml_old ptr (load_ptr (ptr_add (param_get table) (const_i64 40))))
+      (let ml_grew ptr (call_ptr ml_grow_bytes
+        (local_get ml_old) (local_get ml_cap) (const_i64 8)))
+      (if
+        (condition (eq_ptr (local_get ml_grew) (const_null)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (store_ptr (ptr_add (param_get table) (const_i64 40)) (local_get ml_grew))
+      (if
+        (condition (eq_i64 (local_get ml_cap) (const_i64 0)))
+        (then (do
+          (store_i64 (ptr_add (param_get table) (const_i64 56)) (const_i64 8))))
+        (else (do
+          (store_i64 (ptr_add (param_get table) (const_i64 56))
+            (mul_i64 (local_get ml_cap) (const_i64 2))))))
+      (return (const_i32 0))))
+
+  (fn ml_push_scope
+    (params (table ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 ml_ensure_scopes (param_get table))
+          (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let ml_n i64 (load_i64 (ptr_add (param_get table) (const_i64 48))))
+      (let ml_base ptr (load_ptr (ptr_add (param_get table) (const_i64 40))))
+      (store_i64
+        (ptr_add (local_get ml_base) (mul_i64 (local_get ml_n) (const_i64 8)))
+        (load_i64 (ptr_add (param_get table) (const_i64 24))))
+      (store_i64 (ptr_add (param_get table) (const_i64 48))
+        (add_i64 (local_get ml_n) (const_i64 1)))
+      (return (const_i32 0))))
+
+  (fn ml_pop_scope
+    (params (table ptr))
+    (returns void)
+    (do
+      (let ml_n i64 (load_i64 (ptr_add (param_get table) (const_i64 48))))
+      (if
+        (condition (eq_i64 (local_get ml_n) (const_i64 0)))
+        (then (do (return_void)))
+        (else (do)))
+      (let ml_prev i64 (sub_i64 (local_get ml_n) (const_i64 1)))
+      (let ml_base ptr (load_ptr (ptr_add (param_get table) (const_i64 40))))
+      (store_i64 (ptr_add (param_get table) (const_i64 24))
+        (load_i64 (ptr_add (local_get ml_base)
+          (mul_i64 (local_get ml_prev) (const_i64 8)))))
+      (store_i64 (ptr_add (param_get table) (const_i64 48)) (local_get ml_prev))
+      (return_void)))
+
+  (fn ml_register_let
+    (params (table ptr) (name_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (param_get name_node) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ml_ensure_bindings (param_get table))
+          (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let ml_tree ptr (load_ptr (ptr_add (param_get table) (const_i64 80))))
+      (let ml_n i64 (load_i64 (ptr_add (param_get table) (const_i64 24))))
+      (let ml_base ptr (load_ptr (ptr_add (param_get table) (const_i64 16))))
+      (let ml_rec ptr (ptr_add (local_get ml_base)
+        (mul_i64 (local_get ml_n) (const_i64 24))))
+      (store_i64 (local_get ml_rec)
+        (call_i64 node_text_start (local_get ml_tree) (param_get name_node)))
+      (store_i64 (ptr_add (local_get ml_rec) (const_i64 8))
+        (call_i64 node_text_len (local_get ml_tree) (param_get name_node)))
+      (store_i64 (ptr_add (local_get ml_rec) (const_i64 16))
+        (param_get name_node))
+      (store_i64 (ptr_add (param_get table) (const_i64 24))
+        (add_i64 (local_get ml_n) (const_i64 1)))
+      (return (const_i32 0))))
+
+  (fn ml_mark_set
+    (params (table ptr) (name_node i64))
+    (returns void)
+    (do
+      (if
+        (condition (eq_i64 (param_get name_node) (const_i64 -1)))
+        (then (do (return_void)))
+        (else (do)))
+      (let ml_tree ptr (load_ptr (ptr_add (param_get table) (const_i64 80))))
+      (let ml_source ptr (load_ptr (ptr_add (param_get table) (const_i64 88))))
+      (let ml_ns i64 (call_i64 node_text_start
+        (local_get ml_tree) (param_get name_node)))
+      (let ml_nl i64 (call_i64 node_text_len
+        (local_get ml_tree) (param_get name_node)))
+      (let ml_n i64 (load_i64 (ptr_add (param_get table) (const_i64 24))))
+      (let ml_base ptr (load_ptr (ptr_add (param_get table) (const_i64 16))))
+      (if
+        (condition (eq_ptr (local_get ml_base) (const_null)))
+        (then (do (return_void)))
+        (else (do)))
+      (let ml_i i64 (sub_i64 (local_get ml_n) (const_i64 1)))
+      (while
+        (condition (ge_i64 (local_get ml_i) (const_i64 0)))
+        (do
+          (let ml_rec ptr (ptr_add (local_get ml_base)
+            (mul_i64 (local_get ml_i) (const_i64 24))))
+          (if
+            (condition (ne_i32 (call_i32 slices_equal
+              (local_get ml_source)
+              (local_get ml_ns) (local_get ml_nl)
+              (load_i64 (local_get ml_rec))
+              (load_i64 (ptr_add (local_get ml_rec) (const_i64 8))))
+              (const_i32 0)))
+            (then (do
+              (let ml_bind i64 (load_i64 (ptr_add (local_get ml_rec)
+                (const_i64 16))))
+              (let ml_flags ptr (load_ptr (param_get table)))
+              (let ml_fn i64 (load_i64 (ptr_add (param_get table)
+                (const_i64 8))))
+              (if
+                (condition (and_bool
+                  (ne_ptr (local_get ml_flags) (const_null))
+                  (and_bool
+                    (ge_i64 (local_get ml_bind) (const_i64 0))
+                    (lt_i64 (local_get ml_bind) (local_get ml_fn)))))
+                (then (do
+                  (store_i8 (ptr_add (local_get ml_flags) (local_get ml_bind))
+                    (const_i32 1))))
+                (else (do)))
+              (return_void)))
+            (else (do)))
+          (set ml_i (sub_i64 (local_get ml_i) (const_i64 1)))))
+      (return_void)))
+
+  (fn ml_head_eq
+    (params (tree ptr) (source ptr) (node i64) (name ptr) (len i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get tree) (param_get node)) (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 head_equals
+        (param_get tree) (param_get source) (param_get node)
+        (param_get name) (param_get len)))))
+
+  (fn ml_walk
+    (params (table ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (param_get node) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (store_i64 (ptr_add (param_get table) (const_i64 72))
+        (add_i64
+          (load_i64 (ptr_add (param_get table) (const_i64 72)))
+          (const_i64 1)))
+      (let ml_tree ptr (load_ptr (ptr_add (param_get table) (const_i64 80))))
+      (let ml_source ptr (load_ptr (ptr_add (param_get table) (const_i64 88))))
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (local_get ml_tree) (param_get node)) (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let ml_scope i32 (const_i32 0))
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 ml_head_eq
+              (local_get ml_tree) (local_get ml_source) (param_get node)
+              (const_string_ptr "do") (const_i64 2)) (const_i32 0))
+            (ne_i32 (call_i32 ml_head_eq
+              (local_get ml_tree) (local_get ml_source) (param_get node)
+              (const_string_ptr "then") (const_i64 4)) (const_i32 0)))
+          (ne_i32 (call_i32 ml_head_eq
+            (local_get ml_tree) (local_get ml_source) (param_get node)
+            (const_string_ptr "else") (const_i64 4)) (const_i32 0))))
+        (then (do (set ml_scope (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (local_get ml_scope) (const_i32 0)))
+        (then (do
+          (if
+            (condition (ne_i32 (call_i32 ml_push_scope (param_get table))
+              (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ml_head_eq
+          (local_get ml_tree) (local_get ml_source) (param_get node)
+          (const_string_ptr "let") (const_i64 3)) (const_i32 0)))
+        (then (do
+          (if
+            (condition (ne_i32 (call_i32 ml_register_let
+              (param_get table)
+              (call_i64 nth_child
+                (local_get ml_tree) (param_get node) (const_i64 1)))
+              (const_i32 0)))
+            (then (do (return (const_i32 1))))
+            (else (do)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ml_head_eq
+          (local_get ml_tree) (local_get ml_source) (param_get node)
+          (const_string_ptr "set") (const_i64 3)) (const_i32 0)))
+        (then (do
+          (store_i64 (ptr_add (param_get table) (const_i64 64)) (const_i64 1))
+          (call_void ml_mark_set
+            (param_get table)
+            (call_i64 nth_child
+              (local_get ml_tree) (param_get node) (const_i64 1)))))
+        (else (do)))
+      (let ml_child i64 (call_i64 node_first_child
+        (local_get ml_tree) (param_get node)))
+      (let ml_st i32 (const_i32 0))
+      (while
+        (condition (and_bool
+          (eq_i32 (local_get ml_st) (const_i32 0))
+          (ne_i64 (local_get ml_child) (const_i64 -1))))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 ml_walk
+              (param_get table) (local_get ml_child)) (const_i32 0)))
+            (then (do (set ml_st (const_i32 1))))
+            (else (do)))
+          (set ml_child (call_i64 node_next_sibling
+            (local_get ml_tree) (local_get ml_child)))))
+      (if
+        (condition (ne_i32 (local_get ml_scope) (const_i32 0)))
+        (then (do (call_void ml_pop_scope (param_get table))))
+        (else (do)))
+      (return (local_get ml_st))))
+
+  (fn ml_collect
+    (params (table ptr) (tree ptr) (source ptr) (body i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get table) (const_null))
+          (or_bool
+            (eq_ptr (param_get tree) (const_null))
+            (eq_ptr (param_get source) (const_null)))))
+        (then (do
+          (return (call_i32 ml_fail
+            (const_string_ptr "mutated-local table is missing")))))
+        (else (do)))
+      (let ml_old ptr (load_ptr (param_get table)))
+      (if
+        (condition (ne_ptr (local_get ml_old) (const_null)))
+        (then (do (call_void free (local_get ml_old))))
+        (else (do)))
+      (store_ptr (param_get table) (const_null))
+      (store_i64 (ptr_add (param_get table) (const_i64 8)) (const_i64 0))
+      (store_i64 (ptr_add (param_get table) (const_i64 24)) (const_i64 0))
+      (store_i64 (ptr_add (param_get table) (const_i64 48)) (const_i64 0))
+      (store_i64 (ptr_add (param_get table) (const_i64 64)) (const_i64 0))
+      (store_i64 (ptr_add (param_get table) (const_i64 72)) (const_i64 0))
+      (store_ptr (ptr_add (param_get table) (const_i64 80)) (param_get tree))
+      (store_ptr (ptr_add (param_get table) (const_i64 88)) (param_get source))
+      (let ml_nodes i64 (call_i64 tree_count (param_get tree)))
+      (if
+        (condition (gt_i64 (local_get ml_nodes) (const_i64 0)))
+        (then (do
+          (let ml_flags ptr (call_ptr malloc (local_get ml_nodes)))
+          (if
+            (condition (eq_ptr (local_get ml_flags) (const_null)))
+            (then (do
+              (return (call_i32 ml_fail
+                (const_string_ptr "mutated-local table overflow")))))
+            (else (do)))
+          (let ml_i i64 (const_i64 0))
+          (while
+            (condition (lt_i64 (local_get ml_i) (local_get ml_nodes)))
+            (do
+              (store_i8 (ptr_add (local_get ml_flags) (local_get ml_i))
+                (const_i32 0))
+              (set ml_i (add_i64 (local_get ml_i) (const_i64 1)))))
+          (store_ptr (param_get table) (local_get ml_flags))
+          (store_i64 (ptr_add (param_get table) (const_i64 8))
+            (local_get ml_nodes))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ml_walk
+          (param_get table) (param_get body)) (const_i32 0)))
+        (then (do
+          (return (call_i32 ml_fail
+            (const_string_ptr "mutated-local table overflow")))))
+        (else (do)))
+      (return (const_i32 0))))
+)
