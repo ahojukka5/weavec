@@ -98,6 +98,9 @@ executes module-structs
 executes module-symbols
 executes module-type-interfaces
 executes modules
+# crash/hang/diagnostic/partial-artifact oracle over mutated fixtures;
+# accepted random programs are not executed
+contract mutation-fuzz
 executes newton-root
 executes optimization-evidence
 executes option-helpers
