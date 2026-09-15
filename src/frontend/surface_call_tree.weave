@@ -5,8 +5,8 @@
 ; Semantic validation stays in sst_emit_call. This module builds owned WIR
 ; nodes for admitted calls, composing #410/#411 children and nested calls.
 ; Unmigrated children return failure so the caller can keep the text renderer
-; during the #413 overlap window. A failed judgment never publishes a partial
-; call subtree.
+; for unmigrated families. A failed judgment never publishes a partial call
+; subtree.
 
 (program
   (name "surface_call_tree")
