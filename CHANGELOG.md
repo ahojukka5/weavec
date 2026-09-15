@@ -69,6 +69,10 @@ surface-language contract stabilises.
 - Circuit IR `CostVector.twoq` counts only arity-2 gates (`CNOT`,
   `CZ`, `SWAP`). `CCNOT` remains arity 3 and is no longer counted as
   two-qubit. See [Rule authoring](docs/rewrite-authoring.md).
+- Nested cast tree-building no longer prints a generic surface error
+  when `let`/`set`/`return` compose an unadmitted cast. The structural
+  builder fails closed and `frontend.cast.invalid` stays the diagnostic
+  authority (issue #413).
 - Generated-WIR reparse no longer disables the S-expression depth
   guard when `WEAVEC_INTERNAL_WIR_PARSE` is set. Direct
   `weavec --backend` keeps the public budget of 64; `weavec build`
