@@ -11,78 +11,6 @@
   ; In WIR there is no forward declaration; functions can call each other freely
   ; once concatenated. emit_stmt and emit_do are mutually recursive here.
 
-  ; Return 1 when node or any descendant is a (set ...) statement.
-  (fn node_contains_set
-    (params (ctx ptr) (node i64))
-    (returns i32)
-    (do
-      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
-      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
-      (if
-        (condition (eq_i64 (param_get node) (const_i64 -1)))
-        (then (do (return (const_i32 0))))
-        (else (do)))
-      (if
-        (condition (ne_i32 (call_i32 node_kind (local_get tree) (param_get node)) (call_i32 node_list)))
-        (then (do (return (const_i32 0))))
-        (else (do)))
-      (if
-        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
-          (const_string_ptr "set") (const_i64 3)) (const_i32 0)))
-        (then (do (return (const_i32 1))))
-        (else (do)))
-      (let child i64 (call_i64 node_first_child (local_get tree) (param_get node)))
-      (while
-        (condition (ne_i64 (local_get child) (const_i64 -1)))
-        (do
-          (if
-            (condition (ne_i32 (call_i32 node_contains_set (param_get ctx) (local_get child)) (const_i32 0)))
-            (then (do (return (const_i32 1))))
-            (else (do)))
-          (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
-      (return (const_i32 0))))
-
-  ; Return 1 when node or any descendant sets the named local.
-  (fn node_sets_local
-    (params (ctx ptr) (node i64) (name_start i64) (name_len i64))
-    (returns i32)
-    (do
-      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
-      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
-      (if
-        (condition (eq_i64 (param_get node) (const_i64 -1)))
-        (then (do (return (const_i32 0))))
-        (else (do)))
-      (if
-        (condition (ne_i32 (call_i32 node_kind (local_get tree) (param_get node)) (call_i32 node_list)))
-        (then (do (return (const_i32 0))))
-        (else (do)))
-      (if
-        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
-          (const_string_ptr "set") (const_i64 3)) (const_i32 0)))
-        (then (do
-          (let set_name i64 (call_i64 nth_child (local_get tree) (param_get node) (const_i64 1)))
-          (if
-            (condition (ne_i32 (call_i32 slices_equal
-              (local_get source)
-              (param_get name_start) (param_get name_len)
-              (call_i64 node_text_start (local_get tree) (local_get set_name))
-              (call_i64 node_text_len (local_get tree) (local_get set_name))) (const_i32 0)))
-            (then (do (return (const_i32 1))))
-            (else (do)))))
-        (else (do)))
-      (let child i64 (call_i64 node_first_child (local_get tree) (param_get node)))
-      (while
-        (condition (ne_i64 (local_get child) (const_i64 -1)))
-        (do
-          (if
-            (condition (ne_i32 (call_i32 node_sets_local
-              (param_get ctx) (local_get child) (param_get name_start) (param_get name_len)) (const_i32 0)))
-            (then (do (return (const_i32 1))))
-            (else (do)))
-          (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
-      (return (const_i32 0))))
-
   ; Emit stack slots for mutable lets before body code.
   (fn emit_stack_allocas
     (params (ctx ptr) (node i64))
@@ -109,8 +37,9 @@
           (let ns0 i64 (call_i64 node_text_start (local_get tree) (local_get name_node)))
           (let nl0 i64 (call_i64 node_text_len (local_get tree) (local_get name_node)))
           (if
-            (condition (ne_i32 (call_i32 node_sets_local
-              (param_get ctx) (call_i64 ctx_get_fn_body (param_get ctx)) (local_get ns0) (local_get nl0)) (const_i32 0)))
+            (condition (ne_i32 (call_i32 ml_binding_mutated
+              (call_ptr ctx_get_mutated (param_get ctx)) (local_get name_node))
+              (const_i32 0)))
             (then (do
               (call_void write_cstr (local_get fd) (const_string_ptr "  %"))
               (call_void emit_node_text (local_get fd) (local_get source) (local_get tree) (local_get name_node))
@@ -378,64 +307,6 @@
       (call_void free (local_get arg_nodes))
       (return (const_i32 0))))
 
-  ; Return 1 when node is (local_get name).
-  (fn node_is_local_get_of
-    (params (ctx ptr) (node i64) (name_start i64) (name_len i64))
-    (returns i32)
-    (do
-      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
-      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
-      (if
-        (condition (eq_i64 (param_get node) (const_i64 -1)))
-        (then (do (return (const_i32 0))))
-        (else (do)))
-      (if
-        (condition (ne_i32 (call_i32 list_head_ne (local_get tree) (local_get source) (param_get node)
-          (const_string_ptr "local_get") (const_i64 9)) (const_i32 0)))
-        (then (do
-          (let get_name i64 (call_i64 nth_child (local_get tree) (param_get node) (const_i64 1)))
-          (if
-            (condition (ne_i32 (call_i32 slices_equal
-              (local_get source)
-              (param_get name_start) (param_get name_len)
-              (call_i64 node_text_start (local_get tree) (local_get get_name))
-              (call_i64 node_text_len (local_get tree) (local_get get_name))) (const_i32 0)))
-            (then (do (return (const_i32 1))))
-            (else (do)))))
-        (else (do)))
-      (return (const_i32 0))))
-
-  ; Count (local_get name) under node (recursive).
-  (fn count_local_get_of
-    (params (ctx ptr) (node i64) (name_start i64) (name_len i64))
-    (returns i64)
-    (do
-      (let tree ptr (call_ptr ctx_get_tree (param_get ctx)))
-      (let source ptr (call_ptr ctx_get_source (param_get ctx)))
-      (if
-        (condition (eq_i64 (param_get node) (const_i64 -1)))
-        (then (do (return (const_i64 0))))
-        (else (do)))
-      (let total i64
-        (cast_i32_to_i64
-          (call_i32 node_is_local_get_of
-            (param_get ctx) (param_get node) (param_get name_start) (param_get name_len))))
-      (if
-        (condition (ne_i32 (call_i32 node_kind (local_get tree) (param_get node)) (call_i32 node_list)))
-        (then (do (return (local_get total))))
-        (else (do)))
-      (let child i64 (call_i64 node_first_child (local_get tree) (param_get node)))
-      (while
-        (condition (ne_i64 (local_get child) (const_i64 -1)))
-        (do
-          (set total (add_i64 (local_get total)
-            (call_i64 count_local_get_of
-              (param_get ctx) (local_get child) (param_get name_start) (param_get name_len))))
-          (set child (call_i64 node_next_sibling (local_get tree) (local_get child)))))
-      (return (local_get total))))
-
-  ; Return 1 when name is read exactly once in a set to a different local.
-
   ; Emit let statement: alloca + store
   ; Emit let statement. Immutable locals remain direct SSA values;
   ; mutable locals use the stack slot reserved by emit_stack_allocas.
@@ -459,8 +330,8 @@
       (let type_id i32 (call_i32 parse_type (local_get tree) (local_get source) (local_get type_node)))
       (let ns i64 (call_i64 node_text_start (local_get tree) (local_get name_node)))
       (let nl i64 (call_i64 node_text_len (local_get tree) (local_get name_node)))
-      (let is_set_local i32 (call_i32 node_sets_local
-        (param_get ctx) (call_i64 ctx_get_fn_body (param_get ctx)) (local_get ns) (local_get nl)))
+      (let is_set_local i32 (call_i32 ml_binding_mutated
+        (call_ptr ctx_get_mutated (param_get ctx)) (local_get name_node)))
       (let ev i64 (call_i64 emit_expr (param_get ctx) (local_get expr_node)))
       (if
         (condition (eq_i64 (local_get ev) (const_i64 -1)))
