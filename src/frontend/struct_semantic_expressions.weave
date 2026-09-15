@@ -208,6 +208,21 @@
         (call_void sst_check_expr_expected
           (param_get sst_tree) (param_get sst_source) (local_get sst_expr_node)
           (local_get sst_type) (const_string_ptr "binding"))
+        (if
+          (condition (ne_i32 (call_i32 sstt_try_publish_let
+            (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+            (local_get sst_name_node) (local_get sst_type)
+            (local_get sst_expr_node)) (const_i32 0)))
+          (then (do
+            (call_i32 weave_surface_local_add
+              (param_get sst_source)
+              (call_i64 node_text_start
+                (param_get sst_tree) (local_get sst_name_node))
+              (call_i64 node_text_len
+                (param_get sst_tree) (local_get sst_name_node))
+              (local_get sst_type))
+            (return_void)))
+          (else (do)))
         (call_void write_cstr (param_get sst_fd) (const_string_ptr "(let "))
         (call_void emit_node
           (param_get sst_fd) (param_get sst_source) (param_get sst_tree)

@@ -327,6 +327,12 @@
         (call_void sst_check_expr_expected
           (param_get sst_tree) (param_get sst_source) (local_get sst_value)
           (local_get sst_expected) (const_string_ptr "return"))
+        (if
+          (condition (ne_i32 (call_i32 sstt_try_publish_return
+            (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+            (local_get sst_value) (local_get sst_expected)) (const_i32 0)))
+          (then (do (return_void)))
+          (else (do)))
         (call_void write_cstr (param_get sst_fd) (const_string_ptr "(return "))
         (call_void surface_emit_expr_expected
           (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
@@ -347,6 +353,13 @@
         (call_void sst_check_expr_expected
           (param_get sst_tree) (param_get sst_source) (local_get sst_value_node)
           (local_get sst_expected) (const_string_ptr "assignment"))
+        (if
+          (condition (ne_i32 (call_i32 sstt_try_publish_set
+            (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+            (local_get sst_name_node) (local_get sst_expected)
+            (local_get sst_value_node)) (const_i32 0)))
+          (then (do (return_void)))
+          (else (do)))
         (call_void write_cstr (param_get sst_fd) (const_string_ptr "(set "))
         (call_void emit_node_text
           (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
