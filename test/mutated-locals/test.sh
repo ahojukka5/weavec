@@ -26,12 +26,30 @@ grep -Fq '(call_i32 ml_collect' "$ROOT/src/llvm/fn.weave"
 grep -Fq '(call_i32 ml_binding_mutated' "$ROOT/src/llvm/stmt.weave"
 grep -Fq 'ml_table_new' "$ROOT/src/llvm/ctx.weave"
 
-# Compiler-source unit programs that call src/core/io.weave need the host
-# portable runtime, not the thin packaged program.c. Compile it in place so
-# quoted includes resolve; pass the object to --runtime (a .c override is
-# copied into a temp dir without -I).
-"${CC:-clang}" -I "$ROOT/runtime" -c "$ROOT/runtime/portable.c" \
-    -o "$TMP/runtime.o"
+# Packaged program.c has no weave_rt_write. A .c --runtime override is copied
+# without include paths, so compile a test-local object here with -I.
+cp "$ROOT/runtime/program.c" "$TMP/runtime.c"
+cat >> "$TMP/runtime.c" <<'C'
+
+int32_t weave_rt_write(int32_t fd, const void *data, int64_t n) {
+    if (n <= 0 || data == 0) {
+        return 0;
+    }
+    return write((int)fd, data, (size_t)n) < 0 ? 1 : 0;
+}
+int32_t weave_rt_write_u8(int32_t fd, int32_t b) {
+    unsigned char byte = (unsigned char)b;
+    return weave_rt_write(fd, &byte, 1);
+}
+int32_t weave_rt_write_finish(int32_t fd) {
+    (void)fd;
+    return 0;
+}
+int32_t weave_rt_write_failed(void) {
+    return 0;
+}
+C
+"${CC:-clang}" -I "$ROOT/runtime" -c "$TMP/runtime.c" -o "$TMP/runtime.o"
 
 "$WEAVEC" build \
     "$ROOT/src/core/extern.weave" \
