@@ -1,0 +1,265 @@
+; SPDX-License-Identifier: Apache-2.0
+; surface_call_tree.weave — structural success-path lowering for ordinary/typed
+; calls
+;
+; Semantic validation stays in sst_emit_call. This module builds owned WIR
+; nodes for admitted calls, composing #410/#411 children and nested calls.
+; Unmigrated children return failure so the caller can keep the text renderer
+; during the #413 overlap window. A failed judgment never publishes a partial
+; call subtree.
+
+(program
+  (name "surface_call_tree")
+  (version "0.1")
+
+  (fn sct_callee_atom
+    (params
+      (sct_wir ptr) (sct_source ptr) (sct_tree ptr)
+      (sct_name_node i64) (sct_spec_index i32))
+    (returns i64)
+    (do
+      (if
+        (condition (ge_i32 (param_get sct_spec_index) (const_i32 0)))
+        (then (do
+          (return (call_i64 wir_call_callee_atom
+            (param_get sct_wir)
+            (call_ptr weave_surface_spec_name (param_get sct_spec_index))))))
+        (else (do)))
+      (let sct_start i64 (call_i64 node_text_start
+        (param_get sct_tree) (param_get sct_name_node)))
+      (let sct_length i64 (call_i64 node_text_len
+        (param_get sct_tree) (param_get sct_name_node)))
+      (let sct_wir_name ptr (call_ptr weave_surface_symbol_wir_name
+        (param_get sct_source) (local_get sct_start) (local_get sct_length)))
+      (if
+        (condition (ne_ptr (local_get sct_wir_name) (const_null)))
+        (then (do
+          (return (call_i64 wir_call_callee_atom
+            (param_get sct_wir) (local_get sct_wir_name)))))
+        (else (do)))
+      (return (call_i64 wir_scalar_source_ident
+        (param_get sct_wir) (param_get sct_source)
+        (param_get sct_tree) (param_get sct_name_node)))))
+
+  ; Nested ordinary calls reuse this builder. Generic applications without an
+  ; already-interned specialization stay on the text path.
+  (fn sct_build_call_node
+    (params
+      (sct_wir ptr) (sct_source ptr) (sct_tree ptr) (sct_node i64)
+      (sct_spec_index i32) (sct_spec_args ptr) (sct_generic_arity i32)
+      (sct_return_type i32))
+    (returns i64)
+    (do
+      (let sct_name_node i64 (call_i64 surface_call_name_node
+        (param_get sct_tree) (param_get sct_source) (param_get sct_node)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get sct_tree) (local_get sct_name_node)) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (gt_i32 (param_get sct_generic_arity) (const_i32 0))
+          (lt_i32 (param_get sct_spec_index) (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get sct_return_type)
+          (call_i32 surface_type_unknown)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sct_type_name ptr (call_ptr weave_semantic_type_wir
+        (param_get sct_return_type)))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get sct_type_name) (const_null))
+          (eq_i32 (call_i32 wir_scalar_expr_cstr_equal
+            (local_get sct_type_name) (const_string_ptr "unknown"))
+            (const_i32 1))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sct_callee i64 (call_i64 sct_callee_atom
+        (param_get sct_wir) (param_get sct_source) (param_get sct_tree)
+        (local_get sct_name_node) (param_get sct_spec_index)))
+      (let sct_root i64 (call_i64 wir_call_begin
+        (param_get sct_wir) (local_get sct_type_name) (local_get sct_callee)))
+      (if
+        (condition (lt_i64 (local_get sct_root) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sct_name_start i64 (call_i64 node_text_start
+        (param_get sct_tree) (local_get sct_name_node)))
+      (let sct_name_length i64 (call_i64 node_text_len
+        (param_get sct_tree) (local_get sct_name_node)))
+      (let sct_type_args i64 (call_i64 spec_type_args_node
+        (param_get sct_tree) (param_get sct_source) (param_get sct_node)))
+      (let sct_argument i64 (call_i64 node_next_sibling
+        (param_get sct_tree) (local_get sct_name_node)))
+      (if
+        (condition (ne_i64 (local_get sct_type_args) (const_i64 -1)))
+        (then (do
+          (set sct_argument (call_i64 node_next_sibling
+            (param_get sct_tree) (local_get sct_type_args)))))
+        (else (do)))
+      (let sct_argument_index i32 (const_i32 0))
+      (while
+        (condition (ne_i64 (local_get sct_argument) (const_i64 -1)))
+        (do
+          (let sct_expected_type i32 (call_i32 weave_surface_symbol_parameter_type
+            (param_get sct_source) (local_get sct_name_start)
+            (local_get sct_name_length) (local_get sct_argument_index)))
+          (if
+            (condition (and_bool
+              (ge_i32 (param_get sct_spec_index) (const_i32 0))
+              (ne_ptr (param_get sct_spec_args) (const_null))))
+            (then (do
+              (set sct_expected_type (call_i32 spec_instantiate_type
+                (local_get sct_expected_type) (param_get sct_spec_args)
+                (param_get sct_generic_arity)))))
+            (else (do)))
+          (let sct_actual_type i32 (call_i32 sop_expr_type
+            (param_get sct_tree) (param_get sct_source) (local_get sct_argument)
+            (local_get sct_expected_type)))
+          (if
+            (condition (and_bool
+              (eq_i32 (local_get sct_expected_type) (call_i32 surface_type_ptr))
+              (ne_i32 (call_i32 weave_semantic_is_enum_type
+                (local_get sct_actual_type)) (const_i32 0))))
+            (then (do
+              (call_void var_record_no_identity
+                (param_get sct_tree) (param_get sct_source)
+                (local_get sct_argument))))
+            (else (do
+              (if
+                (condition (and_bool
+                  (ne_i32 (local_get sct_expected_type)
+                    (call_i32 surface_type_unknown))
+                  (and_bool
+                    (ne_i32 (local_get sct_actual_type)
+                      (call_i32 surface_type_unknown))
+                    (eq_i32 (call_i32 sst_types_compatible
+                      (local_get sct_expected_type) (local_get sct_actual_type))
+                      (const_i32 0)))))
+                (then (do (return (const_i64 -1))))
+                (else (do))))))
+          (let sct_arg_node i64 (call_i64 sct_build_operand
+            (param_get sct_wir) (param_get sct_source) (param_get sct_tree)
+            (local_get sct_argument) (local_get sct_expected_type)))
+          (if
+            (condition (or_bool
+              (lt_i64 (local_get sct_arg_node) (const_i64 0))
+              (eq_i32 (call_i32 wir_call_append_arg
+                (param_get sct_wir) (local_get sct_root)
+                (local_get sct_arg_node)) (const_i32 0))))
+            (then (do (return (const_i64 -1))))
+            (else (do)))
+          (set sct_argument_index
+            (add_i32 (local_get sct_argument_index) (const_i32 1)))
+          (set sct_argument (call_i64 node_next_sibling
+            (param_get sct_tree) (local_get sct_argument)))))
+      (if
+        (condition (ne_i32 (call_i32 wir_tree_failed (param_get sct_wir))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get sct_root))))
+
+  (fn sct_build_nested_call
+    (params
+      (sct_wir ptr) (sct_source ptr) (sct_tree ptr) (sct_node i64))
+    (returns i64)
+    (do
+      (let sct_name_node i64 (call_i64 surface_call_name_node
+        (param_get sct_tree) (param_get sct_source) (param_get sct_node)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get sct_tree) (local_get sct_name_node)) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sct_name_start i64 (call_i64 node_text_start
+        (param_get sct_tree) (local_get sct_name_node)))
+      (let sct_name_length i64 (call_i64 node_text_len
+        (param_get sct_tree) (local_get sct_name_node)))
+      (let sct_generic_arity i32 (call_i32 weave_surface_symbol_type_param_count
+        (param_get sct_source) (local_get sct_name_start)
+        (local_get sct_name_length)))
+      (let sct_return_type i32 (call_i32 weave_surface_symbol_return_type
+        (param_get sct_source) (local_get sct_name_start)
+        (local_get sct_name_length)))
+      (let sct_expected_count i32 (call_i32 weave_surface_symbol_parameter_count
+        (param_get sct_source) (local_get sct_name_start)
+        (local_get sct_name_length)))
+      (let sct_type_args i64 (call_i64 spec_type_args_node
+        (param_get sct_tree) (param_get sct_source) (param_get sct_node)))
+      (let sct_skip i64 (call_i64 surface_call_prefix_count
+        (param_get sct_tree) (param_get sct_source) (param_get sct_node)))
+      (if
+        (condition (ne_i64 (local_get sct_type_args) (const_i64 -1)))
+        (then (do (set sct_skip (add_i64 (local_get sct_skip) (const_i64 1)))))
+        (else (do)))
+      (let sct_actual_count i64 (sub_i64
+        (call_i64 count_children (param_get sct_tree) (param_get sct_node))
+        (local_get sct_skip)))
+      (if
+        (condition (or_bool
+          (gt_i32 (local_get sct_generic_arity) (const_i32 0))
+          (or_bool
+            (ne_i64 (local_get sct_type_args) (const_i64 -1))
+            (or_bool
+              (eq_i32 (local_get sct_return_type) (call_i32 surface_type_unknown))
+              (and_bool
+                (ge_i32 (local_get sct_expected_count) (const_i32 0))
+                (ne_i64 (local_get sct_actual_count)
+                  (cast_i32_to_i64 (local_get sct_expected_count))))))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 sct_build_call_node
+        (param_get sct_wir) (param_get sct_source) (param_get sct_tree)
+        (param_get sct_node) (const_i32 -1) (const_null) (const_i32 0)
+        (local_get sct_return_type)))))
+
+  (fn sct_build_operand
+    (params
+      (sct_wir ptr) (sct_source ptr) (sct_tree ptr)
+      (sct_node i64) (sct_type i32))
+    (returns i64)
+    (do
+      (return (call_i64 sot_build_operand
+        (param_get sct_wir) (param_get sct_source) (param_get sct_tree)
+        (param_get sct_node) (param_get sct_type)))))
+
+  ; Build and publish one already-validated call. Returns 1 if the fd received
+  ; a complete structural subtree.
+  (fn sct_try_publish_call
+    (params
+      (sct_fd i32) (sct_source ptr) (sct_tree ptr) (sct_node i64)
+      (sct_spec_index i32) (sct_spec_args ptr) (sct_generic_arity i32)
+      (sct_return_type i32))
+    (returns i32)
+    (do
+      (let sct_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sct_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sct_root i64 (call_i64 sct_build_call_node
+        (local_get sct_wir) (param_get sct_source) (param_get sct_tree)
+        (param_get sct_node) (param_get sct_spec_index)
+        (param_get sct_spec_args) (param_get sct_generic_arity)
+        (param_get sct_return_type)))
+      (let sct_ok i32 (const_i32 0))
+      (if
+        (condition (and_bool
+          (ge_i64 (local_get sct_root) (const_i64 0))
+          (eq_i32 (call_i32 wir_tree_failed (local_get sct_wir)) (const_i32 0))))
+        (then (do
+          (if
+            (condition (eq_i32 (call_i32 wir_subtree_publish
+              (param_get sct_fd) (local_get sct_wir) (local_get sct_root))
+              (const_i32 0)))
+            (then (do (set sct_ok (const_i32 1))))
+            (else (do)))))
+        (else (do)))
+      (call_void wir_tree_free (local_get sct_wir))
+      (return (local_get sct_ok))))
+)
