@@ -5,7 +5,7 @@
 ; builds owned WIR nodes for admitted operators and casts, composing #410
 ; leaves and recursively tree-built operator/cast/call children. Unmigrated
 ; children (if, match, ...) return failure so the caller can keep the text
-; renderer during the #413 overlap window.
+; renderer for unmigrated families.
 
 (program
   (name "surface_op_tree")
