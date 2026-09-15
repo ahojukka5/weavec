@@ -52,8 +52,8 @@ cat > "$TMP/let-set-return.weave" <<'WEAVE'
     (returns i32)
     (do
       (let n i32 (forty))
-      (set n (+ n 2))
-      (return n))))
+      (set n (add_i32 (local_get n) (const_i32 2)))
+      (return (local_get n)))))
 WEAVE
 
 "$WEAVEC" --frontend "$TMP/let-set-return.wir" "$TMP/let-set-return.weave"
