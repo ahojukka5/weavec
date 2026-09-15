@@ -274,7 +274,7 @@
               (call_void write_cstr (call_i32 cli_diag_fd)
                 (const_string_ptr ": nesting exceeds the compiler depth budget of "))
               (call_void write_i64_dec (call_i32 cli_diag_fd)
-                (call_i64 tree_walk_max_depth))
+                (call_i64 tree_walk_budget))
               (call_void cli_diag_end
                 (const_string_ptr "backend.parse.nesting-too-deep"))))
             (else (do
@@ -290,7 +290,7 @@
               (call_void write_cstr (call_i32 cli_diag_fd)
                 (const_string_ptr ": nesting exceeds the compiler depth budget of "))
               (call_void write_i64_dec (call_i32 cli_diag_fd)
-                (call_i64 tree_walk_max_depth))
+                (call_i64 tree_walk_budget))
               (call_void cli_diag_end
                 (const_string_ptr "frontend.parse.nesting-too-deep")))))
           (return_void)))

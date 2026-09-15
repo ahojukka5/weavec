@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0
 #
-# Tree-walk depth budget (#386). Nested sources just at the limit parse;
-# one level past it fails with a stable diagnostic instead of crashing.
+# Tree-walk depth budget (#386, #466). Nested sources just at the public
+# limit parse; one level past it fails with a stable diagnostic instead of
+# crashing. Generated-WIR reparse uses a bounded internal budget that
+# ambient environment cannot select.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -17,18 +19,24 @@ trap 'rm -rf "$TMP"' EXIT
 
 HEADER="$ROOT/runtime/tree_walk_depth.h"
 PARSER="$ROOT/src/parser/parser.weave"
-MAX_DEPTH="$(sed -n 's/^#define WEAVEC_TREE_WALK_MAX_DEPTH //p' "$HEADER")"
-[[ -n "$MAX_DEPTH" ]]
-grep -Fq "#define WEAVEC_TREE_WALK_MAX_DEPTH ${MAX_DEPTH}" "$HEADER"
-grep -Fq "(const_i64 ${MAX_DEPTH})" "$PARSER"
-NESTING_MSG="nesting exceeds the compiler depth budget of ${MAX_DEPTH}"
+PUBLIC="$(sed -n 's/^#define WEAVEC_TREE_WALK_MAX_DEPTH //p' "$HEADER")"
+INTERNAL="$(sed -n 's/^#define WEAVEC_TREE_WALK_INTERNAL_WIR_MAX_DEPTH //p' "$HEADER")"
+[[ -n "$PUBLIC" && -n "$INTERNAL" ]]
+[[ "$INTERNAL" -eq $((PUBLIC + 1)) ]]
+grep -Fq "#define WEAVEC_TREE_WALK_MAX_DEPTH ${PUBLIC}" "$HEADER"
+grep -Fq "#define WEAVEC_TREE_WALK_INTERNAL_WIR_MAX_DEPTH ${INTERNAL}" "$HEADER"
+grep -Fq "(const_i64 ${PUBLIC})" "$PARSER"
+grep -Fq "(const_i64 ${INTERNAL})" "$PARSER"
+NESTING_MSG="nesting exceeds the compiler depth budget of ${PUBLIC}"
+INTERNAL_MSG="nesting exceeds the compiler depth budget of ${INTERNAL}"
 
-python3 - "$TMP" "$MAX_DEPTH" <<'PY'
+python3 - "$TMP" "$PUBLIC" "$INTERNAL" <<'PY'
 from pathlib import Path
 import sys
 
 out = Path(sys.argv[1])
-max_depth = int(sys.argv[2])
+public = int(sys.argv[2])
+internal = int(sys.argv[3])
 
 def wrap_expr(inner, wraps, form):
     expr = inner
@@ -36,11 +44,14 @@ def wrap_expr(inner, wraps, form):
         expr = form % expr
     return expr
 
+def parens(depth):
+    return '(' * depth + 'x' + ')' * depth + '\n'
+
 # program/entry/do/return contribute 4 lists. The admitted compile is a
 # shallow program: a 64-deep add_i32 spine overflows remaining recursive
 # lowering on an 8 MiB Linux stack even after parse admits it.
 inner_ok = '(const_i32 0)'
-inner_over = wrap_expr('(const_i32 0)', max_depth - 4, '(add_i32 (const_i32 0) %s)')
+inner_over = wrap_expr('(const_i32 0)', public - 4, '(add_i32 (const_i32 0) %s)')
 
 def program(inner):
     return (
@@ -55,13 +66,13 @@ def program(inner):
 
 (out / 'ok.weave').write_text(program(inner_ok), encoding='utf-8')
 (out / 'over.weave').write_text(program(inner_over), encoding='utf-8')
-(out / 'parens-over.weave').write_text(
-    '(' * (max_depth + 1) + 'x' + ')' * (max_depth + 1) + '\n',
-    encoding='utf-8',
-)
+(out / 'parens-public-at.weave').write_text(parens(public), encoding='utf-8')
+(out / 'parens-public-over.weave').write_text(parens(public + 1), encoding='utf-8')
+(out / 'parens-internal-at.weave').write_text(parens(internal), encoding='utf-8')
+(out / 'parens-internal-over.weave').write_text(parens(internal + 1), encoding='utf-8')
 
 wir_inner_ok = '(const_i32 0)'
-wir_inner_over = wrap_expr('(const_i32 0)', max_depth - 4, '(add_i32 (const_i32 0) %s)')
+wir_inner_over = wrap_expr('(const_i32 0)', public - 4, '(add_i32 (const_i32 0) %s)')
 
 def wir(inner):
     return (
@@ -74,6 +85,10 @@ def wir(inner):
 
 (out / 'ok.wir').write_text(wir(wir_inner_ok), encoding='utf-8')
 (out / 'over.wir').write_text(wir(wir_inner_over), encoding='utf-8')
+(out / 'parens-public-at.wir').write_text(parens(public), encoding='utf-8')
+(out / 'parens-public-over.wir').write_text(parens(public + 1), encoding='utf-8')
+(out / 'parens-internal-at.wir').write_text(parens(internal), encoding='utf-8')
+(out / 'parens-internal-over.wir').write_text(parens(internal + 1), encoding='utf-8')
 PY
 
 expect_fail() {
@@ -104,7 +119,37 @@ expect_fail() {
   fi
 }
 
+expect_not_nesting() {
+  local name="$1"
+  shift
+  set +e
+  "$@" >"$TMP/$name.stdout" 2>"$TMP/$name.stderr"
+  local status="$?"
+  set -e
+  if grep -Eq 'Segmentation fault|SIGSEGV|SIGBUS|Bus error' "$TMP/$name.stderr"; then
+    printf 'tree-walk-depth: %s crashed\n' "$name" >&2
+    cat "$TMP/$name.stderr" >&2
+    exit 1
+  fi
+  if grep -Fq 'nesting-too-deep' "$TMP/$name.stderr"; then
+    printf 'tree-walk-depth: %s hit nesting diagnostic\n' "$name" >&2
+    cat "$TMP/$name.stderr" >&2
+    exit 1
+  fi
+  if grep -Fq 'driver.usage.invalid-arguments' "$TMP/$name.stderr"; then
+    printf 'tree-walk-depth: %s hit usage error\n' "$name" >&2
+    cat "$TMP/$name.stderr" >&2
+    exit 1
+  fi
+  printf '%s' "$status" >"$TMP/$name.status"
+}
+
 printf 'tree-walk-depth: admitted compile covered by correctness/surface/01_return_42\n'
+
+"$WEAVEC" build "$TMP/ok.weave" -o "$TMP/ok-program" \
+  || { printf 'tree-walk-depth: weavec build of admitted source failed\n' >&2; exit 1; }
+[[ -x "$TMP/ok-program" ]] \
+  || { printf 'tree-walk-depth: missing admitted program\n' >&2; exit 1; }
 
 expect_fail over-build \
   "$NESTING_MSG" \
@@ -113,7 +158,7 @@ expect_fail over-build \
   --emit-wir "$TMP/over.wir.out"
 [[ ! -e "$TMP/over-program" ]]
 [[ ! -e "$TMP/over.wir.out" ]]
-python3 - "$TMP/over.json" "$MAX_DEPTH" <<'PY'
+python3 - "$TMP/over.json" "$PUBLIC" <<'PY'
 import json
 import sys
 
@@ -150,15 +195,75 @@ expect_fail over-backend \
 "$WEAVEC" fmt "$TMP/ok.weave" >"$TMP/ok.fmt" \
   || { printf 'tree-walk-depth: fmt of admitted source failed\n' >&2; exit 1; }
 
+"$WEAVEC" fmt "$TMP/parens-public-at.weave" >"$TMP/parens-public-at.fmt" \
+  || { printf 'tree-walk-depth: fmt at public bound failed\n' >&2; exit 1; }
+
 expect_fail over-fmt \
   'frontend.parse.nesting-too-deep' \
-  "$WEAVEC" fmt "$TMP/parens-over.weave"
+  "$WEAVEC" fmt "$TMP/parens-public-over.weave"
+
+expect_fail public-at-frontend-over \
+  'frontend.parse.nesting-too-deep' \
+  "$WEAVEC" --frontend "$TMP/parens-public-over.front.wir" \
+  "$TMP/parens-public-over.weave"
+
+expect_not_nesting public-at-backend \
+  "$WEAVEC" --backend "$TMP/parens-public-at.wir" "$TMP/parens-public-at.ll"
+[[ ! -e "$TMP/parens-public-at.ll" ]] || true
+
+expect_fail public-over-backend \
+  'backend.parse.nesting-too-deep' \
+  "$WEAVEC" --backend "$TMP/parens-public-over.wir" "$TMP/parens-public-over.ll"
+[[ ! -e "$TMP/parens-public-over.ll" ]]
+
+expect_fail env-spoof-backend \
+  'backend.parse.nesting-too-deep' \
+  env WEAVEC_INTERNAL_WIR_PARSE=1 \
+  "$WEAVEC" --backend "$TMP/parens-public-over.wir" "$TMP/env-spoof.ll"
+[[ ! -e "$TMP/env-spoof.ll" ]]
+if ! grep -Fq "$NESTING_MSG" "$TMP/env-spoof-backend.stderr"; then
+  printf 'tree-walk-depth: env spoof used a non-public budget message\n' >&2
+  cat "$TMP/env-spoof-backend.stderr" >&2
+  exit 1
+fi
+
+expect_fail env-spoof-frontend \
+  'frontend.parse.nesting-too-deep' \
+  env WEAVEC_INTERNAL_WIR_PARSE=1 \
+  "$WEAVEC" --frontend "$TMP/env-spoof.front.wir" "$TMP/parens-public-over.weave"
+
+expect_fail env-spoof-fmt \
+  'frontend.parse.nesting-too-deep' \
+  env WEAVEC_INTERNAL_WIR_PARSE=1 \
+  "$WEAVEC" fmt "$TMP/parens-public-over.weave"
+
+expect_not_nesting internal-at-backend \
+  "$WEAVEC" --backend --generated-wir \
+  "$TMP/parens-internal-at.wir" "$TMP/internal-at.ll"
+
+expect_fail internal-over-backend \
+  'backend.parse.nesting-too-deep' \
+  "$WEAVEC" --backend --generated-wir \
+  "$TMP/parens-internal-over.wir" "$TMP/internal-over.ll"
+[[ ! -e "$TMP/internal-over.ll" ]]
+if ! grep -Fq "$INTERNAL_MSG" "$TMP/internal-over-backend.stderr"; then
+  printf 'tree-walk-depth: internal over-bound used the wrong budget\n' >&2
+  cat "$TMP/internal-over-backend.stderr" >&2
+  exit 1
+fi
+
+expect_fail internal-over-env \
+  'backend.parse.nesting-too-deep' \
+  env WEAVEC_INTERNAL_WIR_PARSE=1 \
+  "$WEAVEC" --backend --generated-wir \
+  "$TMP/parens-internal-over.wir" "$TMP/internal-over-env.ll"
 
 if ulimit -s 2048 >/dev/null 2>&1; then
   set +e
   (
     ulimit -s 2048
-    "$WEAVEC" build "$TMP/over.weave" -o "$TMP/over-ulimit" \
+    env WEAVEC_INTERNAL_WIR_PARSE=1 \
+      "$WEAVEC" build "$TMP/over.weave" -o "$TMP/over-ulimit" \
       >"$TMP/ulimit.stdout" 2>"$TMP/ulimit.stderr"
   )
   ulimit_status="$?"

@@ -109,24 +109,30 @@
   (returns i64)
   (do (return (const_i64 3))))
 
-; Maximum S-expression nesting. One compiler-owned budget for parser,
-; formatter, and backend walks of untrusted source or WIR. Documented in
-; docs/syntax-depth.md. Keep the integer identical to
+; Maximum S-expression nesting for untrusted source and WIR. One
+; compiler-owned public budget for parser, formatter, and backend walks.
+; Documented in docs/syntax-depth.md. Keep the integer identical to
 ; WEAVEC_TREE_WALK_MAX_DEPTH in runtime/tree_walk_depth.h.
 (fn tree_walk_max_depth
   (params)
   (returns i64)
   (do (return (const_i64 64))))
 
-; weavec build re-parses frontend WIR in a child --backend. That text
-; can be one list deeper than the admitted surface tree, so the child
-; sets WEAVEC_INTERNAL_WIR_PARSE and skips this bound. Direct
-; --backend of untrusted WIR still checks.
-(fn tree_walk_limit_active
+; Generated frontend WIR can nest one list deeper than admitted surface
+; input. Keep identical to WEAVEC_TREE_WALK_INTERNAL_WIR_MAX_DEPTH.
+(fn tree_walk_internal_wir_max_depth
   (params)
-  (returns i32)
+  (returns i64)
+  (do (return (const_i64 65))))
+
+; Active budget for this process. Direct untrusted entry points stay at
+; tree_walk_max_depth. Only the trusted generated-WIR re-entry raises it
+; to tree_walk_internal_wir_max_depth. Both are finite.
+(fn tree_walk_budget
+  (params)
+  (returns i64)
   (do
-    (return (call_i32 weave_rt_tree_walk_limit_active))))
+    (return (call_i64 weave_rt_tree_walk_budget))))
 
 ; Reset a record to "no failure".
 (fn parse_error_clear
@@ -223,18 +229,14 @@
       (then (do
         (let next_depth i64 (add_i64 (param_get depth) (const_i64 1)))
         (if
-          (condition (gt_i64 (local_get next_depth) (call_i64 tree_walk_max_depth)))
+          (condition (gt_i64 (local_get next_depth) (call_i64 tree_walk_budget)))
           (then (do
-            (if
-              (condition (ne_i32 (call_i32 tree_walk_limit_active) (const_i32 0)))
-              (then (do
-                (call_void parse_error_set
-                  (param_get err)
-                  (call_i64 token_start_at (param_get tokens) (local_get token_index))
-                  (call_i64 parse_expect_depth)
-                  (local_get kind))
-                (return (const_i64 -1))))
-              (else (do)))))
+            (call_void parse_error_set
+              (param_get err)
+              (call_i64 token_start_at (param_get tokens) (local_get token_index))
+              (call_i64 parse_expect_depth)
+              (local_get kind))
+            (return (const_i64 -1))))
           (else (do)))
         (return (call_i64 parse_list
           (param_get tokens)
@@ -427,14 +429,10 @@
   (params (tokens ptr))
   (returns i64)
   (do
-    (if
-      (condition (eq_i32 (call_i32 tree_walk_limit_active) (const_i32 0)))
-      (then (do (return (const_i64 -1))))
-      (else (do)))
     (let depth i64 (const_i64 0))
     (let index i64 (const_i64 0))
     (let count i64 (call_i64 token_count (param_get tokens)))
-    (let budget i64 (call_i64 tree_walk_max_depth))
+    (let budget i64 (call_i64 tree_walk_budget))
     (while
       (condition (lt_i64 (local_get index) (local_get count)))
       (do

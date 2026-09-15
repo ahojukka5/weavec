@@ -320,14 +320,7 @@ static int weave_project_module_compile(
         selected_position, wir);
     if (status != 0) return status;
 
-    char *backend[] = {
-        (char *)compiler,
-        (char *)"--backend",
-        wir,
-        raw_llvm,
-        NULL,
-    };
-    status = weave_run_process(backend);
+    status = weave_rt_run_generated_backend(wir, raw_llvm);
     if (status != 0) return status;
 
     weave_llvm_config llvm = {

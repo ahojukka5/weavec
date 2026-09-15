@@ -168,7 +168,8 @@ contract tooling-artifacts
 executes trace
 # weavec-compilation-trace-v1 documents
 contract trace-publication
-# compiles a program at the nesting budget and diagnoses one level past it
+# compiles a program at the nesting budget, diagnoses one level past the
+# public bound, and keeps generated-WIR reparse on a bounded internal budget
 executes tree-walk-depth
 # builds each case against stdlib math and runs it, asserting exit 0
 executes trigonometry-math

@@ -25,11 +25,13 @@ surface-language contract stabilises.
   peephole lowering stays unchanged. See
   [Circuit IR and compiled local rewrites](docs/circuit-rewrite.md)
   and issue #457.
-- A compiler-owned S-expression nesting budget of 64. Deeper generated
-  source, WIR, or formatter input fails with
+- A compiler-owned S-expression nesting budget of 64 for untrusted
+  source and WIR, and a bounded internal budget of 65 for generated
+  frontend WIR. Deeper input fails with
   `frontend.parse.nesting-too-deep` or `backend.parse.nesting-too-deep`
   instead of overflowing the host stack. See
-  [Syntax tree-walk depth budget](docs/syntax-depth.md) and issue #386.
+  [Syntax tree-walk depth budget](docs/syntax-depth.md) and issues #386
+  and #466.
 
 ### Removed
 
@@ -39,6 +41,11 @@ surface-language contract stabilises.
 
 ### Fixed
 
+- Generated-WIR reparse no longer disables the S-expression depth
+  guard when `WEAVEC_INTERNAL_WIR_PARSE` is set. Direct
+  `weavec --backend` keeps the public budget of 64; `weavec build`
+  uses a bounded internal budget of 65. See
+  [Syntax tree-walk depth budget](docs/syntax-depth.md) and issue #466.
 - `weavec build` reports a clang/`llc` major-version skew as a weavec
   toolchain diagnostic and stops before `llc` parses the optimized IR.
   `scripts/build.sh` still only warns, because building the compiler
