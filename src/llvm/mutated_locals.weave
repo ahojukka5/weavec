@@ -43,12 +43,30 @@
         (else (do)))
       (store_ptr (local_get ml_tab) (const_null))
       (store_i64 (ptr_add (local_get ml_tab) (const_i64 8)) (const_i64 0))
-      (store_ptr (ptr_add (local_get ml_tab) (const_i64 16)) (const_null))
+      (let ml_binds0 ptr (call_ptr malloc (const_i64 192)))
+      (let ml_scopes0 ptr (call_ptr malloc (const_i64 64)))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get ml_binds0) (const_null))
+          (eq_ptr (local_get ml_scopes0) (const_null))))
+        (then (do
+          (if
+            (condition (ne_ptr (local_get ml_binds0) (const_null)))
+            (then (do (call_void free (local_get ml_binds0))))
+            (else (do)))
+          (if
+            (condition (ne_ptr (local_get ml_scopes0) (const_null)))
+            (then (do (call_void free (local_get ml_scopes0))))
+            (else (do)))
+          (call_void free (local_get ml_tab))
+          (return (const_null))))
+        (else (do)))
+      (store_ptr (ptr_add (local_get ml_tab) (const_i64 16)) (local_get ml_binds0))
       (store_i64 (ptr_add (local_get ml_tab) (const_i64 24)) (const_i64 0))
-      (store_i64 (ptr_add (local_get ml_tab) (const_i64 32)) (const_i64 0))
-      (store_ptr (ptr_add (local_get ml_tab) (const_i64 40)) (const_null))
+      (store_i64 (ptr_add (local_get ml_tab) (const_i64 32)) (const_i64 8))
+      (store_ptr (ptr_add (local_get ml_tab) (const_i64 40)) (local_get ml_scopes0))
       (store_i64 (ptr_add (local_get ml_tab) (const_i64 48)) (const_i64 0))
-      (store_i64 (ptr_add (local_get ml_tab) (const_i64 56)) (const_i64 0))
+      (store_i64 (ptr_add (local_get ml_tab) (const_i64 56)) (const_i64 8))
       (store_i64 (ptr_add (local_get ml_tab) (const_i64 64)) (const_i64 0))
       (store_i64 (ptr_add (local_get ml_tab) (const_i64 72)) (const_i64 0))
       (store_ptr (ptr_add (local_get ml_tab) (const_i64 80)) (const_null))
@@ -146,17 +164,20 @@
           (set ml_next (mul_i64 (param_get old_cap) (const_i64 2)))))
         (else (do)))
       (if
-        (condition (le_i64 (local_get ml_next) (param_get old_cap)))
+        (condition (or_bool
+          (le_i64 (param_get elem) (const_i64 0))
+          (le_i64 (local_get ml_next) (param_get old_cap))))
         (then (do (return (const_null))))
         (else (do)))
+      (let ml_bytes i64 (mul_i64 (local_get ml_next) (param_get elem)))
       (if
-        (condition (gt_i64 (local_get ml_next)
-          (div_i64 (const_i64 9223372036854775807) (param_get elem))))
+        (condition (or_bool
+          (le_i64 (local_get ml_bytes) (const_i64 0))
+          (lt_i64 (local_get ml_bytes) (local_get ml_next))))
         (then (do (return (const_null))))
         (else (do)))
       (return (call_ptr realloc
-        (param_get old)
-        (mul_i64 (local_get ml_next) (param_get elem))))))
+        (param_get old) (local_get ml_bytes)))))
 
   (fn ml_ensure_bindings
     (params (table ptr))
