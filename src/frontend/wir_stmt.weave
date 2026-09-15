@@ -1,0 +1,152 @@
+; SPDX-License-Identifier: Apache-2.0
+; wir_stmt.weave — structural WIR builders for ordinary let/set/return
+;
+; This module owns representation only. Existing binding, assignment, and
+; return semantic code remains authoritative. Callers pass already-owned WIR
+; name, type, and expression node identities. No textual WIR is emitted here
+; and no generic surface-tree copier exists.
+
+(program
+  (name "frontend.wir_stmt")
+  (version "0.1")
+
+  (fn wir_stmt_require2
+    (params (wsr2_tree ptr) (wsr2_a i64) (wsr2_b i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i64 (param_get wsr2_a) (const_i64 0))
+          (lt_i64 (param_get wsr2_b) (const_i64 0))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wsr2_tree))
+          (return (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+
+  (fn wir_stmt_require3
+    (params (wsr3_tree ptr) (wsr3_a i64) (wsr3_b i64) (wsr3_c i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_stmt_require2
+            (param_get wsr3_tree) (param_get wsr3_a) (param_get wsr3_b))
+            (const_i32 0))
+          (lt_i64 (param_get wsr3_c) (const_i64 0))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wsr3_tree))
+          (return (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+
+  (fn wir_stmt_atom
+    (params (wsa_tree ptr) (wsa_text ptr))
+    (returns i64)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get wsa_tree) (const_null))
+          (eq_ptr (param_get wsa_text) (const_null))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wsa_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 wir_atom
+        (param_get wsa_tree) (param_get wsa_text)))))
+
+  ; (let NAME TYPE EXPR)
+  (fn wir_stmt_let
+    (params (wsl_tree ptr) (wsl_name i64) (wsl_type i64) (wsl_expr i64))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 wir_stmt_require3
+          (param_get wsl_tree) (param_get wsl_name)
+          (param_get wsl_type) (param_get wsl_expr)) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let wsl_list i64 (call_i64 wir_scalar_headed_list
+        (param_get wsl_tree) (const_string_ptr "let")))
+      (if
+        (condition (lt_i64 (local_get wsl_list) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_append_child
+            (param_get wsl_tree) (local_get wsl_list) (param_get wsl_name))
+            (const_i32 0))
+          (or_bool
+            (eq_i32 (call_i32 wir_append_child
+              (param_get wsl_tree) (local_get wsl_list) (param_get wsl_type))
+              (const_i32 0))
+            (eq_i32 (call_i32 wir_append_child
+              (param_get wsl_tree) (local_get wsl_list) (param_get wsl_expr))
+              (const_i32 0)))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wsl_list))))
+
+  ; (set NAME EXPR)
+  (fn wir_stmt_set
+    (params (wss_tree ptr) (wss_name i64) (wss_expr i64))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 wir_stmt_require2
+          (param_get wss_tree) (param_get wss_name)
+          (param_get wss_expr)) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let wss_list i64 (call_i64 wir_scalar_headed_list
+        (param_get wss_tree) (const_string_ptr "set")))
+      (if
+        (condition (lt_i64 (local_get wss_list) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_append_child
+            (param_get wss_tree) (local_get wss_list) (param_get wss_name))
+            (const_i32 0))
+          (eq_i32 (call_i32 wir_append_child
+            (param_get wss_tree) (local_get wss_list) (param_get wss_expr))
+            (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wss_list))))
+
+  ; (return EXPR)
+  (fn wir_stmt_return
+    (params (wsret_tree ptr) (wsret_expr i64))
+    (returns i64)
+    (do
+      (if
+        (condition (lt_i64 (param_get wsret_expr) (const_i64 0)))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wsret_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let wsret_list i64 (call_i64 wir_scalar_headed_list
+        (param_get wsret_tree) (const_string_ptr "return")))
+      (if
+        (condition (lt_i64 (local_get wsret_list) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_append_child
+          (param_get wsret_tree) (local_get wsret_list) (param_get wsret_expr))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wsret_list))))
+
+  ; (return_void)
+  (fn wir_stmt_return_void
+    (params (wsv_tree ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wir_scalar_headed_list
+        (param_get wsv_tree) (const_string_ptr "return_void")))))
+)
