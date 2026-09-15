@@ -166,6 +166,8 @@ executes structured-types-qualify
 executes surface-elaboration
 # builds leaf-only and call-operand operator programs and runs them
 executes surface-op-tree
+# builds zero/one/multi-arg and specialized call programs and runs them
+executes surface-call-tree
 executes surface-symbols
 executes tagged-variants
 # tooling artifact documents
@@ -190,6 +192,7 @@ executes wir-builder-hardening
 executes wir-decimal
 executes wir-invariants
 executes wir-operator
+executes wir-call
 executes wir-scalar
 executes wir-scalar-expr
 executes wir-scalar-literals
