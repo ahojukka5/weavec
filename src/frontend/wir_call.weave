@@ -1,0 +1,84 @@
+; SPDX-License-Identifier: Apache-2.0
+; wir_call.weave — structural WIR builders for validated ordinary/typed calls
+;
+; This module owns representation only. Existing surface call semantic code
+; remains authoritative for symbol resolution, specialization, arity and exact
+; argument types. Callers pass canonical WIR type spellings and an already
+; arena-destined callee identity. No textual WIR is emitted here.
+;
+; Failed construction marks the tree failed and returns -1. Partial list nodes
+; stay unpublished until a caller serializes a complete root.
+
+(program
+  (name "frontend.wir_call")
+  (version "0.1")
+
+  ; Typed call heads are `call_` plus the canonical WIR type spelling.
+  (fn wir_call_typed_head
+    (params (wcth_tree ptr) (wcth_type_name ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wir_operator_join5_atom
+        (param_get wcth_tree)
+        (const_string_ptr "call_") (param_get wcth_type_name)
+        (const_string_ptr "") (const_string_ptr "") (const_string_ptr "")))))
+
+  ; Copy a callee or specialization name into arena-owned atom storage.
+  (fn wir_call_callee_atom
+    (params (wcca_tree ptr) (wcca_name ptr))
+    (returns i64)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get wcca_tree) (const_null))
+          (eq_ptr (param_get wcca_name) (const_null))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wcca_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 wir_atom
+        (param_get wcca_tree) (param_get wcca_name)))))
+
+  ; Start one call list with typed head and callee. Arguments append later.
+  (fn wir_call_begin
+    (params (wcb_tree ptr) (wcb_type_name ptr) (wcb_callee i64))
+    (returns i64)
+    (do
+      (let wcb_list i64 (call_i64 wir_list (param_get wcb_tree)))
+      (let wcb_head i64 (call_i64 wir_call_typed_head
+        (param_get wcb_tree) (param_get wcb_type_name)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get wcb_list) (const_i64 0))
+          (or_bool
+            (lt_i64 (local_get wcb_head) (const_i64 0))
+            (lt_i64 (param_get wcb_callee) (const_i64 0)))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_append_child
+            (param_get wcb_tree) (local_get wcb_list) (local_get wcb_head))
+            (const_i32 0))
+          (eq_i32 (call_i32 wir_append_child
+            (param_get wcb_tree) (local_get wcb_list) (param_get wcb_callee))
+            (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wcb_list))))
+
+  (fn wir_call_append_arg
+    (params (wcaa_tree ptr) (wcaa_call i64) (wcaa_arg i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i64 (param_get wcaa_call) (const_i64 0))
+          (lt_i64 (param_get wcaa_arg) (const_i64 0))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wcaa_tree))
+          (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 wir_append_child
+        (param_get wcaa_tree) (param_get wcaa_call) (param_get wcaa_arg)))))
+)
