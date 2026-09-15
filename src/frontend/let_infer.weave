@@ -82,6 +82,19 @@
             (local_get li_m1))
           (return_void)))
         (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 sstt_try_publish_let
+          (param_get fd) (param_get source) (param_get tree)
+          (local_get li_name) (local_get li_ty) (local_get li_expr))
+          (const_i32 0)))
+        (then (do
+          (call_i32 weave_surface_local_add
+            (param_get source)
+            (call_i64 node_text_start (param_get tree) (local_get li_name))
+            (call_i64 node_text_len (param_get tree) (local_get li_name))
+            (local_get li_ty))
+          (return_void)))
+        (else (do)))
       (call_void write_byte (param_get fd) (const_i32 40))
       (call_void write_cstr (param_get fd) (const_string_ptr "let "))
       (call_void emit_node
