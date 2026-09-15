@@ -21,9 +21,10 @@ surface-language contract stabilises.
   name diagnostics, but admitted forms now construct owned WIR trees and
   publish complete subtrees. Ordinary and typed calls keep the same
   symbol, arity, type, and specialization checks, and admitted success
-  paths now publish complete call subtrees. Unmigrated statement wrappers
-  still use the temporary text renderer until #413. See issues #411 and
-  #412.
+  paths now publish complete call subtrees. Ordinary `let`, `set`, and
+  `return` compose those tree-built children; a bare `(return)` lowers
+  to `(return_void)`. Unmigrated families still use the temporary text
+  renderer. See issues #411, #412, #413, and #378.
 - The typed deterministic rewrite contract for compiled optimization.
   [Rewrite rule semantics](docs/rewrite-semantics.md) specifies pattern
   variables, guards, replacements, rule identity, soundness provenance,
