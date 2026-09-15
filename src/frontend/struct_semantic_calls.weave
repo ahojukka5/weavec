@@ -210,6 +210,19 @@
               (param_get sst_node))
             (return_void)))
           (else (do)))
+        (if
+          (condition (ne_i32 (call_i32 sct_try_publish_call
+            (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+            (param_get sst_node) (local_get sst_spec_index)
+            (local_get sst_spec_args) (local_get sst_generic_arity)
+            (local_get sst_return_type)) (const_i32 0)))
+          (then (do
+            (if
+              (condition (ne_ptr (local_get sst_spec_args) (const_null)))
+              (then (do (call_void free (local_get sst_spec_args))))
+              (else (do)))
+            (return_void)))
+          (else (do)))
         (call_void sst_emit_call_prefix
           (param_get sst_fd) (local_get sst_return_type))
         (call_void write_byte (param_get sst_fd) (const_i32 32))
