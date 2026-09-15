@@ -185,4 +185,18 @@ cat > "$TMP/set-type.weave" <<'WEAVE'
 WEAVE
 expect_frontend_failure set-type 'expected i32, got i64'
 
+cat > "$TMP/unsupported-cast.weave" <<'WEAVE'
+(program
+  (name "surface-stmt-tree-unsupported-cast")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let flag bool true)
+      (let value i32 (cast i32 flag))
+      (return value))))
+WEAVE
+expect_frontend_failure unsupported-cast 'unsupported cast from bool to i32'
+
 printf 'surface-stmt-tree: let/set/return, inferred, void, and diagnostics passed\n'
