@@ -28,7 +28,7 @@ grep -Fq 'ml_table_new' "$ROOT/src/llvm/ctx.weave"
 
 cp "$ROOT/runtime/program.c" "$TMP/runtime.c"
 cat >> "$TMP/runtime.c" <<'C'
-#include <stdint.h>
+
 int32_t weave_rt_write(int32_t fd, const void *data, int64_t n) {
     if (n <= 0 || data == 0) {
         return 0;
@@ -47,7 +47,6 @@ int32_t weave_rt_write_failed(void) {
     return 0;
 }
 C
-"${CC:-clang}" -I "$ROOT/runtime" -c "$TMP/runtime.c" -o "$TMP/runtime.o"
 
 "$WEAVEC" build \
     "$ROOT/src/core/extern.weave" \
@@ -59,8 +58,13 @@ C
     "$ROOT/src/core/util.weave" \
     "$ROOT/src/llvm/mutated_locals.weave" \
     "$ROOT/test/mutated-locals/main.weave" \
-    --runtime "$TMP/runtime.o" \
-    -o "$TMP/mutated-locals-test"
+    --runtime "$TMP/runtime.c" \
+    -o "$TMP/mutated-locals-test" \
+    2>"$TMP/build.stderr" || {
+  printf 'mutated-locals: weavec build failed\n' >&2
+  cat "$TMP/build.stderr" >&2
+  exit 1
+}
 
 "$TMP/mutated-locals-test"
 
