@@ -1,7 +1,8 @@
 ; SPDX-License-Identifier: Apache-2.0
 ; targets.weave — topology-free target packs for circuit legality
 ;
-; Packs declare admitted gate sets. They do not own generic matching.
+; Packs declare admitted gate sets by kind. They do not own generic
+; matching, and they do not treat arity >= 2 as two-qubit cost.
 
 (program
   (name "rewrite.targets")

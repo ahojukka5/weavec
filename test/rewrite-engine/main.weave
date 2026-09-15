@@ -128,22 +128,96 @@
         (then (do (return 20)))
         (else (do)))
 
-      (let cnots (call vec_new (type-args i32)))
-      (set cnots (call circ_push cnots 5 0 1 -1 0))
-      (let costc CostVector (call circ_cost cnots))
       (if
-        (condition (op not-equal (field-get costc twoq) 1))
+        (condition (op not-equal (call circ_arity (call circ_kind_cnot)) 2))
         (then (do (return 21)))
         (else (do)))
       (if
-        (condition (op not-equal (field-get costc depth) 1))
+        (condition (op not-equal (call circ_arity (call circ_kind_swap)) 2))
         (then (do (return 22)))
+        (else (do)))
+      (if
+        (condition (op not-equal (call circ_arity (call circ_kind_ccnot)) 3))
+        (then (do (return 23)))
+        (else (do)))
+      (if
+        (condition (call gate_is_twoq (call circ_kind_ccnot)))
+        (then (do (return 24)))
+        (else (do)))
+      (if
+        (condition (op not (call gate_is_threeq (call circ_kind_ccnot))))
+        (then (do (return 25)))
+        (else (do)))
+
+      (let cnots (call vec_new (type-args i32)))
+      (set cnots (call circ_push cnots (call circ_kind_cnot) 0 1 -1 0))
+      (let costc CostVector (call circ_cost cnots))
+      (if
+        (condition (op not-equal (field-get costc nonclifford) 0))
+        (then (do (return 26)))
+        (else (do)))
+      (if
+        (condition (op not-equal (field-get costc twoq) 1))
+        (then (do (return 27)))
+        (else (do)))
+      (if
+        (condition (op not-equal (field-get costc depth) 1))
+        (then (do (return 28)))
+        (else (do)))
+
+      (let swaps (call vec_new (type-args i32)))
+      (set swaps (call circ_push swaps (call circ_kind_swap) 0 1 -1 0))
+      (let costs CostVector (call circ_cost swaps))
+      (if
+        (condition (op not-equal (field-get costs nonclifford) 0))
+        (then (do (return 29)))
+        (else (do)))
+      (if
+        (condition (op not-equal (field-get costs twoq) 1))
+        (then (do (return 30)))
+        (else (do)))
+      (if
+        (condition (op not-equal (field-get costs depth) 1))
+        (then (do (return 31)))
+        (else (do)))
+
+      (let ccnots (call vec_new (type-args i32)))
+      (set ccnots (call circ_push ccnots (call circ_kind_ccnot) 0 1 2 0))
+      (let cost3 CostVector (call circ_cost ccnots))
+      (if
+        (condition (op not-equal (field-get cost3 nonclifford) 0))
+        (then (do (return 32)))
+        (else (do)))
+      (if
+        (condition (op not-equal (field-get cost3 twoq) 0))
+        (then (do (return 33)))
+        (else (do)))
+      (if
+        (condition (op not-equal (field-get cost3 depth) 1))
+        (then (do (return 34)))
+        (else (do)))
+
+      (let mixed (call vec_new (type-args i32)))
+      (set mixed (call circ_push mixed (call circ_kind_cnot) 0 1 -1 0))
+      (set mixed (call circ_push mixed (call circ_kind_ccnot) 0 1 2 0))
+      (let costm CostVector (call circ_cost mixed))
+      (if
+        (condition (op not-equal (field-get costm nonclifford) 0))
+        (then (do (return 35)))
+        (else (do)))
+      (if
+        (condition (op not-equal (field-get costm twoq) 1))
+        (then (do (return 36)))
+        (else (do)))
+      (if
+        (condition (op not-equal (field-get costm depth) 2))
+        (then (do (return 37)))
         (else (do)))
 
       (let better CostVector (call rw_cost_zero))
       (if
         (condition (op not (call rw_cost_better costc better)))
-        (then (do (return 23)))
+        (then (do (return 38)))
         (else (do)))
 
       (let invc (call vec_new (type-args i32)))
@@ -152,7 +226,7 @@
       (let ginv (call circ_rewrite invc 32))
       (if
         (condition (op not-equal (call circ_n ginv) 0))
-        (then (do (return 24)))
+        (then (do (return 39)))
         (else (do)))
 
       (call write_stdout "engine ok\n")

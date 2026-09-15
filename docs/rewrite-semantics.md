@@ -254,7 +254,8 @@ cost : Subject -> CostVector
 
 The first contract uses a single non-negative integer. Later domain packs
 may publish a named vector (T-count, two-qubit count, depth) with a
-documented comparison.
+documented comparison. A two-qubit component counts arity-2 gates only;
+a three-qubit gate is not that component.
 
 Cost is not a guard. A rule remains applicable when it increases cost. A
 strategy may refuse such a match. That refusal is policy, not a failed
