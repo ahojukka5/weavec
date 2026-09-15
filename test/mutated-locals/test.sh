@@ -22,14 +22,25 @@ if grep -E -n '^\s*\(fn node_contains_set$|^\s*\(fn node_sets_local$' \
   printf 'mutated-locals: repeated O(n²) walk returned\n' >&2
   exit 1
 fi
-grep -Fq '(call_i32 ml_collect' "$ROOT/src/llvm/fn.weave"
-grep -Fq '(call_i32 ml_binding_mutated' "$ROOT/src/llvm/stmt.weave"
-grep -Fq 'ml_table_new' "$ROOT/src/llvm/ctx.weave"
+grep -Fq '(call_i32 ml_collect' "$ROOT/src/llvm/fn.weave" || {
+  printf 'mutated-locals: ml_collect call missing from fn.weave\n' >&2
+  exit 1
+}
+grep -Fq '(call_i32 ml_binding_mutated' "$ROOT/src/llvm/stmt.weave" || {
+  printf 'mutated-locals: ml_binding_mutated call missing from stmt.weave\n' >&2
+  exit 1
+}
+grep -Fq 'ml_table_new' "$ROOT/src/llvm/ctx.weave" || {
+  printf 'mutated-locals: ml_table_new missing from ctx.weave\n' >&2
+  exit 1
+}
 
-# Packaged program.c has no weave_rt_write. A .c --runtime override is copied
-# without include paths, so compile a test-local object here with -I.
-cp "$ROOT/runtime/program.c" "$TMP/runtime.c"
-cat >> "$TMP/runtime.c" <<'C'
+printf 'mutated-locals: compile program runtime + write shims\n' >&2
+"${CC:-clang}" -c "$ROOT/runtime/program.c" -o "$TMP/program.o"
+cat > "$TMP/write.c" <<'C'
+#include <stddef.h>
+#include <stdint.h>
+#include <unistd.h>
 
 int32_t weave_rt_write(int32_t fd, const void *data, int64_t n) {
     if (n <= 0 || data == 0) {
@@ -49,8 +60,10 @@ int32_t weave_rt_write_failed(void) {
     return 0;
 }
 C
-"${CC:-clang}" -I "$ROOT/runtime" -c "$TMP/runtime.c" -o "$TMP/runtime.o"
+"${CC:-clang}" -c "$TMP/write.c" -o "$TMP/write.o"
+ld -r -o "$TMP/runtime.o" "$TMP/program.o" "$TMP/write.o"
 
+printf 'mutated-locals: weavec build\n' >&2
 "$WEAVEC" build \
     "$ROOT/src/core/extern.weave" \
     "$ROOT/src/parser/tokens.weave" \
@@ -64,7 +77,15 @@ C
     --runtime "$TMP/runtime.o" \
     -o "$TMP/mutated-locals-test"
 
+printf 'mutated-locals: run unit program\n' >&2
+set +e
 "$TMP/mutated-locals-test"
+status="$?"
+set -e
+if [[ "$status" -ne 0 ]]; then
+  printf 'mutated-locals: unit program exited %s\n' "$status" >&2
+  exit 1
+fi
 
 cat > "$TMP/shadow.wir" <<'EOF'
 (core-module
