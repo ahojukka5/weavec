@@ -112,3 +112,7 @@ src/main.weave
 # explicit so every src/*.weave file is classified by this manifest.
 !src/frontend/quantum_typecheck.weave
 !src/frontend/targets/rigetti-nativize.weave
+!src/rewrite/engine.weave
+!src/rewrite/circuit.weave
+!src/rewrite/zx.weave
+!src/rewrite/targets.weave

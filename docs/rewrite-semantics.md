@@ -379,10 +379,12 @@ Those remain later milestones of #455, or are explicitly deferred.
 [#457](https://github.com/ahojukka5/weavec/issues/457) supplies a
 sequence-family adapter over a real gate IR, reusing this match key,
 provenance split, and trusted-only default. The stop-rule measurement
-kept production peephole lowering: the generic engine is a prototype,
-not a replacement. See
+kept production peephole lowering: the generic engine must not replace
+`emit_do_step`. See
 [Circuit IR and compiled local rewrites](circuit-rewrite.md).
-[#458](https://github.com/ahojukka5/weavec/issues/458) is a later
-graph-family issue, not a continuation of an unresolved #457 gate.
+The same engine is now a compiler-owned library under `src/rewrite/`.
+[#458](https://github.com/ahojukka5/weavec/issues/458) is the
+graph-family adapter; see [ZX graph IR](zx-ir.md) and
+[Rule authoring](rewrite-authoring.md).
 [#459](https://github.com/ahojukka5/weavec/issues/459) may add strategies
 but must not fold cost into guards.

@@ -240,6 +240,12 @@ bash "$ROOT/test/rewrite-semantics/test.sh"
 log 'circuit IR and compiled local rewrites'
 bash "$ROOT/test/circuit-rewrite/test.sh"
 
+log 'rewrite engine library'
+bash "$ROOT/test/rewrite-engine/test.sh"
+
+log 'ZX graph IR and extraction'
+bash "$ROOT/test/zx-rewrite/test.sh"
+
 log 'examples index'
 bash "$ROOT/test/examples-index/test.sh"
 

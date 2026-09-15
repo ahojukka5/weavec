@@ -1,0 +1,159 @@
+; SPDX-License-Identifier: Apache-2.0
+; Generic rewrite engine and circuit-IR library tests.
+
+(program
+  (name "rewrite-engine")
+  (version "0.1")
+
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let rid i32 (call rw_pack_id 3 1 1))
+      (if
+        (condition (op not-equal (call rw_id_namespace rid) 3))
+        (then (do (return 1)))
+        (else (do)))
+      (if
+        (condition (op not-equal (call rw_id_name rid) 1))
+        (then (do (return 2)))
+        (else (do)))
+      (if
+        (condition (op not-equal (call rw_id_version rid) 1))
+        (then (do (return 3)))
+        (else (do)))
+      (if
+        (condition (op not-equal rid (call circ_rule_cancel)))
+        (then (do (return 4)))
+        (else (do)))
+
+      (let none RewriteMatch (call rw_match_none))
+      (let left RewriteMatch
+        (new RewriteMatch (rule 10) (start 0) (span 1) (extra 0)))
+      (let later RewriteMatch
+        (new RewriteMatch (rule 10) (start 1) (span 2) (extra 0)))
+      (if
+        (condition (op not (call rw_match_better none left)))
+        (then (do (return 5)))
+        (else (do)))
+      (if
+        (condition (call rw_match_better left later))
+        (then (do (return 6)))
+        (else (do)))
+      (let longer RewriteMatch
+        (new RewriteMatch (rule 11) (start 0) (span 2) (extra 0)))
+      (if
+        (condition (op not (call rw_match_better left longer)))
+        (then (do (return 7)))
+        (else (do)))
+      (let cheaper_rule RewriteMatch
+        (new RewriteMatch (rule 9) (start 0) (span 2) (extra 0)))
+      (if
+        (condition (op not (call rw_match_better longer cheaper_rule)))
+        (then (do (return 8)))
+        (else (do)))
+
+      (let heur i32 (call rw_pack_id 3 9 1))
+      (if
+        (condition (call rw_rule_admitted heur false))
+        (then (do (return 9)))
+        (else (do)))
+      (if
+        (condition (op not (call rw_rule_admitted heur true)))
+        (then (do (return 10)))
+        (else (do)))
+      (if
+        (condition (op not (call rw_rule_admitted rid false)))
+        (then (do (return 11)))
+        (else (do)))
+
+      (let c1 (call vec_new (type-args i32)))
+      (set c1 (call circ_push c1 1 0 -1 -1 0))
+      (set c1 (call circ_push c1 1 0 -1 -1 0))
+      (let g1 (call circ_rewrite c1 32))
+      (if
+        (condition (op not-equal (call circ_n g1) 0))
+        (then (do (return 12)))
+        (else (do)))
+
+      (let c2 (call vec_new (type-args i32)))
+      (set c2 (call circ_push c2 2 0 -1 -1 0))
+      (set c2 (call circ_push c2 2 1 -1 -1 0))
+      (let g2 (call circ_rewrite c2 32))
+      (if
+        (condition (op not-equal (call circ_n g2) 2))
+        (then (do (return 13)))
+        (else (do)))
+
+      (let c3 (call vec_new (type-args i32)))
+      (set c3 (call circ_push c3 11 0 -1 -1 2))
+      (set c3 (call circ_push c3 11 0 -1 -1 3))
+      (let g3 (call circ_rewrite c3 32))
+      (if
+        (condition (op not-equal (call circ_n g3) 1))
+        (then (do (return 14)))
+        (else (do)))
+      (if
+        (condition (op not-equal (call circ_param g3 0) 5))
+        (then (do (return 15)))
+        (else (do)))
+
+      (let c4 (call vec_new (type-args i32)))
+      (set c4 (call circ_push c4 11 0 -1 -1 3))
+      (set c4 (call circ_push c4 11 0 -1 -1 -3))
+      (let g4a (call circ_rewrite c4 32))
+      (let g4b (call circ_rewrite c4 32))
+      (if
+        (condition (op not (call circ_equal g4a g4b)))
+        (then (do (return 16)))
+        (else (do)))
+      (if
+        (condition (op not-equal (call circ_n g4a) 0))
+        (then (do (return 17)))
+        (else (do)))
+
+      (let ct (call vec_new (type-args i32)))
+      (set ct (call circ_push ct 14 0 -1 -1 0))
+      (let costt CostVector (call circ_cost ct))
+      (if
+        (condition (op not-equal (field-get costt nonclifford) 1))
+        (then (do (return 18)))
+        (else (do)))
+      (if
+        (condition (op not (call circ_pack_legal ct (call pack_clifford_t))))
+        (then (do (return 19)))
+        (else (do)))
+      (if
+        (condition (call circ_pack_legal ct (call pack_rigetti)))
+        (then (do (return 20)))
+        (else (do)))
+
+      (let cnots (call vec_new (type-args i32)))
+      (set cnots (call circ_push cnots 5 0 1 -1 0))
+      (let costc CostVector (call circ_cost cnots))
+      (if
+        (condition (op not-equal (field-get costc twoq) 1))
+        (then (do (return 21)))
+        (else (do)))
+      (if
+        (condition (op not-equal (field-get costc depth) 1))
+        (then (do (return 22)))
+        (else (do)))
+
+      (let better CostVector (call rw_cost_zero))
+      (if
+        (condition (op not (call rw_cost_better costc better)))
+        (then (do (return 23)))
+        (else (do)))
+
+      (let invc (call vec_new (type-args i32)))
+      (set invc (call circ_push invc 14 0 -1 -1 0))
+      (set invc (call circ_push invc 15 0 -1 -1 0))
+      (let ginv (call circ_rewrite invc 32))
+      (if
+        (condition (op not-equal (call circ_n ginv) 0))
+        (then (do (return 24)))
+        (else (do)))
+
+      (call write_stdout "engine ok\n")
+      (return 0))))

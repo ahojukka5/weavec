@@ -1,0 +1,871 @@
+; SPDX-License-Identifier: Apache-2.0
+; zx.weave — graph-like ZX IR packed as one Vec of i32
+;
+; Layout: n, last, kinds[n], phases[n], qubits[n], adj[n*n].
+; Edges: 0 none, 1 simple, 2 Hadamard. Kinds: 0 Z, 1 X, 2 in, 3 out.
+; Phase ticks match circuit RZ (π/4). last = -2 means convert failed.
+
+(program
+  (name "rewrite.zx")
+  (version "0.1")
+
+  (fn zx_z (params) (returns i32) (do (return 0)))
+  (fn zx_x (params) (returns i32) (do (return 1)))
+  (fn zx_in (params) (returns i32) (do (return 2)))
+  (fn zx_out (params) (returns i32) (do (return 3)))
+  (fn zx_simple (params) (returns i32) (do (return 1)))
+  (fn zx_hadamard (params) (returns i32) (do (return 2)))
+
+  (fn zx_rule_fuse (params) (returns i32)
+    (do (return (call rw_pack_id (call rw_ns_zx) 1 1))))
+  (fn zx_rule_identity (params) (returns i32)
+    (do (return (call rw_pack_id (call rw_ns_zx) 2 1))))
+  (fn zx_rule_color (params) (returns i32)
+    (do (return (call rw_pack_id (call rw_ns_zx) 3 1))))
+
+  (fn zx_empty
+    (params)
+    (returns (type-app Vec i32))
+    (do
+      (let g (call vec_new (type-args i32)))
+      (set g (call vec_push (type-args i32) g 0))
+      (set g (call vec_push (type-args i32) g -1))
+      (return g)))
+
+  (fn zx_n
+    (params (g (type-app Vec i32)))
+    (returns i32)
+    (do
+      (return (call rw_i32 g 0))))
+
+  (fn zx_last
+    (params (g (type-app Vec i32)))
+    (returns i32)
+    (do
+      (return (call rw_i32 g 1))))
+
+  (fn zx_fail_graph
+    (params)
+    (returns (type-app Vec i32))
+    (do
+      (let g (call vec_new (type-args i32)))
+      (set g (call vec_push (type-args i32) g 0))
+      (set g (call vec_push (type-args i32) g -2))
+      (return g)))
+
+  (fn zx_convert_ok
+    (params (g (type-app Vec i32)))
+    (returns bool)
+    (do
+      (return (op not-equal (call zx_last g) -2))))
+
+  (fn zx_kind
+    (params (g (type-app Vec i32)) (node i32))
+    (returns i32)
+    (do
+      (return (call rw_i32 g (op add 2 node)))))
+
+  (fn zx_phase
+    (params (g (type-app Vec i32)) (node i32))
+    (returns i32)
+    (do
+      (return (call rw_i32 g (op add (op add 2 (call zx_n g)) node)))))
+
+  (fn zx_qubit
+    (params (g (type-app Vec i32)) (node i32))
+    (returns i32)
+    (do
+      (let n i32 (call zx_n g))
+      (return (call rw_i32 g (op add (op add 2 (op mul 2 n)) node)))))
+
+  (fn zx_adj_base
+    (params (n i32))
+    (returns i32)
+    (do
+      (return (op add 2 (op mul 3 n)))))
+
+  (fn zx_index
+    (params (n i32) (row i32) (col i32))
+    (returns i32)
+    (do
+      (let acc i32 0)
+      (let k i32 0)
+      (while
+        (condition (op less-than k row))
+        (do
+          (set acc (op add acc n))
+          (set k (op add k 1))))
+      (return (op add acc col))))
+
+  (fn zx_edge
+    (params (g (type-app Vec i32)) (a i32) (b i32))
+    (returns i32)
+    (do
+      (let n i32 (call zx_n g))
+      (if
+        (condition (op or (op less-than a 0)
+          (op or (op less-than b 0)
+            (op or (op greater-or-equal a n) (op greater-or-equal b n)))))
+        (then (do (return 0)))
+        (else (do)))
+      (return (call rw_i32 g (op add (call zx_adj_base n) (call zx_index n a b))))))
+
+  (fn zx_set_edge
+    (params (g (type-app Vec i32)) (a i32) (b i32) (ty i32))
+    (returns (type-app Vec i32))
+    (do
+      (let n i32 (call zx_n g))
+      (let base i32 (call zx_adj_base n))
+      (call vec_set (type-args i32) g (op add base (call zx_index n a b)) ty)
+      (call vec_set (type-args i32) g (op add base (call zx_index n b a)) ty)
+      (return g)))
+
+  (fn zx_toggle_simple
+    (params (g (type-app Vec i32)) (a i32) (b i32))
+    (returns (type-app Vec i32))
+    (do
+      (if
+        (condition (op equal a b))
+        (then (do (return g)))
+        (else (do)))
+      (let ty i32 (call zx_edge g a b))
+      (if
+        (condition (op equal ty 1))
+        (then (do (return (call zx_set_edge g a b 0))))
+        (else (do)))
+      (if
+        (condition (op equal ty 0))
+        (then (do (return (call zx_set_edge g a b 1))))
+        (else (do (return g))))))
+
+  (fn zx_connect
+    (params (g (type-app Vec i32)) (a i32) (b i32) (ty i32))
+    (returns (type-app Vec i32))
+    (do
+      (if
+        (condition (op equal ty 1))
+        (then (do (return (call zx_toggle_simple g a b))))
+        (else (do)))
+      (if
+        (condition (op equal (call zx_edge g a b) 0))
+        (then (do (return (call zx_set_edge g a b ty))))
+        (else (do (return g))))))
+
+  (fn zx_degree
+    (params (g (type-app Vec i32)) (node i32))
+    (returns i32)
+    (do
+      (let n i32 (call zx_n g))
+      (let deg i32 0)
+      (let k i32 0)
+      (while
+        (condition (op less-than k n))
+        (do
+          (if
+            (condition (op and (op not-equal k node)
+              (op not-equal (call zx_edge g node k) 0)))
+            (then (do (set deg (op add deg 1))))
+            (else (do)))
+          (set k (op add k 1))))
+      (return deg)))
+
+  (fn zx_is_spider
+    (params (g (type-app Vec i32)) (node i32))
+    (returns bool)
+    (do
+      (let k i32 (call zx_kind g node))
+      (return (op or (op equal k 0) (op equal k 1)))))
+
+  (fn zx_add_node
+    (params (g (type-app Vec i32)) (kind i32) (phase i32) (qubit i32))
+    (returns (type-app Vec i32))
+    (do
+      (let old_n i32 (call zx_n g))
+      (let new_n i32 (op add old_n 1))
+      (let out (call vec_new (type-args i32)))
+      (set out (call vec_push (type-args i32) out new_n))
+      (set out (call vec_push (type-args i32) out old_n))
+      (let i i32 0)
+      (while
+        (condition (op less-than i old_n))
+        (do
+          (set out (call vec_push (type-args i32) out (call zx_kind g i)))
+          (set i (op add i 1))))
+      (set out (call vec_push (type-args i32) out kind))
+      (set i 0)
+      (while
+        (condition (op less-than i old_n))
+        (do
+          (set out (call vec_push (type-args i32) out (call zx_phase g i)))
+          (set i (op add i 1))))
+      (set out (call vec_push (type-args i32) out phase))
+      (set i 0)
+      (while
+        (condition (op less-than i old_n))
+        (do
+          (set out (call vec_push (type-args i32) out (call zx_qubit g i)))
+          (set i (op add i 1))))
+      (set out (call vec_push (type-args i32) out qubit))
+      (set i 0)
+      (while
+        (condition (op less-than i new_n))
+        (do
+          (let j i32 0)
+          (while
+            (condition (op less-than j new_n))
+            (do
+              (if
+                (condition (op or (op equal i old_n) (op equal j old_n)))
+                (then (do
+                  (set out (call vec_push (type-args i32) out 0))))
+                (else (do
+                  (set out (call vec_push (type-args i32) out (call zx_edge g i j))))))
+              (set j (op add j 1))))
+          (set i (op add i 1))))
+      (return out)))
+
+  (fn zx_map_old
+    (params (new_index i32) (removed i32))
+    (returns i32)
+    (do
+      (if
+        (condition (op greater-or-equal new_index removed))
+        (then (do (return (op add new_index 1))))
+        (else (do (return new_index))))))
+
+  (fn zx_remove_node
+    (params (g (type-app Vec i32)) (removed i32))
+    (returns (type-app Vec i32))
+    (do
+      (let old_n i32 (call zx_n g))
+      (let new_n i32 (op sub old_n 1))
+      (let out (call vec_new (type-args i32)))
+      (set out (call vec_push (type-args i32) out new_n))
+      (set out (call vec_push (type-args i32) out -1))
+      (let i i32 0)
+      (while
+        (condition (op less-than i old_n))
+        (do
+          (if
+            (condition (op not-equal i removed))
+            (then (do
+              (set out (call vec_push (type-args i32) out (call zx_kind g i)))))
+            (else (do)))
+          (set i (op add i 1))))
+      (set i 0)
+      (while
+        (condition (op less-than i old_n))
+        (do
+          (if
+            (condition (op not-equal i removed))
+            (then (do
+              (set out (call vec_push (type-args i32) out (call zx_phase g i)))))
+            (else (do)))
+          (set i (op add i 1))))
+      (set i 0)
+      (while
+        (condition (op less-than i old_n))
+        (do
+          (if
+            (condition (op not-equal i removed))
+            (then (do
+              (set out (call vec_push (type-args i32) out (call zx_qubit g i)))))
+            (else (do)))
+          (set i (op add i 1))))
+      (let ri i32 0)
+      (while
+        (condition (op less-than ri new_n))
+        (do
+          (let rj i32 0)
+          (while
+            (condition (op less-than rj new_n))
+            (do
+              (set out (call vec_push (type-args i32) out
+                (call zx_edge g (call zx_map_old ri removed) (call zx_map_old rj removed))))
+              (set rj (op add rj 1))))
+          (set ri (op add ri 1))))
+      (return out)))
+
+  ; 1 = simple, 2 = Hadamard. Consumes a pending H on that wire.
+  (fn zx_pending_edge
+    (params (pending (type-app Vec i32)) (q i32))
+    (returns i32)
+    (do
+      (if
+        (condition (op equal (call rw_i32 pending q) 1))
+        (then (do (return 2)))
+        (else (do (return 1))))))
+
+  (fn zx_from_circuit
+    (params (data (type-app Vec i32)))
+    (returns (type-app Vec i32))
+    (do
+      (let g (call zx_empty))
+      (let nq i32 (call circ_qubit_count data))
+      (if
+        (condition (op equal nq 0))
+        (then (do (return g)))
+        (else (do)))
+      (let current (call vec_new (type-args i32)))
+      (let pending (call vec_new (type-args i32)))
+      (let q i32 0)
+      (while
+        (condition (op less-than q nq))
+        (do
+          (set g (call zx_add_node g (call zx_in) 0 q))
+          (set current (call vec_push (type-args i32) current (call zx_last g)))
+          (set pending (call vec_push (type-args i32) pending 0))
+          (set q (op add q 1))))
+      (let n i32 (call circ_n data))
+      (let i i32 0)
+      (let ok i32 1)
+      (while
+        (condition (op and (op equal ok 1) (op less-than i n)))
+        (do
+          (let kind i32 (call circ_kind data i))
+          (let q0 i32 (call circ_q0 data i))
+          (let q1 i32 (call circ_q1 data i))
+          (let par i32 (call circ_param data i))
+          (if
+            (condition (op equal kind 1))
+            (then (do
+              (if
+                (condition (op equal (call rw_i32 pending q0) 0))
+                (then (do (call vec_set (type-args i32) pending q0 1)))
+                (else (do (call vec_set (type-args i32) pending q0 0))))))
+            (else (do)))
+          (if
+            (condition (op equal kind 2))
+            (then (do
+              (let etx i32 (call zx_pending_edge pending q0))
+              (call vec_set (type-args i32) pending q0 0)
+              (set g (call zx_add_node g (call zx_x) 4 q0))
+              (set g (call zx_connect g (call rw_i32 current q0)
+                (call zx_last g) etx))
+              (call vec_set (type-args i32) current q0 (call zx_last g))))
+            (else (do)))
+          (if
+            (condition (op equal kind 4))
+            (then (do
+              (let etz i32 (call zx_pending_edge pending q0))
+              (call vec_set (type-args i32) pending q0 0)
+              (set g (call zx_add_node g (call zx_z) 4 q0))
+              (set g (call zx_connect g (call rw_i32 current q0)
+                (call zx_last g) etz))
+              (call vec_set (type-args i32) current q0 (call zx_last g))))
+            (else (do)))
+          (if
+            (condition (op or (op equal kind 11)
+              (op or (op equal kind 12)
+                (op or (op equal kind 13)
+                  (op or (op equal kind 14) (op equal kind 15))))))
+            (then (do
+              (let ticks i32 par)
+              (if (condition (op equal kind 12)) (then (do (set ticks 2))) (else (do)))
+              (if (condition (op equal kind 13)) (then (do (set ticks -2))) (else (do)))
+              (if (condition (op equal kind 14)) (then (do (set ticks 1))) (else (do)))
+              (if (condition (op equal kind 15)) (then (do (set ticks -1))) (else (do)))
+              (let etr i32 (call zx_pending_edge pending q0))
+              (call vec_set (type-args i32) pending q0 0)
+              (set g (call zx_add_node g (call zx_z) ticks q0))
+              (set g (call zx_connect g (call rw_i32 current q0)
+                (call zx_last g) etr))
+              (call vec_set (type-args i32) current q0 (call zx_last g))))
+            (else (do)))
+          (if
+            (condition (op equal kind 9))
+            (then (do
+              (let etrx i32 (call zx_pending_edge pending q0))
+              (call vec_set (type-args i32) pending q0 0)
+              (set g (call zx_add_node g (call zx_x) par q0))
+              (set g (call zx_connect g (call rw_i32 current q0)
+                (call zx_last g) etrx))
+              (call vec_set (type-args i32) current q0 (call zx_last g))))
+            (else (do)))
+          (if
+            (condition (op equal kind 5))
+            (then (do
+              (let ccur i32 (call rw_i32 current q0))
+              (if
+                (condition (op not (op and (call zx_is_spider g ccur)
+                  (op equal (call zx_kind g ccur) 0))))
+                (then (do
+                  (let etc i32 (call zx_pending_edge pending q0))
+                  (call vec_set (type-args i32) pending q0 0)
+                  (set g (call zx_add_node g (call zx_z) 0 q0))
+                  (set g (call zx_connect g ccur (call zx_last g) etc))
+                  (call vec_set (type-args i32) current q0 (call zx_last g))))
+                (else (do)))
+              (let tcur i32 (call rw_i32 current q1))
+              (if
+                (condition (op not (op and (call zx_is_spider g tcur)
+                  (op equal (call zx_kind g tcur) 1))))
+                (then (do
+                  (let ett i32 (call zx_pending_edge pending q1))
+                  (call vec_set (type-args i32) pending q1 0)
+                  (set g (call zx_add_node g (call zx_x) 0 q1))
+                  (set g (call zx_connect g tcur (call zx_last g) ett))
+                  (call vec_set (type-args i32) current q1 (call zx_last g))))
+                (else (do)))
+              (set g (call zx_toggle_simple g
+                (call rw_i32 current q0) (call rw_i32 current q1)))))
+            (else (do)))
+          (if
+            (condition (op equal kind 6))
+            (then (do
+              (let z0 i32 (call rw_i32 current q0))
+              (if
+                (condition (op not (op and (call zx_is_spider g z0)
+                  (op equal (call zx_kind g z0) 0))))
+                (then (do
+                  (let et0 i32 (call zx_pending_edge pending q0))
+                  (call vec_set (type-args i32) pending q0 0)
+                  (set g (call zx_add_node g (call zx_z) 0 q0))
+                  (set g (call zx_connect g z0 (call zx_last g) et0))
+                  (call vec_set (type-args i32) current q0 (call zx_last g))))
+                (else (do)))
+              (let z1 i32 (call rw_i32 current q1))
+              (if
+                (condition (op not (op and (call zx_is_spider g z1)
+                  (op equal (call zx_kind g z1) 0))))
+                (then (do
+                  (let et1 i32 (call zx_pending_edge pending q1))
+                  (call vec_set (type-args i32) pending q1 0)
+                  (set g (call zx_add_node g (call zx_z) 0 q1))
+                  (set g (call zx_connect g z1 (call zx_last g) et1))
+                  (call vec_set (type-args i32) current q1 (call zx_last g))))
+                (else (do)))
+              (set g (call zx_connect g (call rw_i32 current q0)
+                (call rw_i32 current q1) (call zx_hadamard)))))
+            (else (do)))
+          (if
+            (condition (op or (op equal kind 3)
+              (op or (op equal kind 7)
+                (op or (op equal kind 8) (op equal kind 10)))))
+            (then (do (set ok 0)))
+            (else (do)))
+          (set i (op add i 1))))
+      (if
+        (condition (op equal ok 0))
+        (then (do (return (call zx_fail_graph))))
+        (else (do)))
+      (set q 0)
+      (while
+        (condition (op less-than q nq))
+        (do
+          (let eto i32 (call zx_pending_edge pending q))
+          (call vec_set (type-args i32) pending q 0)
+          (set g (call zx_add_node g (call zx_out) 0 q))
+          (set g (call zx_connect g (call rw_i32 current q)
+            (call zx_last g) eto))
+          (set q (op add q 1))))
+      (return g)))
+
+  (fn zx_neighbor
+    (params (g (type-app Vec i32)) (node i32) (skip i32) (which i32))
+    (returns i32)
+    (do
+      (let n i32 (call zx_n g))
+      (let seen i32 0)
+      (let found i32 -1)
+      (let k i32 0)
+      (while
+        (condition (op less-than k n))
+        (do
+          (if
+            (condition (op and
+              (op not-equal k node)
+              (op and
+                (op not-equal k skip)
+                (op not-equal (call zx_edge g node k) 0))))
+            (then (do
+              (if
+                (condition (op equal seen which))
+                (then (do (set found k)))
+                (else (do)))
+              (set seen (op add seen 1))))
+            (else (do)))
+          (set k (op add k 1))))
+      (return found)))
+
+  (fn zx_fuse_ok
+    (params (g (type-app Vec i32)) (a i32) (b i32))
+    (returns bool)
+    (do
+      (if
+        (condition (op greater-or-equal a b))
+        (then (do (return false)))
+        (else (do)))
+      (if
+        (condition (op not (call zx_is_spider g a)))
+        (then (do (return false)))
+        (else (do)))
+      (if
+        (condition (op not (call zx_is_spider g b)))
+        (then (do (return false)))
+        (else (do)))
+      (if
+        (condition (op not-equal (call zx_kind g a) (call zx_kind g b)))
+        (then (do (return false)))
+        (else (do)))
+      (return (op equal (call zx_edge g a b) 1))))
+
+  (fn zx_identity_ok
+    (params (g (type-app Vec i32)) (node i32))
+    (returns bool)
+    (do
+      (if
+        (condition (op not (call zx_is_spider g node)))
+        (then (do (return false)))
+        (else (do)))
+      (if
+        (condition (op not-equal (call circ_normalize_param (call zx_phase g node)) 0))
+        (then (do (return false)))
+        (else (do)))
+      (return (op equal (call zx_degree g node) 2))))
+
+  (fn zx_color_ok
+    (params (g (type-app Vec i32)) (a i32) (b i32))
+    (returns bool)
+    (do
+      (if
+        (condition (op greater-or-equal a b))
+        (then (do (return false)))
+        (else (do)))
+      (if
+        (condition (op not (op and
+          (op equal (call zx_kind g a) 0)
+          (op equal (call zx_kind g b) 0))))
+        (then (do (return false)))
+        (else (do)))
+      (return (op equal (call zx_edge g a b) 2))))
+
+  (fn zx_find_match
+    (params (g (type-app Vec i32)))
+    (returns RewriteMatch)
+    (do
+      (let best RewriteMatch (call rw_match_none))
+      (let n i32 (call zx_n g))
+      (let i i32 0)
+      (while
+        (condition (op less-than i n))
+        (do
+          (if
+            (condition (call zx_identity_ok g i))
+            (then (do
+              (let cand RewriteMatch
+                (new RewriteMatch
+                  (rule (call zx_rule_identity))
+                  (start i)
+                  (span 1)
+                  (extra 0)))
+              (if
+                (condition (call rw_match_better best cand))
+                (then (do (set best cand)))
+                (else (do)))))
+            (else (do)))
+          (let j i32 (op add i 1))
+          (while
+            (condition (op less-than j n))
+            (do
+              (if
+                (condition (call zx_fuse_ok g i j))
+                (then (do
+                  (let cand2 RewriteMatch
+                    (new RewriteMatch
+                      (rule (call zx_rule_fuse))
+                      (start i)
+                      (span 2)
+                      (extra j)))
+                  (if
+                    (condition (call rw_match_better best cand2))
+                    (then (do (set best cand2)))
+                    (else (do)))))
+                (else (do)))
+              (if
+                (condition (call zx_color_ok g i j))
+                (then (do
+                  (let cand3 RewriteMatch
+                    (new RewriteMatch
+                      (rule (call zx_rule_color))
+                      (start i)
+                      (span 2)
+                      (extra j)))
+                  (if
+                    (condition (call rw_match_better best cand3))
+                    (then (do (set best cand3)))
+                    (else (do)))))
+                (else (do)))
+              (set j (op add j 1))))
+          (set i (op add i 1))))
+      (return best)))
+
+  (fn zx_set_kind
+    (params (g (type-app Vec i32)) (node i32) (kind i32))
+    (returns (type-app Vec i32))
+    (do
+      (call vec_set (type-args i32) g (op add 2 node) kind)
+      (return g)))
+
+  (fn zx_set_phase
+    (params (g (type-app Vec i32)) (node i32) (phase i32))
+    (returns (type-app Vec i32))
+    (do
+      (call vec_set (type-args i32) g (op add (op add 2 (call zx_n g)) node) phase)
+      (return g)))
+
+  (fn zx_apply
+    (params (g (type-app Vec i32)) (m RewriteMatch))
+    (returns (type-app Vec i32))
+    (do
+      (let acc (type-app Vec i32) g)
+      (let rule i32 (field-get m rule))
+      (if
+        (condition (op equal rule (call zx_rule_fuse)))
+        (then (do
+          (let keep i32 (field-get m start))
+          (let drop i32 (field-get m extra))
+          (let n i32 (call zx_n acc))
+          (let p i32 (call circ_normalize_param
+            (op add (call zx_phase acc keep) (call zx_phase acc drop))))
+          (set acc (call zx_set_phase acc keep p))
+          (let k i32 0)
+          (while
+            (condition (op less-than k n))
+            (do
+              (if
+                (condition (op and (op not-equal k keep) (op not-equal k drop)))
+                (then (do
+                  (let et i32 (call zx_edge acc drop k))
+                  (if
+                    (condition (op equal et 1))
+                    (then (do (set acc (call zx_toggle_simple acc keep k))))
+                    (else (do)))
+                  (if
+                    (condition (op equal et 2))
+                    (then (do
+                      (if
+                        (condition (op equal (call zx_edge acc keep k) 0))
+                        (then (do (set acc (call zx_set_edge acc keep k 2))))
+                        (else (do)))))
+                    (else (do)))))
+                (else (do)))
+              (set k (op add k 1))))
+          (return (call zx_remove_node acc drop))))
+        (else (do)))
+      (if
+        (condition (op equal rule (call zx_rule_identity)))
+        (then (do
+          (let node i32 (field-get m start))
+          (let a i32 (call zx_neighbor acc node -1 0))
+          (let b i32 (call zx_neighbor acc node -1 1))
+          (let ea i32 (call zx_edge acc node a))
+          (let eb i32 (call zx_edge acc node b))
+          (let ty i32 1)
+          (if
+            (condition (op equal ea eb))
+            (then (do (set ty 1)))
+            (else (do (set ty 2))))
+          (set acc (call zx_remove_node acc node))
+          (let na i32 a)
+          (let nb i32 b)
+          (if
+            (condition (op greater-than a node))
+            (then (do (set na (op sub a 1))))
+            (else (do)))
+          (if
+            (condition (op greater-than b node))
+            (then (do (set nb (op sub b 1))))
+            (else (do)))
+          (return (call zx_connect acc na nb ty))))
+        (else (do)))
+      (if
+        (condition (op equal rule (call zx_rule_color)))
+        (then (do
+          (let a i32 (field-get m start))
+          (let b i32 (field-get m extra))
+          (set acc (call zx_set_kind acc b 1))
+          (set acc (call zx_set_edge acc a b 1))
+          (return acc)))
+        (else (do)))
+      (return acc)))
+
+  (fn zx_rewrite
+    (params (g (type-app Vec i32)) (bound i32))
+    (returns (type-app Vec i32))
+    (do
+      (let cur (type-app Vec i32) g)
+      (let step i32 0)
+      (while
+        (condition (op less-than step bound))
+        (do
+          (let m RewriteMatch (call zx_find_match cur))
+          (if
+            (condition (op equal (field-get m rule) 0))
+            (then (do (return cur)))
+            (else (do)))
+          (set cur (call zx_apply cur m))
+          (set step (op add step 1))))
+      (return cur)))
+
+  (fn zx_find_in
+    (params (g (type-app Vec i32)) (qubit i32))
+    (returns i32)
+    (do
+      (let n i32 (call zx_n g))
+      (let i i32 0)
+      (while
+        (condition (op less-than i n))
+        (do
+          (if
+            (condition (op and (op equal (call zx_kind g i) 2)
+              (op equal (call zx_qubit g i) qubit)))
+            (then (do (return i)))
+            (else (do)))
+          (set i (op add i 1))))
+      (return -1)))
+
+  ; Extracted circuit packing: first i32 is ok (1/0), remainder is circuit.
+  (fn zx_extract
+    (params (g (type-app Vec i32)))
+    (returns (type-app Vec i32))
+    (do
+      (let packed (call vec_new (type-args i32)))
+      (let out (call vec_new (type-args i32)))
+      (let failed i32 0)
+      (let nq i32 -1)
+      (let n i32 (call zx_n g))
+      (let i i32 0)
+      (while
+        (condition (op less-than i n))
+        (do
+          (if
+            (condition (op equal (call zx_kind g i) 2))
+            (then (do
+              (let qin i32 (call zx_qubit g i))
+              (if
+                (condition (op greater-than qin nq))
+                (then (do (set nq qin)))
+                (else (do)))))
+            (else (do)))
+          (set i (op add i 1))))
+      (set nq (op add nq 1))
+      (if
+        (condition (op less-or-equal nq 0))
+        (then (do (set failed 2)))
+        (else (do)))
+      (let q i32 0)
+      (while
+        (condition (op and (op equal failed 0) (op less-than q nq)))
+        (do
+          (let prev i32 -1)
+          (let node i32 (call zx_find_in g q))
+          (if
+            (condition (op equal node -1))
+            (then (do (set failed 1)))
+            (else (do)))
+          (let guard i32 0)
+          (while
+            (condition (op and (op equal failed 0)
+              (op and (op not-equal node -1)
+                (op and (op not-equal (call zx_kind g node) 3)
+                  (op less-than guard 64)))))
+            (do
+              (set guard (op add guard 1))
+              (let nxt i32 (call zx_neighbor g node prev 0))
+              (if
+                (condition (op equal nxt -1))
+                (then (do (set failed 1)))
+                (else (do)))
+              (if
+                (condition (op and (op equal failed 0) (op not-equal nxt -1)))
+                (then (do
+                  (let et i32 (call zx_edge g node nxt))
+                  (if
+                    (condition (op equal et 2))
+                    (then (do
+                      (set out (call circ_push out 1 q -1 -1 0))))
+                    (else (do)))
+                  (if
+                    (condition (call zx_is_spider g nxt))
+                    (then (do
+                      (let ph i32 (call circ_normalize_param (call zx_phase g nxt)))
+                      (if
+                        (condition (op and (op not-equal ph 0)
+                          (op equal (call zx_kind g nxt) 0)))
+                        (then (do
+                          (set out (call circ_push out 11 q -1 -1 ph))))
+                        (else (do)))
+                      (if
+                        (condition (op and (op not-equal ph 0)
+                          (op equal (call zx_kind g nxt) 1)))
+                        (then (do
+                          (set out (call circ_push out 9 q -1 -1 ph))))
+                        (else (do)))
+                      (let side i32 (call zx_neighbor g nxt node 0))
+                      (if
+                        (condition (op and (op not-equal side -1)
+                          (op and (call zx_is_spider g side)
+                            (op and (op equal (call zx_kind g nxt) 0)
+                              (op equal (call zx_kind g side) 1)))))
+                        (then (do
+                          (let tq i32 (call zx_qubit g side))
+                          (if
+                            (condition (op greater-than tq q))
+                            (then (do
+                              (set out (call circ_push out 5 q tq -1 0))))
+                            (else (do)))))
+                        (else (do)))))
+                    (else (do)))
+                  (set prev node)
+                  (set node nxt)))
+                (else (do)))))
+          (if
+            (condition (op and (op equal failed 0)
+              (op not-equal (call zx_kind g node) 3)))
+            (then (do (set failed 1)))
+            (else (do)))
+          (set q (op add q 1))))
+      (if
+        (condition (op equal failed 2))
+        (then (do
+          (set packed (call vec_push (type-args i32) packed 1))))
+        (else (do)))
+      (if
+        (condition (op equal failed 1))
+        (then (do
+          (set packed (call vec_push (type-args i32) packed 0))))
+        (else (do)))
+      (if
+        (condition (op equal failed 0))
+        (then (do
+          (set packed (call vec_push (type-args i32) packed 1))
+          (let gi i32 0)
+          (let glen i32 (call vec_len (type-args i32) out))
+          (while
+            (condition (op less-than gi glen))
+            (do
+              (set packed (call vec_push (type-args i32) packed (call rw_i32 out gi)))
+              (set gi (op add gi 1))))))
+        (else (do)))
+      (return packed)))
+  (fn zx_extracted_ok
+    (params (packed (type-app Vec i32)))
+    (returns bool)
+    (do
+      (return (op equal (call rw_i32 packed 0) 1))))
+
+  (fn zx_extracted_circuit
+    (params (packed (type-app Vec i32)))
+    (returns (type-app Vec i32))
+    (do
+      (let out (call vec_new (type-args i32)))
+      (let i i32 1)
+      (let n i32 (call vec_len (type-args i32) packed))
+      (while
+        (condition (op less-than i n))
+        (do
+          (set out (call vec_push (type-args i32) out (call rw_i32 packed i)))
+          (set i (op add i 1))))
+      (return out)))
+)

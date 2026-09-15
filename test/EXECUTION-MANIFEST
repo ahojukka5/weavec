@@ -51,6 +51,8 @@ executes cli-io
 executes comment-statement
 # circuit IR generic matcher vs handwritten peephole; the program is the subject
 executes circuit-rewrite
+# packed rule ids, match key, cost vector, target packs; the program is the subject
+executes rewrite-engine
 executes compiler-sources
 # output buffering and write-failure diagnostics
 contract compiler-write
@@ -132,6 +134,8 @@ executes pythagoras
 executes quadratic
 # ordinary-Weave rewrite-contract witness; runtime is the subject
 executes rewrite-semantics
+# ZX conversion, graph rewrites, extraction; python oracle checks equivalence
+executes zx-rewrite
 # quantum WIR goldens and statistics documents
 contract quantum
 # self-host generation evidence

@@ -46,6 +46,16 @@ surface-language contract stabilises.
   instead of overflowing the host stack. See
   [Syntax tree-walk depth budget](docs/syntax-depth.md) and issues #386
   and #466.
+- Compiler-owned rewrite library modules under `src/rewrite/`: generic
+  match key and packed rule identity, circuit IR with a named cost
+  vector, topology-free target packs, and a ZX graph IR with spider
+  fusion, identity removal, Hadamard color-change, and deterministic
+  extraction. They are not linked into the seed compiler. See
+  [Rule authoring](docs/rewrite-authoring.md),
+  [ZX graph IR](docs/zx-ir.md), and issue #458.
+- Inverse-pair cancellation (`S`/`Sdg`, `T`/`Tdg`) on the compiled
+  circuit matcher, and ZX conversion of `H` as a pending wire edge so
+  `H H` does not invent identity spiders.
 
 ### Removed
 

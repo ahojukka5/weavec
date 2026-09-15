@@ -140,8 +140,9 @@ A separate circuit-IR engine in
 self-inverse cancellation, identity drop, and rotation fusion through
 one generic matcher. The #457 stop rule compared that matcher with a
 special-case scan of the same three rules. The generic path is slower
-and larger, so this emit path stays the production peephole. ZX is not
-the next step of that issue.
+and larger, so this emit path stays the production peephole. The
+engine continues as compiler-owned library code under `src/rewrite/`,
+with a ZX graph adapter documented in [ZX graph IR](zx-ir.md).
 
 ## Runtime boundary
 
@@ -215,8 +216,10 @@ Run the complete compiler and self-host ladder with:
   intentionally narrow.
 - There is no production scheduling, routing, noise model, target calibration,
   or hardware execution interface.
-- First-class user-defined transform registries and target packs remain future
-  design work.
+- First-class user-defined transform registries are not a public language
+  feature yet. Topology-free target packs exist as rewrite-library data
+  in `src/rewrite/targets.weave` and are not yet selected by `weavec
+  build`.
 - Quantum source locations are subject to the same current diagnostic limits as
   other backend-originated errors.
 

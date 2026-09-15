@@ -44,7 +44,7 @@ or WIR.
 
 ## Rules
 
-Three trusted-algebraic rules share one generic enumerator
+Four trusted-algebraic rules share one generic enumerator
 (`circ_find_match`) and the M0 match key (leftmost site, then longest
 span, then rule id):
 
@@ -54,7 +54,10 @@ span, then rule id):
 2. `quantum.circuit/drop-identity/1` — drop `I`, or a rotation whose
    fused angle is `0`.
 3. `quantum.circuit/fuse-rotation/1` — adjacent same-axis rotations on
-   one qubit add their ticks.
+   one qubit fuse; the angle is reduced by full turns (`8` ticks).
+4. `quantum.circuit/cancel-inverse/1` — adjacent `S`/`Sdg` or `T`/`Tdg`
+   on the same qubit cancel. These are not self-inverse, so they are
+   not covered by rule 1.
 
 Search policy is trusted-only fixed-point greedy with a step bound.
 Cost is remaining gate count and is not used as a guard.
@@ -129,12 +132,20 @@ Override with `CIRCUIT_REWRITE_BLOCKS` / `CIRCUIT_REWRITE_REPS`.
 ## Stop-rule note
 
 Do not replace `emit_do_step`. The generic engine is slower and larger
-on this bounded three-rule sequence problem. Keep it as the
-sequence-family adapter and the deterministic test of the M0 match
-key. Do not hide the cost with a native matcher, and do not treat ZX
-as the next step of this issue.
+on this bounded three-rule sequence problem. Keep production `qgate`
+peephole lowering as-is. The engine still belongs in the compiler as a
+library: `src/rewrite/circuit.weave` is the sequence-family adapter,
+and [ZX graph IR](zx-ir.md) is a separate graph-family milestone, not a
+way to reverse this stop rule.
 
-## Non-goals
+## Library modules
 
-No `rewrite` syntax, no new WIR forms, no ZX, no equality saturation,
-no compiler-pipeline wiring, no hardware pack.
+The #457 measurement program in `test/circuit-rewrite` stays frozen so
+the stop-rule numbers remain reproducible. Shared types and the
+circuit adapter used by later work live in `src/rewrite/`, excluded
+from the seed link. See [Rule authoring](rewrite-authoring.md).
+
+## Non-goals of #457
+
+No `rewrite` syntax, no new WIR forms, no equality saturation, no
+replacement of `emit_do_step`.

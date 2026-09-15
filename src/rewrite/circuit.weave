@@ -1,0 +1,591 @@
+; SPDX-License-Identifier: Apache-2.0
+; circuit.weave — compiler-owned circuit IR and compiled local rewrites
+;
+; A circuit is a sequence of five-tuples (kind, q0, q1, q2, param).
+; Unused qubit slots are -1. Rotation param is ticks of π/4, so 8 = 2π.
+; Matching walks this structured sequence. It does not parse source text.
+
+(program
+  (name "rewrite.circuit")
+  (version "0.1")
+
+  (fn circ_kind_i (params) (returns i32) (do (return 0)))
+  (fn circ_kind_h (params) (returns i32) (do (return 1)))
+  (fn circ_kind_x (params) (returns i32) (do (return 2)))
+  (fn circ_kind_y (params) (returns i32) (do (return 3)))
+  (fn circ_kind_z (params) (returns i32) (do (return 4)))
+  (fn circ_kind_cnot (params) (returns i32) (do (return 5)))
+  (fn circ_kind_cz (params) (returns i32) (do (return 6)))
+  (fn circ_kind_swap (params) (returns i32) (do (return 7)))
+  (fn circ_kind_ccnot (params) (returns i32) (do (return 8)))
+  (fn circ_kind_rx (params) (returns i32) (do (return 9)))
+  (fn circ_kind_ry (params) (returns i32) (do (return 10)))
+  (fn circ_kind_rz (params) (returns i32) (do (return 11)))
+  (fn circ_kind_s (params) (returns i32) (do (return 12)))
+  (fn circ_kind_sdg (params) (returns i32) (do (return 13)))
+  (fn circ_kind_t (params) (returns i32) (do (return 14)))
+  (fn circ_kind_tdg (params) (returns i32) (do (return 15)))
+
+  (fn circ_rule_cancel (params) (returns i32)
+    (do (return (call rw_pack_id (call rw_ns_circuit) 1 1))))
+  (fn circ_rule_drop (params) (returns i32)
+    (do (return (call rw_pack_id (call rw_ns_circuit) 2 1))))
+  (fn circ_rule_fuse (params) (returns i32)
+    (do (return (call rw_pack_id (call rw_ns_circuit) 3 1))))
+  ; Adjacent inverse pair: S/Sdg or T/Tdg on the same qubit.
+  (fn circ_rule_inv (params) (returns i32)
+    (do (return (call rw_pack_id (call rw_ns_circuit) 4 1))))
+
+  (fn circ_stride
+    (params (gate i32))
+    (returns i32)
+    (do
+      (let acc i32 0)
+      (let k i32 0)
+      (while
+        (condition (op less-than k gate))
+        (do
+          (set acc (op add acc 5))
+          (set k (op add k 1))))
+      (return acc)))
+
+  (fn circ_n
+    (params (data (type-app Vec i32)))
+    (returns i32)
+    (do
+      (let rest i32 (call vec_len (type-args i32) data))
+      (let n i32 0)
+      (while
+        (condition (op greater-or-equal rest 5))
+        (do
+          (set n (op add n 1))
+          (set rest (op sub rest 5))))
+      (return n)))
+
+  (fn circ_kind
+    (params (data (type-app Vec i32)) (gate i32))
+    (returns i32)
+    (do
+      (return (call rw_i32 data (call circ_stride gate)))))
+
+  (fn circ_q0
+    (params (data (type-app Vec i32)) (gate i32))
+    (returns i32)
+    (do
+      (return (call rw_i32 data (op add (call circ_stride gate) 1)))))
+
+  (fn circ_q1
+    (params (data (type-app Vec i32)) (gate i32))
+    (returns i32)
+    (do
+      (return (call rw_i32 data (op add (call circ_stride gate) 2)))))
+
+  (fn circ_q2
+    (params (data (type-app Vec i32)) (gate i32))
+    (returns i32)
+    (do
+      (return (call rw_i32 data (op add (call circ_stride gate) 3)))))
+
+  (fn circ_param
+    (params (data (type-app Vec i32)) (gate i32))
+    (returns i32)
+    (do
+      (return (call rw_i32 data (op add (call circ_stride gate) 4)))))
+
+  (fn circ_push
+    (params
+      (data (type-app Vec i32))
+      (kind i32)
+      (q0 i32)
+      (q1 i32)
+      (q2 i32)
+      (param i32))
+    (returns (type-app Vec i32))
+    (do
+      (let acc (call vec_push (type-args i32) data kind))
+      (set acc (call vec_push (type-args i32) acc q0))
+      (set acc (call vec_push (type-args i32) acc q1))
+      (set acc (call vec_push (type-args i32) acc q2))
+      (set acc (call vec_push (type-args i32) acc param))
+      (return acc)))
+
+  (fn circ_push_gate
+    (params (dst (type-app Vec i32)) (src (type-app Vec i32)) (gate i32))
+    (returns (type-app Vec i32))
+    (do
+      (return (call circ_push dst
+        (call circ_kind src gate)
+        (call circ_q0 src gate)
+        (call circ_q1 src gate)
+        (call circ_q2 src gate)
+        (call circ_param src gate)))))
+
+  (fn circ_equal
+    (params (left (type-app Vec i32)) (right (type-app Vec i32)))
+    (returns bool)
+    (do
+      (let ln i32 (call vec_len (type-args i32) left))
+      (let rn i32 (call vec_len (type-args i32) right))
+      (if
+        (condition (op not-equal ln rn))
+        (then (do (return false)))
+        (else (do)))
+      (let i i32 0)
+      (while
+        (condition (op less-than i ln))
+        (do
+          (if
+            (condition (op not-equal (call rw_i32 left i) (call rw_i32 right i)))
+            (then (do (return false)))
+            (else (do)))
+          (set i (op add i 1))))
+      (return true)))
+
+  ; Reduce by full turns. 8 ticks = 2π. Do not fold 5 to -3; those
+  ; are the same angle only after a later canonicalizer.
+  (fn circ_normalize_param
+    (params (param i32))
+    (returns i32)
+    (do
+      (let p i32 param)
+      (while
+        (condition (op greater-or-equal p 8))
+        (do
+          (set p (op sub p 8))))
+      (while
+        (condition (op less-or-equal p -8))
+        (do
+          (set p (op add p 8))))
+      (return p)))
+
+  (fn gate_is_self_inverse
+    (params (kind i32))
+    (returns bool)
+    (do
+      (if
+        (condition (op less-than kind 1))
+        (then (do (return false)))
+        (else (do)))
+      (return (op less-or-equal kind 8))))
+
+  (fn gate_is_rotation
+    (params (kind i32))
+    (returns bool)
+    (do
+      (return (op and
+        (op greater-or-equal kind 9)
+        (op less-or-equal kind 11)))))
+
+  (fn gate_is_identity
+    (params (kind i32) (param i32))
+    (returns bool)
+    (do
+      (if
+        (condition (op equal kind 0))
+        (then (do (return true)))
+        (else (do)))
+      (return (op and
+        (call gate_is_rotation kind)
+        (op equal (call circ_normalize_param param) 0)))))
+
+  (fn gate_is_twoq
+    (params (kind i32))
+    (returns bool)
+    (do
+      (return (op and
+        (op greater-or-equal kind 5)
+        (op less-or-equal kind 8)))))
+
+  ; Clifford rotations are multiples of π/2, i.e. even π/4 ticks.
+  (fn gate_is_nonclifford
+    (params (kind i32) (param i32))
+    (returns bool)
+    (do
+      (if
+        (condition (op or
+          (op equal kind 14)
+          (op equal kind 15)))
+        (then (do (return true)))
+        (else (do)))
+      (if
+        (condition (call gate_is_rotation kind))
+        (then (do
+          (let p i32 (call circ_normalize_param param))
+          (if
+            (condition (op less-than p 0))
+            (then (do (set p (op sub 0 p))))
+            (else (do)))
+          (return (op not-equal (op mul (op div p 2) 2) p))))
+        (else (do)))
+      (return false)))
+
+  (fn same_qubits
+    (params (data (type-app Vec i32)) (a i32) (b i32))
+    (returns bool)
+    (do
+      (return (op and
+        (op equal (call circ_q0 data a) (call circ_q0 data b))
+        (op and
+          (op equal (call circ_q1 data a) (call circ_q1 data b))
+          (op equal (call circ_q2 data a) (call circ_q2 data b)))))))
+
+  (fn circ_arity
+    (params (kind i32))
+    (returns i32)
+    (do
+      (if
+        (condition (op equal kind 8))
+        (then (do (return 3)))
+        (else (do)))
+      (if
+        (condition (call gate_is_twoq kind))
+        (then (do (return 2)))
+        (else (do)))
+      (return 1)))
+
+  (fn circ_max_qubit
+    (params (data (type-app Vec i32)))
+    (returns i32)
+    (do
+      (let m i32 -1)
+      (let n i32 (call circ_n data))
+      (let i i32 0)
+      (while
+        (condition (op less-than i n))
+        (do
+          (let q0 i32 (call circ_q0 data i))
+          (let q1 i32 (call circ_q1 data i))
+          (let q2 i32 (call circ_q2 data i))
+          (if
+            (condition (op greater-than q0 m))
+            (then (do (set m q0)))
+            (else (do)))
+          (if
+            (condition (op greater-than q1 m))
+            (then (do (set m q1)))
+            (else (do)))
+          (if
+            (condition (op greater-than q2 m))
+            (then (do (set m q2)))
+            (else (do)))
+          (set i (op add i 1))))
+      (return m)))
+
+  (fn circ_qubit_count
+    (params (data (type-app Vec i32)))
+    (returns i32)
+    (do
+      (let m i32 (call circ_max_qubit data))
+      (if
+        (condition (op less-than m 0))
+        (then (do (return 0)))
+        (else (do (return (op add m 1)))))))
+
+  ; Rule 1: adjacent equal self-inverse gates on the same qubits cancel.
+  (fn circ_rule_cancel_ok
+    (params (data (type-app Vec i32)) (start i32))
+    (returns bool)
+    (do
+      (let n i32 (call circ_n data))
+      (if
+        (condition (op greater-or-equal (op add start 1) n))
+        (then (do (return false)))
+        (else (do)))
+      (let kind i32 (call circ_kind data start))
+      (if
+        (condition (op not (call gate_is_self_inverse kind)))
+        (then (do (return false)))
+        (else (do)))
+      (if
+        (condition (op not-equal kind (call circ_kind data (op add start 1))))
+        (then (do (return false)))
+        (else (do)))
+      (return (call same_qubits data start (op add start 1)))))
+
+  ; Rule 2: drop I, or a rotation whose reduced angle is 0.
+  (fn circ_rule_drop_ok
+    (params (data (type-app Vec i32)) (start i32))
+    (returns bool)
+    (do
+      (return (call gate_is_identity
+        (call circ_kind data start)
+        (call circ_param data start)))))
+
+  ; Rule 3: fuse adjacent same-axis rotations on one qubit.
+  (fn circ_rule_fuse_ok
+    (params (data (type-app Vec i32)) (start i32))
+    (returns bool)
+    (do
+      (let n i32 (call circ_n data))
+      (if
+        (condition (op greater-or-equal (op add start 1) n))
+        (then (do (return false)))
+        (else (do)))
+      (let kind i32 (call circ_kind data start))
+      (if
+        (condition (op not (call gate_is_rotation kind)))
+        (then (do (return false)))
+        (else (do)))
+      (if
+        (condition (op not-equal kind (call circ_kind data (op add start 1))))
+        (then (do (return false)))
+        (else (do)))
+      (return (call same_qubits data start (op add start 1)))))
+
+  (fn circ_inverse_pair
+    (params (a i32) (b i32))
+    (returns bool)
+    (do
+      (if
+        (condition (op and (op equal a 12) (op equal b 13)))
+        (then (do (return true)))
+        (else (do)))
+      (if
+        (condition (op and (op equal a 13) (op equal b 12)))
+        (then (do (return true)))
+        (else (do)))
+      (if
+        (condition (op and (op equal a 14) (op equal b 15)))
+        (then (do (return true)))
+        (else (do)))
+      (return (op and (op equal a 15) (op equal b 14)))))
+
+  (fn circ_rule_inv_ok
+    (params (data (type-app Vec i32)) (start i32))
+    (returns bool)
+    (do
+      (let n i32 (call circ_n data))
+      (if
+        (condition (op greater-or-equal (op add start 1) n))
+        (then (do (return false)))
+        (else (do)))
+      (if
+        (condition (op not (call same_qubits data start (op add start 1))))
+        (then (do (return false)))
+        (else (do)))
+      (return (call circ_inverse_pair
+        (call circ_kind data start)
+        (call circ_kind data (op add start 1))))))
+
+  (fn circ_find_match
+    (params (data (type-app Vec i32)))
+    (returns RewriteMatch)
+    (do
+      (let best RewriteMatch (call rw_match_none))
+      (let n i32 (call circ_n data))
+      (let i i32 0)
+      (while
+        (condition (op less-than i n))
+        (do
+          (if
+            (condition (call circ_rule_cancel_ok data i))
+            (then (do
+              (let cand RewriteMatch
+                (new RewriteMatch
+                  (rule (call circ_rule_cancel))
+                  (start i)
+                  (span 2)
+                  (extra 0)))
+              (if
+                (condition (call rw_match_better best cand))
+                (then (do (set best cand)))
+                (else (do)))))
+            (else (do)))
+          (if
+            (condition (call circ_rule_drop_ok data i))
+            (then (do
+              (let cand2 RewriteMatch
+                (new RewriteMatch
+                  (rule (call circ_rule_drop))
+                  (start i)
+                  (span 1)
+                  (extra 0)))
+              (if
+                (condition (call rw_match_better best cand2))
+                (then (do (set best cand2)))
+                (else (do)))))
+            (else (do)))
+          (if
+            (condition (call circ_rule_fuse_ok data i))
+            (then (do
+              (let fused i32 (call circ_normalize_param
+                (op add
+                  (call circ_param data i)
+                  (call circ_param data (op add i 1)))))
+              (let cand3 RewriteMatch
+                (new RewriteMatch
+                  (rule (call circ_rule_fuse))
+                  (start i)
+                  (span 2)
+                  (extra fused)))
+              (if
+                (condition (call rw_match_better best cand3))
+                (then (do (set best cand3)))
+                (else (do)))))
+            (else (do)))
+          (if
+            (condition (call circ_rule_inv_ok data i))
+            (then (do
+              (let cand4 RewriteMatch
+                (new RewriteMatch
+                  (rule (call circ_rule_inv))
+                  (start i)
+                  (span 2)
+                  (extra 0)))
+              (if
+                (condition (call rw_match_better best cand4))
+                (then (do (set best cand4)))
+                (else (do)))))
+            (else (do)))
+          (set i (op add i 1))))
+      (return best)))
+
+  (fn circ_apply
+    (params (data (type-app Vec i32)) (m RewriteMatch))
+    (returns (type-app Vec i32))
+    (do
+      (let out (call vec_new (type-args i32)))
+      (let n i32 (call circ_n data))
+      (let start i32 (field-get m start))
+      (let end i32 (op add start (field-get m span)))
+      (let i i32 0)
+      (while
+        (condition (op less-than i n))
+        (do
+          (if
+            (condition (op and
+              (op greater-or-equal i start)
+              (op less-than i end)))
+            (then (do))
+            (else (do
+              (set out (call circ_push_gate out data i)))))
+          (if
+            (condition (op and
+              (op equal (field-get m rule) (call circ_rule_fuse))
+              (op equal i start)))
+            (then (do
+              (if
+                (condition (op equal (field-get m extra) 0))
+                (then (do))
+                (else (do
+                  (set out (call circ_push out
+                    (call circ_kind data start)
+                    (call circ_q0 data start)
+                    (call circ_q1 data start)
+                    (call circ_q2 data start)
+                    (field-get m extra))))))))
+            (else (do)))
+          (set i (op add i 1))))
+      (return out)))
+
+  (fn circ_rewrite
+    (params (data (type-app Vec i32)) (bound i32))
+    (returns (type-app Vec i32))
+    (do
+      (let cur (type-app Vec i32) data)
+      (let owned i32 0)
+      (let step i32 0)
+      (while
+        (condition (op less-than step bound))
+        (do
+          (let m RewriteMatch (call circ_find_match cur))
+          (if
+            (condition (op equal (field-get m rule) 0))
+            (then (do (return cur)))
+            (else (do)))
+          (let nxt (call circ_apply cur m))
+          (if
+            (condition (op equal owned 1))
+            (then (do (call vec_release (type-args i32) cur)))
+            (else (do)))
+          (set cur nxt)
+          (set owned 1)
+          (set step (op add step 1))))
+      (return cur)))
+
+  (fn circ_depth_update
+    (params (layers (type-app Vec i32)) (q i32) (d i32))
+    (returns void)
+    (do
+      (if
+        (condition (op less-than q 0))
+        (then (do (return_void)))
+        (else (do)))
+      (let n i32 (call vec_len (type-args i32) layers))
+      (if
+        (condition (op greater-or-equal q n))
+        (then (do (return_void)))
+        (else (do)))
+      (call vec_set (type-args i32) layers q d)
+      (return_void)))
+
+  (fn circ_cost
+    (params (data (type-app Vec i32)))
+    (returns CostVector)
+    (do
+      (let nq i32 (call circ_qubit_count data))
+      (let layers (call vec_new (type-args i32)))
+      (let fill i32 0)
+      (while
+        (condition (op less-than fill nq))
+        (do
+          (set layers (call vec_push (type-args i32) layers 0))
+          (set fill (op add fill 1))))
+      (let nc i32 0)
+      (let tq i32 0)
+      (let maxd i32 0)
+      (let n i32 (call circ_n data))
+      (let i i32 0)
+      (while
+        (condition (op less-than i n))
+        (do
+          (let kind i32 (call circ_kind data i))
+          (let q0 i32 (call circ_q0 data i))
+          (let q1 i32 (call circ_q1 data i))
+          (let q2 i32 (call circ_q2 data i))
+          (if
+            (condition (call gate_is_nonclifford kind (call circ_param data i)))
+            (then (do (set nc (op add nc 1))))
+            (else (do)))
+          (if
+            (condition (call gate_is_twoq kind))
+            (then (do (set tq (op add tq 1))))
+            (else (do)))
+          (let d0 i32 0)
+          (if
+            (condition (op and (op greater-or-equal q0 0) (op less-than q0 nq)))
+            (then (do (set d0 (call rw_i32 layers q0))))
+            (else (do)))
+          (let d1 i32 0)
+          (if
+            (condition (op and (op greater-or-equal q1 0) (op less-than q1 nq)))
+            (then (do (set d1 (call rw_i32 layers q1))))
+            (else (do)))
+          (let d2 i32 0)
+          (if
+            (condition (op and (op greater-or-equal q2 0) (op less-than q2 nq)))
+            (then (do (set d2 (call rw_i32 layers q2))))
+            (else (do)))
+          (let d i32 d0)
+          (if
+            (condition (op greater-than d1 d))
+            (then (do (set d d1)))
+            (else (do)))
+          (if
+            (condition (op greater-than d2 d))
+            (then (do (set d d2)))
+            (else (do)))
+          (set d (op add d 1))
+          (call circ_depth_update layers q0 d)
+          (call circ_depth_update layers q1 d)
+          (call circ_depth_update layers q2 d)
+          (if
+            (condition (op greater-than d maxd))
+            (then (do (set maxd d)))
+            (else (do)))
+          (set i (op add i 1))))
+      (return (new CostVector
+        (nonclifford nc)
+        (twoq tq)
+        (depth maxd)))))
+)

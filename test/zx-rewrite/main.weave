@@ -1,0 +1,167 @@
+; SPDX-License-Identifier: Apache-2.0
+; ZX graph IR, bounded rewrites, and deterministic extraction tests.
+
+(program
+  (name "zx-rewrite")
+  (version "0.1")
+
+  (fn write_i32
+    (params (value i32))
+    (returns void)
+    (do
+      (if
+        (condition (op less-than value 0))
+        (then (do
+          (call write_stdout "-")
+          (call write_u32_decimal (op sub 0 value))))
+        (else (do
+          (call write_u32_decimal value))))
+      (return_void)))
+
+  (fn dump_circ
+    (params (data (type-app Vec i32)))
+    (returns void)
+    (do
+      (let n i32 (call circ_n data))
+      (let i i32 0)
+      (while
+        (condition (op less-than i n))
+        (do
+          (call write_u32_decimal (call circ_kind data i))
+          (call write_stdout " ")
+          (call write_i32 (call circ_q0 data i))
+          (call write_stdout " ")
+          (call write_i32 (call circ_q1 data i))
+          (call write_stdout " ")
+          (call write_i32 (call circ_q2 data i))
+          (call write_stdout " ")
+          (call write_i32 (call circ_param data i))
+          (call write_stdout "\n")
+          (set i (op add i 1))))
+      (return_void)))
+
+  (fn pipeline
+    (params (data (type-app Vec i32)))
+    (returns (type-app Vec i32))
+    (do
+      (let g (call zx_from_circuit data))
+      (if
+        (condition (op not (call zx_convert_ok g)))
+        (then (do
+          (let bad (call vec_new (type-args i32)))
+          (return (call vec_push (type-args i32) bad 0))))
+        (else (do)))
+      (let g2 (call zx_rewrite g 64))
+      (return (call zx_extract g2))))
+
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let hh (call vec_new (type-args i32)))
+      (set hh (call circ_push hh 1 0 -1 -1 0))
+      (set hh (call circ_push hh 1 0 -1 -1 0))
+      (let rhh (call pipeline hh))
+      (if
+        (condition (op not (call zx_extracted_ok rhh)))
+        (then (do (return 1)))
+        (else (do)))
+      (if
+        (condition (op not-equal (call circ_n (call zx_extracted_circuit rhh)) 0))
+        (then (do (return 2)))
+        (else (do)))
+
+      (let rz (call vec_new (type-args i32)))
+      (set rz (call circ_push rz 11 0 -1 -1 2))
+      (set rz (call circ_push rz 11 0 -1 -1 3))
+      (let rrz (call pipeline rz))
+      (if
+        (condition (op not (call zx_extracted_ok rrz)))
+        (then (do (return 3)))
+        (else (do)))
+      (let rrzc (call zx_extracted_circuit rrz))
+      (if
+        (condition (op not-equal (call circ_n rrzc) 1))
+        (then (do (return 4)))
+        (else (do)))
+      (if
+        (condition (op not-equal (call circ_kind rrzc 0) 11))
+        (then (do (return 5)))
+        (else (do)))
+      (if
+        (condition (op not-equal (call circ_param rrzc 0) 5))
+        (then (do (return 6)))
+        (else (do)))
+
+      (let cc (call vec_new (type-args i32)))
+      (set cc (call circ_push cc 5 0 1 -1 0))
+      (set cc (call circ_push cc 5 0 1 -1 0))
+      (let rcc (call pipeline cc))
+      (if
+        (condition (op not (call zx_extracted_ok rcc)))
+        (then (do (return 7)))
+        (else (do)))
+      (if
+        (condition (op not-equal (call circ_n (call zx_extracted_circuit rcc)) 0))
+        (then (do (return 8)))
+        (else (do)))
+
+      (let oneh (call vec_new (type-args i32)))
+      (set oneh (call circ_push oneh 1 0 -1 -1 0))
+      (let rh (call pipeline oneh))
+      (if
+        (condition (op not (call zx_extracted_ok rh)))
+        (then (do (return 9)))
+        (else (do)))
+      (let rhc (call zx_extracted_circuit rh))
+      (if
+        (condition (op not-equal (call circ_n rhc) 1))
+        (then (do (return 10)))
+        (else (do)))
+      (if
+        (condition (op not-equal (call circ_kind rhc 0) 1))
+        (then (do (return 11)))
+        (else (do)))
+
+      (let y (call vec_new (type-args i32)))
+      (set y (call circ_push y 3 0 -1 -1 0))
+      (if
+        (condition (call zx_convert_ok (call zx_from_circuit y)))
+        (then (do (return 12)))
+        (else (do)))
+
+      (let r1 (call pipeline rz))
+      (let r2 (call pipeline rz))
+      (if
+        (condition (op not (call circ_equal
+          (call zx_extracted_circuit r1)
+          (call zx_extracted_circuit r2))))
+        (then (do (return 13)))
+        (else (do)))
+
+      (let m0 RewriteMatch (call zx_find_match (call zx_from_circuit rz)))
+      (if
+        (condition (op equal (field-get m0 rule) 0))
+        (then (do (return 14)))
+        (else (do)))
+
+      (call write_stdout "CASE hh\n")
+      (call write_stdout "IN\n")
+      (call dump_circ hh)
+      (call write_stdout "OPT\n")
+      (call dump_circ (call zx_extracted_circuit rhh))
+      (call write_stdout "END\n")
+      (call write_stdout "CASE rz\n")
+      (call write_stdout "IN\n")
+      (call dump_circ rz)
+      (call write_stdout "OPT\n")
+      (call dump_circ rrzc)
+      (call write_stdout "END\n")
+      (call write_stdout "CASE cnot\n")
+      (call write_stdout "IN\n")
+      (call dump_circ cc)
+      (call write_stdout "OPT\n")
+      (call dump_circ (call zx_extracted_circuit rcc))
+      (call write_stdout "END\n")
+      (call write_stdout "zx ok\n")
+      (return 0))))

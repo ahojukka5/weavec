@@ -1,0 +1,237 @@
+; SPDX-License-Identifier: Apache-2.0
+; engine.weave — domain-neutral rewrite match key and provenance
+;
+; Production-Weave library, not linked into the bootstrap seed compiler.
+; Families supply matchers and replacements; this module owns the match
+; key, soundness filter, and first-class rule identity packing.
+
+(program
+  (name "rewrite.engine")
+  (version "0.1")
+
+  ; Soundness is data on a rule, not a search-time guess.
+  (enum Soundness
+    (variant TrustedAlgebraic)
+    (variant IndependentlyChecked)
+    (variant Heuristic))
+
+  (struct RewriteMatch
+    (field rule i32)
+    (field start i32)
+    (field span i32)
+    (field extra i32))
+
+  (struct CostVector
+    (field nonclifford i32)
+    (field twoq i32)
+    (field depth i32))
+
+  (struct RewriteEvent
+    (field rule i32)
+    (field start i32)
+    (field span i32)
+    (field extra i32)
+    (field step i32))
+
+  ; Packed rule-id: namespace * 1000 + name * 10 + version.
+  ; Namespaces: 1 toy.seq, 2 toy.graph, 3 quantum.circuit, 4 quantum.zx.
+  (fn rw_pack_id
+    (params (namespace i32) (name i32) (version i32))
+    (returns i32)
+    (do
+      (return (op add
+        (op add
+          (op mul namespace 1000)
+          (op mul name 10))
+        version))))
+
+  (fn rw_id_namespace
+    (params (rule i32))
+    (returns i32)
+    (do
+      (return (op div rule 1000))))
+
+  (fn rw_id_name
+    (params (rule i32))
+    (returns i32)
+    (do
+      (return (op div (op sub rule (op mul (call rw_id_namespace rule) 1000)) 10))))
+
+  (fn rw_id_version
+    (params (rule i32))
+    (returns i32)
+    (do
+      (return (op sub rule
+        (op mul (op div rule 10) 10)))))
+
+  (fn rw_ns_circuit (params) (returns i32) (do (return 3)))
+  (fn rw_ns_zx (params) (returns i32) (do (return 4)))
+
+  (fn rw_i32
+    (params (seq (type-app Vec i32)) (index i32))
+    (returns i32)
+    (do
+      (return (call option_unwrap_or (type-args i32)
+        (call vec_get (type-args i32) seq index)
+        0))))
+
+  (fn rw_match_none
+    (params)
+    (returns RewriteMatch)
+    (do
+      (return (new RewriteMatch
+        (rule 0)
+        (start 0)
+        (span 0)
+        (extra 0)))))
+
+  ; Site ascending, span descending, rule-id ascending, payload ascending.
+  (fn rw_match_better
+    (params (current RewriteMatch) (candidate RewriteMatch))
+    (returns bool)
+    (do
+      (if
+        (condition (op equal (field-get candidate rule) 0))
+        (then (do (return false)))
+        (else (do)))
+      (if
+        (condition (op equal (field-get current rule) 0))
+        (then (do (return true)))
+        (else (do)))
+      (if
+        (condition (op less-than
+          (field-get candidate start)
+          (field-get current start)))
+        (then (do (return true)))
+        (else (do)))
+      (if
+        (condition (op greater-than
+          (field-get candidate start)
+          (field-get current start)))
+        (then (do (return false)))
+        (else (do)))
+      (if
+        (condition (op greater-than
+          (field-get candidate span)
+          (field-get current span)))
+        (then (do (return true)))
+        (else (do)))
+      (if
+        (condition (op less-than
+          (field-get candidate span)
+          (field-get current span)))
+        (then (do (return false)))
+        (else (do)))
+      (if
+        (condition (op less-than
+          (field-get candidate rule)
+          (field-get current rule)))
+        (then (do (return true)))
+        (else (do)))
+      (if
+        (condition (op greater-than
+          (field-get candidate rule)
+          (field-get current rule)))
+        (then (do (return false)))
+        (else (do)))
+      (return (op less-than
+        (field-get candidate extra)
+        (field-get current extra)))))
+
+  (fn rw_soundness_class
+    (params (rule i32))
+    (returns Soundness)
+    (do
+      (let name i32 (call rw_id_name rule))
+      ; Circuit 9 and ZX 9 are reserved heuristic probes.
+      (if
+        (condition (op equal name 9))
+        (then (do (return (variant Soundness Heuristic))))
+        (else (do)))
+      (return (variant Soundness TrustedAlgebraic))))
+
+  (fn rw_rule_admitted
+    (params (rule i32) (allow_heuristic bool))
+    (returns bool)
+    (do
+      (if
+        (condition (op equal rule 0))
+        (then (do (return false)))
+        (else (do)))
+      (return (match Soundness (call rw_soundness_class rule)
+        (case Heuristic allow_heuristic)
+        (case TrustedAlgebraic true)
+        (case IndependentlyChecked true)))))
+
+  (fn rw_cost_zero
+    (params)
+    (returns CostVector)
+    (do
+      (return (new CostVector
+        (nonclifford 0)
+        (twoq 0)
+        (depth 0)))))
+
+  ; Lexicographic (nonclifford, twoq, depth). Not a weighted scalar.
+  (fn rw_cost_better
+    (params (current CostVector) (candidate CostVector))
+    (returns bool)
+    (do
+      (if
+        (condition (op less-than
+          (field-get candidate nonclifford)
+          (field-get current nonclifford)))
+        (then (do (return true)))
+        (else (do)))
+      (if
+        (condition (op greater-than
+          (field-get candidate nonclifford)
+          (field-get current nonclifford)))
+        (then (do (return false)))
+        (else (do)))
+      (if
+        (condition (op less-than
+          (field-get candidate twoq)
+          (field-get current twoq)))
+        (then (do (return true)))
+        (else (do)))
+      (if
+        (condition (op greater-than
+          (field-get candidate twoq)
+          (field-get current twoq)))
+        (then (do (return false)))
+        (else (do)))
+      (return (op less-than
+        (field-get candidate depth)
+        (field-get current depth)))))
+
+  (fn rw_cost_worse
+    (params (current CostVector) (candidate CostVector))
+    (returns bool)
+    (do
+      (return (call rw_cost_better candidate current))))
+
+  (fn rw_event
+    (params
+      (rule i32)
+      (start i32)
+      (span i32)
+      (extra i32)
+      (step i32))
+    (returns RewriteEvent)
+    (do
+      (return (new RewriteEvent
+        (rule rule)
+        (start start)
+        (span span)
+        (extra extra)
+        (step step)))))
+
+  ; Reject / failure codes used by diagnostics.
+  (fn rw_ok (params) (returns i32) (do (return 0)))
+  (fn rw_fail_unsupported (params) (returns i32) (do (return 1)))
+  (fn rw_fail_extract (params) (returns i32) (do (return 2)))
+  (fn rw_fail_equiv (params) (returns i32) (do (return 3)))
+  (fn rw_fail_target (params) (returns i32) (do (return 4)))
+  (fn rw_fail_bound (params) (returns i32) (do (return 5)))
+)
