@@ -23,9 +23,13 @@ names used when they were released.
 - [Typed deterministic rewrite semantics](rewrite-semantics.md) — the M0
   compiled-rewriting contract: pattern variables, guards, replacements, rule
   identity, provenance, match order, and cost/search separation.
+- [Rule authoring](rewrite-authoring.md) — how to write rules in ordinary
+  Weave against the compiler-owned rewrite library.
 - [Circuit IR and compiled local rewrites](circuit-rewrite.md) — the M1
   sequence-family adapter, three exact local rules, and the #457
   stop-rule comparison against a special-case scan of the same rules.
+- [ZX graph IR](zx-ir.md) — graph-like ZX representation, bounded
+  compiled rewrites, and deterministic extraction.
 - [Structured semantic type graph](structured-type-graph.md) — canonical type
   identities, interning, node kinds, legacy migration, and the WIR-v3 boundary.
 - [Weave project manifest version 1](project-manifest.md) — canonical
@@ -118,9 +122,11 @@ names used when they were released.
 - [Struct value semantics](struct-ownership.md)
 - [Ownership requirements for concurrency and GPU](ownership-concurrency.md)
 - [Typed deterministic rewrite semantics](rewrite-semantics.md)
+- [Rule authoring](rewrite-authoring.md)
 - [Circuit IR and compiled local rewrites](circuit-rewrite.md)
 - [Syntax tree-walk depth budget](syntax-depth.md)
 - [Deterministic mutation-fuzzing lane](mutation-fuzz.md)
+- [ZX graph IR](zx-ir.md)
 - [Quantum surface support](quantum.md)
 
 ## Backend and performance notes

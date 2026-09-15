@@ -1,0 +1,65 @@
+; SPDX-License-Identifier: Apache-2.0
+; targets.weave — topology-free target packs for circuit legality
+;
+; Packs declare admitted gate sets. They do not own generic matching.
+
+(program
+  (name "rewrite.targets")
+  (version "0.1")
+
+  (fn pack_unrestricted (params) (returns i32) (do (return 0)))
+  (fn pack_clifford_t (params) (returns i32) (do (return 1)))
+  (fn pack_rigetti (params) (returns i32) (do (return 2)))
+
+  (fn pack_kind_legal
+    (params (pack i32) (kind i32))
+    (returns bool)
+    (do
+      (if
+        (condition (op equal pack 0))
+        (then (do (return true)))
+        (else (do)))
+      (if
+        (condition (op equal pack 1))
+        (then (do
+          (if
+            (condition (op or
+              (op equal kind 1)
+              (op or (op equal kind 2)
+                (op or (op equal kind 3)
+                  (op or (op equal kind 4)
+                    (op or (op equal kind 5)
+                      (op or (op equal kind 6)
+                        (op or (op equal kind 12)
+                          (op or (op equal kind 13)
+                            (op or (op equal kind 14)
+                              (op equal kind 15)))))))))))
+            (then (do (return true)))
+            (else (do (return false))))))
+        (else (do)))
+      (if
+        (condition (op equal pack 2))
+        (then (do
+          (return (op or
+            (op equal kind 6)
+            (op or (op equal kind 9)
+              (op or (op equal kind 10) (op equal kind 11)))))))
+        (else (do)))
+      (return false)))
+
+  (fn circ_pack_legal
+    (params (data (type-app Vec i32)) (pack i32))
+    (returns bool)
+    (do
+      (let n i32 (call circ_n data))
+      (let i i32 0)
+      (while
+        (condition (op less-than i n))
+        (do
+          (if
+            (condition (op not (call pack_kind_legal pack (call circ_kind data i))))
+            (then (do (return false)))
+            (else (do)))
+          (set i (op add i 1))))
+      (return true)))
+)

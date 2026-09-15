@@ -166,6 +166,16 @@ operators, casts, and ordinary/typed calls keep their existing semantic
 authority and, on the success path, construct owned WIR trees rather than
 textual fragments.
 
+### Compiled rewriting — `src/rewrite/`
+
+These production-Weave modules own the typed rewrite engine, circuit IR,
+ZX graph IR, and topology-free target packs. They are classified in
+`compiler/sources.list` with `!` because the seed compiler cannot yet
+link them. Tests and later optimizer passes build them with production
+`weavec`. High-level circuit and ZX transformation stays above ordinary
+WIR. See [Rule authoring](rewrite-authoring.md) and
+[ZX graph IR](zx-ir.md).
+
 ### Self-hosted WIR backend — `src/llvm/`
 
 This layer validates WIR core version 3 and emits deterministic LLVM IR. It
