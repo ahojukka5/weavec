@@ -1,0 +1,557 @@
+; SPDX-License-Identifier: Apache-2.0
+; surface_op_tree.weave — structural success-path lowering for operators/casts
+;
+; Semantic validation stays in surface_op_emit / surface_cast_emit. This module
+; builds owned WIR nodes for admitted operators and casts, composing #410
+; leaves and recursively tree-built operator/cast children. Unmigrated
+; children (calls, if, ...) return failure so the caller can keep the text
+; renderer during the #412/#413 overlap window.
+
+(program
+  (name "surface_op_tree")
+  (version "0.1")
+
+  (fn sot_type_cstr
+    (params (sot_type i32))
+    (returns ptr)
+    (do
+      (let sot_name ptr (call_ptr weave_semantic_type_display (param_get sot_type)))
+      (if
+        (condition (eq_ptr (local_get sot_name) (const_null)))
+        (then (do (return (const_string_ptr "unknown"))))
+        (else (do (return (local_get sot_name)))))))
+
+  (fn sot_build_leaf
+    (params
+      (sot_wir ptr) (sot_source ptr) (sot_tree ptr)
+      (sot_node i64) (sot_type i32))
+    (returns i64)
+    (do
+      (let sot_type_name ptr (call_ptr sot_type_cstr (param_get sot_type)))
+      (if
+        (condition (eq_i32 (call_i32 wir_scalar_expr_leaf_supported
+          (param_get sot_tree) (param_get sot_source) (param_get sot_node)
+          (local_get sot_type_name)) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 wir_scalar_expr_build_leaf
+        (param_get sot_wir) (param_get sot_source) (param_get sot_tree)
+        (param_get sot_node) (local_get sot_type_name)))))
+
+  (fn sot_failure_const
+    (params (sot_wir ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wir_scalar_const_i32 (param_get sot_wir) (const_i64 0)))))
+
+  (fn sot_build_nested_op
+    (params
+      (sot_wir ptr) (sot_source ptr) (sot_tree ptr) (sot_node i64))
+    (returns i64)
+    (do
+      (let sot_child_count i64 (call_i64 count_children
+        (param_get sot_tree) (param_get sot_node)))
+      (let sot_prefix i64 (call_i64 surface_op_prefix_count
+        (param_get sot_tree) (param_get sot_source) (param_get sot_node)))
+      (if
+        (condition (and_bool
+          (ne_i32 (call_i32 surface_is_wrapped_op
+            (param_get sot_tree) (param_get sot_source) (param_get sot_node))
+            (const_i32 0))
+          (lt_i64 (local_get sot_child_count) (const_i64 2))))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "operator"))
+          (call_void write_cstr (const_i32 2) (const_string_ptr "missing operator name"))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let sot_name_node i64 (call_i64 surface_op_name_node
+        (param_get sot_tree) (param_get sot_source) (param_get sot_node)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get sot_tree) (local_get sot_name_node)) (const_i32 0)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "operator"))
+          (call_void write_cstr (const_i32 2)
+            (const_string_ptr "operator name must be an identifier"))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let sot_is_arithmetic i32 (call_i32 sop_name_is_arithmetic
+        (param_get sot_tree) (param_get sot_source) (local_get sot_name_node)))
+      (let sot_is_bitwise i32 (call_i32 sop_name_is_bitwise
+        (param_get sot_tree) (param_get sot_source) (local_get sot_name_node)))
+      (let sot_is_comparison i32 (call_i32 sop_name_is_comparison
+        (param_get sot_tree) (param_get sot_source) (local_get sot_name_node)))
+      (let sot_is_bool_binary i32 (call_i32 sop_name_is_boolean_binary
+        (param_get sot_tree) (param_get sot_source) (local_get sot_name_node)))
+      (let sot_is_bool_unary i32 (call_i32 sop_name_is_boolean_unary
+        (param_get sot_tree) (param_get sot_source) (local_get sot_name_node)))
+      (if
+        (condition (and_bool
+          (eq_i32 (local_get sot_is_arithmetic) (const_i32 0))
+          (and_bool
+            (eq_i32 (local_get sot_is_bitwise) (const_i32 0))
+            (and_bool
+              (eq_i32 (local_get sot_is_comparison) (const_i32 0))
+              (and_bool
+                (eq_i32 (local_get sot_is_bool_binary) (const_i32 0))
+                (eq_i32 (local_get sot_is_bool_unary) (const_i32 0)))))))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "operator"))
+          (call_void write_cstr (const_i32 2)
+            (const_string_ptr "unknown canonical operator "))
+          (call_void emit_node_text
+            (const_i32 2) (param_get sot_source) (param_get sot_tree)
+            (local_get sot_name_node))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let sot_base ptr (call_ptr sop_canonical_base_ptr
+        (param_get sot_tree) (param_get sot_source) (local_get sot_name_node)))
+      (if
+        (condition (eq_ptr (local_get sot_base) (const_null)))
+        (then (do (return (const_i64 -2))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (local_get sot_is_bool_unary) (const_i32 0)))
+        (then (do
+          (if
+            (condition (ne_i64 (local_get sot_child_count)
+              (add_i64 (local_get sot_prefix) (const_i64 1))))
+            (then (do
+              (call_void surface_error_prefix (const_string_ptr "operator"))
+              (call_void write_cstr (const_i32 2)
+                (const_string_ptr "wrong arity for not: expected 1, got "))
+              (call_void write_i64_dec (const_i32 2)
+                (sub_i64 (local_get sot_child_count) (local_get sot_prefix)))
+              (call_void write_byte (const_i32 2) (const_i32 10))
+              (return (const_i64 -1))))
+            (else (do)))
+          (let sot_unary_node i64 (call_i64 nth_child
+            (param_get sot_tree) (param_get sot_node) (local_get sot_prefix)))
+          (let sot_unary_type i32 (call_i32 sop_expr_type
+            (param_get sot_tree) (param_get sot_source) (local_get sot_unary_node)
+            (call_i32 surface_type_bool)))
+          (if
+            (condition (ne_i32 (local_get sot_unary_type) (call_i32 surface_type_bool)))
+            (then (do
+              (call_void surface_error_prefix (const_string_ptr "operator"))
+              (call_void write_cstr (const_i32 2)
+                (const_string_ptr "not expects bool, got "))
+              (call_void surface_emit_type_name
+                (const_i32 2) (local_get sot_unary_type))
+              (call_void write_byte (const_i32 2) (const_i32 10))
+              (return (const_i64 -1))))
+            (else (do)))
+          (let sot_unary_value i64 (call_i64 sot_build_operand
+            (param_get sot_wir) (param_get sot_source) (param_get sot_tree)
+            (local_get sot_unary_node) (call_i32 surface_type_bool)))
+          (if
+            (condition (lt_i64 (local_get sot_unary_value) (const_i64 0)))
+            (then (do (return (const_i64 -2))))
+            (else (do)))
+          (return (call_i64 wir_operator_unary
+            (param_get sot_wir) (local_get sot_base) (const_string_ptr "bool")
+            (local_get sot_unary_value)))))
+        (else (do)))
+      (if
+        (condition (ne_i64 (local_get sot_child_count)
+          (add_i64 (local_get sot_prefix) (const_i64 2))))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "operator"))
+          (call_void write_cstr (const_i32 2) (const_string_ptr "wrong arity for "))
+          (call_void emit_node_text
+            (const_i32 2) (param_get sot_source) (param_get sot_tree)
+            (local_get sot_name_node))
+          (call_void write_cstr (const_i32 2) (const_string_ptr ": expected 2, got "))
+          (call_void write_i64_dec (const_i32 2)
+            (sub_i64 (local_get sot_child_count) (local_get sot_prefix)))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let sot_left_node i64 (call_i64 nth_child
+        (param_get sot_tree) (param_get sot_node) (local_get sot_prefix)))
+      (let sot_right_node i64 (call_i64 nth_child
+        (param_get sot_tree) (param_get sot_node)
+        (add_i64 (local_get sot_prefix) (const_i64 1))))
+      (if
+        (condition (ne_i32 (local_get sot_is_bool_binary) (const_i32 0)))
+        (then (do
+          (let sot_bool_left_type i32 (call_i32 sop_expr_type
+            (param_get sot_tree) (param_get sot_source) (local_get sot_left_node)
+            (call_i32 surface_type_bool)))
+          (let sot_bool_right_type i32 (call_i32 sop_expr_type
+            (param_get sot_tree) (param_get sot_source) (local_get sot_right_node)
+            (call_i32 surface_type_bool)))
+          (if
+            (condition (or_bool
+              (ne_i32 (local_get sot_bool_left_type) (call_i32 surface_type_bool))
+              (ne_i32 (local_get sot_bool_right_type) (call_i32 surface_type_bool))))
+            (then (do
+              (call_void surface_error_prefix (const_string_ptr "operator"))
+              (call_void write_cstr (const_i32 2)
+                (const_string_ptr "boolean operator expects bool operands"))
+              (call_void write_byte (const_i32 2) (const_i32 10))
+              (return (const_i64 -1))))
+            (else (do)))
+          (let sot_bool_left i64 (call_i64 sot_build_operand
+            (param_get sot_wir) (param_get sot_source) (param_get sot_tree)
+            (local_get sot_left_node) (call_i32 surface_type_bool)))
+          (let sot_bool_right i64 (call_i64 sot_build_operand
+            (param_get sot_wir) (param_get sot_source) (param_get sot_tree)
+            (local_get sot_right_node) (call_i32 surface_type_bool)))
+          (if
+            (condition (or_bool
+              (lt_i64 (local_get sot_bool_left) (const_i64 0))
+              (lt_i64 (local_get sot_bool_right) (const_i64 0))))
+            (then (do (return (const_i64 -2))))
+            (else (do)))
+          (return (call_i64 wir_operator_binary
+            (param_get sot_wir) (local_get sot_base) (const_string_ptr "bool")
+            (local_get sot_bool_left) (local_get sot_bool_right)))))
+        (else (do)))
+      (let sot_operand_type i32 (call_i32 sop_infer_binary_type
+        (param_get sot_tree) (param_get sot_source)
+        (local_get sot_left_node) (local_get sot_right_node)))
+      (if
+        (condition (eq_i32 (local_get sot_operand_type) (call_i32 surface_type_unknown)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "operator"))
+          (call_void write_cstr (const_i32 2)
+            (const_string_ptr "operand type mismatch for "))
+          (call_void emit_node_text
+            (const_i32 2) (param_get sot_source) (param_get sot_tree)
+            (local_get sot_name_node))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get sot_is_arithmetic) (const_i32 0))
+          (eq_i32 (call_i32 sop_type_is_numeric
+            (local_get sot_operand_type)) (const_i32 0))))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "operator"))
+          (call_void write_cstr (const_i32 2)
+            (const_string_ptr "arithmetic operator does not support "))
+          (call_void surface_emit_type_name
+            (const_i32 2) (local_get sot_operand_type))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get sot_is_bitwise) (const_i32 0))
+          (eq_i32 (call_i32 sop_type_is_integer
+            (local_get sot_operand_type)) (const_i32 0))))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "operator"))
+          (call_void write_cstr (const_i32 2)
+            (const_string_ptr "bitwise operator does not support "))
+          (call_void surface_emit_type_name
+            (const_i32 2) (local_get sot_operand_type))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get sot_is_comparison) (const_i32 0))
+          (ne_i32 (call_i32 weave_semantic_is_enum_type
+            (local_get sot_operand_type)) (const_i32 0))))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "enum"))
+          (call_void write_cstr (const_i32 2)
+            (const_string_ptr "values have no identity; use match or variant-tag, not pointer equality"))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get sot_is_comparison) (const_i32 0))
+          (eq_i32 (call_i32 sop_comparison_supports_type
+            (param_get sot_tree) (param_get sot_source) (local_get sot_name_node)
+            (local_get sot_operand_type)) (const_i32 0))))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "operator"))
+          (call_void write_cstr (const_i32 2)
+            (const_string_ptr "comparison does not support "))
+          (call_void surface_emit_type_name
+            (const_i32 2) (local_get sot_operand_type))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let sot_left i64 (call_i64 sot_build_operand
+        (param_get sot_wir) (param_get sot_source) (param_get sot_tree)
+        (local_get sot_left_node) (local_get sot_operand_type)))
+      (let sot_right i64 (call_i64 sot_build_operand
+        (param_get sot_wir) (param_get sot_source) (param_get sot_tree)
+        (local_get sot_right_node) (local_get sot_operand_type)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get sot_left) (const_i64 0))
+          (lt_i64 (local_get sot_right) (const_i64 0))))
+        (then (do (return (const_i64 -2))))
+        (else (do)))
+      (return (call_i64 wir_operator_binary
+        (param_get sot_wir) (local_get sot_base)
+        (call_ptr sot_type_cstr (local_get sot_operand_type))
+        (local_get sot_left) (local_get sot_right)))))
+
+  (fn sot_build_nested_cast
+    (params
+      (sot_wir ptr) (sot_source ptr) (sot_tree ptr) (sot_node i64))
+    (returns i64)
+    (do
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get sot_tree) (param_get sot_node)) (const_i64 3)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "cast"))
+          (call_void write_cstr (const_i32 2)
+            (const_string_ptr "expected target type and one expression"))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let sot_target_node i64 (call_i64 nth_child
+        (param_get sot_tree) (param_get sot_node) (const_i64 1)))
+      (let sot_value_node i64 (call_i64 nth_child
+        (param_get sot_tree) (param_get sot_node) (const_i64 2)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get sot_tree) (local_get sot_target_node)) (const_i32 0)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "cast"))
+          (call_void write_cstr (const_i32 2)
+            (const_string_ptr "target type must be an identifier"))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let sot_target_type i32 (call_i32 surface_type_code
+        (param_get sot_tree) (param_get sot_source) (local_get sot_target_node)))
+      (let sot_source_type i32 (call_i32 sop_expr_type
+        (param_get sot_tree) (param_get sot_source) (local_get sot_value_node)
+        (call_i32 surface_type_unknown)))
+      (if
+        (condition (eq_i32 (local_get sot_target_type) (call_i32 surface_type_unknown)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "cast"))
+          (call_void write_cstr (const_i32 2) (const_string_ptr "unknown target type "))
+          (call_void emit_node_text
+            (const_i32 2) (param_get sot_source) (param_get sot_tree)
+            (local_get sot_target_node))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (local_get sot_source_type) (call_i32 surface_type_unknown)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "cast"))
+          (call_void write_cstr (const_i32 2)
+            (const_string_ptr "cannot determine source expression type"))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 sop_cast_pair_supported
+          (local_get sot_source_type) (local_get sot_target_type)) (const_i32 0)))
+        (then (do
+          (call_void surface_error_prefix (const_string_ptr "cast"))
+          (call_void write_cstr (const_i32 2)
+            (const_string_ptr "unsupported cast from "))
+          (call_void surface_emit_type_name
+            (const_i32 2) (local_get sot_source_type))
+          (call_void write_cstr (const_i32 2) (const_string_ptr " to "))
+          (call_void surface_emit_type_name
+            (const_i32 2) (local_get sot_target_type))
+          (call_void write_byte (const_i32 2) (const_i32 10))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let sot_value i64 (call_i64 sot_build_operand
+        (param_get sot_wir) (param_get sot_source) (param_get sot_tree)
+        (local_get sot_value_node) (local_get sot_source_type)))
+      (if
+        (condition (lt_i64 (local_get sot_value) (const_i64 0)))
+        (then (do (return (const_i64 -2))))
+        (else (do)))
+      (return (call_i64 wir_operator_cast
+        (param_get sot_wir)
+        (call_ptr sot_type_cstr (local_get sot_source_type))
+        (call_ptr sot_type_cstr (local_get sot_target_type))
+        (local_get sot_value)))))
+
+  (fn sot_build_operand
+    (params
+      (sot_wir ptr) (sot_source ptr) (sot_tree ptr)
+      (sot_node i64) (sot_type i32))
+    (returns i64)
+    (do
+      (let sot_leaf i64 (call_i64 sot_build_leaf
+        (param_get sot_wir) (param_get sot_source) (param_get sot_tree)
+        (param_get sot_node) (param_get sot_type)))
+      (if
+        (condition (ge_i64 (local_get sot_leaf) (const_i64 0)))
+        (then (do (return (local_get sot_leaf))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_is_operator_node
+          (param_get sot_tree) (param_get sot_source) (param_get sot_node))
+          (const_i32 0)))
+        (then (do
+          (let sot_op i64 (call_i64 sot_build_nested_op
+            (param_get sot_wir) (param_get sot_source) (param_get sot_tree)
+            (param_get sot_node)))
+          (if
+            (condition (eq_i64 (local_get sot_op) (const_i64 -1)))
+            (then (do (return (call_i64 sot_failure_const (param_get sot_wir)))))
+            (else (do)))
+          (return (local_get sot_op))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_node_is_list_head
+          (param_get sot_tree) (param_get sot_source) (param_get sot_node)
+          (const_string_ptr "cast") (const_i64 4)) (const_i32 0)))
+        (then (do
+          (let sot_cast i64 (call_i64 sot_build_nested_cast
+            (param_get sot_wir) (param_get sot_source) (param_get sot_tree)
+            (param_get sot_node)))
+          (if
+            (condition (eq_i64 (local_get sot_cast) (const_i64 -1)))
+            (then (do (return (call_i64 sot_failure_const (param_get sot_wir)))))
+            (else (do)))
+          (return (local_get sot_cast))))
+        (else (do)))
+      (return (const_i64 -1))))
+
+  (fn sot_publish_root
+    (params (sot_fd i32) (sot_wir ptr) (sot_root i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get sot_wir) (const_null))
+          (lt_i64 (param_get sot_root) (const_i64 0))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 wir_subtree_publish
+          (param_get sot_fd) (param_get sot_wir) (param_get sot_root))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+
+  ; Build and publish one already-validated unary operator. Returns 1 if the
+  ; fd received a complete structural subtree.
+  (fn sot_try_publish_unary
+    (params
+      (sot_fd i32) (sot_source ptr) (sot_tree ptr)
+      (sot_name_node i64) (sot_value_node i64))
+    (returns i32)
+    (do
+      (let sot_base ptr (call_ptr sop_canonical_base_ptr
+        (param_get sot_tree) (param_get sot_source) (param_get sot_name_node)))
+      (if
+        (condition (eq_ptr (local_get sot_base) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sot_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sot_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sot_value i64 (call_i64 sot_build_operand
+        (local_get sot_wir) (param_get sot_source) (param_get sot_tree)
+        (param_get sot_value_node) (call_i32 surface_type_bool)))
+      (let sot_root i64 (const_i64 -1))
+      (if
+        (condition (ge_i64 (local_get sot_value) (const_i64 0)))
+        (then (do
+          (set sot_root (call_i64 wir_operator_unary
+            (local_get sot_wir) (local_get sot_base) (const_string_ptr "bool")
+            (local_get sot_value)))))
+        (else (do)))
+      (let sot_ok i32 (call_i32 sot_publish_root
+        (param_get sot_fd) (local_get sot_wir) (local_get sot_root)))
+      (call_void wir_tree_free (local_get sot_wir))
+      (return (local_get sot_ok))))
+
+  (fn sot_try_publish_binary
+    (params
+      (sot_fd i32) (sot_source ptr) (sot_tree ptr) (sot_name_node i64)
+      (sot_left_node i64) (sot_right_node i64) (sot_operand_type i32)
+      (sot_bool_result i32))
+    (returns i32)
+    (do
+      (let sot_base ptr (call_ptr sop_canonical_base_ptr
+        (param_get sot_tree) (param_get sot_source) (param_get sot_name_node)))
+      (if
+        (condition (eq_ptr (local_get sot_base) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sot_type_name ptr (const_string_ptr "bool"))
+      (if
+        (condition (eq_i32 (param_get sot_bool_result) (const_i32 0)))
+        (then (do
+          (set sot_type_name (call_ptr sot_type_cstr (param_get sot_operand_type)))))
+        (else (do)))
+      (let sot_child_type i32 (call_i32 surface_type_bool))
+      (if
+        (condition (eq_i32 (param_get sot_bool_result) (const_i32 0)))
+        (then (do (set sot_child_type (param_get sot_operand_type))))
+        (else (do)))
+      (let sot_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sot_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sot_left i64 (call_i64 sot_build_operand
+        (local_get sot_wir) (param_get sot_source) (param_get sot_tree)
+        (param_get sot_left_node) (local_get sot_child_type)))
+      (let sot_right i64 (call_i64 sot_build_operand
+        (local_get sot_wir) (param_get sot_source) (param_get sot_tree)
+        (param_get sot_right_node) (local_get sot_child_type)))
+      (let sot_root i64 (const_i64 -1))
+      (if
+        (condition (and_bool
+          (ge_i64 (local_get sot_left) (const_i64 0))
+          (ge_i64 (local_get sot_right) (const_i64 0))))
+        (then (do
+          (set sot_root (call_i64 wir_operator_binary
+            (local_get sot_wir) (local_get sot_base) (local_get sot_type_name)
+            (local_get sot_left) (local_get sot_right)))))
+        (else (do)))
+      (let sot_ok i32 (call_i32 sot_publish_root
+        (param_get sot_fd) (local_get sot_wir) (local_get sot_root)))
+      (call_void wir_tree_free (local_get sot_wir))
+      (return (local_get sot_ok))))
+
+  (fn sot_try_publish_cast
+    (params
+      (sot_fd i32) (sot_source ptr) (sot_tree ptr)
+      (sot_source_type i32) (sot_target_type i32) (sot_value_node i64))
+    (returns i32)
+    (do
+      (let sot_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sot_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sot_value i64 (call_i64 sot_build_operand
+        (local_get sot_wir) (param_get sot_source) (param_get sot_tree)
+        (param_get sot_value_node) (param_get sot_source_type)))
+      (let sot_root i64 (const_i64 -1))
+      (if
+        (condition (ge_i64 (local_get sot_value) (const_i64 0)))
+        (then (do
+          (set sot_root (call_i64 wir_operator_cast
+            (local_get sot_wir)
+            (call_ptr sot_type_cstr (param_get sot_source_type))
+            (call_ptr sot_type_cstr (param_get sot_target_type))
+            (local_get sot_value)))))
+        (else (do)))
+      (let sot_ok i32 (call_i32 sot_publish_root
+        (param_get sot_fd) (local_get sot_wir) (local_get sot_root)))
+      (call_void wir_tree_free (local_get sot_wir))
+      (return (local_get sot_ok))))
+)
