@@ -10,6 +10,13 @@ surface-language contract stabilises.
 
 ### Added
 
+- A deterministic mutation-fuzzing lane over conformance and current
+  WIR fixtures. `scripts/mutation_fuzz.py` applies a recorded seed,
+  asserts documented exits, schema-valid diagnostics, and no partial
+  artifacts, and dumps a replayable input on failure. Pull requests run
+  24 cases; the master ladder runs 192. See
+  [Deterministic mutation-fuzzing lane](docs/mutation-fuzz.md) and
+  issue #387.
 - The typed deterministic rewrite contract for compiled optimization.
   [Rewrite rule semantics](docs/rewrite-semantics.md) specifies pattern
   variables, guards, replacements, rule identity, soundness provenance,

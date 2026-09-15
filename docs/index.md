@@ -54,6 +54,9 @@ names used when they were released.
   normal form, compatibility normalization, comment policy, and atomic updates.
 - [Syntax tree-walk depth budget](syntax-depth.md) — the compiler-owned
   nesting limit, diagnostics, and which walks remain recursive.
+- [Deterministic mutation-fuzzing lane](mutation-fuzz.md) — recorded-seed
+  mutation of surface and WIR fixtures, crash/hang/diagnostic oracles, and
+  PR versus nightly budgets.
 - [Compiler version identity](compiler-version.md) — release and development
   version strings, build-time embedding, and reproducibility semantics.
 - [Language reference](language-reference.md) — the implemented surface-Weave
@@ -117,6 +120,7 @@ names used when they were released.
 - [Typed deterministic rewrite semantics](rewrite-semantics.md)
 - [Circuit IR and compiled local rewrites](circuit-rewrite.md)
 - [Syntax tree-walk depth budget](syntax-depth.md)
+- [Deterministic mutation-fuzzing lane](mutation-fuzz.md)
 - [Quantum surface support](quantum.md)
 
 ## Backend and performance notes
