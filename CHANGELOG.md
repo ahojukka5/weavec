@@ -19,8 +19,11 @@ surface-language contract stabilises.
   issue #387.
 - Canonical operators and casts keep their existing type, arity, and
   name diagnostics, but admitted forms now construct owned WIR trees and
-  publish complete subtrees. Unmigrated operands such as calls still use
-  the temporary text renderer until #412/#413. See issue #411.
+  publish complete subtrees. Ordinary and typed calls keep the same
+  symbol, arity, type, and specialization checks, and admitted success
+  paths now publish complete call subtrees. Unmigrated statement wrappers
+  still use the temporary text renderer until #413. See issues #411 and
+  #412.
 - The typed deterministic rewrite contract for compiled optimization.
   [Rewrite rule semantics](docs/rewrite-semantics.md) specifies pattern
   variables, guards, replacements, rule identity, soundness provenance,
