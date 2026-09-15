@@ -168,6 +168,8 @@ executes surface-elaboration
 executes surface-op-tree
 # builds zero/one/multi-arg and specialized call programs and runs them
 executes surface-call-tree
+# builds let/set/return and inferred-let programs and runs them
+executes surface-stmt-tree
 executes surface-symbols
 executes tagged-variants
 # tooling artifact documents
@@ -193,6 +195,7 @@ executes wir-decimal
 executes wir-invariants
 executes wir-operator
 executes wir-call
+executes wir-stmt
 executes wir-scalar
 executes wir-scalar-expr
 executes wir-scalar-literals
