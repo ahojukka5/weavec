@@ -330,7 +330,7 @@
       (return_void)))
 
   (fn ml_head_eq
-    (params (tree ptr) (source ptr) (node i64) (name ptr) (len i64))
+    (params (tree ptr) (source ptr) (node i64) (ident_str ptr) (len i64))
     (returns i32)
     (do
       (if
@@ -340,7 +340,7 @@
         (else (do)))
       (return (call_i32 head_equals
         (param_get tree) (param_get source) (param_get node)
-        (param_get name) (param_get len)))))
+        (param_get ident_str) (param_get len)))))
 
   (fn ml_walk
     (params (table ptr) (node i64))
