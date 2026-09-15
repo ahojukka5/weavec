@@ -31,6 +31,9 @@ log 'mutation-fuzz campaign'
 WEAVEC_MUTATION_FUZZ_BUDGET=pr \
   bash "$ROOT/test/mutation-fuzz/test.sh"
 
+log 'mutated-local identity table'
+bash "$ROOT/test/mutated-locals/test.sh"
+
 log 'surface conformance corpus'
 bash "$ROOT/test/conformance/run.sh"
 

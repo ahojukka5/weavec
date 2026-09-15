@@ -103,6 +103,8 @@ executes modules
 # crash/hang/diagnostic/partial-artifact oracle over mutated fixtures;
 # accepted random programs are not executed
 contract mutation-fuzz
+# one-pass mutated-local identities; the collector program is the subject
+executes mutated-locals
 executes newton-root
 executes optimization-evidence
 executes option-helpers
