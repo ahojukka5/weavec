@@ -27,6 +27,10 @@ bash "$ROOT/test/parse-diagnostics/test.sh"
 log 'tree-walk depth budget'
 bash "$ROOT/test/tree-walk-depth/test.sh"
 
+log 'mutation-fuzz campaign'
+WEAVEC_MUTATION_FUZZ_BUDGET=pr \
+  bash "$ROOT/test/mutation-fuzz/test.sh"
+
 log 'surface conformance corpus'
 bash "$ROOT/test/conformance/run.sh"
 

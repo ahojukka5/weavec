@@ -82,6 +82,15 @@ jobs:
         shell: bash
         run: bash scripts/pr-compile.sh
 
+      - name: Upload mutation-fuzz failure dump
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-fuzz-${{ github.run_id }}-linux
+          path: build/mutation-fuzz/
+          if-no-files-found: ignore
+          retention-days: 7
+
   pr-compile-macos:
     name: "check: compile and fast suites (macOS)"
     if: github.event_name == 'pull_request'
@@ -127,6 +136,15 @@ jobs:
         shell: bash
         run: bash scripts/pr-compile.sh
 
+      - name: Upload mutation-fuzz failure dump
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-fuzz-${{ github.run_id }}-macos
+          path: build/mutation-fuzz/
+          if-no-files-found: ignore
+          retention-days: 7
+
   test:
     name: "test: compile & run full ladder (${{ matrix.name }})"
     if: github.event_name == 'push'
@@ -164,6 +182,15 @@ jobs:
         run: |
           set -o pipefail
           ./test-all.sh 2>&1 | tee ci.log
+
+      - name: Upload mutation-fuzz failure dump
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-fuzz-${{ matrix.name }}-${{ github.run_id }}
+          path: build/mutation-fuzz/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Verify dependency mode
         shell: bash
