@@ -26,28 +26,6 @@ grep -Fq '(call_i32 ml_collect' "$ROOT/src/llvm/fn.weave"
 grep -Fq '(call_i32 ml_binding_mutated' "$ROOT/src/llvm/stmt.weave"
 grep -Fq 'ml_table_new' "$ROOT/src/llvm/ctx.weave"
 
-cp -a "$ROOT/runtime" "$TMP/runtime"
-cat >> "$TMP/runtime/program.c" <<'C'
-
-int32_t weave_rt_write(int32_t fd, const void *data, int64_t n) {
-    if (n <= 0 || data == 0) {
-        return 0;
-    }
-    return write((int)fd, data, (size_t)n) < 0 ? 1 : 0;
-}
-int32_t weave_rt_write_u8(int32_t fd, int32_t b) {
-    unsigned char byte = (unsigned char)b;
-    return weave_rt_write(fd, &byte, 1);
-}
-int32_t weave_rt_write_finish(int32_t fd) {
-    (void)fd;
-    return 0;
-}
-int32_t weave_rt_write_failed(void) {
-    return 0;
-}
-C
-
 "$WEAVEC" build \
     "$ROOT/src/core/extern.weave" \
     "$ROOT/src/parser/tokens.weave" \
@@ -58,13 +36,7 @@ C
     "$ROOT/src/core/util.weave" \
     "$ROOT/src/llvm/mutated_locals.weave" \
     "$ROOT/test/mutated-locals/main.weave" \
-    --runtime "$TMP/runtime/program.c" \
-    -o "$TMP/mutated-locals-test" \
-    2>"$TMP/build.stderr" || {
-  printf 'mutated-locals: weavec build failed\n' >&2
-  cat "$TMP/build.stderr" >&2
-  exit 1
-}
+    -o "$TMP/mutated-locals-test"
 
 "$TMP/mutated-locals-test"
 
