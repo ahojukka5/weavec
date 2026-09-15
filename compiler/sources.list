@@ -76,8 +76,10 @@ src/frontend/wir_scalar_literals.weave
 src/frontend/wir_scalar_expr.weave
 src/frontend/wir_operator.weave
 src/frontend/wir_call.weave
+src/frontend/wir_stmt.weave
 src/frontend/surface_op_tree.weave
 src/frontend/surface_call_tree.weave
+src/frontend/surface_stmt_tree.weave
 src/frontend/emit.weave
 src/frontend/contract_canonical.weave
 src/frontend/contract-lower.weave

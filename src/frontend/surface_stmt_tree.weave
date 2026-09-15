@@ -1,0 +1,199 @@
+; SPDX-License-Identifier: Apache-2.0
+; surface_stmt_tree.weave — structural success-path lowering for let/set/return
+;
+; Semantic validation stays in sst_emit_let_node, let_infer_emit, sst_emit_set,
+; sst_emit_return, and emit.weave. This module builds owned WIR statement nodes
+; that compose #410–#412 children. Unmigrated children return failure so the
+; caller can keep the text renderer. A failed judgment never publishes a
+; partial statement subtree.
+
+(program
+  (name "surface_stmt_tree")
+  (version "0.1")
+
+  (fn sstt_wir_type_atom
+    (params (sstt_wir ptr) (sstt_type i32))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_i32 (param_get sstt_type) (call_i32 surface_type_unknown)))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get sstt_wir))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let sstt_type_name ptr (call_ptr weave_semantic_type_wir
+        (param_get sstt_type)))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get sstt_type_name) (const_null))
+          (eq_i32 (call_i32 wir_scalar_expr_cstr_equal
+            (local_get sstt_type_name) (const_string_ptr "unknown"))
+            (const_i32 1))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get sstt_wir))
+          (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 wir_stmt_atom
+        (param_get sstt_wir) (local_get sstt_type_name)))))
+
+  (fn sstt_build_let
+    (params
+      (sstt_wir ptr) (sstt_source ptr) (sstt_tree ptr)
+      (sstt_name_node i64) (sstt_type i32) (sstt_expr_node i64))
+    (returns i64)
+    (do
+      (let sstt_name i64 (call_i64 wir_scalar_source_ident
+        (param_get sstt_wir) (param_get sstt_source)
+        (param_get sstt_tree) (param_get sstt_name_node)))
+      (let sstt_type_atom i64 (call_i64 sstt_wir_type_atom
+        (param_get sstt_wir) (param_get sstt_type)))
+      (let sstt_expr i64 (call_i64 sot_build_operand
+        (param_get sstt_wir) (param_get sstt_source) (param_get sstt_tree)
+        (param_get sstt_expr_node) (param_get sstt_type)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get sstt_name) (const_i64 0))
+          (or_bool
+            (lt_i64 (local_get sstt_type_atom) (const_i64 0))
+            (lt_i64 (local_get sstt_expr) (const_i64 0)))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 wir_stmt_let
+        (param_get sstt_wir) (local_get sstt_name)
+        (local_get sstt_type_atom) (local_get sstt_expr)))))
+
+  (fn sstt_build_set
+    (params
+      (sstt_wir ptr) (sstt_source ptr) (sstt_tree ptr)
+      (sstt_name_node i64) (sstt_type i32) (sstt_expr_node i64))
+    (returns i64)
+    (do
+      (let sstt_set_name i64 (call_i64 wir_scalar_source_ident
+        (param_get sstt_wir) (param_get sstt_source)
+        (param_get sstt_tree) (param_get sstt_name_node)))
+      (let sstt_set_expr i64 (call_i64 sot_build_operand
+        (param_get sstt_wir) (param_get sstt_source) (param_get sstt_tree)
+        (param_get sstt_expr_node) (param_get sstt_type)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get sstt_set_name) (const_i64 0))
+          (lt_i64 (local_get sstt_set_expr) (const_i64 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 wir_stmt_set
+        (param_get sstt_wir) (local_get sstt_set_name)
+        (local_get sstt_set_expr)))))
+
+  (fn sstt_build_return
+    (params
+      (sstt_wir ptr) (sstt_source ptr) (sstt_tree ptr)
+      (sstt_expr_node i64) (sstt_type i32))
+    (returns i64)
+    (do
+      (let sstt_ret_expr i64 (call_i64 sot_build_operand
+        (param_get sstt_wir) (param_get sstt_source) (param_get sstt_tree)
+        (param_get sstt_expr_node) (param_get sstt_type)))
+      (if
+        (condition (lt_i64 (local_get sstt_ret_expr) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 wir_stmt_return
+        (param_get sstt_wir) (local_get sstt_ret_expr)))))
+
+  (fn sstt_publish_root
+    (params (sstt_fd i32) (sstt_wir ptr) (sstt_root i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get sstt_wir) (const_null))
+          (or_bool
+            (lt_i64 (param_get sstt_root) (const_i64 0))
+            (ne_i32 (call_i32 wir_tree_failed (param_get sstt_wir))
+              (const_i32 0)))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 wir_subtree_publish
+          (param_get sstt_fd) (param_get sstt_wir) (param_get sstt_root))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+
+  ; Build and publish one already-validated typed or inferred let.
+  (fn sstt_try_publish_let
+    (params
+      (sstt_fd i32) (sstt_source ptr) (sstt_tree ptr)
+      (sstt_name_node i64) (sstt_type i32) (sstt_expr_node i64))
+    (returns i32)
+    (do
+      (let sstt_let_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sstt_let_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sstt_let_root i64 (call_i64 sstt_build_let
+        (local_get sstt_let_wir) (param_get sstt_source) (param_get sstt_tree)
+        (param_get sstt_name_node) (param_get sstt_type)
+        (param_get sstt_expr_node)))
+      (let sstt_let_ok i32 (call_i32 sstt_publish_root
+        (param_get sstt_fd) (local_get sstt_let_wir) (local_get sstt_let_root)))
+      (call_void wir_tree_free (local_get sstt_let_wir))
+      (return (local_get sstt_let_ok))))
+
+  (fn sstt_try_publish_set
+    (params
+      (sstt_fd i32) (sstt_source ptr) (sstt_tree ptr)
+      (sstt_name_node i64) (sstt_type i32) (sstt_expr_node i64))
+    (returns i32)
+    (do
+      (let sstt_set_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sstt_set_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sstt_set_root i64 (call_i64 sstt_build_set
+        (local_get sstt_set_wir) (param_get sstt_source) (param_get sstt_tree)
+        (param_get sstt_name_node) (param_get sstt_type)
+        (param_get sstt_expr_node)))
+      (let sstt_set_ok i32 (call_i32 sstt_publish_root
+        (param_get sstt_fd) (local_get sstt_set_wir) (local_get sstt_set_root)))
+      (call_void wir_tree_free (local_get sstt_set_wir))
+      (return (local_get sstt_set_ok))))
+
+  (fn sstt_try_publish_return
+    (params
+      (sstt_fd i32) (sstt_source ptr) (sstt_tree ptr)
+      (sstt_expr_node i64) (sstt_type i32))
+    (returns i32)
+    (do
+      (let sstt_ret_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sstt_ret_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sstt_ret_root i64 (call_i64 sstt_build_return
+        (local_get sstt_ret_wir) (param_get sstt_source) (param_get sstt_tree)
+        (param_get sstt_expr_node) (param_get sstt_type)))
+      (let sstt_ret_ok i32 (call_i32 sstt_publish_root
+        (param_get sstt_fd) (local_get sstt_ret_wir) (local_get sstt_ret_root)))
+      (call_void wir_tree_free (local_get sstt_ret_wir))
+      (return (local_get sstt_ret_ok))))
+
+  (fn sstt_try_publish_return_void
+    (params (sstt_fd i32))
+    (returns i32)
+    (do
+      (let sstt_void_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sstt_void_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sstt_void_root i64 (call_i64 wir_stmt_return_void
+        (local_get sstt_void_wir)))
+      (let sstt_void_ok i32 (call_i32 sstt_publish_root
+        (param_get sstt_fd) (local_get sstt_void_wir) (local_get sstt_void_root)))
+      (call_void wir_tree_free (local_get sstt_void_wir))
+      (return (local_get sstt_void_ok))))
+)
