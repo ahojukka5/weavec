@@ -39,7 +39,8 @@
     (params (text ptr) (len i64) (is_f32 i32))
     (returns i64))
   (extern weave_rt_print_version (params) (returns i32))
-  (extern weave_rt_tree_walk_limit_active (params) (returns i32))
+  (extern weave_rt_tree_walk_budget (params) (returns i64))
+  (extern weave_rt_tree_walk_enable_generated_wir (params) (returns void))
   (extern weave_rt_print_capabilities (params) (returns i32))
   (extern weave_rt_format_main (params (argc i32) (argv ptr)) (returns i32))
   (extern weave_rt_semantic_index_main

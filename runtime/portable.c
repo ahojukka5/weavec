@@ -9,10 +9,15 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
+
+#include "tree_walk_depth.h"
 
 // Normal builds provide a strong definition from a generated LLVM module linked
 // into compiler bitcode. The weak fallback keeps direct host-runtime links valid.
@@ -44,16 +49,51 @@ int weave_rt_open_write_trunc(const char *path, int mode) {
     return open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
 }
 
-/* weavec build re-parses frontend WIR in a child --backend. That text
- * can nest one list deeper than the admitted surface tree. The child
- * sets WEAVEC_INTERNAL_WIR_PARSE so the parser bound applies only to
- * untrusted source and WIR. */
-int weave_rt_tree_walk_limit_active(void) {
-    const char *flag = getenv("WEAVEC_INTERNAL_WIR_PARSE");
-    if (flag == NULL || flag[0] == '\0') {
+/* Public untrusted source/WIR uses WEAVEC_TREE_WALK_MAX_DEPTH. Generated
+ * frontend WIR can be one list deeper, so weavec build and the internal
+ * --backend --generated-wir re-entry select the bounded internal budget.
+ * Ambient environment cannot change this. */
+static int64_t weave_tree_walk_budget_value = WEAVEC_TREE_WALK_MAX_DEPTH;
+
+int64_t weave_rt_tree_walk_budget(void) {
+    return weave_tree_walk_budget_value;
+}
+
+void weave_rt_tree_walk_enable_generated_wir(void) {
+    weave_tree_walk_budget_value = WEAVEC_TREE_WALK_INTERNAL_WIR_MAX_DEPTH;
+}
+
+int compile_file(const char *input_path, const char *output_path);
+
+static int weave_wait_child(pid_t pid) {
+    int status = 0;
+    while (waitpid(pid, &status, 0) < 0) {
+        if (errno != EINTR) {
+            fprintf(stderr, "weavec: waitpid failed: %s\n", strerror(errno));
+            return 1;
+        }
+    }
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+    }
+    if (WIFSIGNALED(status)) {
+        return 128 + WTERMSIG(status);
+    }
+    return 1;
+}
+
+int weave_rt_run_generated_backend(const char *wir, const char *llvm) {
+    pid_t pid = fork();
+    if (pid < 0) {
+        fprintf(stderr, "weavec: fork failed: %s\n", strerror(errno));
         return 1;
     }
-    return 0;
+    if (pid == 0) {
+        weave_rt_tree_walk_enable_generated_wir();
+        int rc = compile_file(wir, llvm);
+        _exit(rc < 0 ? 1 : rc);
+    }
+    return weave_wait_child(pid);
 }
 
 /* Grow-once compiler output buffer. Weave io.weave and C emission helpers

@@ -3,9 +3,11 @@
 // Runtime support linked into programs produced by `weavec build`.
 // This is a private compiler resource, not a user-managed library API.
 
+#include <stdint.h>
 #include <unistd.h>
 
 #include "process_args.inc"
+#include "tree_walk_depth.h"
 
 void weave_rt_contract_fail(const char *msg) {
     const char nl = '\n';
@@ -22,8 +24,7 @@ void weave_rt_contract_fail(const char *msg) {
     _exit(1);
 }
 
-/* Parser.weave calls this. The compiler host (portable.c) may skip the
- * bound for internal WIR re-parse. Produced programs always enforce it. */
-int weave_rt_tree_walk_limit_active(void) {
-    return 1;
+/* Parser.weave calls this. Produced programs always use the public budget. */
+int64_t weave_rt_tree_walk_budget(void) {
+    return WEAVEC_TREE_WALK_MAX_DEPTH;
 }

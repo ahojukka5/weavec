@@ -132,7 +132,8 @@ action strings at each lowering site.
 
 These modules own the token store, syntax tree, lexer, and parser used by final
 `weavec`. They are ordinary ordered compiler sources, not a separately linked
-runtime. Untrusted source and WIR share one nesting budget; see
+runtime. Untrusted source and WIR share a public nesting budget of 64; generated
+WIR reparsing uses a bounded internal budget of 65. See
 [Syntax tree-walk depth budget](syntax-depth.md). The lower bootstrap frontend
 parses these files only so it can lower them into the initial seed compiler;
 stage 1 and stage 2 compile the same source set with `weavec` itself.

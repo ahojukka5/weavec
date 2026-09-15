@@ -39,15 +39,17 @@
 host 410 runtime/llvm_toolchain.c
 # why: realpath and platform path validation against the host filesystem.
 host 215 runtime/path_safety.c
-# why: POSIX write/open/flush, host IEEE bit conversion, and the
-# WEAVEC_INTERNAL_WIR_PARSE probe weavec1 cannot type as getenv(ptr).
-host 473 runtime/portable.c
+# why: POSIX write/open/flush, host IEEE bit conversion, fork/wait of
+# the in-process generated-WIR backend child, and the process-local
+# tree-walk budget weavec1 cannot store as a compiler global.
+# raised by 40 for #466: stop using a spoofable environment hatch
+# and keep the generated-WIR reparse on a bounded internal budget.
+host 513 runtime/portable.c
 # why: argv/argc access for produced programs.
 host 24 runtime/process_args.inc
 # why: private runtime linked into produced programs, not into the compiler.
-# raised by 6 for #386: programs that embed the parser (WIR tests) need the
-# depth-limit probe; produced programs always enforce the budget.
-host 29 runtime/program.c
+# raised by 1 for #466: produced programs report the public i64 budget.
+host 30 runtime/program.c
 # why: test-only quantum stub; production behavior is out of scope per
 # CONTRIBUTING.md.
 host 272 runtime/quantum_runtime.c
@@ -106,10 +108,9 @@ port-pending 22 runtime/semantic_type_graph.c
 # port-pending — project system and build driver
 # ---------------------------------------------------------------------------
 # raised by 4 for #441: refuse weavec build before llc when clang is newer.
-# raised by 12 for #386: mark the child --backend as internal WIR parse
-# so a legal surface program is not rejected when its WIR is one list
-# deeper than the input budget.
-port-pending 1138 runtime/build_driver.c
+# lowered after #466: generated-WIR compile is an in-process child
+# instead of an environment-marked --backend exec.
+port-pending 1119 runtime/build_driver.c
 port-pending 783 runtime/project_cache.c
 port-pending 97 runtime/project_cache_capabilities.c
 port-pending 37 runtime/project_cache_dispatch.c
@@ -123,7 +124,8 @@ port-pending 1284 runtime/project_driver.c
 port-pending 647 runtime/project_graph.c
 # raised by 12 for #435: the one report writer now also emits the bypassed
 # status, which is smaller than duplicating its atomic-write path elsewhere.
-port-pending 698 runtime/project_module_cache.c
+# lowered after #466: generated-WIR compile shares the in-process child.
+port-pending 691 runtime/project_module_cache.c
 port-pending 185 runtime/project_module_interfaces.c
 port-pending 40 runtime/project_protocol_publish.c
 port-pending 57 runtime/project_protocol_safety.c

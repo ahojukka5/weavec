@@ -331,6 +331,13 @@ parse failure, the exact line and column.
 The explicit `--backend` marker is required; the former implicit
 `weavec input.wir output.ll` syntax is rejected.
 
+The two-argument form is untrusted WIR. Nesting past the public depth
+budget of 64 fails with `backend.parse.nesting-too-deep` even if the
+caller sets `WEAVEC_INTERNAL_WIR_PARSE` or any other environment
+variable. `weavec build` reparses frontend WIR through a trusted
+in-process child with a bounded internal budget of 65; see
+[Syntax tree-walk depth budget](syntax-depth.md).
+
 The backend validates call targets against the complete declaration set before
 opening the LLVM output file. Backend failure therefore does not leave a
 partially emitted output.

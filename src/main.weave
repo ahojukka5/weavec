@@ -418,6 +418,24 @@
           (local_get arg1) (const_string_ptr "--backend") (const_i64 9)) (const_i32 0)))
         (then (do
           (if
+            (condition (eq_i32 (param_get argc) (const_i32 5)))
+            (then (do
+              (let backend_flag ptr (load_ptr (ptr_add (param_get argv) (const_i64 16))))
+              (if
+                (condition (eq_i32 (call_i32 cstr_equals
+                  (local_get backend_flag)
+                  (const_string_ptr "--generated-wir") (const_i64 15)) (const_i32 0)))
+                (then (do
+                  (call_void cli_error_arguments (const_string_ptr "--backend"))
+                  (return (const_i32 1))))
+                (else (do)))
+              (call_void weave_rt_tree_walk_enable_generated_wir)
+              (let generated_in ptr (load_ptr (ptr_add (param_get argv) (const_i64 24))))
+              (let generated_out ptr (load_ptr (ptr_add (param_get argv) (const_i64 32))))
+              (return (call_i32 compile_file
+                (local_get generated_in) (local_get generated_out)))))
+            (else (do)))
+          (if
             (condition (ne_i32 (param_get argc) (const_i32 4)))
             (then (do
               (call_void cli_error_arguments (const_string_ptr "--backend"))
