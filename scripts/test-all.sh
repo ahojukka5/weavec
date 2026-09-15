@@ -165,6 +165,9 @@ bash "$ROOT/test/backend-string-escape/test.sh"
 log 'surface elaboration'
 bash "$ROOT/test/surface-elaboration/test.sh"
 
+log 'structural operator and cast lowering'
+bash "$ROOT/test/surface-op-tree/test.sh"
+
 log 'floating-point arithmetic'
 bash "$ROOT/test/float-arithmetic/test.sh"
 

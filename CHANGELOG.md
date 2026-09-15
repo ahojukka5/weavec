@@ -17,6 +17,10 @@ surface-language contract stabilises.
   24 cases; the master ladder runs 192. See
   [Deterministic mutation-fuzzing lane](docs/mutation-fuzz.md) and
   issue #387.
+- Canonical operators and casts keep their existing type, arity, and
+  name diagnostics, but admitted forms now construct owned WIR trees and
+  publish complete subtrees. Unmigrated operands such as calls still use
+  the temporary text renderer until #412/#413. See issue #411.
 - The typed deterministic rewrite contract for compiled optimization.
   [Rewrite rule semantics](docs/rewrite-semantics.md) specifies pattern
   variables, guards, replacements, rule identity, soundness provenance,

@@ -81,6 +81,9 @@ bash "$ROOT/test/wir-tree/test.sh"
 log 'canonical WIR serializer and decimal lexemes'
 bash "$ROOT/test/wir-serialize/test.sh"
 
+log 'structural operator and cast lowering'
+bash "$ROOT/test/surface-op-tree/test.sh"
+
 log 'option and result'
 bash "$ROOT/test/option-result/test.sh"
 

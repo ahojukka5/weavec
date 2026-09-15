@@ -164,6 +164,8 @@ contract struct-forms
 executes struct-layout
 executes structured-types-qualify
 executes surface-elaboration
+# builds leaf-only and call-operand operator programs and runs them
+executes surface-op-tree
 executes surface-symbols
 executes tagged-variants
 # tooling artifact documents
