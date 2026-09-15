@@ -1,7 +1,8 @@
 ; SPDX-License-Identifier: Apache-2.0
 ; surface_op_emit.weave — Canonical operator validation and WIR emission.
 ;
-; This self-hosted frontend module emits only admitted WIR core-version-3 forms.
+; Semantic checks stay here. Admitted operators publish structural WIR through
+; surface_op_tree.weave; the text renderer is only the unmigrated-child fallback.
 
 (program
   (name "surface_op_emit")
@@ -100,6 +101,12 @@
               (call_void sop_emit_failure_expr (param_get sop_fd))
               (return_void)))
             (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 sot_try_publish_unary
+              (param_get sop_fd) (param_get sop_source) (param_get sop_tree)
+              (local_get sop_name_node) (local_get sop_unary_node)) (const_i32 0)))
+            (then (do (return_void)))
+            (else (do)))
           (call_void write_cstr (param_get sop_fd) (const_string_ptr "(not_bool "))
           (call_void surface_emit_expr_expected
             (param_get sop_fd) (param_get sop_source) (param_get sop_tree)
@@ -147,6 +154,14 @@
               (call_void write_byte (const_i32 2) (const_i32 10))
               (call_void sop_emit_failure_expr (param_get sop_fd))
               (return_void)))
+            (else (do)))
+          (if
+            (condition (ne_i32 (call_i32 sot_try_publish_binary
+              (param_get sop_fd) (param_get sop_source) (param_get sop_tree)
+              (local_get sop_name_node) (local_get sop_left_node)
+              (local_get sop_right_node) (call_i32 surface_type_bool)
+              (const_i32 1)) (const_i32 0)))
+            (then (do (return_void)))
             (else (do)))
           (call_void sop_emit_boolean_binary
             (param_get sop_fd) (param_get sop_source) (param_get sop_tree)
@@ -220,6 +235,14 @@
           (call_void write_byte (const_i32 2) (const_i32 10))
           (call_void sop_emit_failure_expr (param_get sop_fd))
           (return_void)))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 sot_try_publish_binary
+          (param_get sop_fd) (param_get sop_source) (param_get sop_tree)
+          (local_get sop_name_node) (local_get sop_left_node)
+          (local_get sop_right_node) (local_get sop_operand_type)
+          (const_i32 0)) (const_i32 0)))
+        (then (do (return_void)))
         (else (do)))
       (call_void sop_emit_binary
         (param_get sop_fd) (param_get sop_source) (param_get sop_tree)

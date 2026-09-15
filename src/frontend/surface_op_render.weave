@@ -2,8 +2,9 @@
 ; surface_op_render.weave — Canonical operator WIR rendering helpers.
 ;
 ; Surface synonym -> WIR base-name mapping is owned by
-; surface_op_canonical.weave. This renderer only serializes already-admitted
-; semantic decisions during the tree-migration window.
+; surface_op_canonical.weave. Successful operators prefer structural
+; publication through surface_op_tree.weave. This renderer remains the
+; #412/#413 overlap fallback when an operand is not yet tree-built.
 
 (program
   (name "surface_op_render")
