@@ -156,6 +156,9 @@ bash "$ROOT/test/backend-table-limits/test.sh"
 log 'backend binding soundness'
 bash "$ROOT/test/backend-binding-soundness/test.sh"
 
+log 'mutated-local identity table'
+bash "$ROOT/test/mutated-locals/test.sh"
+
 log 'backend statement-position float calls'
 bash "$ROOT/test/backend-stmt-call-float/test.sh"
 
