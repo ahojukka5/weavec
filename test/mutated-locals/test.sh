@@ -26,6 +26,13 @@ grep -Fq '(call_i32 ml_collect' "$ROOT/src/llvm/fn.weave"
 grep -Fq '(call_i32 ml_binding_mutated' "$ROOT/src/llvm/stmt.weave"
 grep -Fq 'ml_table_new' "$ROOT/src/llvm/ctx.weave"
 
+# Compiler-source unit programs that call src/core/io.weave need the host
+# portable runtime, not the thin packaged program.c. Compile it in place so
+# quoted includes resolve; pass the object to --runtime (a .c override is
+# copied into a temp dir without -I).
+"${CC:-clang}" -I "$ROOT/runtime" -c "$ROOT/runtime/portable.c" \
+    -o "$TMP/runtime.o"
+
 "$WEAVEC" build \
     "$ROOT/src/core/extern.weave" \
     "$ROOT/src/parser/tokens.weave" \
@@ -36,6 +43,7 @@ grep -Fq 'ml_table_new' "$ROOT/src/llvm/ctx.weave"
     "$ROOT/src/core/util.weave" \
     "$ROOT/src/llvm/mutated_locals.weave" \
     "$ROOT/test/mutated-locals/main.weave" \
+    --runtime "$TMP/runtime.o" \
     -o "$TMP/mutated-locals-test"
 
 "$TMP/mutated-locals-test"
