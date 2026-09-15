@@ -171,6 +171,9 @@ bash "$ROOT/test/surface-op-tree/test.sh"
 log 'structural ordinary and typed call lowering'
 bash "$ROOT/test/surface-call-tree/test.sh"
 
+log 'structural let/set/return lowering'
+bash "$ROOT/test/surface-stmt-tree/test.sh"
+
 log 'floating-point arithmetic'
 bash "$ROOT/test/float-arithmetic/test.sh"
 
