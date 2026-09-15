@@ -180,10 +180,15 @@ WIR. See [Rule authoring](rewrite-authoring.md) and
 
 This layer validates WIR core version 3 and emits deterministic LLVM IR. It
 owns type spelling, struct layout, locals, strings, expressions, statements,
-function and module emission, and uniform mutable control-flow lowering. LLVM
-owns scalar SSA promotion in the selected optimization profile. Envelope and
-call-target validation occur before output creation; emission failures remove
-partial LLVM output.
+function and module emission, and uniform mutable control-flow lowering. Each
+function collects mutated-local identities once
+(`src/llvm/mutated_locals.weave`) from the body tree, keyed by the let-name
+node rather than a spelling, so let emission does not rescan the body for
+each binding. The table is a growable side fact for later resolve/typecheck
+rather than a second emitter-only symbol model. LLVM owns scalar SSA
+promotion in the selected optimization profile. Envelope and call-target
+validation occur before output creation; emission failures remove partial
+LLVM output.
 
 The implementation is self-hosted, while the frozen `weavec1` WIR v2 backend is
 used only to construct the initial compiler seed.
