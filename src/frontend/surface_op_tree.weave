@@ -3,9 +3,9 @@
 ;
 ; Semantic validation stays in surface_op_emit / surface_cast_emit. This module
 ; builds owned WIR nodes for admitted operators and casts, composing #410
-; leaves and recursively tree-built operator/cast children. Unmigrated
-; children (calls, if, ...) return failure so the caller can keep the text
-; renderer during the #412/#413 overlap window.
+; leaves and recursively tree-built operator/cast/call children. Unmigrated
+; children (if, match, ...) return failure so the caller can keep the text
+; renderer during the #413 overlap window.
 
 (program
   (name "surface_op_tree")
@@ -420,6 +420,15 @@
             (then (do (return (call_i64 sot_failure_const (param_get sot_wir)))))
             (else (do)))
           (return (local_get sot_cast))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_is_call_node
+          (param_get sot_tree) (param_get sot_source) (param_get sot_node))
+          (const_i32 0)))
+        (then (do
+          (return (call_i64 sct_build_nested_call
+            (param_get sot_wir) (param_get sot_source) (param_get sot_tree)
+            (param_get sot_node)))))
         (else (do)))
       (return (const_i64 -1))))
 
