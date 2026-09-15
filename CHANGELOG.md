@@ -46,6 +46,7 @@ surface-language contract stabilises.
   instead of overflowing the host stack. See
   [Syntax tree-walk depth budget](docs/syntax-depth.md) and issues #386
   and #466.
+<<<<<<< HEAD
 - Compiler-owned rewrite library modules under `src/rewrite/`: generic
   match key and packed rule identity, circuit IR with a named cost
   vector, topology-free target packs, and a ZX graph IR with spider
@@ -56,6 +57,11 @@ surface-language contract stabilises.
 - Inverse-pair cancellation (`S`/`Sdg`, `T`/`Tdg`) on the compiled
   circuit matcher, and ZX conversion of `H` as a pending wire edge so
   `H H` does not invent identity spiders.
+=======
+- A per-function mutated-local identity table collected in one body walk.
+  Let/set emission queries binding node identities instead of rescanning
+  the function for each local. See issue #388.
+>>>>>>> 4e34115 (docs: describe per-function mutated-local facts)
 
 ### Removed
 
