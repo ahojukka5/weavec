@@ -188,13 +188,20 @@
         (call gate_is_rotation kind)
         (op equal (call circ_normalize_param param) 0)))))
 
+  ; Two-qubit kinds are CNOT, CZ, and SWAP. CCNOT is arity 3.
   (fn gate_is_twoq
     (params (kind i32))
     (returns bool)
     (do
       (return (op and
         (op greater-or-equal kind 5)
-        (op less-or-equal kind 8)))))
+        (op less-or-equal kind 7)))))
+
+  (fn gate_is_threeq
+    (params (kind i32))
+    (returns bool)
+    (do
+      (return (op equal kind 8))))
 
   ; Clifford rotations are multiples of π/2, i.e. even π/4 ticks.
   (fn gate_is_nonclifford
@@ -234,7 +241,7 @@
     (returns i32)
     (do
       (if
-        (condition (op equal kind 8))
+        (condition (call gate_is_threeq kind))
         (then (do (return 3)))
         (else (do)))
       (if
@@ -551,6 +558,7 @@
             (condition (call gate_is_twoq kind))
             (then (do (set tq (op add tq 1))))
             (else (do)))
+          ; CCNOT is not a twoq cost. Depth still includes it.
           (let d0 i32 0)
           (if
             (condition (op and (op greater-or-equal q0 0) (op less-than q0 nq)))

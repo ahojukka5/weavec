@@ -65,6 +65,9 @@ surface-language contract stabilises.
 
 ### Fixed
 
+- Circuit IR `CostVector.twoq` counts only arity-2 gates (`CNOT`,
+  `CZ`, `SWAP`). `CCNOT` remains arity 3 and is no longer counted as
+  two-qubit. See [Rule authoring](docs/rewrite-authoring.md).
 - Generated-WIR reparse no longer disables the S-expression depth
   guard when `WEAVEC_INTERNAL_WIR_PARSE` is set. Direct
   `weavec --backend` keeps the public budget of 64; `weavec build`

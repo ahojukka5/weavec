@@ -116,11 +116,15 @@ these codes.
 ## Cost and policy
 
 `CostVector` reports non-Clifford count, two-qubit count, and depth
-separately. `rw_cost_better` compares that tuple lexicographically. A
-later strategy may scalarize; the raw vector remains available.
+separately. `twoq` counts `CNOT`, `CZ`, and `SWAP` only. `CCNOT` is
+arity 3 and is not folded into `twoq`; depth still includes it.
+`rw_cost_better` compares `(nonclifford, twoq, depth)` lexicographically.
+A later strategy may scalarize; the raw vector remains available.
+A named three-qubit quantity would be a new field, not a redefinition
+of `twoq`.
 
-Target packs in `src/rewrite/targets.weave` decide legality. They do
-not implement matching.
+Target packs in `src/rewrite/targets.weave` decide legality by admitted
+`kind`, not by arity. They do not implement matching or cost.
 
 ## Testing a rule
 

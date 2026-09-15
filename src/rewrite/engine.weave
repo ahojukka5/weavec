@@ -21,6 +21,7 @@
     (field span i32)
     (field extra i32))
 
+  ; twoq is arity-2 gates only (CNOT, CZ, SWAP). CCNOT is not twoq.
   (struct CostVector
     (field nonclifford i32)
     (field twoq i32)
