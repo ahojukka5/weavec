@@ -67,4 +67,8 @@ bash -n "$ROOT/scripts/pr-compile.sh"
   exit 1
 }
 
+log 'mutation-fuzz oracle and wiring'
+python3 "$ROOT/scripts/mutation_fuzz.py" --self-test
+python3 "$ROOT/scripts/mutation_fuzz.py" --check-wiring
+
 log 'passed'

@@ -339,6 +339,10 @@ bash "$ROOT/test/parse-diagnostics/test.sh"
 log 'tree-walk depth budget'
 bash "$ROOT/test/tree-walk-depth/test.sh"
 
+log 'mutation-fuzz campaign'
+WEAVEC_MUTATION_FUZZ_BUDGET="${WEAVEC_MUTATION_FUZZ_BUDGET:-nightly}" \
+  bash "$ROOT/test/mutation-fuzz/test.sh"
+
 log 'diagnostics'
 bash "$ROOT/test/diagnostics/test-build-diagnostics.sh"
 
