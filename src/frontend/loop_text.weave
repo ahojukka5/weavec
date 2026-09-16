@@ -12,6 +12,8 @@
 ; here means a WIR shape change is a Weave change.
 ;
 ; Loop-local names are l<ID>_<SUFFIX>: l0_run, l0_skip, l0_end.
+; Migrated success paths compose those identities in wir_control.weave.
+; These writers remain the fail-closed text fallback for unmigrated children.
 
 (program
   (name "loop_text")

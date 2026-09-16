@@ -1,0 +1,1673 @@
+; SPDX-License-Identifier: Apache-2.0
+; surface_control_tree.weave — structural success-path lowering for control flow
+;
+; Semantic validation stays in if_expr.weave, loop.weave, and emit.weave. This
+; module builds owned WIR control nodes that compose #410–#413 children and
+; nested control forms. Unmigrated children return failure so the caller can
+; keep the text renderer. A failed judgment never publishes a partial subtree.
+
+(program
+  (name "surface_control_tree")
+  (version "0.1")
+
+  (fn sctl_fail
+    (params (sctl_wir ptr))
+    (returns i32)
+    (do
+      (call_i32 wir_tree_mark_failed (param_get sctl_wir))
+      (return (const_i32 0))))
+
+  (fn sctl_append
+    (params (sctl_wir ptr) (sctl_parent i64) (sctl_child i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i64 (param_get sctl_parent) (const_i64 0))
+          (lt_i64 (param_get sctl_child) (const_i64 0))))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_append_child
+          (param_get sctl_wir) (param_get sctl_parent) (param_get sctl_child))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+
+  (fn sctl_head_is
+    (params
+      (sctl_tree ptr) (sctl_source ptr) (sctl_node i64)
+      (sctl_text ptr) (sctl_len i64))
+    (returns i32)
+    (do
+      (return (call_i32 head_equals
+        (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node)
+        (param_get sctl_text) (param_get sctl_len)))))
+
+  ; Optional-inference helper: unknown is treated as compatible. Do not use
+  ; this for for-range bounds; those must match loop_emit_for and reject
+  ; unknown with frontend.loop.invalid.
+  (fn sctl_types_ok
+    (params (sctl_expected i32) (sctl_actual i32))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_i32 (param_get sctl_expected) (call_i32 surface_type_unknown))
+          (eq_i32 (param_get sctl_actual) (call_i32 surface_type_unknown))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (call_i32 weave_semantic_types_compatible
+        (param_get sctl_expected) (param_get sctl_actual)))))
+
+  (fn sctl_register_let
+    (params
+      (sctl_source ptr) (sctl_tree ptr) (sctl_name i64) (sctl_ty i32))
+    (returns void)
+    (do
+      (call_i32 weave_surface_local_add
+        (param_get sctl_source)
+        (call_i64 node_text_start (param_get sctl_tree) (param_get sctl_name))
+        (call_i64 node_text_len (param_get sctl_tree) (param_get sctl_name))
+        (param_get sctl_ty))
+      (return_void)))
+
+  (fn sctl_ident
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr) (sctl_name i64))
+    (returns i64)
+    (do
+      (return (call_i64 wir_scalar_source_ident
+        (param_get sctl_wir) (param_get sctl_source)
+        (param_get sctl_tree) (param_get sctl_name)))))
+
+  ; Recurse children after the list head. Returns 1 when every descendant is
+  ; a migrated form this module can compose.
+  (fn sctl_treeable_children
+    (params (sctl_source ptr) (sctl_tree ptr) (sctl_node i64))
+    (returns i32)
+    (do
+      (let sctl_ch i64 (call_i64 node_first_child
+        (param_get sctl_tree) (param_get sctl_node)))
+      (if
+        (condition (eq_i64 (local_get sctl_ch) (const_i64 -1)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (set sctl_ch (call_i64 node_next_sibling
+        (param_get sctl_tree) (local_get sctl_ch)))
+      (while
+        (condition (ne_i64 (local_get sctl_ch) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 sctl_treeable
+              (param_get sctl_source) (param_get sctl_tree) (local_get sctl_ch))
+              (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set sctl_ch (call_i64 node_next_sibling
+            (param_get sctl_tree) (local_get sctl_ch)))))
+      (return (const_i32 1))))
+
+  (fn sctl_treeable
+    (params (sctl_source ptr) (sctl_tree ptr) (sctl_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (param_get sctl_node) (const_i64 -1)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 comment_is_node
+          (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node))
+          (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get sctl_tree) (param_get sctl_node)) (call_i32 node_list)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 surface_is_operator_node
+            (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node))
+            (const_i32 0))
+          (ne_i32 (call_i32 surface_is_call_node
+            (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node))
+            (const_i32 0))))
+        (then (do (return (call_i32 sctl_treeable_children
+          (param_get sctl_source) (param_get sctl_tree) (param_get sctl_node)))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (or_bool
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node) (const_string_ptr "let") (const_i64 3))
+                (const_i32 0))
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node) (const_string_ptr "set") (const_i64 3))
+                (const_i32 0)))
+            (or_bool
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node) (const_string_ptr "return") (const_i64 6))
+                (const_i32 0))
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node)
+                (const_string_ptr "return_void") (const_i64 11))
+                (const_i32 0))))
+          (or_bool
+            (or_bool
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node) (const_string_ptr "if") (const_i64 2))
+                (const_i32 0))
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node) (const_string_ptr "when") (const_i64 4))
+                (const_i32 0)))
+            (or_bool
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node) (const_string_ptr "while") (const_i64 5))
+                (const_i32 0))
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node) (const_string_ptr "for") (const_i64 3))
+                (const_i32 0))))))
+        (then (do (return (call_i32 sctl_treeable_children
+          (param_get sctl_source) (param_get sctl_tree) (param_get sctl_node)))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (or_bool
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node) (const_string_ptr "break") (const_i64 5))
+                (const_i32 0))
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node)
+                (const_string_ptr "continue") (const_i64 8))
+                (const_i32 0)))
+            (or_bool
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node) (const_string_ptr "do") (const_i64 2))
+                (const_i32 0))
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node)
+                (const_string_ptr "condition") (const_i64 9))
+                (const_i32 0))))
+          (or_bool
+            (or_bool
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node) (const_string_ptr "then") (const_i64 4))
+                (const_i32 0))
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node) (const_string_ptr "else") (const_i64 4))
+                (const_i32 0)))
+            (or_bool
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node) (const_string_ptr "range") (const_i64 5))
+                (const_i32 0))
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node) (const_string_ptr "cast") (const_i64 4))
+                (const_i32 0))))))
+        (then (do (return (call_i32 sctl_treeable_children
+          (param_get sctl_source) (param_get sctl_tree) (param_get sctl_node)))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 sctl_head_is
+              (param_get sctl_tree) (param_get sctl_source)
+              (param_get sctl_node) (const_string_ptr "local_get") (const_i64 9))
+              (const_i32 0))
+            (ne_i32 (call_i32 sctl_head_is
+              (param_get sctl_tree) (param_get sctl_source)
+              (param_get sctl_node) (const_string_ptr "param_get") (const_i64 9))
+              (const_i32 0)))
+          (or_bool
+            (or_bool
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node)
+                (const_string_ptr "const_i32") (const_i64 9))
+                (const_i32 0))
+              (ne_i32 (call_i32 sctl_head_is
+                (param_get sctl_tree) (param_get sctl_source)
+                (param_get sctl_node)
+                (const_string_ptr "const_i64") (const_i64 9))
+                (const_i32 0)))
+            (or_bool
+              (or_bool
+                (ne_i32 (call_i32 sctl_head_is
+                  (param_get sctl_tree) (param_get sctl_source)
+                  (param_get sctl_node)
+                  (const_string_ptr "const_f32") (const_i64 9))
+                  (const_i32 0))
+                (ne_i32 (call_i32 sctl_head_is
+                  (param_get sctl_tree) (param_get sctl_source)
+                  (param_get sctl_node)
+                  (const_string_ptr "const_f64") (const_i64 9))
+                  (const_i32 0)))
+              (or_bool
+                (ne_i32 (call_i32 sctl_head_is
+                  (param_get sctl_tree) (param_get sctl_source)
+                  (param_get sctl_node)
+                  (const_string_ptr "const_bool") (const_i64 10))
+                  (const_i32 0))
+                (ne_i32 (call_i32 sctl_head_is
+                  (param_get sctl_tree) (param_get sctl_source)
+                  (param_get sctl_node)
+                  (const_string_ptr "const_null") (const_i64 10))
+                  (const_i32 0)))))))
+        (then (do (return (const_i32 1))))
+        (else (do (return (const_i32 0)))))))
+
+  (fn sctl_build_do
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr) (sctl_node i64))
+    (returns i64)
+    (do
+      (let sctl_do i64 (call_i64 wir_control_do (param_get sctl_wir)))
+      (if
+        (condition (lt_i64 (local_get sctl_do) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i64 (param_get sctl_node) (const_i64 -1)))
+        (then (do (return (local_get sctl_do))))
+        (else (do)))
+      (let sctl_stmt i64 (call_i64 node_first_child
+        (param_get sctl_tree) (param_get sctl_node)))
+      (if
+        (condition (eq_i64 (local_get sctl_stmt) (const_i64 -1)))
+        (then (do (return (local_get sctl_do))))
+        (else (do)))
+      (set sctl_stmt (call_i64 node_next_sibling
+        (param_get sctl_tree) (local_get sctl_stmt)))
+      (while
+        (condition (ne_i64 (local_get sctl_stmt) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 comment_is_node
+              (param_get sctl_tree) (param_get sctl_source) (local_get sctl_stmt))
+              (const_i32 0)))
+            (then (do
+              (if
+                (condition (eq_i32 (call_i32 sctl_append_stmt
+                  (param_get sctl_wir) (param_get sctl_source)
+                  (param_get sctl_tree) (local_get sctl_stmt)
+                  (local_get sctl_do)) (const_i32 0)))
+                (then (do (return (const_i64 -1))))
+                (else (do)))))
+            (else (do)))
+          (set sctl_stmt (call_i64 node_next_sibling
+            (param_get sctl_tree) (local_get sctl_stmt)))))
+      (return (local_get sctl_do))))
+
+  (fn sctl_build_branch
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr) (sctl_body i64))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_i64 (param_get sctl_body) (const_i64 -1)))
+        (then (do (return (call_i64 wir_control_do (param_get sctl_wir)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 ie_body_is_do
+          (param_get sctl_tree) (param_get sctl_source) (param_get sctl_body))
+          (const_i32 0)))
+        (then (do (return (call_i64 sctl_build_do
+          (param_get sctl_wir) (param_get sctl_source)
+          (param_get sctl_tree) (param_get sctl_body)))))
+        (else (do)))
+      (let sctl_wrap i64 (call_i64 wir_control_do (param_get sctl_wir)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get sctl_wrap) (const_i64 0))
+          (eq_i32 (call_i32 sctl_append_stmt
+            (param_get sctl_wir) (param_get sctl_source)
+            (param_get sctl_tree) (param_get sctl_body)
+            (local_get sctl_wrap)) (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get sctl_wrap))))
+
+  (fn sctl_append_if_expr_let
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr)
+      (sctl_name i64) (sctl_ty i32) (sctl_if i64) (sctl_parent i64))
+    (returns i32)
+    (do
+      (let sctl_cond i64 (call_i64 ie_cond_expr
+        (param_get sctl_tree) (param_get sctl_source) (param_get sctl_if)))
+      (let sctl_then i64 (call_i64 ie_then_body
+        (param_get sctl_tree) (param_get sctl_source) (param_get sctl_if)))
+      (let sctl_else i64 (call_i64 ie_else_body
+        (param_get sctl_tree) (param_get sctl_source) (param_get sctl_if)))
+      (if
+        (condition (or_bool
+          (eq_i64 (local_get sctl_cond) (const_i64 -1))
+          (or_bool
+            (eq_i64 (local_get sctl_then) (const_i64 -1))
+            (or_bool
+              (eq_i64 (local_get sctl_else) (const_i64 -1))
+              (ne_i32 (call_i32 ie_body_is_do
+                (param_get sctl_tree) (param_get sctl_source)
+                (local_get sctl_else)) (const_i32 0))))))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 sctl_types_ok
+            (call_i32 surface_type_bool)
+            (call_i32 sst_expr_type
+              (param_get sctl_tree) (param_get sctl_source)
+              (local_get sctl_cond) (call_i32 surface_type_bool)))
+            (const_i32 0))
+          (or_bool
+            (eq_i32 (call_i32 sctl_types_ok
+              (param_get sctl_ty)
+              (call_i32 sst_expr_type
+                (param_get sctl_tree) (param_get sctl_source)
+                (local_get sctl_then) (param_get sctl_ty)))
+              (const_i32 0))
+            (eq_i32 (call_i32 sctl_types_ok
+              (param_get sctl_ty)
+              (call_i32 sst_expr_type
+                (param_get sctl_tree) (param_get sctl_source)
+                (local_get sctl_else) (param_get sctl_ty)))
+              (const_i32 0)))))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (let sctl_type_name ptr (call_ptr weave_semantic_type_wir
+        (param_get sctl_ty)))
+      (let sctl_let_name i64 (call_i64 sctl_ident
+        (param_get sctl_wir) (param_get sctl_source)
+        (param_get sctl_tree) (param_get sctl_name)))
+      (let sctl_type_atom i64 (call_i64 sstt_wir_type_atom
+        (param_get sctl_wir) (param_get sctl_ty)))
+      (let sctl_dummy i64 (call_i64 wir_control_dummy_value
+        (param_get sctl_wir) (local_get sctl_type_name)))
+      (let sctl_dummy_let i64 (call_i64 wir_stmt_let
+        (param_get sctl_wir) (local_get sctl_let_name)
+        (local_get sctl_type_atom) (local_get sctl_dummy)))
+      (if
+        (condition (eq_i32 (call_i32 sctl_append
+          (param_get sctl_wir) (param_get sctl_parent)
+          (local_get sctl_dummy_let)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (call_void sctl_register_let
+        (param_get sctl_source) (param_get sctl_tree)
+        (param_get sctl_name) (param_get sctl_ty))
+      (let sctl_cond_wir i64 (call_i64 sot_build_operand
+        (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (local_get sctl_cond) (call_i32 surface_type_bool)))
+      (let sctl_then_expr i64 (call_i64 sot_build_operand
+        (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (local_get sctl_then) (param_get sctl_ty)))
+      (let sctl_else_expr i64 (call_i64 sot_build_operand
+        (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (local_get sctl_else) (param_get sctl_ty)))
+      (let sctl_then_name i64 (call_i64 sctl_ident
+        (param_get sctl_wir) (param_get sctl_source)
+        (param_get sctl_tree) (param_get sctl_name)))
+      (let sctl_else_name i64 (call_i64 sctl_ident
+        (param_get sctl_wir) (param_get sctl_source)
+        (param_get sctl_tree) (param_get sctl_name)))
+      (let sctl_then_set i64 (call_i64 wir_stmt_set
+        (param_get sctl_wir) (local_get sctl_then_name)
+        (local_get sctl_then_expr)))
+      (let sctl_else_set i64 (call_i64 wir_stmt_set
+        (param_get sctl_wir) (local_get sctl_else_name)
+        (local_get sctl_else_expr)))
+      (let sctl_then_do i64 (call_i64 wir_control_do (param_get sctl_wir)))
+      (let sctl_else_do i64 (call_i64 wir_control_do (param_get sctl_wir)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 sctl_append
+            (param_get sctl_wir) (local_get sctl_then_do)
+            (local_get sctl_then_set)) (const_i32 0))
+          (eq_i32 (call_i32 sctl_append
+            (param_get sctl_wir) (local_get sctl_else_do)
+            (local_get sctl_else_set)) (const_i32 0))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sctl_if_node i64 (call_i64 wir_control_if
+        (param_get sctl_wir) (local_get sctl_cond_wir)
+        (local_get sctl_then_do) (local_get sctl_else_do)))
+      (return (call_i32 sctl_append
+        (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_if_node)))))
+
+  (fn sctl_append_if_expr_return
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr)
+      (sctl_if i64) (sctl_expected i32) (sctl_parent i64))
+    (returns i32)
+    (do
+      (let sctl_cond i64 (call_i64 ie_cond_expr
+        (param_get sctl_tree) (param_get sctl_source) (param_get sctl_if)))
+      (let sctl_then i64 (call_i64 ie_then_body
+        (param_get sctl_tree) (param_get sctl_source) (param_get sctl_if)))
+      (let sctl_else i64 (call_i64 ie_else_body
+        (param_get sctl_tree) (param_get sctl_source) (param_get sctl_if)))
+      (if
+        (condition (or_bool
+          (eq_i64 (local_get sctl_cond) (const_i64 -1))
+          (or_bool
+            (eq_i64 (local_get sctl_then) (const_i64 -1))
+            (or_bool
+              (eq_i64 (local_get sctl_else) (const_i64 -1))
+              (ne_i32 (call_i32 ie_body_is_do
+                (param_get sctl_tree) (param_get sctl_source)
+                (local_get sctl_else)) (const_i32 0))))))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 sctl_types_ok
+            (call_i32 surface_type_bool)
+            (call_i32 sst_expr_type
+              (param_get sctl_tree) (param_get sctl_source)
+              (local_get sctl_cond) (call_i32 surface_type_bool)))
+            (const_i32 0))
+          (or_bool
+            (eq_i32 (call_i32 sctl_types_ok
+              (param_get sctl_expected)
+              (call_i32 sst_expr_type
+                (param_get sctl_tree) (param_get sctl_source)
+                (local_get sctl_then) (param_get sctl_expected)))
+              (const_i32 0))
+            (eq_i32 (call_i32 sctl_types_ok
+              (param_get sctl_expected)
+              (call_i32 sst_expr_type
+                (param_get sctl_tree) (param_get sctl_source)
+                (local_get sctl_else) (param_get sctl_expected)))
+              (const_i32 0)))))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (let sctl_cond_wir i64 (call_i64 sot_build_operand
+        (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (local_get sctl_cond) (call_i32 surface_type_bool)))
+      (let sctl_then_expr i64 (call_i64 sot_build_operand
+        (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (local_get sctl_then) (param_get sctl_expected)))
+      (let sctl_else_expr i64 (call_i64 sot_build_operand
+        (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (local_get sctl_else) (param_get sctl_expected)))
+      (let sctl_then_ret i64 (call_i64 wir_stmt_return
+        (param_get sctl_wir) (local_get sctl_then_expr)))
+      (let sctl_else_ret i64 (call_i64 wir_stmt_return
+        (param_get sctl_wir) (local_get sctl_else_expr)))
+      (let sctl_then_do i64 (call_i64 wir_control_do (param_get sctl_wir)))
+      (let sctl_else_do i64 (call_i64 wir_control_do (param_get sctl_wir)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 sctl_append
+            (param_get sctl_wir) (local_get sctl_then_do)
+            (local_get sctl_then_ret)) (const_i32 0))
+          (eq_i32 (call_i32 sctl_append
+            (param_get sctl_wir) (local_get sctl_else_do)
+            (local_get sctl_else_ret)) (const_i32 0))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sctl_if_node i64 (call_i64 wir_control_if
+        (param_get sctl_wir) (local_get sctl_cond_wir)
+        (local_get sctl_then_do) (local_get sctl_else_do)))
+      (return (call_i32 sctl_append
+        (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_if_node)))))
+
+  (fn sctl_append_let
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr)
+      (sctl_node i64) (sctl_parent i64))
+    (returns i32)
+    (do
+      (let sctl_n i64 (call_i64 count_children
+        (param_get sctl_tree) (param_get sctl_node)))
+      (let sctl_name i64 (call_i64 nth_child
+        (param_get sctl_tree) (param_get sctl_node) (const_i64 1)))
+      (if
+        (condition (eq_i64 (local_get sctl_n) (const_i64 3)))
+        (then (do
+          (let sctl_expr3 i64 (call_i64 nth_child
+            (param_get sctl_tree) (param_get sctl_node) (const_i64 2)))
+          (if
+            (condition (ne_i32 (call_i32 if_expr_is_node
+              (param_get sctl_tree) (param_get sctl_source)
+              (local_get sctl_expr3)) (const_i32 0)))
+            (then (do
+              (let sctl_if_ty i32 (call_i32 if_expr_type
+                (param_get sctl_tree) (param_get sctl_source)
+                (local_get sctl_expr3) (call_i32 surface_type_unknown)))
+              (if
+                (condition (eq_i32 (local_get sctl_if_ty)
+                  (call_i32 surface_type_unknown)))
+                (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+                (else (do)))
+              (return (call_i32 sctl_append_if_expr_let
+                (param_get sctl_wir) (param_get sctl_source)
+                (param_get sctl_tree) (local_get sctl_name)
+                (local_get sctl_if_ty) (local_get sctl_expr3)
+                (param_get sctl_parent)))))
+            (else (do)))
+          (let sctl_infer_ty i32 (call_i32 li_infer_type
+            (param_get sctl_tree) (param_get sctl_source)
+            (local_get sctl_expr3)))
+          (if
+            (condition (eq_i32 (local_get sctl_infer_ty)
+              (call_i32 surface_type_unknown)))
+            (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+            (else (do)))
+          (let sctl_inferred_let i64 (call_i64 sstt_build_let
+            (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+            (local_get sctl_name) (local_get sctl_infer_ty)
+            (local_get sctl_expr3)))
+          (if
+            (condition (eq_i32 (call_i32 sctl_append
+              (param_get sctl_wir) (param_get sctl_parent)
+              (local_get sctl_inferred_let))
+              (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (call_void sctl_register_let
+            (param_get sctl_source) (param_get sctl_tree)
+            (local_get sctl_name) (local_get sctl_infer_ty))
+          (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i64 (local_get sctl_n) (const_i64 4)))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (let sctl_type_node i64 (call_i64 nth_child
+        (param_get sctl_tree) (param_get sctl_node) (const_i64 2)))
+      (let sctl_expr4 i64 (call_i64 nth_child
+        (param_get sctl_tree) (param_get sctl_node) (const_i64 3)))
+      (let sctl_decl_ty i32 (call_i32 sst_type_code
+        (param_get sctl_tree) (param_get sctl_source)
+        (local_get sctl_type_node)))
+      (if
+        (condition (ne_i32 (call_i32 if_expr_is_node
+          (param_get sctl_tree) (param_get sctl_source)
+          (local_get sctl_expr4)) (const_i32 0)))
+        (then (do
+          (return (call_i32 sctl_append_if_expr_let
+            (param_get sctl_wir) (param_get sctl_source)
+            (param_get sctl_tree) (local_get sctl_name)
+            (local_get sctl_decl_ty) (local_get sctl_expr4)
+            (param_get sctl_parent)))))
+        (else (do)))
+      (let sctl_typed_let i64 (call_i64 sstt_build_let
+        (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (local_get sctl_name) (local_get sctl_decl_ty) (local_get sctl_expr4)))
+      (if
+        (condition (eq_i32 (call_i32 sctl_append
+          (param_get sctl_wir) (param_get sctl_parent)
+          (local_get sctl_typed_let))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (call_void sctl_register_let
+        (param_get sctl_source) (param_get sctl_tree)
+        (local_get sctl_name) (local_get sctl_decl_ty))
+      (return (const_i32 1))))
+
+  (fn sctl_append_set
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr)
+      (sctl_node i64) (sctl_parent i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get sctl_tree) (param_get sctl_node)) (const_i64 3)))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (let sctl_name i64 (call_i64 nth_child
+        (param_get sctl_tree) (param_get sctl_node) (const_i64 1)))
+      (let sctl_expr i64 (call_i64 nth_child
+        (param_get sctl_tree) (param_get sctl_node) (const_i64 2)))
+      (let sctl_ty i32 (call_i32 surface_ident_type
+        (param_get sctl_tree) (param_get sctl_source) (local_get sctl_name)))
+      (let sctl_set i64 (call_i64 sstt_build_set
+        (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (local_get sctl_name) (local_get sctl_ty) (local_get sctl_expr)))
+      (return (call_i32 sctl_append
+        (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_set)))))
+
+  (fn sctl_append_return
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr)
+      (sctl_node i64) (sctl_parent i64))
+    (returns i32)
+    (do
+      (let sctl_n i64 (call_i64 count_children
+        (param_get sctl_tree) (param_get sctl_node)))
+      (if
+        (condition (eq_i64 (local_get sctl_n) (const_i64 1)))
+        (then (do
+          (let sctl_void i64 (call_i64 wir_stmt_return_void
+            (param_get sctl_wir)))
+          (return (call_i32 sctl_append
+            (param_get sctl_wir) (param_get sctl_parent)
+            (local_get sctl_void)))))
+        (else (do)))
+      (if
+        (condition (ne_i64 (local_get sctl_n) (const_i64 2)))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (let sctl_expr i64 (call_i64 nth_child
+        (param_get sctl_tree) (param_get sctl_node) (const_i64 1)))
+      (if
+        (condition (ne_i32 (call_i32 if_expr_is_node
+          (param_get sctl_tree) (param_get sctl_source)
+          (local_get sctl_expr)) (const_i32 0)))
+        (then (do
+          (return (call_i32 sctl_append_if_expr_return
+            (param_get sctl_wir) (param_get sctl_source)
+            (param_get sctl_tree) (local_get sctl_expr)
+            (call_i32 weave_surface_get_return_type)
+            (param_get sctl_parent)))))
+        (else (do)))
+      (let sctl_ret i64 (call_i64 sstt_build_return
+        (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (local_get sctl_expr) (call_i32 weave_surface_get_return_type)))
+      (return (call_i32 sctl_append
+        (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_ret)))))
+
+  (fn sctl_append_if
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr)
+      (sctl_node i64) (sctl_parent i64))
+    (returns i32)
+    (do
+      (let sctl_cond i64 (call_i64 ie_cond_expr
+        (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node)))
+      (if
+        (condition (eq_i64 (local_get sctl_cond) (const_i64 -1)))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 sctl_types_ok
+          (call_i32 surface_type_bool)
+          (call_i32 sst_expr_type
+            (param_get sctl_tree) (param_get sctl_source)
+            (local_get sctl_cond) (call_i32 surface_type_bool)))
+          (const_i32 0)))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (let sctl_cond_wir i64 (call_i64 sot_build_operand
+        (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (local_get sctl_cond) (call_i32 surface_type_bool)))
+      (let sctl_then_do i64 (call_i64 sctl_build_branch
+        (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (call_i64 ie_then_body
+          (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node))))
+      (let sctl_else_do i64 (call_i64 sctl_build_branch
+        (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (call_i64 ie_else_body
+          (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node))))
+      (let sctl_if_node i64 (call_i64 wir_control_if
+        (param_get sctl_wir) (local_get sctl_cond_wir)
+        (local_get sctl_then_do) (local_get sctl_else_do)))
+      (return (call_i32 sctl_append
+        (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_if_node)))))
+
+  (fn sctl_append_when
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr)
+      (sctl_node i64) (sctl_parent i64))
+    (returns i32)
+    (do
+      (let sctl_cond i64 (call_i64 nth_child
+        (param_get sctl_tree) (param_get sctl_node) (const_i64 1)))
+      (if
+        (condition (eq_i64 (local_get sctl_cond) (const_i64 -1)))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 sctl_types_ok
+          (call_i32 surface_type_bool)
+          (call_i32 sst_expr_type
+            (param_get sctl_tree) (param_get sctl_source)
+            (local_get sctl_cond) (call_i32 surface_type_bool)))
+          (const_i32 0)))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (let sctl_cond_wir i64 (call_i64 sot_build_operand
+        (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (local_get sctl_cond) (call_i32 surface_type_bool)))
+      (let sctl_then_do i64 (call_i64 wir_control_do (param_get sctl_wir)))
+      (let sctl_stmt i64 (call_i64 nth_child
+        (param_get sctl_tree) (param_get sctl_node) (const_i64 2)))
+      (while
+        (condition (ne_i64 (local_get sctl_stmt) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 comment_is_node
+              (param_get sctl_tree) (param_get sctl_source) (local_get sctl_stmt))
+              (const_i32 0)))
+            (then (do
+              (if
+                (condition (eq_i32 (call_i32 sctl_append_stmt
+                  (param_get sctl_wir) (param_get sctl_source)
+                  (param_get sctl_tree) (local_get sctl_stmt)
+                  (local_get sctl_then_do)) (const_i32 0)))
+                (then (do (return (const_i32 0))))
+                (else (do)))))
+            (else (do)))
+          (set sctl_stmt (call_i64 node_next_sibling
+            (param_get sctl_tree) (local_get sctl_stmt)))))
+      (let sctl_else_do i64 (call_i64 wir_control_do (param_get sctl_wir)))
+      (let sctl_if_node i64 (call_i64 wir_control_if
+        (param_get sctl_wir) (local_get sctl_cond_wir)
+        (local_get sctl_then_do) (local_get sctl_else_do)))
+      (return (call_i32 sctl_append
+        (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_if_node)))))
+
+  (fn sctl_append_gated_stmt
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr)
+      (sctl_stmt i64) (sctl_parent i64) (sctl_id i32))
+    (returns i32)
+    (do
+      (let sctl_then_do i64 (call_i64 wir_control_do (param_get sctl_wir)))
+      (if
+        (condition (eq_i32 (call_i32 sctl_append_stmt
+          (param_get sctl_wir) (param_get sctl_source)
+          (param_get sctl_tree) (param_get sctl_stmt)
+          (local_get sctl_then_do)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sctl_gate_cond i64 (call_i64 wir_control_gate_cond
+        (param_get sctl_wir) (param_get sctl_id)))
+      (let sctl_else_do i64 (call_i64 wir_control_do (param_get sctl_wir)))
+      (let sctl_gate i64 (call_i64 wir_control_if
+        (param_get sctl_wir) (local_get sctl_gate_cond)
+        (local_get sctl_then_do) (local_get sctl_else_do)))
+      (return (call_i32 sctl_append
+        (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_gate)))))
+
+  (fn sctl_append_gated_stmts
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr)
+      (sctl_stmt i64) (sctl_parent i64) (sctl_id i32))
+    (returns i32)
+    (do
+      (let sctl_walk i64 (param_get sctl_stmt))
+      (while
+        (condition (ne_i64 (local_get sctl_walk) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 comment_is_node
+              (param_get sctl_tree) (param_get sctl_source) (local_get sctl_walk))
+              (const_i32 0)))
+            (then (do
+              (if
+                (condition (eq_i32 (call_i32 sctl_append_gated_stmt
+                  (param_get sctl_wir) (param_get sctl_source)
+                  (param_get sctl_tree) (local_get sctl_walk)
+                  (param_get sctl_parent) (param_get sctl_id))
+                  (const_i32 0)))
+                (then (do (return (const_i32 0))))
+                (else (do)))))
+            (else (do)))
+          (set sctl_walk (call_i64 node_next_sibling
+            (param_get sctl_tree) (local_get sctl_walk)))))
+      (return (const_i32 1))))
+
+  (fn sctl_append_plain_stmts
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr)
+      (sctl_stmt i64) (sctl_parent i64))
+    (returns i32)
+    (do
+      (let sctl_walk i64 (param_get sctl_stmt))
+      (while
+        (condition (ne_i64 (local_get sctl_walk) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 comment_is_node
+              (param_get sctl_tree) (param_get sctl_source) (local_get sctl_walk))
+              (const_i32 0)))
+            (then (do
+              (if
+                (condition (eq_i32 (call_i32 sctl_append_stmt
+                  (param_get sctl_wir) (param_get sctl_source)
+                  (param_get sctl_tree) (local_get sctl_walk)
+                  (param_get sctl_parent)) (const_i32 0)))
+                (then (do (return (const_i32 0))))
+                (else (do)))))
+            (else (do)))
+          (set sctl_walk (call_i64 node_next_sibling
+            (param_get sctl_tree) (local_get sctl_walk)))))
+      (return (const_i32 1))))
+
+  (fn sctl_append_while
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr)
+      (sctl_node i64) (sctl_parent i64))
+    (returns i32)
+    (do
+      (let sctl_wrapped i32 (call_i32 lp_while_is_wrapped
+        (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node)))
+      (let sctl_cond i64 (const_i64 -1))
+      (let sctl_body i64 (const_i64 -1))
+      (let sctl_compact_stmt i64 (const_i64 -1))
+      (if
+        (condition (eq_i32 (local_get sctl_wrapped) (const_i32 0)))
+        (then (do
+          (set sctl_cond (call_i64 nth_child
+            (param_get sctl_tree) (param_get sctl_node) (const_i64 1)))
+          (set sctl_compact_stmt (call_i64 nth_child
+            (param_get sctl_tree) (param_get sctl_node) (const_i64 2)))))
+        (else (do
+          (if
+            (condition (ne_i64 (call_i64 count_children
+              (param_get sctl_tree) (param_get sctl_node)) (const_i64 3)))
+            (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+            (else (do)))
+          (let sctl_cond_clause i64 (call_i64 nth_child
+            (param_get sctl_tree) (param_get sctl_node) (const_i64 1)))
+          (set sctl_cond (call_i64 nth_child
+            (param_get sctl_tree) (local_get sctl_cond_clause) (const_i64 1)))
+          (set sctl_body (call_i64 nth_child
+            (param_get sctl_tree) (param_get sctl_node) (const_i64 2))))))
+      (if
+        (condition (eq_i64 (local_get sctl_cond) (const_i64 -1)))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 sctl_types_ok
+          (call_i32 surface_type_bool)
+          (call_i32 sst_expr_type
+            (param_get sctl_tree) (param_get sctl_source)
+            (local_get sctl_cond) (call_i32 surface_type_bool)))
+          (const_i32 0)))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (let sctl_ctl i32 (const_i32 0))
+      (if
+        (condition (eq_i32 (local_get sctl_wrapped) (const_i32 0)))
+        (then (do
+          (let sctl_walk i64 (local_get sctl_compact_stmt))
+          (while
+            (condition (ne_i64 (local_get sctl_walk) (const_i64 -1)))
+            (do
+              (if
+                (condition (ne_i32 (call_i32 lp_has_ctl
+                  (param_get sctl_tree) (param_get sctl_source)
+                  (local_get sctl_walk)) (const_i32 0)))
+                (then (do (set sctl_ctl (const_i32 1))))
+                (else (do)))
+              (set sctl_walk (call_i64 node_next_sibling
+                (param_get sctl_tree) (local_get sctl_walk)))))))
+        (else (do
+          (set sctl_ctl (call_i32 lp_has_ctl
+            (param_get sctl_tree) (param_get sctl_source)
+            (local_get sctl_body))))))
+      (let sctl_cond_wir i64 (call_i64 sot_build_operand
+        (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (local_get sctl_cond) (call_i32 surface_type_bool)))
+      (if
+        (condition (eq_i32 (local_get sctl_ctl) (const_i32 0)))
+        (then (do
+          (let sctl_plain_do i64 (const_i64 -1))
+          (if
+            (condition (eq_i32 (local_get sctl_wrapped) (const_i32 0)))
+            (then (do
+              (set sctl_plain_do (call_i64 wir_control_do (param_get sctl_wir)))
+              (if
+                (condition (eq_i32 (call_i32 sctl_append_plain_stmts
+                  (param_get sctl_wir) (param_get sctl_source)
+                  (param_get sctl_tree) (local_get sctl_compact_stmt)
+                  (local_get sctl_plain_do)) (const_i32 0)))
+                (then (do (return (const_i32 0))))
+                (else (do)))))
+            (else (do
+              (set sctl_plain_do (call_i64 sctl_build_do
+                (param_get sctl_wir) (param_get sctl_source)
+                (param_get sctl_tree) (local_get sctl_body))))))
+          (let sctl_plain_while i64 (call_i64 wir_control_while
+            (param_get sctl_wir) (local_get sctl_cond_wir)
+            (local_get sctl_plain_do)))
+          (return (call_i32 sctl_append
+            (param_get sctl_wir) (param_get sctl_parent)
+            (local_get sctl_plain_while)))))
+        (else (do)))
+      (let sctl_id i32 (call_i32 weave_surface_loop_push))
+      (if
+        (condition (lt_i32 (local_get sctl_id) (const_i32 0)))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (let sctl_run i64 (call_i64 wir_control_let_flag
+        (param_get sctl_wir) (local_get sctl_id)
+        (const_string_ptr "run") (const_i32 1)))
+      (let sctl_skip i64 (call_i64 wir_control_let_flag
+        (param_get sctl_wir) (local_get sctl_id)
+        (const_string_ptr "skip") (const_i32 0)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 sctl_append
+            (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_run))
+            (const_i32 0))
+          (eq_i32 (call_i32 sctl_append
+            (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_skip))
+            (const_i32 0))))
+        (then (do
+          (call_void weave_surface_loop_pop)
+          (return (const_i32 0))))
+        (else (do)))
+      (let sctl_live i64 (call_i64 wir_control_run_live
+        (param_get sctl_wir) (local_get sctl_id)))
+      (let sctl_and i64 (call_i64 wir_control_and_bool
+        (param_get sctl_wir) (local_get sctl_cond_wir) (local_get sctl_live)))
+      (let sctl_body_do i64 (call_i64 wir_control_do (param_get sctl_wir)))
+      (let sctl_reset i64 (call_i64 wir_control_set_flag
+        (param_get sctl_wir) (local_get sctl_id)
+        (const_string_ptr "skip") (const_i32 0)))
+      (if
+        (condition (eq_i32 (call_i32 sctl_append
+          (param_get sctl_wir) (local_get sctl_body_do) (local_get sctl_reset))
+          (const_i32 0)))
+        (then (do
+          (call_void weave_surface_loop_pop)
+          (return (const_i32 0))))
+        (else (do)))
+      (let sctl_gated_ok i32 (const_i32 0))
+      (if
+        (condition (eq_i32 (local_get sctl_wrapped) (const_i32 0)))
+        (then (do
+          (set sctl_gated_ok (call_i32 sctl_append_gated_stmts
+            (param_get sctl_wir) (param_get sctl_source)
+            (param_get sctl_tree) (local_get sctl_compact_stmt)
+            (local_get sctl_body_do) (local_get sctl_id)))))
+        (else (do
+          (let sctl_body_stmt i64 (call_i64 node_first_child
+            (param_get sctl_tree) (local_get sctl_body)))
+          (if
+            (condition (ne_i64 (local_get sctl_body_stmt) (const_i64 -1)))
+            (then (do
+              (set sctl_body_stmt (call_i64 node_next_sibling
+                (param_get sctl_tree) (local_get sctl_body_stmt)))))
+            (else (do)))
+          (set sctl_gated_ok (call_i32 sctl_append_gated_stmts
+            (param_get sctl_wir) (param_get sctl_source)
+            (param_get sctl_tree) (local_get sctl_body_stmt)
+            (local_get sctl_body_do) (local_get sctl_id))))))
+      (if
+        (condition (eq_i32 (local_get sctl_gated_ok) (const_i32 0)))
+        (then (do
+          (call_void weave_surface_loop_pop)
+          (return (const_i32 0))))
+        (else (do)))
+      (let sctl_flag_while i64 (call_i64 wir_control_while
+        (param_get sctl_wir) (local_get sctl_and) (local_get sctl_body_do)))
+      (let sctl_while_ok i32 (call_i32 sctl_append
+        (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_flag_while)))
+      (call_void weave_surface_loop_pop)
+      (return (local_get sctl_while_ok))))
+
+  (fn sctl_append_for
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr)
+      (sctl_node i64) (sctl_parent i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get sctl_tree) (param_get sctl_node)) (const_i64 3)))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (let sctl_range i64 (call_i64 nth_child
+        (param_get sctl_tree) (param_get sctl_node) (const_i64 1)))
+      (let sctl_body i64 (call_i64 nth_child
+        (param_get sctl_tree) (param_get sctl_node) (const_i64 2)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 sctl_head_is
+            (param_get sctl_tree) (param_get sctl_source) (local_get sctl_range)
+            (const_string_ptr "range") (const_i64 5)) (const_i32 0))
+          (or_bool
+            (ne_i64 (call_i64 count_children
+              (param_get sctl_tree) (local_get sctl_range)) (const_i64 4))
+            (eq_i32 (call_i32 sctl_head_is
+              (param_get sctl_tree) (param_get sctl_source) (local_get sctl_body)
+              (const_string_ptr "do") (const_i64 2)) (const_i32 0)))))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (let sctl_name i64 (call_i64 nth_child
+        (param_get sctl_tree) (local_get sctl_range) (const_i64 1)))
+      (let sctl_start i64 (call_i64 nth_child
+        (param_get sctl_tree) (local_get sctl_range) (const_i64 2)))
+      (let sctl_end i64 (call_i64 nth_child
+        (param_get sctl_tree) (local_get sctl_range) (const_i64 3)))
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get sctl_tree) (local_get sctl_name)) (call_i32 node_ident)))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      ; Match loop_emit_for: unknown and non-i32 bounds fail closed so the
+      ; established frontend.loop.invalid / "range bounds must be i32"
+      ; diagnostic stays authoritative. sctl_types_ok treats unknown as
+      ; compatible and must not be used here.
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 weave_semantic_types_compatible
+            (call_i32 surface_type_i32)
+            (call_i32 sop_expr_type
+              (param_get sctl_tree) (param_get sctl_source)
+              (local_get sctl_start) (call_i32 surface_type_i32)))
+            (const_i32 0))
+          (eq_i32 (call_i32 weave_semantic_types_compatible
+            (call_i32 surface_type_i32)
+            (call_i32 sop_expr_type
+              (param_get sctl_tree) (param_get sctl_source)
+              (local_get sctl_end) (call_i32 surface_type_i32)))
+            (const_i32 0))))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (let sctl_id i32 (call_i32 weave_surface_loop_push))
+      (if
+        (condition (lt_i32 (local_get sctl_id) (const_i32 0)))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (let sctl_iter_name i64 (call_i64 sctl_ident
+        (param_get sctl_wir) (param_get sctl_source)
+        (param_get sctl_tree) (local_get sctl_name)))
+      (let sctl_i32_atom i64 (call_i64 wir_control_i32_atom (param_get sctl_wir)))
+      (let sctl_start_expr i64 (call_i64 sot_build_operand
+        (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (local_get sctl_start) (call_i32 surface_type_i32)))
+      (let sctl_iter_let i64 (call_i64 wir_stmt_let
+        (param_get sctl_wir) (local_get sctl_iter_name)
+        (local_get sctl_i32_atom) (local_get sctl_start_expr)))
+      (if
+        (condition (eq_i32 (call_i32 sctl_append
+          (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_iter_let))
+          (const_i32 0)))
+        (then (do
+          (call_void weave_surface_loop_pop)
+          (return (const_i32 0))))
+        (else (do)))
+      (call_void sctl_register_let
+        (param_get sctl_source) (param_get sctl_tree)
+        (local_get sctl_name) (call_i32 surface_type_i32))
+      (let sctl_end_name i64 (call_i64 wir_control_loop_ident
+        (param_get sctl_wir) (local_get sctl_id) (const_string_ptr "end")))
+      (let sctl_end_type i64 (call_i64 wir_control_i32_atom (param_get sctl_wir)))
+      (let sctl_end_expr i64 (call_i64 sot_build_operand
+        (param_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (local_get sctl_end) (call_i32 surface_type_i32)))
+      (let sctl_end_let i64 (call_i64 wir_stmt_let
+        (param_get sctl_wir) (local_get sctl_end_name)
+        (local_get sctl_end_type) (local_get sctl_end_expr)))
+      (if
+        (condition (eq_i32 (call_i32 sctl_append
+          (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_end_let))
+          (const_i32 0)))
+        (then (do
+          (call_void weave_surface_loop_pop)
+          (return (const_i32 0))))
+        (else (do)))
+      (let sctl_ctl i32 (call_i32 lp_has_ctl
+        (param_get sctl_tree) (param_get sctl_source) (local_get sctl_body)))
+      (if
+        (condition (ne_i32 (local_get sctl_ctl) (const_i32 0)))
+        (then (do
+          (let sctl_run i64 (call_i64 wir_control_let_flag
+            (param_get sctl_wir) (local_get sctl_id)
+            (const_string_ptr "run") (const_i32 1)))
+          (let sctl_skip i64 (call_i64 wir_control_let_flag
+            (param_get sctl_wir) (local_get sctl_id)
+            (const_string_ptr "skip") (const_i32 0)))
+          (if
+            (condition (or_bool
+              (eq_i32 (call_i32 sctl_append
+                (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_run))
+                (const_i32 0))
+              (eq_i32 (call_i32 sctl_append
+                (param_get sctl_wir) (param_get sctl_parent)
+                (local_get sctl_skip)) (const_i32 0))))
+            (then (do
+              (call_void weave_surface_loop_pop)
+              (return (const_i32 0))))
+            (else (do)))))
+        (else (do)))
+      (let sctl_lt_name i64 (call_i64 sctl_ident
+        (param_get sctl_wir) (param_get sctl_source)
+        (param_get sctl_tree) (local_get sctl_name)))
+      (let sctl_lt i64 (call_i64 wir_control_lt_name_end
+        (param_get sctl_wir) (local_get sctl_lt_name) (local_get sctl_id)))
+      (let sctl_while_cond i64 (local_get sctl_lt))
+      (if
+        (condition (ne_i32 (local_get sctl_ctl) (const_i32 0)))
+        (then (do
+          (let sctl_live i64 (call_i64 wir_control_run_live
+            (param_get sctl_wir) (local_get sctl_id)))
+          (set sctl_while_cond (call_i64 wir_control_and_bool
+            (param_get sctl_wir) (local_get sctl_lt) (local_get sctl_live)))))
+        (else (do)))
+      (let sctl_body_do i64 (call_i64 wir_control_do (param_get sctl_wir)))
+      (if
+        (condition (ne_i32 (local_get sctl_ctl) (const_i32 0)))
+        (then (do
+          (let sctl_reset i64 (call_i64 wir_control_set_flag
+            (param_get sctl_wir) (local_get sctl_id)
+            (const_string_ptr "skip") (const_i32 0)))
+          (if
+            (condition (eq_i32 (call_i32 sctl_append
+              (param_get sctl_wir) (local_get sctl_body_do)
+              (local_get sctl_reset)) (const_i32 0)))
+            (then (do
+              (call_void weave_surface_loop_pop)
+              (return (const_i32 0))))
+            (else (do)))
+          (let sctl_gated_stmt i64 (call_i64 node_first_child
+            (param_get sctl_tree) (local_get sctl_body)))
+          (if
+            (condition (ne_i64 (local_get sctl_gated_stmt) (const_i64 -1)))
+            (then (do
+              (set sctl_gated_stmt (call_i64 node_next_sibling
+                (param_get sctl_tree) (local_get sctl_gated_stmt)))))
+            (else (do)))
+          (if
+            (condition (eq_i32 (call_i32 sctl_append_gated_stmts
+              (param_get sctl_wir) (param_get sctl_source)
+              (param_get sctl_tree) (local_get sctl_gated_stmt)
+              (local_get sctl_body_do) (local_get sctl_id))
+              (const_i32 0)))
+            (then (do
+              (call_void weave_surface_loop_pop)
+              (return (const_i32 0))))
+            (else (do)))
+          (let sctl_inc_then i64 (call_i64 wir_control_do (param_get sctl_wir)))
+          (let sctl_flag_inc_set i64 (call_i64 sctl_ident
+            (param_get sctl_wir) (param_get sctl_source)
+            (param_get sctl_tree) (local_get sctl_name)))
+          (let sctl_flag_inc_get i64 (call_i64 sctl_ident
+            (param_get sctl_wir) (param_get sctl_source)
+            (param_get sctl_tree) (local_get sctl_name)))
+          (let sctl_flag_inc i64 (call_i64 wir_control_inc_name
+            (param_get sctl_wir) (local_get sctl_flag_inc_set)
+            (local_get sctl_flag_inc_get)))
+          (if
+            (condition (eq_i32 (call_i32 sctl_append
+              (param_get sctl_wir) (local_get sctl_inc_then)
+              (local_get sctl_flag_inc))
+              (const_i32 0)))
+            (then (do
+              (call_void weave_surface_loop_pop)
+              (return (const_i32 0))))
+            (else (do)))
+          (let sctl_inc_cond i64 (call_i64 wir_control_run_live
+            (param_get sctl_wir) (local_get sctl_id)))
+          (let sctl_inc_else i64 (call_i64 wir_control_do (param_get sctl_wir)))
+          (let sctl_inc_if i64 (call_i64 wir_control_if
+            (param_get sctl_wir) (local_get sctl_inc_cond)
+            (local_get sctl_inc_then) (local_get sctl_inc_else)))
+          (if
+            (condition (eq_i32 (call_i32 sctl_append
+              (param_get sctl_wir) (local_get sctl_body_do)
+              (local_get sctl_inc_if)) (const_i32 0)))
+            (then (do
+              (call_void weave_surface_loop_pop)
+              (return (const_i32 0))))
+            (else (do)))))
+        (else (do
+          (let sctl_plain_stmt i64 (call_i64 node_first_child
+            (param_get sctl_tree) (local_get sctl_body)))
+          (if
+            (condition (ne_i64 (local_get sctl_plain_stmt) (const_i64 -1)))
+            (then (do
+              (set sctl_plain_stmt (call_i64 node_next_sibling
+                (param_get sctl_tree) (local_get sctl_plain_stmt)))))
+            (else (do)))
+          (if
+            (condition (eq_i32 (call_i32 sctl_append_plain_stmts
+              (param_get sctl_wir) (param_get sctl_source)
+              (param_get sctl_tree) (local_get sctl_plain_stmt)
+              (local_get sctl_body_do)) (const_i32 0)))
+            (then (do
+              (call_void weave_surface_loop_pop)
+              (return (const_i32 0))))
+            (else (do)))
+          (let sctl_plain_inc_set i64 (call_i64 sctl_ident
+            (param_get sctl_wir) (param_get sctl_source)
+            (param_get sctl_tree) (local_get sctl_name)))
+          (let sctl_plain_inc_get i64 (call_i64 sctl_ident
+            (param_get sctl_wir) (param_get sctl_source)
+            (param_get sctl_tree) (local_get sctl_name)))
+          (let sctl_plain_inc i64 (call_i64 wir_control_inc_name
+            (param_get sctl_wir) (local_get sctl_plain_inc_set)
+            (local_get sctl_plain_inc_get)))
+          (if
+            (condition (eq_i32 (call_i32 sctl_append
+              (param_get sctl_wir) (local_get sctl_body_do)
+              (local_get sctl_plain_inc))
+              (const_i32 0)))
+            (then (do
+              (call_void weave_surface_loop_pop)
+              (return (const_i32 0))))
+            (else (do))))))
+      (let sctl_while i64 (call_i64 wir_control_while
+        (param_get sctl_wir) (local_get sctl_while_cond)
+        (local_get sctl_body_do)))
+      (let sctl_while_ok i32 (call_i32 sctl_append
+        (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_while)))
+      (call_void weave_surface_loop_pop)
+      (return (local_get sctl_while_ok))))
+
+  (fn sctl_append_break
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr)
+      (sctl_node i64) (sctl_parent i64))
+    (returns i32)
+    (do
+      (let sctl_id i32 (call_i32 weave_surface_loop_id))
+      (if
+        (condition (lt_i32 (local_get sctl_id) (const_i32 0)))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (let sctl_set i64 (call_i64 wir_control_set_flag
+        (param_get sctl_wir) (local_get sctl_id)
+        (const_string_ptr "run") (const_i32 0)))
+      (return (call_i32 sctl_append
+        (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_set)))))
+
+  (fn sctl_append_continue
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr)
+      (sctl_node i64) (sctl_parent i64))
+    (returns i32)
+    (do
+      (let sctl_id i32 (call_i32 weave_surface_loop_id))
+      (if
+        (condition (lt_i32 (local_get sctl_id) (const_i32 0)))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (let sctl_set i64 (call_i64 wir_control_set_flag
+        (param_get sctl_wir) (local_get sctl_id)
+        (const_string_ptr "skip") (const_i32 1)))
+      (return (call_i32 sctl_append
+        (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_set)))))
+
+  (fn sctl_append_stmt
+    (params
+      (sctl_wir ptr) (sctl_source ptr) (sctl_tree ptr)
+      (sctl_node i64) (sctl_parent i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get sctl_wir) (const_null))
+          (or_bool
+            (eq_i64 (param_get sctl_node) (const_i64 -1))
+            (ne_i32 (call_i32 wir_tree_failed (param_get sctl_wir))
+              (const_i32 0)))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 comment_is_node
+          (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node))
+          (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get sctl_tree) (param_get sctl_node)) (call_i32 node_list)))
+        (then (do (return (call_i32 sctl_fail (param_get sctl_wir)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 sctl_head_is
+          (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node)
+          (const_string_ptr "let") (const_i64 3)) (const_i32 0)))
+        (then (do (return (call_i32 sctl_append_let
+          (param_get sctl_wir) (param_get sctl_source)
+          (param_get sctl_tree) (param_get sctl_node)
+          (param_get sctl_parent)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 sctl_head_is
+          (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node)
+          (const_string_ptr "set") (const_i64 3)) (const_i32 0)))
+        (then (do (return (call_i32 sctl_append_set
+          (param_get sctl_wir) (param_get sctl_source)
+          (param_get sctl_tree) (param_get sctl_node)
+          (param_get sctl_parent)))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (ne_i32 (call_i32 sctl_head_is
+            (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node)
+            (const_string_ptr "return") (const_i64 6)) (const_i32 0))
+          (ne_i32 (call_i32 sctl_head_is
+            (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node)
+            (const_string_ptr "return_void") (const_i64 11)) (const_i32 0))))
+        (then (do
+          (if
+            (condition (ne_i32 (call_i32 sctl_head_is
+              (param_get sctl_tree) (param_get sctl_source)
+              (param_get sctl_node)
+              (const_string_ptr "return_void") (const_i64 11))
+              (const_i32 0)))
+            (then (do
+              (let sctl_void i64 (call_i64 wir_stmt_return_void
+                (param_get sctl_wir)))
+              (return (call_i32 sctl_append
+                (param_get sctl_wir) (param_get sctl_parent)
+                (local_get sctl_void)))))
+            (else (do)))
+          (return (call_i32 sctl_append_return
+            (param_get sctl_wir) (param_get sctl_source)
+            (param_get sctl_tree) (param_get sctl_node)
+            (param_get sctl_parent)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_is_when
+          (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node))
+          (const_i32 0)))
+        (then (do (return (call_i32 sctl_append_when
+          (param_get sctl_wir) (param_get sctl_source)
+          (param_get sctl_tree) (param_get sctl_node)
+          (param_get sctl_parent)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 if_stmt_is_node
+          (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node))
+          (const_i32 0)))
+        (then (do (return (call_i32 sctl_append_if
+          (param_get sctl_wir) (param_get sctl_source)
+          (param_get sctl_tree) (param_get sctl_node)
+          (param_get sctl_parent)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 loop_is_while
+          (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node))
+          (const_i32 0)))
+        (then (do (return (call_i32 sctl_append_while
+          (param_get sctl_wir) (param_get sctl_source)
+          (param_get sctl_tree) (param_get sctl_node)
+          (param_get sctl_parent)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 loop_is_for
+          (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node))
+          (const_i32 0)))
+        (then (do (return (call_i32 sctl_append_for
+          (param_get sctl_wir) (param_get sctl_source)
+          (param_get sctl_tree) (param_get sctl_node)
+          (param_get sctl_parent)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 loop_is_break
+          (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node))
+          (const_i32 0)))
+        (then (do (return (call_i32 sctl_append_break
+          (param_get sctl_wir) (param_get sctl_source)
+          (param_get sctl_tree) (param_get sctl_node)
+          (param_get sctl_parent)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 loop_is_continue
+          (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node))
+          (const_i32 0)))
+        (then (do (return (call_i32 sctl_append_continue
+          (param_get sctl_wir) (param_get sctl_source)
+          (param_get sctl_tree) (param_get sctl_node)
+          (param_get sctl_parent)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 sctl_head_is
+          (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node)
+          (const_string_ptr "do") (const_i64 2)) (const_i32 0)))
+        (then (do
+          (let sctl_do i64 (call_i64 sctl_build_do
+            (param_get sctl_wir) (param_get sctl_source)
+            (param_get sctl_tree) (param_get sctl_node)))
+          (return (call_i32 sctl_append
+            (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_do)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_is_call_node
+          (param_get sctl_tree) (param_get sctl_source) (param_get sctl_node))
+          (const_i32 0)))
+        (then (do
+          (let sctl_call i64 (call_i64 sct_build_nested_call
+            (param_get sctl_wir) (param_get sctl_source)
+            (param_get sctl_tree) (param_get sctl_node)))
+          (return (call_i32 sctl_append
+            (param_get sctl_wir) (param_get sctl_parent) (local_get sctl_call)))))
+        (else (do)))
+      (return (call_i32 sctl_fail (param_get sctl_wir)))))
+
+  (fn sctl_publish_seq
+    (params (sctl_fd i32) (sctl_wir ptr) (sctl_seq i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get sctl_wir) (const_null))
+          (or_bool
+            (lt_i64 (param_get sctl_seq) (const_i64 0))
+            (ne_i32 (call_i32 wir_tree_failed (param_get sctl_wir))
+              (const_i32 0)))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sctl_child i64 (call_i64 wir_node_first_child
+        (param_get sctl_wir) (param_get sctl_seq)))
+      (if
+        (condition (eq_i64 (local_get sctl_child) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sctl_buffer ptr (call_ptr wir_buffer_new))
+      (if
+        (condition (eq_ptr (local_get sctl_buffer) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sctl_first i32 (const_i32 1))
+      (while
+        (condition (ne_i64 (local_get sctl_child) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (local_get sctl_first) (const_i32 0)))
+            (then (do
+              (call_i32 wir_buffer_append_byte
+                (local_get sctl_buffer) (const_i32 32))))
+            (else (do (set sctl_first (const_i32 0)))))
+          (if
+            (condition (eq_i32 (call_i32 wir_serialize_into
+              (local_get sctl_buffer) (param_get sctl_wir)
+              (local_get sctl_child)) (const_i32 0)))
+            (then (do
+              (call_void wir_buffer_free (local_get sctl_buffer))
+              (return (const_i32 0))))
+            (else (do)))
+          (set sctl_child (call_i64 wir_node_next_sibling
+            (param_get sctl_wir) (local_get sctl_child)))))
+      (let sctl_length i64 (call_i64 wir_buffer_length (local_get sctl_buffer)))
+      (let sctl_data ptr (call_ptr wir_buffer_data (local_get sctl_buffer)))
+      (if
+        (condition (or_bool
+          (le_i64 (local_get sctl_length) (const_i64 0))
+          (eq_ptr (local_get sctl_data) (const_null))))
+        (then (do
+          (call_void wir_buffer_free (local_get sctl_buffer))
+          (return (const_i32 0))))
+        (else (do)))
+      (call_void write_bytes
+        (param_get sctl_fd) (local_get sctl_data) (local_get sctl_length))
+      (call_void wir_buffer_free (local_get sctl_buffer))
+      (if
+        (condition (ne_i32 (call_i32 write_failed) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+
+  (fn sctl_try_publish_stmt
+    (params
+      (sctl_fd i32) (sctl_source ptr) (sctl_tree ptr) (sctl_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 sctl_treeable
+          (param_get sctl_source) (param_get sctl_tree) (param_get sctl_node))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sctl_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sctl_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sctl_seq i64 (call_i64 wir_list (local_get sctl_wir)))
+      (let sctl_ok i32 (call_i32 sctl_append_stmt
+        (local_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (param_get sctl_node) (local_get sctl_seq)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get sctl_ok) (const_i32 0))
+          (eq_i32 (call_i32 wir_tree_failed (local_get sctl_wir))
+            (const_i32 0))))
+        (then (do
+          (set sctl_ok (call_i32 sctl_publish_seq
+            (param_get sctl_fd) (local_get sctl_wir) (local_get sctl_seq)))))
+        (else (do (set sctl_ok (const_i32 0)))))
+      (call_void wir_tree_free (local_get sctl_wir))
+      (return (local_get sctl_ok))))
+
+  (fn sctl_try_publish_when
+    (params
+      (sctl_fd i32) (sctl_source ptr) (sctl_tree ptr) (sctl_node i64))
+    (returns i32)
+    (do
+      (return (call_i32 sctl_try_publish_stmt
+        (param_get sctl_fd) (param_get sctl_source)
+        (param_get sctl_tree) (param_get sctl_node)))))
+
+  (fn sctl_try_publish_if_stmt
+    (params
+      (sctl_fd i32) (sctl_source ptr) (sctl_tree ptr) (sctl_node i64))
+    (returns i32)
+    (do
+      (return (call_i32 sctl_try_publish_stmt
+        (param_get sctl_fd) (param_get sctl_source)
+        (param_get sctl_tree) (param_get sctl_node)))))
+
+  (fn sctl_try_publish_while
+    (params
+      (sctl_fd i32) (sctl_source ptr) (sctl_tree ptr) (sctl_node i64))
+    (returns i32)
+    (do
+      (return (call_i32 sctl_try_publish_stmt
+        (param_get sctl_fd) (param_get sctl_source)
+        (param_get sctl_tree) (param_get sctl_node)))))
+
+  (fn sctl_try_publish_for
+    (params
+      (sctl_fd i32) (sctl_source ptr) (sctl_tree ptr) (sctl_node i64))
+    (returns i32)
+    (do
+      (return (call_i32 sctl_try_publish_stmt
+        (param_get sctl_fd) (param_get sctl_source)
+        (param_get sctl_tree) (param_get sctl_node)))))
+
+  (fn sctl_try_publish_break
+    (params
+      (sctl_fd i32) (sctl_source ptr) (sctl_tree ptr) (sctl_node i64))
+    (returns i32)
+    (do
+      (return (call_i32 sctl_try_publish_stmt
+        (param_get sctl_fd) (param_get sctl_source)
+        (param_get sctl_tree) (param_get sctl_node)))))
+
+  (fn sctl_try_publish_continue
+    (params
+      (sctl_fd i32) (sctl_source ptr) (sctl_tree ptr) (sctl_node i64))
+    (returns i32)
+    (do
+      (return (call_i32 sctl_try_publish_stmt
+        (param_get sctl_fd) (param_get sctl_source)
+        (param_get sctl_tree) (param_get sctl_node)))))
+
+  (fn sctl_try_publish_if_expr_let
+    (params
+      (sctl_fd i32) (sctl_source ptr) (sctl_tree ptr) (sctl_let i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 sctl_treeable
+          (param_get sctl_source) (param_get sctl_tree) (param_get sctl_let))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sctl_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sctl_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sctl_seq i64 (call_i64 wir_list (local_get sctl_wir)))
+      (let sctl_ok i32 (call_i32 sctl_append_let
+        (local_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (param_get sctl_let) (local_get sctl_seq)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get sctl_ok) (const_i32 0))
+          (eq_i32 (call_i32 wir_tree_failed (local_get sctl_wir))
+            (const_i32 0))))
+        (then (do
+          (set sctl_ok (call_i32 sctl_publish_seq
+            (param_get sctl_fd) (local_get sctl_wir) (local_get sctl_seq)))))
+        (else (do (set sctl_ok (const_i32 0)))))
+      (call_void wir_tree_free (local_get sctl_wir))
+      (return (local_get sctl_ok))))
+
+  (fn sctl_try_publish_if_expr_return
+    (params
+      (sctl_fd i32) (sctl_source ptr) (sctl_tree ptr)
+      (sctl_if i64) (sctl_expected i32))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 sctl_treeable
+          (param_get sctl_source) (param_get sctl_tree) (param_get sctl_if))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sctl_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sctl_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sctl_seq i64 (call_i64 wir_list (local_get sctl_wir)))
+      (let sctl_ok i32 (call_i32 sctl_append_if_expr_return
+        (local_get sctl_wir) (param_get sctl_source) (param_get sctl_tree)
+        (param_get sctl_if) (param_get sctl_expected) (local_get sctl_seq)))
+      (if
+        (condition (and_bool
+          (ne_i32 (local_get sctl_ok) (const_i32 0))
+          (eq_i32 (call_i32 wir_tree_failed (local_get sctl_wir))
+            (const_i32 0))))
+        (then (do
+          (set sctl_ok (call_i32 sctl_publish_seq
+            (param_get sctl_fd) (local_get sctl_wir) (local_get sctl_seq)))))
+        (else (do (set sctl_ok (const_i32 0)))))
+      (call_void wir_tree_free (local_get sctl_wir))
+      (return (local_get sctl_ok))))
+)

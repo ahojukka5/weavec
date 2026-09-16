@@ -3,7 +3,8 @@
 ;
 ; (if (condition EXPR) (then EXPR) (else EXPR)) is a value only as a let
 ; initializer or a returned value. Else is required. Branch types must
-; agree. Statement if, including optional else, is unchanged.
+; agree. Statement if, including optional else, is unchanged. Migrated
+; success paths publish owned WIR trees from surface_control_tree.weave.
 
 (program
   (name "if_expr")
