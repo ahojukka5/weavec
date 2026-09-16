@@ -13,7 +13,10 @@
 ;
 ; Loop-local names are l<ID>_<SUFFIX>: l0_run, l0_skip, l0_end.
 ; Migrated success paths compose those identities in wir_control.weave.
-; These writers remain the fail-closed text fallback for unmigrated children.
+; These writers remain the fail-closed text fallback when a control form
+; still has unmigrated descendants (match/try/generics/quantum/structs).
+; Final deletion of this text path is owned by those family migrations
+; and the #384 ratchet, not by #379.
 
 (program
   (name "loop_text")
