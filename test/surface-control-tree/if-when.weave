@@ -1,0 +1,13 @@
+(program
+  (name "if-when")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let acc 0)
+      (when true (set acc 1))
+      (if (condition true)
+        (then (do (set acc (op add acc 10))))
+        (else (do (set acc 0))))
+      (return acc))))

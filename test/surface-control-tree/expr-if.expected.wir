@@ -1,0 +1,7 @@
+(core-module
+  (core-version 3)
+  (decls
+    (fn main (params) (returns i32) (do (let pick i32 (const_i32 0))
+(if (condition (const_bool true)) (then (do (set pick (const_i32 40)))) (else (do (set pick (const_i32 0))))) (if (condition (const_bool false)) (then (do (return (const_i32 1)))) (else (do (return (add_i32 pick (const_i32 2))))))))
+  )
+)

@@ -1,0 +1,10 @@
+(core-module
+  (core-version 3)
+  (decls
+    (fn main (params) (returns i32) (do (let total i32 (const_i32 0)) (let i i32 (const_i32 0))
+(let l0_end i32 (const_i32 3))
+(while (condition (lt_i32 (local_get i) (local_get l0_end))) (do  (let j i32 (const_i32 0)) (let l1_run i32 (const_i32 1))
+(let l1_skip i32 (const_i32 0))
+(while (condition (and_bool (lt_i32 j (const_i32 3)) (eq_i32 (local_get l1_run) (const_i32 1)))) (do (set l1_skip (const_i32 0)) (if (condition (and_bool (eq_i32 (local_get l1_run) (const_i32 1)) (eq_i32 (local_get l1_skip) (const_i32 0)))) (then (do (if (condition (eq_i32 j (const_i32 2))) (then (do (set l1_run (const_i32 0)))) (else (do))))) (else (do))) (if (condition (and_bool (eq_i32 (local_get l1_run) (const_i32 1)) (eq_i32 (local_get l1_skip) (const_i32 0)))) (then (do (set total (add_i32 total (const_i32 1))))) (else (do))) (if (condition (and_bool (eq_i32 (local_get l1_run) (const_i32 1)) (eq_i32 (local_get l1_skip) (const_i32 0)))) (then (do (set j (add_i32 j (const_i32 1))))) (else (do))))) (set i (add_i32 (local_get i) (const_i32 1))))) (return total)))
+  )
+)

@@ -1,0 +1,6 @@
+(core-module
+  (core-version 3)
+  (decls
+    (fn main (params) (returns i32) (do (let acc i32 (const_i32 0)) (if (condition (const_bool true)) (then (do (set acc (const_i32 1)))) (else (do))) (if (condition (const_bool true)) (then (do (set acc (add_i32 acc (const_i32 10))))) (else (do (set acc (const_i32 0))))) (return acc)))
+  )
+)

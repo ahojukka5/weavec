@@ -1,0 +1,16 @@
+(program
+  (name "for-break-continue")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let acc 0)
+      (for (range j 0 4)
+        (do
+          (if (condition (op equal j 1))
+            (then (do (continue))))
+          (if (condition (op equal j 3))
+            (then (do (break))))
+          (set acc (op add acc j))))
+      (return acc))))

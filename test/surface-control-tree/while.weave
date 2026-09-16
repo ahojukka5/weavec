@@ -1,0 +1,11 @@
+(program
+  (name "while")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let i 0)
+      (while (condition (op less-than i 3))
+        (do (set i (op add i 1))))
+      (return i))))

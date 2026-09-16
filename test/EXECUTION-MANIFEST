@@ -178,6 +178,8 @@ executes surface-call-tree
 executes surface-stmt-tree
 # builds ordinary extern/fn/entry/const programs and runs them
 executes surface-decl-tree
+# builds nested if/when/while/for/break/continue programs and runs them
+executes surface-control-tree
 executes surface-symbols
 executes tagged-variants
 # tooling artifact documents

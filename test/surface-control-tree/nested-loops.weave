@@ -1,0 +1,18 @@
+(program
+  (name "nested-loops")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let total 0)
+      (for (range i 0 3)
+        (do
+          (let j 0)
+          (while (condition (op less-than j 3))
+            (do
+              (if (condition (op equal j 2))
+                (then (do (break))))
+              (set total (op add total 1))
+              (set j (op add j 1))))))
+      (return total))))

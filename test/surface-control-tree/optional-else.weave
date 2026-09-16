@@ -1,0 +1,11 @@
+(program
+  (name "optional-else")
+  (version "0.1")
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let n 1)
+      (if (condition false)
+        (then (do (set n 0))))
+      (return n))))
