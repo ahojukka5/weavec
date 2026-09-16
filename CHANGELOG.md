@@ -10,6 +10,14 @@ surface-language contract stabilises.
 
 ### Added
 
+- Ordinary `extern`, `fn`, `entry`, and top-level `const` declarations keep
+  their existing name, type, and module-ordering authorities, but admitted
+  success paths now construct complete owned WIR subtrees and publish them
+  through the hybrid fd seam. Function bodies compose already-migrated
+  statement and expression nodes. The `core-module` / `core-version 3` /
+  `decls` envelope has tree-builder representation; the driver still emits
+  that wrapper as text until the atomic switch. Unmigrated families still
+  use the temporary text renderer. See issue #380.
 - A deterministic mutation-fuzzing lane over conformance and current
   WIR fixtures. `scripts/mutation_fuzz.py` applies a recorded seed,
   asserts documented exits, schema-valid diagnostics, and no partial

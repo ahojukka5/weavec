@@ -66,6 +66,12 @@
     (params (fd i32) (source ptr) (tree ptr) (node i64))
     (returns void)
     (do
+      (if
+        (condition (ne_i32 (call_i32 sdtt_try_publish_fn
+          (param_get fd) (param_get source) (param_get tree)
+          (param_get node)) (const_i32 0)))
+        (then (do (return_void)))
+        (else (do)))
       (let fe_extern i32 (call_i32 head_equals
         (param_get tree) (param_get source) (param_get node)
         (const_string_ptr "extern") (const_i64 6)))

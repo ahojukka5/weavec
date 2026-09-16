@@ -162,9 +162,12 @@ incomplete document never replaces a previous one.
 This layer parses and combines ordered source modules, validates and lowers
 surface forms to WIR core version 3, performs implemented quantum rewrites,
 lowers executable contracts, and implements explain/audit modes. Canonical
-operators, casts, ordinary/typed calls, and ordinary let/set/return keep
-their existing semantic authority and, on the success path, construct
-owned WIR trees rather than textual fragments.
+operators, casts, ordinary/typed calls, ordinary let/set/return, and
+ordinary extern/fn/entry/const declarations keep their existing semantic
+authority and, on the success path, construct owned WIR trees rather than
+textual fragments. The WIR module envelope has tree-builder representation;
+complete declaration subtrees are still serialized through the hybrid fd
+seam until the atomic module switch.
 
 ### Compiled rewriting — `src/rewrite/`
 

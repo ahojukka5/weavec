@@ -339,6 +339,9 @@ bash "$ROOT/test/semantic-structs/test.sh"
 log 'module diagnostics'
 bash "$ROOT/test/module-diagnostics/test.sh"
 
+log 'structural module envelope and ordinary declaration lowering'
+bash "$ROOT/test/surface-decl-tree/test.sh"
+
 log 'module collision diagnostics'
 bash "$ROOT/test/module-collisions/test.sh"
 

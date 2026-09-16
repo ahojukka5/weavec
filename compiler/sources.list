@@ -92,6 +92,8 @@ src/frontend/struct_semantic_expressions.weave
 src/frontend/struct_semantic_calls.weave
 src/frontend/struct_semantic_constructor.weave
 src/frontend/struct_semantic_fields.weave
+src/frontend/wir_decl.weave
+src/frontend/surface_decl_tree.weave
 src/frontend/lower_program_emit.weave
 src/frontend/lower_program_validate.weave
 src/frontend/driver.weave

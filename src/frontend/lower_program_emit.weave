@@ -3,14 +3,15 @@
 ;
 ; Transforms a parsed surface Weave program or module node into WIR text.
 ;
-; The strategy is direct text emission: we walk the input AST and emit
-; WIR s-expressions without building an intermediate tree. Typed surface facts
-; are collected before declaration emission and consumed by emit.weave.
+; Ordinary extern/fn/entry/const declarations are tree-built on the success
+; path and published through the #377 hybrid fd seam. Unmigrated children
+; keep the text renderer. The module envelope still uses the transitional
+; text driver until #384; its tree builders live in wir_decl.weave.
 ;
 ; Transformation rules:
 ;   program/module root → core-module / core-version 3 / decls wrapper
-;   extern decl         → emitted verbatim in the decls list
-;   fn decl             → emitted verbatim in the decls list
+;   extern decl         → WIR extern in the decls list
+;   fn decl             → WIR fn in the decls list
 ;   entry NAME ...      → fn NAME ... (head renamed from entry to fn)
 ;   const NAME TYPE V   → zero-arg fn returning the constant
 ;   struct NAME fields  → generated getter/setter functions (struct.weave)
@@ -104,7 +105,16 @@
         (const_string_ptr "ptr") (const_i64 3)))
       (call_void emit_source_span_for_node
         (param_get fd) (param_get source) (param_get tree) (param_get node))
-      (call_void write_cstr (param_get fd) (const_string_ptr "    (fn "))
+      (call_void write_cstr (param_get fd) (const_string_ptr "    "))
+      (if
+        (condition (ne_i32 (call_i32 sdtt_try_publish_const
+          (param_get fd) (param_get source) (param_get tree)
+          (param_get node)) (const_i32 0)))
+        (then (do
+          (call_void write_byte (param_get fd) (const_i32 10))
+          (return_void)))
+        (else (do)))
+      (call_void write_cstr (param_get fd) (const_string_ptr "(fn "))
       (call_void surface_emit_symbol_name
         (param_get fd) (param_get source) (param_get tree) (local_get name_node))
       (call_void write_cstr (param_get fd) (const_string_ptr " (params) (returns "))
