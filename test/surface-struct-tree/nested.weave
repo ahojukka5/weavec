@@ -1,0 +1,26 @@
+(program
+  (name "surface-struct-tree-nested")
+  (version "0.1")
+  (extern malloc (params (size i64)) (returns ptr))
+  (extern free (params (value ptr)) (returns void))
+  (struct Inner
+    (field n i32))
+  (struct Holder
+    (field child ptr)
+    (field extra i32))
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let inner Inner (new Inner (n 40)))
+      (let holder Holder
+        (new Holder
+          (extra 1)
+          (child inner)))
+      (field-set holder extra
+        (+ (field-get holder extra) 1))
+      (let result i32
+        (+ (field-get inner n) (field-get holder extra)))
+      (call free holder)
+      (call free inner)
+      (return result))))

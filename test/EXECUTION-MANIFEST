@@ -180,6 +180,8 @@ executes surface-stmt-tree
 executes surface-decl-tree
 # builds nested if/when/while/for/break/continue programs and runs them
 executes surface-control-tree
+# builds flat and nested struct programs and runs them
+executes surface-struct-tree
 executes surface-symbols
 executes tagged-variants
 # tooling artifact documents

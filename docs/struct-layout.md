@@ -32,7 +32,11 @@ Mixed_set_flag
 
 These names remain callable by existing low-level source. Canonical source uses
 `new`, `field-get`, and `field-set`, and the compiler resolves these names and
-argument positions internally.
+argument positions internally. Generated helpers and field operations now
+tree-lower through owned WIR builders; the layout contract is unchanged.
+The legacy struct text emitters remain only as the fail-closed fallback
+for still-unmigrated descendants until those family migrations and #384
+delete them.
 
 ## Field representation
 

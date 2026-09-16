@@ -120,6 +120,12 @@
           (else (do)))
         (let sst_field_type i32 (call_i32 weave_surface_struct_field_type
           (local_get sst_struct_type) (local_get sst_field_index)))
+        (if
+          (condition (ne_i32 (call_i32 sstr_try_publish_field_get
+            (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+            (param_get sst_node)) (const_i32 0)))
+          (then (do (return_void)))
+          (else (do)))
         (call_void sst_emit_call_prefix (param_get sst_fd) (local_get sst_field_type))
         (call_void write_byte (param_get sst_fd) (const_i32 32))
         (call_void sst_emit_type_name (param_get sst_fd) (local_get sst_struct_type))
@@ -223,6 +229,12 @@
               (const_string_ptr "field-value") (local_get sst_field_node))
             (call_void write_cstr (param_get sst_fd) (const_string_ptr "(return_void)"))
             (return_void)))
+          (else (do)))
+        (if
+          (condition (ne_i32 (call_i32 sstr_try_publish_field_set
+            (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+            (param_get sst_node)) (const_i32 0)))
+          (then (do (return_void)))
           (else (do)))
         (call_void write_cstr (param_get sst_fd) (const_string_ptr "(call_void "))
         (call_void sst_emit_type_name (param_get sst_fd) (local_get sst_struct_type))

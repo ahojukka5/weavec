@@ -267,6 +267,12 @@
               (else (do)))
             (set sst_check_index
               (add_i32 (local_get sst_check_index) (const_i32 1)))))
+        (if
+          (condition (ne_i32 (call_i32 sstr_try_publish_new
+            (param_get sst_fd) (param_get sst_source) (param_get sst_tree)
+            (param_get sst_node)) (const_i32 0)))
+          (then (do (return_void)))
+          (else (do)))
         (call_void write_cstr (param_get sst_fd) (const_string_ptr "(call_ptr "))
         (call_void sst_emit_type_name (param_get sst_fd) (local_get sst_struct_type))
         (call_void write_cstr (param_get sst_fd) (const_string_ptr "_new"))

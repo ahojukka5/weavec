@@ -86,6 +86,8 @@ src/frontend/emit.weave
 src/frontend/contract_canonical.weave
 src/frontend/contract-lower.weave
 src/frontend/struct.weave
+src/frontend/wir_struct.weave
+src/frontend/surface_struct_tree.weave
 src/frontend/struct_semantic_types.weave
 src/frontend/struct_semantic_registry.weave
 src/frontend/struct_semantic_declarations.weave

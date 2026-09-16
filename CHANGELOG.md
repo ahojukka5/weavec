@@ -10,6 +10,12 @@ surface-language contract stabilises.
 
 ### Added
 
+- Generated struct helpers and field operations keep their existing
+  layout, type-fact, and diagnostic authorities, but admitted success
+  paths now construct owned WIR trees and publish complete subtrees.
+  Constructor, getter, and setter names are arena-owned atoms. Legacy
+  struct text emitters remain only as the fail-closed fallback for
+  still-unmigrated descendants. See issue #381.
 - Ordinary `extern`, `fn`, `entry`, and top-level `const` declarations keep
   their existing name, type, and module-ordering authorities, but admitted
   success paths now construct complete owned WIR subtrees and publish them

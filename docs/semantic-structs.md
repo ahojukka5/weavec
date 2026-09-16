@@ -101,7 +101,10 @@ to:
 
 Explicit modules use a deterministic module-qualified helper name instead. No
 source author or agent needs to synthesize either helper or remember positional
-field order.
+field order. Generated helpers and these field operations tree-lower on the
+success path; the layout and type-fact contract is unchanged. Legacy struct
+text emitters remain only as the fail-closed fallback for still-unmigrated
+descendants until those family migrations and #384 delete them.
 
 ## Field access
 

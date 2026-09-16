@@ -1,0 +1,17 @@
+(program
+  (name "surface-struct-tree-flat")
+  (version "0.1")
+  (extern malloc (params (size i64)) (returns ptr))
+  (extern free (params (value ptr)) (returns void))
+  (struct Point
+    (field x i32)
+    (field y i32))
+  (entry main
+    (params)
+    (returns i32)
+    (do
+      (let p Point (new Point (y 2) (x 40)))
+      (field-set p y (+ (field-get p y) 0))
+      (let result i32 (field-get p x))
+      (call free p)
+      (return result))))

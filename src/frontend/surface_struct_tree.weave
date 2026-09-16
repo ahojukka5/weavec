@@ -1,0 +1,989 @@
+; SPDX-License-Identifier: Apache-2.0
+; surface_struct_tree.weave — success-path lowering for struct helpers and
+; field operations
+;
+; Semantic validation stays in struct.weave and struct_semantic_*.weave. This
+; module builds owned WIR subtrees for generated helpers, new, field-get, and
+; field-set, then publishes complete roots through wir_subtree_publish.
+; Unmigrated children return failure so the caller can keep the text renderer.
+; A failed judgment never publishes a partial subtree.
+
+(program
+  (name "surface_struct_tree")
+  (version "0.1")
+
+  (fn sstr_struct_name_atom
+    (params (sstr_wir ptr) (sstr_type i32))
+    (returns i64)
+    (do
+      (let sstr_owned_name ptr (call_ptr weave_surface_struct_wir_name
+        (param_get sstr_type)))
+      (if
+        (condition (eq_ptr (local_get sstr_owned_name) (const_null)))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get sstr_wir))
+          (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 wir_atom
+        (param_get sstr_wir) (local_get sstr_owned_name)))))
+
+  (fn sstr_call_type_name
+    (params (sstr_type i32))
+    (returns ptr)
+    (do
+      (let sstr_wir_name ptr (call_ptr weave_semantic_type_wir
+        (param_get sstr_type)))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get sstr_wir_name) (const_null))
+          (eq_i32 (call_i32 wir_scalar_expr_cstr_equal
+            (local_get sstr_wir_name) (const_string_ptr "unknown"))
+            (const_i32 1))))
+        (then (do (return (const_null))))
+        (else (do (return (local_get sstr_wir_name)))))))
+
+  (fn sstr_helper_type_atom
+    (params (sstr_wir ptr) (sstr_type i32))
+    (returns i64)
+    (do
+      (return (call_i64 wir_atom
+        (param_get sstr_wir)
+        (call_ptr stl_field_wir_type (param_get sstr_type))))))
+
+  (fn sstr_field_name_atom
+    (params
+      (sstr_wir ptr) (sstr_source ptr) (sstr_tree ptr) (sstr_field_node i64))
+    (returns i64)
+    (do
+      (return (call_i64 wir_scalar_source_ident
+        (param_get sstr_wir) (param_get sstr_source)
+        (param_get sstr_tree) (param_get sstr_field_node)))))
+
+  (fn sstr_is_head
+    (params
+      (sstr_tree ptr) (sstr_source ptr) (sstr_node i64)
+      (sstr_text ptr) (sstr_len i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get sstr_tree) (param_get sstr_node)) (call_i32 node_list)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 head_equals
+        (param_get sstr_tree) (param_get sstr_source) (param_get sstr_node)
+        (param_get sstr_text) (param_get sstr_len)))))
+
+  (fn sstr_build_operand
+    (params
+      (sstr_wir ptr) (sstr_source ptr) (sstr_tree ptr)
+      (sstr_node i64) (sstr_type i32))
+    (returns i64)
+    (do
+      (let sstr_leaf i64 (call_i64 sot_build_operand
+        (param_get sstr_wir) (param_get sstr_source) (param_get sstr_tree)
+        (param_get sstr_node) (param_get sstr_type)))
+      (if
+        (condition (ge_i64 (local_get sstr_leaf) (const_i64 0)))
+        (then (do (return (local_get sstr_leaf))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 sstr_is_head
+          (param_get sstr_tree) (param_get sstr_source) (param_get sstr_node)
+          (const_string_ptr "field-get") (const_i64 9)) (const_i32 0)))
+        (then (do
+          (return (call_i64 sstr_build_field_get
+            (param_get sstr_wir) (param_get sstr_source) (param_get sstr_tree)
+            (param_get sstr_node)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 sstr_is_head
+          (param_get sstr_tree) (param_get sstr_source) (param_get sstr_node)
+          (const_string_ptr "new") (const_i64 3)) (const_i32 0)))
+        (then (do
+          (return (call_i64 sstr_build_new
+            (param_get sstr_wir) (param_get sstr_source) (param_get sstr_tree)
+            (param_get sstr_node)))))
+        (else (do)))
+      (return (const_i64 -1))))
+
+  (fn sstr_build_field_get
+    (params
+      (sstr_wir ptr) (sstr_source ptr) (sstr_tree ptr) (sstr_node i64))
+    (returns i64)
+    (do
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get sstr_tree) (param_get sstr_node)) (const_i64 3)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_receiver i64 (call_i64 nth_child
+        (param_get sstr_tree) (param_get sstr_node) (const_i64 1)))
+      (let sstr_field_node i64 (call_i64 nth_child
+        (param_get sstr_tree) (param_get sstr_node) (const_i64 2)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get sstr_tree) (local_get sstr_field_node)) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_struct_type i32 (call_i32 sst_receiver_type
+        (param_get sstr_tree) (param_get sstr_source) (local_get sstr_receiver)))
+      (if
+        (condition (eq_i32 (call_i32 weave_surface_struct_is_defined
+          (local_get sstr_struct_type)) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_field_index i32 (call_i32 weave_surface_struct_find_field
+        (local_get sstr_struct_type) (param_get sstr_source)
+        (call_i64 node_text_start (param_get sstr_tree) (local_get sstr_field_node))
+        (call_i64 node_text_len (param_get sstr_tree) (local_get sstr_field_node))))
+      (if
+        (condition (lt_i32 (local_get sstr_field_index) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_field_type i32 (call_i32 weave_surface_struct_field_type
+        (local_get sstr_struct_type) (local_get sstr_field_index)))
+      (let sstr_type_name ptr (call_ptr sstr_call_type_name
+        (local_get sstr_field_type)))
+      (if
+        (condition (eq_ptr (local_get sstr_type_name) (const_null)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_base ptr (call_ptr weave_surface_struct_wir_name
+        (local_get sstr_struct_type)))
+      (let sstr_field_cstr ptr (call_ptr weave_surface_struct_field_name
+        (local_get sstr_struct_type) (local_get sstr_field_index)))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get sstr_base) (const_null))
+          (eq_ptr (local_get sstr_field_cstr) (const_null))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_callee i64 (call_i64 wir_struct_field_helper_atom
+        (param_get sstr_wir) (local_get sstr_base)
+        (const_string_ptr "_get_") (local_get sstr_field_cstr)))
+      (let sstr_recv_expr i64 (call_i64 sstr_build_operand
+        (param_get sstr_wir) (param_get sstr_source) (param_get sstr_tree)
+        (local_get sstr_receiver) (local_get sstr_struct_type)))
+      (let sstr_call i64 (call_i64 wir_call_begin
+        (param_get sstr_wir) (local_get sstr_type_name) (local_get sstr_callee)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get sstr_call) (const_i64 0))
+          (lt_i64 (local_get sstr_recv_expr) (const_i64 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_call_append_arg
+          (param_get sstr_wir) (local_get sstr_call) (local_get sstr_recv_expr))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get sstr_call))))
+
+  (fn sstr_build_field_set
+    (params
+      (sstr_wir ptr) (sstr_source ptr) (sstr_tree ptr) (sstr_node i64))
+    (returns i64)
+    (do
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get sstr_tree) (param_get sstr_node)) (const_i64 4)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_set_recv i64 (call_i64 nth_child
+        (param_get sstr_tree) (param_get sstr_node) (const_i64 1)))
+      (let sstr_set_field i64 (call_i64 nth_child
+        (param_get sstr_tree) (param_get sstr_node) (const_i64 2)))
+      (let sstr_set_value i64 (call_i64 nth_child
+        (param_get sstr_tree) (param_get sstr_node) (const_i64 3)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get sstr_tree) (local_get sstr_set_field)) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_set_type i32 (call_i32 sst_receiver_type
+        (param_get sstr_tree) (param_get sstr_source) (local_get sstr_set_recv)))
+      (if
+        (condition (eq_i32 (call_i32 weave_surface_struct_is_defined
+          (local_get sstr_set_type)) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_set_index i32 (call_i32 weave_surface_struct_find_field
+        (local_get sstr_set_type) (param_get sstr_source)
+        (call_i64 node_text_start (param_get sstr_tree) (local_get sstr_set_field))
+        (call_i64 node_text_len (param_get sstr_tree) (local_get sstr_set_field))))
+      (if
+        (condition (lt_i32 (local_get sstr_set_index) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_set_ft i32 (call_i32 weave_surface_struct_field_type
+        (local_get sstr_set_type) (local_get sstr_set_index)))
+      (let sstr_set_base ptr (call_ptr weave_surface_struct_wir_name
+        (local_get sstr_set_type)))
+      (let sstr_set_fcstr ptr (call_ptr weave_surface_struct_field_name
+        (local_get sstr_set_type) (local_get sstr_set_index)))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get sstr_set_base) (const_null))
+          (eq_ptr (local_get sstr_set_fcstr) (const_null))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_set_callee i64 (call_i64 wir_struct_field_helper_atom
+        (param_get sstr_wir) (local_get sstr_set_base)
+        (const_string_ptr "_set_") (local_get sstr_set_fcstr)))
+      (let sstr_set_recv_expr i64 (call_i64 sstr_build_operand
+        (param_get sstr_wir) (param_get sstr_source) (param_get sstr_tree)
+        (local_get sstr_set_recv) (local_get sstr_set_type)))
+      (let sstr_set_val_expr i64 (call_i64 sstr_build_operand
+        (param_get sstr_wir) (param_get sstr_source) (param_get sstr_tree)
+        (local_get sstr_set_value) (local_get sstr_set_ft)))
+      (let sstr_set_call i64 (call_i64 wir_call_begin
+        (param_get sstr_wir) (const_string_ptr "void") (local_get sstr_set_callee)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get sstr_set_call) (const_i64 0))
+          (or_bool
+            (lt_i64 (local_get sstr_set_recv_expr) (const_i64 0))
+            (lt_i64 (local_get sstr_set_val_expr) (const_i64 0)))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_call_append_arg
+            (param_get sstr_wir) (local_get sstr_set_call)
+            (local_get sstr_set_recv_expr)) (const_i32 0))
+          (eq_i32 (call_i32 wir_call_append_arg
+            (param_get sstr_wir) (local_get sstr_set_call)
+            (local_get sstr_set_val_expr)) (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get sstr_set_call))))
+
+  (fn sstr_build_new
+    (params
+      (sstr_wir ptr) (sstr_source ptr) (sstr_tree ptr) (sstr_node i64))
+    (returns i64)
+    (do
+      (if
+        (condition (lt_i64 (call_i64 count_children
+          (param_get sstr_tree) (param_get sstr_node)) (const_i64 2)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_type_node i64 (call_i64 nth_child
+        (param_get sstr_tree) (param_get sstr_node) (const_i64 1)))
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get sstr_tree) (local_get sstr_type_node)) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_new_type i32 (call_i32 sst_type_code
+        (param_get sstr_tree) (param_get sstr_source) (local_get sstr_type_node)))
+      (if
+        (condition (eq_i32 (call_i32 weave_surface_struct_is_defined
+          (local_get sstr_new_type)) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_new_base ptr (call_ptr weave_surface_struct_wir_name
+        (local_get sstr_new_type)))
+      (if
+        (condition (eq_ptr (local_get sstr_new_base) (const_null)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_new_callee i64 (call_i64 wir_struct_helper_atom
+        (param_get sstr_wir) (local_get sstr_new_base)
+        (const_string_ptr "_new")))
+      (let sstr_new_call i64 (call_i64 wir_call_begin
+        (param_get sstr_wir) (const_string_ptr "ptr") (local_get sstr_new_callee)))
+      (if
+        (condition (lt_i64 (local_get sstr_new_call) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_field_count i32 (call_i32 weave_surface_struct_field_count
+        (local_get sstr_new_type)))
+      (let sstr_new_index i32 (const_i32 0))
+      (while
+        (condition (lt_i32 (local_get sstr_new_index) (local_get sstr_field_count)))
+        (do
+          (let sstr_match i64 (call_i64 sst_find_constructor_clause
+            (param_get sstr_tree) (param_get sstr_source) (param_get sstr_node)
+            (local_get sstr_new_index)))
+          (if
+            (condition (eq_i64 (local_get sstr_match) (const_i64 -1)))
+            (then (do (return (const_i64 -1))))
+            (else (do)))
+          (let sstr_arg_node i64 (call_i64 nth_child
+            (param_get sstr_tree) (local_get sstr_match) (const_i64 1)))
+          (let sstr_arg_type i32 (call_i32 weave_surface_struct_field_type
+            (local_get sstr_new_type) (local_get sstr_new_index)))
+          (let sstr_arg i64 (call_i64 sstr_build_operand
+            (param_get sstr_wir) (param_get sstr_source) (param_get sstr_tree)
+            (local_get sstr_arg_node) (local_get sstr_arg_type)))
+          (if
+            (condition (or_bool
+              (lt_i64 (local_get sstr_arg) (const_i64 0))
+              (eq_i32 (call_i32 wir_call_append_arg
+                (param_get sstr_wir) (local_get sstr_new_call) (local_get sstr_arg))
+                (const_i32 0))))
+            (then (do (return (const_i64 -1))))
+            (else (do)))
+          (set sstr_new_index (add_i32 (local_get sstr_new_index) (const_i32 1)))))
+      (if
+        (condition (ne_i32 (call_i32 wir_tree_failed (param_get sstr_wir))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get sstr_new_call))))
+
+  (fn sstr_first_field
+    (params (sstr_tree ptr) (sstr_source ptr) (sstr_node i64))
+    (returns i64)
+    (do
+      (let sstr_name i64 (call_i64 nth_child
+        (param_get sstr_tree) (param_get sstr_node) (const_i64 1)))
+      (let sstr_field i64 (call_i64 node_next_sibling
+        (param_get sstr_tree) (local_get sstr_name)))
+      (while
+        (condition (ne_i64 (local_get sstr_field) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get sstr_tree) (param_get sstr_source)
+              (local_get sstr_field)
+              (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
+            (then (do (return (local_get sstr_field))))
+            (else (do)))
+          (set sstr_field (call_i64 node_next_sibling
+            (param_get sstr_tree) (local_get sstr_field)))))
+      (return (const_i64 -1))))
+
+  (fn sstr_next_field
+    (params (sstr_tree ptr) (sstr_source ptr) (sstr_field i64))
+    (returns i64)
+    (do
+      (let sstr_next i64 (call_i64 node_next_sibling
+        (param_get sstr_tree) (param_get sstr_field)))
+      (while
+        (condition (ne_i64 (local_get sstr_next) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 head_equals
+              (param_get sstr_tree) (param_get sstr_source)
+              (local_get sstr_next)
+              (const_string_ptr "field") (const_i64 5)) (const_i32 0)))
+            (then (do (return (local_get sstr_next))))
+            (else (do)))
+          (set sstr_next (call_i64 node_next_sibling
+            (param_get sstr_tree) (local_get sstr_next)))))
+      (return (const_i64 -1))))
+
+  (fn sstr_build_struct_decl
+    (params
+      (sstr_wir ptr) (sstr_source ptr) (sstr_tree ptr) (sstr_node i64))
+    (returns i64)
+    (do
+      (let sstr_decl_name i64 (call_i64 nth_child
+        (param_get sstr_tree) (param_get sstr_node) (const_i64 1)))
+      (let sstr_decl_type i32 (call_i32 sst_type_code
+        (param_get sstr_tree) (param_get sstr_source) (local_get sstr_decl_name)))
+      (let sstr_decl_atom i64 (call_i64 sstr_struct_name_atom
+        (param_get sstr_wir) (local_get sstr_decl_type)))
+      (let sstr_decl i64 (call_i64 wir_struct_decl_begin
+        (param_get sstr_wir) (local_get sstr_decl_atom)))
+      (if
+        (condition (lt_i64 (local_get sstr_decl) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_decl_field i64 (call_i64 sstr_first_field
+        (param_get sstr_tree) (param_get sstr_source) (param_get sstr_node)))
+      (while
+        (condition (ne_i64 (local_get sstr_decl_field) (const_i64 -1)))
+        (do
+          (let sstr_fname i64 (call_i64 sstr_field_name_atom
+            (param_get sstr_wir) (param_get sstr_source) (param_get sstr_tree)
+            (call_i64 nth_child
+              (param_get sstr_tree) (local_get sstr_decl_field) (const_i64 1))))
+          (let sstr_ftype i32 (call_i32 stl_field_type
+            (param_get sstr_tree) (param_get sstr_source)
+            (local_get sstr_decl_field)))
+          (let sstr_ftype_atom i64 (call_i64 sstr_helper_type_atom
+            (param_get sstr_wir) (local_get sstr_ftype)))
+          (let sstr_clause i64 (call_i64 wir_struct_field_clause
+            (param_get sstr_wir) (local_get sstr_fname)
+            (local_get sstr_ftype_atom)))
+          (if
+            (condition (eq_i32 (call_i32 wir_struct_append
+              (param_get sstr_wir) (local_get sstr_decl) (local_get sstr_clause))
+              (const_i32 0)))
+            (then (do (return (const_i64 -1))))
+            (else (do)))
+          (set sstr_decl_field (call_i64 sstr_next_field
+            (param_get sstr_tree) (param_get sstr_source)
+            (local_get sstr_decl_field)))))
+      (return (local_get sstr_decl))))
+
+  (fn sstr_build_constructor
+    (params
+      (sstr_wir ptr) (sstr_source ptr) (sstr_tree ptr) (sstr_node i64))
+    (returns i64)
+    (do
+      (let sstr_ctor_name i64 (call_i64 nth_child
+        (param_get sstr_tree) (param_get sstr_node) (const_i64 1)))
+      (let sstr_ctor_type i32 (call_i32 sst_type_code
+        (param_get sstr_tree) (param_get sstr_source) (local_get sstr_ctor_name)))
+      (let sstr_ctor_base ptr (call_ptr weave_surface_struct_wir_name
+        (local_get sstr_ctor_type)))
+      (if
+        (condition (eq_ptr (local_get sstr_ctor_base) (const_null)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_ctor_fn_name i64 (call_i64 wir_struct_helper_atom
+        (param_get sstr_wir) (local_get sstr_ctor_base)
+        (const_string_ptr "_new")))
+      (let sstr_ctor_params i64 (call_i64 wir_struct_params_begin
+        (param_get sstr_wir)))
+      (let sstr_ctor_field i64 (call_i64 sstr_first_field
+        (param_get sstr_tree) (param_get sstr_source) (param_get sstr_node)))
+      (while
+        (condition (ne_i64 (local_get sstr_ctor_field) (const_i64 -1)))
+        (do
+          (let sstr_pname i64 (call_i64 sstr_field_name_atom
+            (param_get sstr_wir) (param_get sstr_source) (param_get sstr_tree)
+            (call_i64 nth_child
+              (param_get sstr_tree) (local_get sstr_ctor_field) (const_i64 1))))
+          (let sstr_ptype i64 (call_i64 sstr_helper_type_atom
+            (param_get sstr_wir)
+            (call_i32 stl_field_type
+              (param_get sstr_tree) (param_get sstr_source)
+              (local_get sstr_ctor_field))))
+          (let sstr_pair i64 (call_i64 wir_struct_pair
+            (param_get sstr_wir) (local_get sstr_pname) (local_get sstr_ptype)))
+          (if
+            (condition (eq_i32 (call_i32 wir_struct_append
+              (param_get sstr_wir) (local_get sstr_ctor_params)
+              (local_get sstr_pair)) (const_i32 0)))
+            (then (do (return (const_i64 -1))))
+            (else (do)))
+          (set sstr_ctor_field (call_i64 sstr_next_field
+            (param_get sstr_tree) (param_get sstr_source)
+            (local_get sstr_ctor_field)))))
+      (let sstr_ctor_ret i64 (call_i64 wir_struct_returns
+        (param_get sstr_wir)
+        (call_i64 wir_struct_atom (param_get sstr_wir) (const_string_ptr "ptr"))))
+      (let sstr_ctor_do i64 (call_i64 wir_struct_do_begin (param_get sstr_wir)))
+      (let sstr_self_name i64 (call_i64 wir_struct_atom
+        (param_get sstr_wir) (const_string_ptr "self")))
+      (let sstr_ptr_atom i64 (call_i64 wir_struct_atom
+        (param_get sstr_wir) (const_string_ptr "ptr")))
+      (let sstr_malloc i64 (call_i64 wir_struct_malloc
+        (param_get sstr_wir)
+        (call_i64 wir_struct_size
+          (param_get sstr_wir)
+          (call_i64 sstr_struct_name_atom
+            (param_get sstr_wir) (local_get sstr_ctor_type)))))
+      (let sstr_let_self i64 (call_i64 wir_stmt_let
+        (param_get sstr_wir) (local_get sstr_self_name)
+        (local_get sstr_ptr_atom) (local_get sstr_malloc)))
+      (let sstr_guard i64 (call_i64 wir_struct_if_null_return
+        (param_get sstr_wir)
+        (call_i64 wir_struct_local_get
+          (param_get sstr_wir) (const_string_ptr "self"))))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_struct_append
+            (param_get sstr_wir) (local_get sstr_ctor_do) (local_get sstr_let_self))
+            (const_i32 0))
+          (eq_i32 (call_i32 wir_struct_append
+            (param_get sstr_wir) (local_get sstr_ctor_do) (local_get sstr_guard))
+            (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (set sstr_ctor_field (call_i64 sstr_first_field
+        (param_get sstr_tree) (param_get sstr_source) (param_get sstr_node)))
+      (while
+        (condition (ne_i64 (local_get sstr_ctor_field) (const_i64 -1)))
+        (do
+          (let sstr_store_name i64 (call_i64 nth_child
+            (param_get sstr_tree) (local_get sstr_ctor_field) (const_i64 1)))
+          (let sstr_store_type i32 (call_i32 stl_field_type
+            (param_get sstr_tree) (param_get sstr_source)
+            (local_get sstr_ctor_field)))
+          (let sstr_store_field i64 (call_i64 sstr_field_name_atom
+            (param_get sstr_wir) (param_get sstr_source) (param_get sstr_tree)
+            (local_get sstr_store_name)))
+          (let sstr_store_self i64 (call_i64 wir_struct_local_get
+            (param_get sstr_wir) (const_string_ptr "self")))
+          (let sstr_store_param i64 (call_i64 wir_scalar_param_get
+            (param_get sstr_wir) (param_get sstr_source) (param_get sstr_tree)
+            (local_get sstr_store_name)))
+          (let sstr_store i64 (call_i64 wir_struct_field_set
+            (param_get sstr_wir)
+            (call_ptr stl_field_wir_type (local_get sstr_store_type))
+            (call_i64 sstr_struct_name_atom
+              (param_get sstr_wir) (local_get sstr_ctor_type))
+            (local_get sstr_store_field)
+            (local_get sstr_store_self) (local_get sstr_store_param)))
+          (if
+            (condition (eq_i32 (call_i32 wir_struct_append
+              (param_get sstr_wir) (local_get sstr_ctor_do) (local_get sstr_store))
+              (const_i32 0)))
+            (then (do (return (const_i64 -1))))
+            (else (do)))
+          (set sstr_ctor_field (call_i64 sstr_next_field
+            (param_get sstr_tree) (param_get sstr_source)
+            (local_get sstr_ctor_field)))))
+      (let sstr_ctor_ret_stmt i64 (call_i64 wir_stmt_return
+        (param_get sstr_wir)
+        (call_i64 wir_struct_local_get
+          (param_get sstr_wir) (const_string_ptr "self"))))
+      (if
+        (condition (eq_i32 (call_i32 wir_struct_append
+          (param_get sstr_wir) (local_get sstr_ctor_do)
+          (local_get sstr_ctor_ret_stmt)) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 wir_struct_fn
+        (param_get sstr_wir) (local_get sstr_ctor_fn_name)
+        (local_get sstr_ctor_params) (local_get sstr_ctor_ret)
+        (local_get sstr_ctor_do)))))
+
+  (fn sstr_build_getter
+    (params
+      (sstr_wir ptr) (sstr_source ptr) (sstr_tree ptr)
+      (sstr_struct_type i32) (sstr_field i64))
+    (returns i64)
+    (do
+      (let sstr_get_name i64 (call_i64 nth_child
+        (param_get sstr_tree) (param_get sstr_field) (const_i64 1)))
+      (let sstr_get_type i32 (call_i32 stl_field_type
+        (param_get sstr_tree) (param_get sstr_source) (param_get sstr_field)))
+      (let sstr_get_base ptr (call_ptr weave_surface_struct_wir_name
+        (param_get sstr_struct_type)))
+      (let sstr_get_fcstr ptr (call_ptr weave_surface_struct_field_name
+        (param_get sstr_struct_type)
+        (call_i32 weave_surface_struct_find_field
+          (param_get sstr_struct_type) (param_get sstr_source)
+          (call_i64 node_text_start (param_get sstr_tree) (local_get sstr_get_name))
+          (call_i64 node_text_len (param_get sstr_tree) (local_get sstr_get_name)))))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get sstr_get_base) (const_null))
+          (eq_ptr (local_get sstr_get_fcstr) (const_null))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_get_fn_name i64 (call_i64 wir_struct_field_helper_atom
+        (param_get sstr_wir) (local_get sstr_get_base)
+        (const_string_ptr "_get_") (local_get sstr_get_fcstr)))
+      (let sstr_get_params i64 (call_i64 wir_struct_params_begin
+        (param_get sstr_wir)))
+      (let sstr_self_pair i64 (call_i64 wir_struct_pair
+        (param_get sstr_wir)
+        (call_i64 wir_struct_atom (param_get sstr_wir) (const_string_ptr "self"))
+        (call_i64 wir_struct_atom (param_get sstr_wir) (const_string_ptr "ptr"))))
+      (if
+        (condition (eq_i32 (call_i32 wir_struct_append
+          (param_get sstr_wir) (local_get sstr_get_params) (local_get sstr_self_pair))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_get_ret i64 (call_i64 wir_struct_returns
+        (param_get sstr_wir)
+        (call_i64 sstr_helper_type_atom
+          (param_get sstr_wir) (local_get sstr_get_type))))
+      (let sstr_get_do i64 (call_i64 wir_struct_do_begin (param_get sstr_wir)))
+      (let sstr_get_op i64 (call_i64 wir_struct_field_get
+        (param_get sstr_wir)
+        (call_ptr stl_field_wir_type (local_get sstr_get_type))
+        (call_i64 sstr_struct_name_atom
+          (param_get sstr_wir) (param_get sstr_struct_type))
+        (call_i64 sstr_field_name_atom
+          (param_get sstr_wir) (param_get sstr_source) (param_get sstr_tree)
+          (local_get sstr_get_name))
+        (call_i64 wir_struct_param_get
+          (param_get sstr_wir) (const_string_ptr "self"))))
+      (let sstr_get_ret_stmt i64 (call_i64 wir_stmt_return
+        (param_get sstr_wir) (local_get sstr_get_op)))
+      (if
+        (condition (eq_i32 (call_i32 wir_struct_append
+          (param_get sstr_wir) (local_get sstr_get_do)
+          (local_get sstr_get_ret_stmt)) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 wir_struct_fn
+        (param_get sstr_wir) (local_get sstr_get_fn_name)
+        (local_get sstr_get_params) (local_get sstr_get_ret)
+        (local_get sstr_get_do)))))
+
+  (fn sstr_build_setter
+    (params
+      (sstr_wir ptr) (sstr_source ptr) (sstr_tree ptr)
+      (sstr_struct_type i32) (sstr_field i64))
+    (returns i64)
+    (do
+      (let sstr_setn i64 (call_i64 nth_child
+        (param_get sstr_tree) (param_get sstr_field) (const_i64 1)))
+      (let sstr_sett i32 (call_i32 stl_field_type
+        (param_get sstr_tree) (param_get sstr_source) (param_get sstr_field)))
+      (let sstr_setb ptr (call_ptr weave_surface_struct_wir_name
+        (param_get sstr_struct_type)))
+      (let sstr_setfc ptr (call_ptr weave_surface_struct_field_name
+        (param_get sstr_struct_type)
+        (call_i32 weave_surface_struct_find_field
+          (param_get sstr_struct_type) (param_get sstr_source)
+          (call_i64 node_text_start (param_get sstr_tree) (local_get sstr_setn))
+          (call_i64 node_text_len (param_get sstr_tree) (local_get sstr_setn)))))
+      (if
+        (condition (or_bool
+          (eq_ptr (local_get sstr_setb) (const_null))
+          (eq_ptr (local_get sstr_setfc) (const_null))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_setf i64 (call_i64 wir_struct_field_helper_atom
+        (param_get sstr_wir) (local_get sstr_setb)
+        (const_string_ptr "_set_") (local_get sstr_setfc)))
+      (let sstr_setp i64 (call_i64 wir_struct_params_begin (param_get sstr_wir)))
+      (let sstr_selfp i64 (call_i64 wir_struct_pair
+        (param_get sstr_wir)
+        (call_i64 wir_struct_atom (param_get sstr_wir) (const_string_ptr "self"))
+        (call_i64 wir_struct_atom (param_get sstr_wir) (const_string_ptr "ptr"))))
+      (let sstr_vp i64 (call_i64 wir_struct_pair
+        (param_get sstr_wir)
+        (call_i64 wir_struct_atom (param_get sstr_wir) (const_string_ptr "v"))
+        (call_i64 sstr_helper_type_atom
+          (param_get sstr_wir) (local_get sstr_sett))))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_struct_append
+            (param_get sstr_wir) (local_get sstr_setp) (local_get sstr_selfp))
+            (const_i32 0))
+          (eq_i32 (call_i32 wir_struct_append
+            (param_get sstr_wir) (local_get sstr_setp) (local_get sstr_vp))
+            (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sstr_setr i64 (call_i64 wir_struct_returns
+        (param_get sstr_wir)
+        (call_i64 wir_struct_atom
+          (param_get sstr_wir) (const_string_ptr "void"))))
+      (let sstr_setd i64 (call_i64 wir_struct_do_begin (param_get sstr_wir)))
+      (let sstr_setop i64 (call_i64 wir_struct_field_set
+        (param_get sstr_wir)
+        (call_ptr stl_field_wir_type (local_get sstr_sett))
+        (call_i64 sstr_struct_name_atom
+          (param_get sstr_wir) (param_get sstr_struct_type))
+        (call_i64 sstr_field_name_atom
+          (param_get sstr_wir) (param_get sstr_source) (param_get sstr_tree)
+          (local_get sstr_setn))
+        (call_i64 wir_struct_param_get
+          (param_get sstr_wir) (const_string_ptr "self"))
+        (call_i64 wir_struct_param_get
+          (param_get sstr_wir) (const_string_ptr "v"))))
+      (let sstr_setvoid i64 (call_i64 wir_stmt_return_void (param_get sstr_wir)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_struct_append
+            (param_get sstr_wir) (local_get sstr_setd) (local_get sstr_setop))
+            (const_i32 0))
+          (eq_i32 (call_i32 wir_struct_append
+            (param_get sstr_wir) (local_get sstr_setd) (local_get sstr_setvoid))
+            (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 wir_struct_fn
+        (param_get sstr_wir) (local_get sstr_setf)
+        (local_get sstr_setp) (local_get sstr_setr) (local_get sstr_setd)))))
+
+  (fn sstr_forest_append
+    (params
+      (sstr_wir ptr) (sstr_forest i64) (sstr_root i64) (sstr_span i64))
+    (returns i32)
+    (do
+      (if
+        (condition (lt_i64 (param_get sstr_root) (const_i64 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (call_i32 wir_node_set_provenance
+        (param_get sstr_wir) (param_get sstr_root) (param_get sstr_span))
+      (return (call_i32 wir_struct_append
+        (param_get sstr_wir) (param_get sstr_forest) (param_get sstr_root)))))
+
+  (fn sstr_publish_root
+    (params (sstr_fd i32) (sstr_wir ptr) (sstr_root i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get sstr_wir) (const_null))
+          (or_bool
+            (lt_i64 (param_get sstr_root) (const_i64 0))
+            (ne_i32 (call_i32 wir_tree_failed (param_get sstr_wir))
+              (const_i32 0)))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 wir_subtree_publish
+          (param_get sstr_fd) (param_get sstr_wir) (param_get sstr_root))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+
+  (fn sstr_next_list_child
+    (params (sstr_wir ptr) (sstr_child i64))
+    (returns i64)
+    (do
+      (let sstr_walk i64 (param_get sstr_child))
+      (while
+        (condition (ne_i64 (local_get sstr_walk) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 wir_node_kind
+              (param_get sstr_wir) (local_get sstr_walk))
+              (call_i32 wir_kind_list)))
+            (then (do (return (local_get sstr_walk))))
+            (else (do)))
+          (set sstr_walk (call_i64 wir_node_next_sibling
+            (param_get sstr_wir) (local_get sstr_walk)))))
+      (return (const_i64 -1))))
+
+  (fn sstr_publish_forest
+    (params
+      (sstr_fd i32) (sstr_source ptr) (sstr_tree ptr)
+      (sstr_wir ptr) (sstr_forest i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get sstr_wir) (const_null))
+          (or_bool
+            (lt_i64 (param_get sstr_forest) (const_i64 0))
+            (ne_i32 (call_i32 wir_tree_failed (param_get sstr_wir))
+              (const_i32 0)))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sstr_combined ptr (call_ptr wir_buffer_new))
+      (if
+        (condition (eq_ptr (local_get sstr_combined) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sstr_child i64 (call_i64 sstr_next_list_child
+        (param_get sstr_wir)
+        (call_i64 wir_node_first_child
+          (param_get sstr_wir) (param_get sstr_forest))))
+      (while
+        (condition (ne_i64 (local_get sstr_child) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 wir_buffer_append_cstr
+              (local_get sstr_combined) (const_string_ptr "    "))
+              (const_i32 0)))
+            (then (do
+              (call_void wir_buffer_free (local_get sstr_combined))
+              (return (const_i32 0))))
+            (else (do)))
+          (if
+            (condition (eq_i32 (call_i32 wir_serialize_into
+              (local_get sstr_combined) (param_get sstr_wir)
+              (local_get sstr_child)) (const_i32 0)))
+            (then (do
+              (call_void wir_buffer_free (local_get sstr_combined))
+              (return (const_i32 0))))
+            (else (do)))
+          (if
+            (condition (eq_i32 (call_i32 wir_buffer_append_byte
+              (local_get sstr_combined) (const_i32 10)) (const_i32 0)))
+            (then (do
+              (call_void wir_buffer_free (local_get sstr_combined))
+              (return (const_i32 0))))
+            (else (do)))
+          (set sstr_child (call_i64 sstr_next_list_child
+            (param_get sstr_wir)
+            (call_i64 wir_node_next_sibling
+              (param_get sstr_wir) (local_get sstr_child))))))
+      (call_void wir_buffer_free (local_get sstr_combined))
+      (set sstr_child (call_i64 sstr_next_list_child
+        (param_get sstr_wir)
+        (call_i64 wir_node_first_child
+          (param_get sstr_wir) (param_get sstr_forest))))
+      (while
+        (condition (ne_i64 (local_get sstr_child) (const_i64 -1)))
+        (do
+          (call_void emit_source_span_for_node
+            (param_get sstr_fd) (param_get sstr_source) (param_get sstr_tree)
+            (call_i64 wir_node_provenance
+              (param_get sstr_wir) (local_get sstr_child)))
+          (call_void write_cstr
+            (param_get sstr_fd) (const_string_ptr "    "))
+          (if
+            (condition (ne_i32 (call_i32 wir_subtree_publish
+              (param_get sstr_fd) (param_get sstr_wir) (local_get sstr_child))
+              (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (call_void write_byte (param_get sstr_fd) (const_i32 10))
+          (set sstr_child (call_i64 sstr_next_list_child
+            (param_get sstr_wir)
+            (call_i64 wir_node_next_sibling
+              (param_get sstr_wir) (local_get sstr_child))))))
+      (if
+        (condition (ne_i32 (call_i32 write_failed) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+
+  (fn sstr_try_publish_field_get
+    (params
+      (sstr_fd i32) (sstr_source ptr) (sstr_tree ptr) (sstr_node i64))
+    (returns i32)
+    (do
+      (let sstr_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sstr_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sstr_root i64 (call_i64 sstr_build_field_get
+        (local_get sstr_wir) (param_get sstr_source) (param_get sstr_tree)
+        (param_get sstr_node)))
+      (let sstr_ok i32 (call_i32 sstr_publish_root
+        (param_get sstr_fd) (local_get sstr_wir) (local_get sstr_root)))
+      (call_void wir_tree_free (local_get sstr_wir))
+      (return (local_get sstr_ok))))
+
+  (fn sstr_try_publish_field_set
+    (params
+      (sstr_fd i32) (sstr_source ptr) (sstr_tree ptr) (sstr_node i64))
+    (returns i32)
+    (do
+      (let sstr_set_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sstr_set_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sstr_set_root i64 (call_i64 sstr_build_field_set
+        (local_get sstr_set_wir) (param_get sstr_source) (param_get sstr_tree)
+        (param_get sstr_node)))
+      (let sstr_set_ok i32 (call_i32 sstr_publish_root
+        (param_get sstr_fd) (local_get sstr_set_wir) (local_get sstr_set_root)))
+      (call_void wir_tree_free (local_get sstr_set_wir))
+      (return (local_get sstr_set_ok))))
+
+  (fn sstr_try_publish_new
+    (params
+      (sstr_fd i32) (sstr_source ptr) (sstr_tree ptr) (sstr_node i64))
+    (returns i32)
+    (do
+      (let sstr_new_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sstr_new_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sstr_new_root i64 (call_i64 sstr_build_new
+        (local_get sstr_new_wir) (param_get sstr_source) (param_get sstr_tree)
+        (param_get sstr_node)))
+      (let sstr_new_ok i32 (call_i32 sstr_publish_root
+        (param_get sstr_fd) (local_get sstr_new_wir) (local_get sstr_new_root)))
+      (call_void wir_tree_free (local_get sstr_new_wir))
+      (return (local_get sstr_new_ok))))
+
+  (fn sstr_build_helpers
+    (params
+      (sstr_wir ptr) (sstr_source ptr) (sstr_tree ptr) (sstr_node i64))
+    (returns i64)
+    (do
+      (let sstr_fill_forest i64 (call_i64 wir_scalar_headed_list
+        (param_get sstr_wir) (const_string_ptr "helpers")))
+      (if
+        (condition (lt_i64 (local_get sstr_fill_forest) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 sstr_fill_helper_forest
+          (param_get sstr_wir) (local_get sstr_fill_forest)
+          (param_get sstr_source) (param_get sstr_tree)
+          (param_get sstr_node)) (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get sstr_fill_forest))))
+
+  (fn sstr_fill_helper_forest
+    (params
+      (sstr_wir ptr) (sstr_fill_forest i64)
+      (sstr_source ptr) (sstr_tree ptr) (sstr_node i64))
+    (returns i32)
+    (do
+      (let sstr_fill_name i64 (call_i64 nth_child
+        (param_get sstr_tree) (param_get sstr_node) (const_i64 1)))
+      (let sstr_fill_type i32 (call_i32 sst_type_code
+        (param_get sstr_tree) (param_get sstr_source) (local_get sstr_fill_name)))
+      (if
+        (condition (eq_i32 (call_i32 sstr_forest_append
+          (param_get sstr_wir) (param_get sstr_fill_forest)
+          (call_i64 sstr_build_struct_decl
+            (param_get sstr_wir) (param_get sstr_source) (param_get sstr_tree)
+            (param_get sstr_node))
+          (param_get sstr_node)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 sstr_forest_append
+          (param_get sstr_wir) (param_get sstr_fill_forest)
+          (call_i64 sstr_build_constructor
+            (param_get sstr_wir) (param_get sstr_source) (param_get sstr_tree)
+            (param_get sstr_node))
+          (param_get sstr_node)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sstr_fill_field i64 (call_i64 sstr_first_field
+        (param_get sstr_tree) (param_get sstr_source) (param_get sstr_node)))
+      (while
+        (condition (ne_i64 (local_get sstr_fill_field) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 sstr_forest_append
+              (param_get sstr_wir) (param_get sstr_fill_forest)
+              (call_i64 sstr_build_getter
+                (param_get sstr_wir) (param_get sstr_source)
+                (param_get sstr_tree) (local_get sstr_fill_type)
+                (local_get sstr_fill_field))
+              (local_get sstr_fill_field)) (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (if
+            (condition (eq_i32 (call_i32 sstr_forest_append
+              (param_get sstr_wir) (param_get sstr_fill_forest)
+              (call_i64 sstr_build_setter
+                (param_get sstr_wir) (param_get sstr_source)
+                (param_get sstr_tree) (local_get sstr_fill_type)
+                (local_get sstr_fill_field))
+              (local_get sstr_fill_field)) (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set sstr_fill_field (call_i64 sstr_next_field
+            (param_get sstr_tree) (param_get sstr_source)
+            (local_get sstr_fill_field)))))
+      (if
+        (condition (ne_i32 (call_i32 wir_tree_failed (param_get sstr_wir))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+
+  (fn sstr_try_publish_helpers
+    (params
+      (sstr_fd i32) (sstr_source ptr) (sstr_tree ptr) (sstr_node i64))
+    (returns i32)
+    (do
+      (let sstr_decl_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sstr_decl_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sstr_decl_root i64 (call_i64 sstr_build_helpers
+        (local_get sstr_decl_wir) (param_get sstr_source) (param_get sstr_tree)
+        (param_get sstr_node)))
+      (let sstr_decl_ok i32 (call_i32 sstr_publish_forest
+        (param_get sstr_fd) (param_get sstr_source) (param_get sstr_tree)
+        (local_get sstr_decl_wir) (local_get sstr_decl_root)))
+      (call_void wir_tree_free (local_get sstr_decl_wir))
+      (return (local_get sstr_decl_ok))))
+)

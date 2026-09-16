@@ -6,6 +6,12 @@
 ; Explicit modules use deterministic compiler-owned helper base names.
 ; Canonical semantic new/field-get/field-set forms will be implemented separately.
 ;
+; Migrated success paths publish owned WIR helper/field-op trees.
+; stl_emit_declaration, stl_emit_constructor, stl_emit_accessors, and the
+; legacy field-op writers remain the fail-closed text fallback when a
+; helper still has unmigrated descendants. Final deletion is owned by
+; remaining family migrations and the #384 ratchet, not by #381.
+;
 ; Field representation:
 ;   bool       size 1, alignment 1, load_u8/store_i8
 ;   i32/f32    size 4, alignment 4
@@ -266,41 +272,40 @@
         (call_i64 nth_child
           (param_get stl_tree) (param_get stl_field) (const_i64 2))))))
 
+  ; WIR field-op suffix and helper parameter spelling. Qubit uses i64.
+  (fn stl_field_wir_type
+    (params (stl_type i32))
+    (returns ptr)
+    (do
+      (if
+        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_i32)))
+        (then (do (return (const_string_ptr "i32"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_f32)))
+        (then (do (return (const_string_ptr "f32"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_f64)))
+        (then (do (return (const_string_ptr "f64"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_bool)))
+        (then (do (return (const_string_ptr "bool"))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_ptr)))
+        (then (do (return (const_string_ptr "ptr"))))
+        (else (do)))
+      (return (const_string_ptr "i64"))))
+
   (fn stl_emit_field_suffix
     (params (stl_fd i32) (stl_type i32))
     (returns void)
     (do
-      (if
-        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_i32)))
-        (then (do
-          (call_void write_cstr (param_get stl_fd) (const_string_ptr "i32"))
-          (return_void)))
-        (else (do)))
-      (if
-        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_f32)))
-        (then (do
-          (call_void write_cstr (param_get stl_fd) (const_string_ptr "f32"))
-          (return_void)))
-        (else (do)))
-      (if
-        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_f64)))
-        (then (do
-          (call_void write_cstr (param_get stl_fd) (const_string_ptr "f64"))
-          (return_void)))
-        (else (do)))
-      (if
-        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_bool)))
-        (then (do
-          (call_void write_cstr (param_get stl_fd) (const_string_ptr "bool"))
-          (return_void)))
-        (else (do)))
-      (if
-        (condition (eq_i32 (param_get stl_type) (call_i32 surface_type_ptr)))
-        (then (do
-          (call_void write_cstr (param_get stl_fd) (const_string_ptr "ptr"))
-          (return_void)))
-        (else (do)))
-      (call_void write_cstr (param_get stl_fd) (const_string_ptr "i64"))
+      (call_void write_cstr
+        (param_get stl_fd)
+        (call_ptr stl_field_wir_type (param_get stl_type)))
       (return_void)))
 
   ; Write the STRUCT and FIELD operands shared by every field operation.
@@ -598,6 +603,12 @@
         (else (do)))
       (let stl_lower_name i64 (call_i64 nth_child
         (param_get stl_tree) (param_get stl_node) (const_i64 1)))
+      (if
+        (condition (ne_i32 (call_i32 sstr_try_publish_helpers
+          (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
+          (param_get stl_node)) (const_i32 0)))
+        (then (do (return_void)))
+        (else (do)))
       (call_void stl_emit_declaration
         (param_get stl_fd) (param_get stl_source) (param_get stl_tree)
         (param_get stl_node))

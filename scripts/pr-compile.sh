@@ -105,6 +105,9 @@ bash "$ROOT/test/surface-decl-tree/test.sh"
 log 'option helpers'
 bash "$ROOT/test/option-helpers/test.sh"
 
+log 'structural struct helper and field-op lowering'
+bash "$ROOT/test/surface-struct-tree/test.sh"
+
 log 'typed deterministic rewrite semantics'
 bash "$ROOT/test/rewrite-semantics/test.sh"
 

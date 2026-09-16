@@ -1,0 +1,430 @@
+; SPDX-License-Identifier: Apache-2.0
+; wir_struct.weave — structural WIR builders for struct helpers and field ops
+;
+; This module owns representation only. Existing struct layout, type-fact, and
+; semantic authorities remain in struct.weave and struct_semantic_*.weave.
+; Callers pass already-owned WIR name, type, and expression node identities.
+; Generated helper names are arena-owned atoms. No textual WIR is emitted here
+; and no generic surface-tree copier exists.
+
+(program
+  (name "frontend.wir_struct")
+  (version "0.1")
+
+  (fn wir_struct_fail
+    (params (wstu_f_tree ptr))
+    (returns i64)
+    (do
+      (call_i32 wir_tree_mark_failed (param_get wstu_f_tree))
+      (return (const_i64 -1))))
+
+  (fn wir_struct_atom
+    (params (wstu_at_tree ptr) (wstu_at_text ptr))
+    (returns i64)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get wstu_at_tree) (const_null))
+          (eq_ptr (param_get wstu_at_text) (const_null))))
+        (then (do (return (call_i64 wir_struct_fail (param_get wstu_at_tree)))))
+        (else (do)))
+      (return (call_i64 wir_atom
+        (param_get wstu_at_tree) (param_get wstu_at_text)))))
+
+  (fn wir_struct_append
+    (params (wstu_ap_tree ptr) (wstu_ap_parent i64) (wstu_ap_child i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i64 (param_get wstu_ap_parent) (const_i64 0))
+          (lt_i64 (param_get wstu_ap_child) (const_i64 0))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wstu_ap_tree))
+          (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 wir_append_child
+        (param_get wstu_ap_tree) (param_get wstu_ap_parent) (param_get wstu_ap_child)))))
+
+  ; (HEAD NAME) for compiler-owned refs such as (local_get self).
+  (fn wir_struct_named_ref
+    (params (wstu_rf_tree ptr) (wstu_rf_head ptr) (wstu_rf_name ptr))
+    (returns i64)
+    (do
+      (let wstu_rf_list i64 (call_i64 wir_scalar_headed_list
+        (param_get wstu_rf_tree) (param_get wstu_rf_head)))
+      (let wstu_rf_name_atom i64 (call_i64 wir_struct_atom
+        (param_get wstu_rf_tree) (param_get wstu_rf_name)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get wstu_rf_list) (const_i64 0))
+          (lt_i64 (local_get wstu_rf_name_atom) (const_i64 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_struct_append
+          (param_get wstu_rf_tree) (local_get wstu_rf_list) (local_get wstu_rf_name_atom))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wstu_rf_list))))
+
+  (fn wir_struct_local_get
+    (params (wstu_lg_tree ptr) (wstu_lg_name ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wir_struct_named_ref
+        (param_get wstu_lg_tree) (const_string_ptr "local_get")
+        (param_get wstu_lg_name)))))
+
+  (fn wir_struct_param_get
+    (params (wstu_pg_tree ptr) (wstu_pg_name ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wir_struct_named_ref
+        (param_get wstu_pg_tree) (const_string_ptr "param_get")
+        (param_get wstu_pg_name)))))
+
+  ; NAME_new and other two-part helper identities.
+  (fn wir_struct_helper_atom
+    (params (wstu_hp_tree ptr) (wstu_hp_base ptr) (wstu_hp_suffix ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wir_operator_join5_atom
+        (param_get wstu_hp_tree)
+        (param_get wstu_hp_base) (param_get wstu_hp_suffix)
+        (const_string_ptr "") (const_string_ptr "") (const_string_ptr "")))))
+
+  ; NAME_get_FIELD / NAME_set_FIELD. Kind is "_get_" or "_set_".
+  (fn wir_struct_field_helper_atom
+    (params
+      (wstu_fh_tree ptr) (wstu_fh_base ptr) (wstu_fh_kind ptr) (wstu_fh_field ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wir_operator_join5_atom
+        (param_get wstu_fh_tree)
+        (param_get wstu_fh_base) (param_get wstu_fh_kind) (param_get wstu_fh_field)
+        (const_string_ptr "") (const_string_ptr "")))))
+
+  (fn wir_struct_pair
+    (params (wstu_pr2_tree ptr) (wstu_pr2_a i64) (wstu_pr2_b i64))
+    (returns i64)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i64 (param_get wstu_pr2_a) (const_i64 0))
+          (lt_i64 (param_get wstu_pr2_b) (const_i64 0))))
+        (then (do (return (call_i64 wir_struct_fail (param_get wstu_pr2_tree)))))
+        (else (do)))
+      (let wstu_pr2_list i64 (call_i64 wir_list (param_get wstu_pr2_tree)))
+      (if
+        (condition (lt_i64 (local_get wstu_pr2_list) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_struct_append
+            (param_get wstu_pr2_tree) (local_get wstu_pr2_list) (param_get wstu_pr2_a))
+            (const_i32 0))
+          (eq_i32 (call_i32 wir_struct_append
+            (param_get wstu_pr2_tree) (local_get wstu_pr2_list) (param_get wstu_pr2_b))
+            (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wstu_pr2_list))))
+
+  (fn wir_struct_clause
+    (params (wstu_cl_tree ptr) (wstu_cl_head ptr) (wstu_cl_child i64))
+    (returns i64)
+    (do
+      (let wstu_cl_list i64 (call_i64 wir_scalar_headed_list
+        (param_get wstu_cl_tree) (param_get wstu_cl_head)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get wstu_cl_list) (const_i64 0))
+          (lt_i64 (param_get wstu_cl_child) (const_i64 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_struct_append
+          (param_get wstu_cl_tree) (local_get wstu_cl_list) (param_get wstu_cl_child))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wstu_cl_list))))
+
+  (fn wir_struct_field_clause
+    (params (wstu_fc_tree ptr) (wstu_fc_name i64) (wstu_fc_type i64))
+    (returns i64)
+    (do
+      (let wstu_fc_list i64 (call_i64 wir_scalar_headed_list
+        (param_get wstu_fc_tree) (const_string_ptr "field")))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get wstu_fc_list) (const_i64 0))
+          (or_bool
+            (lt_i64 (param_get wstu_fc_name) (const_i64 0))
+            (lt_i64 (param_get wstu_fc_type) (const_i64 0)))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_struct_append
+            (param_get wstu_fc_tree) (local_get wstu_fc_list) (param_get wstu_fc_name))
+            (const_i32 0))
+          (eq_i32 (call_i32 wir_struct_append
+            (param_get wstu_fc_tree) (local_get wstu_fc_list) (param_get wstu_fc_type))
+            (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wstu_fc_list))))
+
+  (fn wir_struct_decl_begin
+    (params (wstu_dc_tree ptr) (wstu_dc_name i64))
+    (returns i64)
+    (do
+      (return (call_i64 wir_struct_clause
+        (param_get wstu_dc_tree) (const_string_ptr "struct") (param_get wstu_dc_name)))))
+
+  (fn wir_struct_params_begin
+    (params (wstu_prm_tree ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wir_scalar_headed_list
+        (param_get wstu_prm_tree) (const_string_ptr "params")))))
+
+  (fn wir_struct_returns
+    (params (wstu_rets_tree ptr) (wstu_rets_type i64))
+    (returns i64)
+    (do
+      (return (call_i64 wir_struct_clause
+        (param_get wstu_rets_tree) (const_string_ptr "returns")
+        (param_get wstu_rets_type)))))
+
+  (fn wir_struct_do_begin
+    (params (wstu_dob_tree ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wir_scalar_headed_list
+        (param_get wstu_dob_tree) (const_string_ptr "do")))))
+
+  (fn wir_struct_fn
+    (params
+      (wstu_fnn_tree ptr) (wstu_fnn_name i64) (wstu_fnn_params i64)
+      (wstu_fnn_returns i64) (wstu_fnn_body i64))
+    (returns i64)
+    (do
+      (if
+        (condition (or_bool
+          (or_bool
+            (lt_i64 (param_get wstu_fnn_name) (const_i64 0))
+            (lt_i64 (param_get wstu_fnn_params) (const_i64 0)))
+          (or_bool
+            (lt_i64 (param_get wstu_fnn_returns) (const_i64 0))
+            (lt_i64 (param_get wstu_fnn_body) (const_i64 0)))))
+        (then (do (return (call_i64 wir_struct_fail (param_get wstu_fnn_tree)))))
+        (else (do)))
+      (let wstu_fnn_list i64 (call_i64 wir_scalar_headed_list
+        (param_get wstu_fnn_tree) (const_string_ptr "fn")))
+      (if
+        (condition (lt_i64 (local_get wstu_fnn_list) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_struct_append
+            (param_get wstu_fnn_tree) (local_get wstu_fnn_list) (param_get wstu_fnn_name))
+            (const_i32 0))
+          (or_bool
+            (eq_i32 (call_i32 wir_struct_append
+              (param_get wstu_fnn_tree) (local_get wstu_fnn_list)
+              (param_get wstu_fnn_params)) (const_i32 0))
+            (or_bool
+              (eq_i32 (call_i32 wir_struct_append
+                (param_get wstu_fnn_tree) (local_get wstu_fnn_list)
+                (param_get wstu_fnn_returns)) (const_i32 0))
+              (eq_i32 (call_i32 wir_struct_append
+                (param_get wstu_fnn_tree) (local_get wstu_fnn_list)
+                (param_get wstu_fnn_body)) (const_i32 0))))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wstu_fnn_list))))
+
+  (fn wir_struct_size
+    (params (wstu_sz_tree ptr) (wstu_sz_name i64))
+    (returns i64)
+    (do
+      (return (call_i64 wir_struct_clause
+        (param_get wstu_sz_tree) (const_string_ptr "struct_size")
+        (param_get wstu_sz_name)))))
+
+  (fn wir_struct_malloc
+    (params (wstu_ml_tree ptr) (wstu_ml_size i64))
+    (returns i64)
+    (do
+      (let wstu_ml_callee i64 (call_i64 wir_struct_atom
+        (param_get wstu_ml_tree) (const_string_ptr "malloc")))
+      (let wstu_ml_call i64 (call_i64 wir_call_begin
+        (param_get wstu_ml_tree) (const_string_ptr "ptr") (local_get wstu_ml_callee)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get wstu_ml_call) (const_i64 0))
+          (lt_i64 (param_get wstu_ml_size) (const_i64 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_call_append_arg
+          (param_get wstu_ml_tree) (local_get wstu_ml_call) (param_get wstu_ml_size))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wstu_ml_call))))
+
+  (fn wir_struct_field_get
+    (params
+      (wstu_gt_tree ptr) (wstu_gt_suffix ptr) (wstu_gt_struct i64)
+      (wstu_gt_field i64) (wstu_gt_base i64))
+    (returns i64)
+    (do
+      (let wstu_gt_head i64 (call_i64 wir_operator_join5_atom
+        (param_get wstu_gt_tree)
+        (const_string_ptr "field_get_") (param_get wstu_gt_suffix)
+        (const_string_ptr "") (const_string_ptr "") (const_string_ptr "")))
+      (let wstu_gt_list i64 (call_i64 wir_list (param_get wstu_gt_tree)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (lt_i64 (local_get wstu_gt_list) (const_i64 0))
+            (lt_i64 (local_get wstu_gt_head) (const_i64 0)))
+          (or_bool
+            (lt_i64 (param_get wstu_gt_struct) (const_i64 0))
+            (or_bool
+              (lt_i64 (param_get wstu_gt_field) (const_i64 0))
+              (lt_i64 (param_get wstu_gt_base) (const_i64 0))))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_struct_append
+            (param_get wstu_gt_tree) (local_get wstu_gt_list) (local_get wstu_gt_head))
+            (const_i32 0))
+          (or_bool
+            (eq_i32 (call_i32 wir_struct_append
+              (param_get wstu_gt_tree) (local_get wstu_gt_list) (param_get wstu_gt_struct))
+              (const_i32 0))
+            (or_bool
+              (eq_i32 (call_i32 wir_struct_append
+                (param_get wstu_gt_tree) (local_get wstu_gt_list) (param_get wstu_gt_field))
+                (const_i32 0))
+              (eq_i32 (call_i32 wir_struct_append
+                (param_get wstu_gt_tree) (local_get wstu_gt_list) (param_get wstu_gt_base))
+                (const_i32 0))))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wstu_gt_list))))
+
+  (fn wir_struct_field_set
+    (params
+      (wstu_st_tree ptr) (wstu_st_suffix ptr) (wstu_st_struct i64)
+      (wstu_st_field i64) (wstu_st_base i64) (wstu_st_value i64))
+    (returns i64)
+    (do
+      (let wstu_st_head i64 (call_i64 wir_operator_join5_atom
+        (param_get wstu_st_tree)
+        (const_string_ptr "field_set_") (param_get wstu_st_suffix)
+        (const_string_ptr "") (const_string_ptr "") (const_string_ptr "")))
+      (let wstu_st_list i64 (call_i64 wir_list (param_get wstu_st_tree)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (lt_i64 (local_get wstu_st_list) (const_i64 0))
+            (lt_i64 (local_get wstu_st_head) (const_i64 0)))
+          (or_bool
+            (lt_i64 (param_get wstu_st_struct) (const_i64 0))
+            (or_bool
+              (lt_i64 (param_get wstu_st_field) (const_i64 0))
+              (or_bool
+                (lt_i64 (param_get wstu_st_base) (const_i64 0))
+                (lt_i64 (param_get wstu_st_value) (const_i64 0)))))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_struct_append
+            (param_get wstu_st_tree) (local_get wstu_st_list) (local_get wstu_st_head))
+            (const_i32 0))
+          (or_bool
+            (eq_i32 (call_i32 wir_struct_append
+              (param_get wstu_st_tree) (local_get wstu_st_list) (param_get wstu_st_struct))
+              (const_i32 0))
+            (or_bool
+              (eq_i32 (call_i32 wir_struct_append
+                (param_get wstu_st_tree) (local_get wstu_st_list) (param_get wstu_st_field))
+                (const_i32 0))
+              (or_bool
+                (eq_i32 (call_i32 wir_struct_append
+                  (param_get wstu_st_tree) (local_get wstu_st_list) (param_get wstu_st_base))
+                  (const_i32 0))
+                (eq_i32 (call_i32 wir_struct_append
+                  (param_get wstu_st_tree) (local_get wstu_st_list)
+                  (param_get wstu_st_value)) (const_i32 0)))))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wstu_st_list))))
+
+  ; (if (condition (eq_ptr VALUE (const_null)))
+  ;     (then (do (return (const_null))))
+  ;     (else (do)))
+  (fn wir_struct_if_null_return
+    (params (wstu_if_tree ptr) (wstu_if_value i64))
+    (returns i64)
+    (do
+      (let wstu_if_null i64 (call_i64 wir_scalar_const_null (param_get wstu_if_tree)))
+      (let wstu_if_eq i64 (call_i64 wir_operator_binary
+        (param_get wstu_if_tree) (const_string_ptr "eq") (const_string_ptr "ptr")
+        (param_get wstu_if_value) (local_get wstu_if_null)))
+      (let wstu_if_cond i64 (call_i64 wir_struct_clause
+        (param_get wstu_if_tree) (const_string_ptr "condition") (local_get wstu_if_eq)))
+      (let wstu_if_ret_null i64 (call_i64 wir_scalar_const_null (param_get wstu_if_tree)))
+      (let wstu_if_ret i64 (call_i64 wir_stmt_return
+        (param_get wstu_if_tree) (local_get wstu_if_ret_null)))
+      (let wstu_if_then_do i64 (call_i64 wir_struct_do_begin (param_get wstu_if_tree)))
+      (let wstu_if_else_do i64 (call_i64 wir_struct_do_begin (param_get wstu_if_tree)))
+      (if
+        (condition (eq_i32 (call_i32 wir_struct_append
+          (param_get wstu_if_tree) (local_get wstu_if_then_do) (local_get wstu_if_ret))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let wstu_if_then i64 (call_i64 wir_struct_clause
+        (param_get wstu_if_tree) (const_string_ptr "then") (local_get wstu_if_then_do)))
+      (let wstu_if_else i64 (call_i64 wir_struct_clause
+        (param_get wstu_if_tree) (const_string_ptr "else") (local_get wstu_if_else_do)))
+      (let wstu_if_if i64 (call_i64 wir_scalar_headed_list
+        (param_get wstu_if_tree) (const_string_ptr "if")))
+      (if
+        (condition (or_bool
+          (or_bool
+            (lt_i64 (local_get wstu_if_if) (const_i64 0))
+            (lt_i64 (local_get wstu_if_cond) (const_i64 0)))
+          (or_bool
+            (lt_i64 (local_get wstu_if_then) (const_i64 0))
+            (lt_i64 (local_get wstu_if_else) (const_i64 0)))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_struct_append
+            (param_get wstu_if_tree) (local_get wstu_if_if) (local_get wstu_if_cond))
+            (const_i32 0))
+          (or_bool
+            (eq_i32 (call_i32 wir_struct_append
+              (param_get wstu_if_tree) (local_get wstu_if_if) (local_get wstu_if_then))
+              (const_i32 0))
+            (eq_i32 (call_i32 wir_struct_append
+              (param_get wstu_if_tree) (local_get wstu_if_if) (local_get wstu_if_else))
+              (const_i32 0)))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wstu_if_if))))
+)

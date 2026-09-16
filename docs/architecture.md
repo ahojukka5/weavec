@@ -167,11 +167,11 @@ ordinary extern/fn/entry/const declarations, and structured
 if/when/while/for/break/continue keep their existing semantic
 authority and, on the success path, construct owned WIR trees rather than
 textual fragments. Control-specific text writers in `loop_text.weave`
-remain only as the fail-closed fallback for still-unmigrated descendants;
-those family migrations and the #384 ratchet delete them. The WIR module
-envelope has tree-builder representation; complete declaration subtrees
-are still serialized through the hybrid fd seam until the atomic module
-switch.
+and the legacy struct helper emitters remain only as the fail-closed
+fallback for still-unmigrated descendants; those family migrations and
+the #384 ratchet delete them. The WIR module envelope has tree-builder
+representation; complete declaration subtrees are still serialized
+through the hybrid fd seam until the atomic module switch.
 
 ### Compiled rewriting — `src/rewrite/`
 

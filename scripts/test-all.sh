@@ -339,6 +339,9 @@ bash "$ROOT/test/struct-layout/test.sh"
 log 'semantic structs'
 bash "$ROOT/test/semantic-structs/test.sh"
 
+log 'structural struct helper and field-op lowering'
+bash "$ROOT/test/surface-struct-tree/test.sh"
+
 log 'module diagnostics'
 bash "$ROOT/test/module-diagnostics/test.sh"
 
