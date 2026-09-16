@@ -1,0 +1,10 @@
+(core-module
+  (core-version 3)
+  (decls
+    (fn main (params) (returns i32) (do (let acc i32 (const_i32 0)) (let j i32 (const_i32 0))
+(let l0_end i32 (const_i32 4))
+(let l0_run i32 (const_i32 1))
+(let l0_skip i32 (const_i32 0))
+(while (condition (and_bool (lt_i32 (local_get j) (local_get l0_end)) (eq_i32 (local_get l0_run) (const_i32 1)))) (do (set l0_skip (const_i32 0)) (if (condition (and_bool (eq_i32 (local_get l0_run) (const_i32 1)) (eq_i32 (local_get l0_skip) (const_i32 0)))) (then (do (if (condition (eq_i32 j (const_i32 1))) (then (do (set l0_skip (const_i32 1)))) (else (do))))) (else (do))) (if (condition (and_bool (eq_i32 (local_get l0_run) (const_i32 1)) (eq_i32 (local_get l0_skip) (const_i32 0)))) (then (do (if (condition (eq_i32 j (const_i32 3))) (then (do (set l0_run (const_i32 0)))) (else (do))))) (else (do))) (if (condition (and_bool (eq_i32 (local_get l0_run) (const_i32 1)) (eq_i32 (local_get l0_skip) (const_i32 0)))) (then (do (set acc (add_i32 acc j)))) (else (do))) (if (condition (eq_i32 (local_get l0_run) (const_i32 1))) (then (do (set j (add_i32 (local_get j) (const_i32 1))))) (else (do))))) (return acc)))
+  )
+)

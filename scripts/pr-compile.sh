@@ -93,6 +93,9 @@ bash "$ROOT/test/surface-call-tree/test.sh"
 log 'structural let/set/return lowering'
 bash "$ROOT/test/surface-stmt-tree/test.sh"
 
+log 'structural if/when/loop lowering'
+bash "$ROOT/test/surface-control-tree/test.sh"
+
 log 'option and result'
 bash "$ROOT/test/option-result/test.sh"
 

@@ -1,0 +1,6 @@
+(core-module
+  (core-version 3)
+  (decls
+    (fn main (params) (returns i32) (do (let i i32 (const_i32 0)) (while (condition (lt_i32 i (const_i32 3))) (do (set i (add_i32 i (const_i32 1))))) (return i)))
+  )
+)
