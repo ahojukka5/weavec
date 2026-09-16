@@ -1,0 +1,464 @@
+; SPDX-License-Identifier: Apache-2.0
+; wir_control.weave — structural WIR builders for if/when/while/for/break
+;
+; This module owns representation only. Existing if, when, and loop semantic
+; code remains authoritative. Callers pass already-owned WIR child identities
+; and generated loop atoms. No textual WIR is emitted here and no generic
+; surface-tree copier exists.
+
+(program
+  (name "frontend.wir_control")
+  (version "0.1")
+
+  (fn wctl_fail
+    (params (wctl_tree ptr))
+    (returns i64)
+    (do
+      (call_i32 wir_tree_mark_failed (param_get wctl_tree))
+      (return (const_i64 -1))))
+
+  (fn wctl_append
+    (params (wctl_tree ptr) (wctl_parent i64) (wctl_child i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i64 (param_get wctl_parent) (const_i64 0))
+          (lt_i64 (param_get wctl_child) (const_i64 0))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wctl_tree))
+          (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 wir_append_child
+        (param_get wctl_tree) (param_get wctl_parent) (param_get wctl_child)))))
+
+  (fn wctl_headed
+    (params (wctl_tree ptr) (wctl_head ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wir_scalar_headed_list
+        (param_get wctl_tree) (param_get wctl_head)))))
+
+  (fn wctl_clause
+    (params (wctl_tree ptr) (wctl_head ptr) (wctl_body i64))
+    (returns i64)
+    (do
+      (let wctl_list i64 (call_i64 wctl_headed
+        (param_get wctl_tree) (param_get wctl_head)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get wctl_list) (const_i64 0))
+          (eq_i32 (call_i32 wctl_append
+            (param_get wctl_tree) (local_get wctl_list) (param_get wctl_body))
+            (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wctl_list))))
+
+  ; Empty `(do)`.
+  (fn wir_control_do
+    (params (wctl_tree ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wctl_headed
+        (param_get wctl_tree) (const_string_ptr "do")))))
+
+  (fn wir_control_i32_atom
+    (params (wctl_tree ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wir_atom
+        (param_get wctl_tree) (const_string_ptr "i32")))))
+
+  ; `(if (condition COND) (then THEN) (else ELSE))`
+  (fn wir_control_if
+    (params
+      (wctl_tree ptr) (wctl_cond i64) (wctl_then i64) (wctl_else i64))
+    (returns i64)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i64 (param_get wctl_cond) (const_i64 0))
+          (or_bool
+            (lt_i64 (param_get wctl_then) (const_i64 0))
+            (lt_i64 (param_get wctl_else) (const_i64 0)))))
+        (then (do (return (call_i64 wctl_fail (param_get wctl_tree)))))
+        (else (do)))
+      (let wctl_if i64 (call_i64 wctl_headed
+        (param_get wctl_tree) (const_string_ptr "if")))
+      (let wctl_cond_clause i64 (call_i64 wctl_clause
+        (param_get wctl_tree) (const_string_ptr "condition")
+        (param_get wctl_cond)))
+      (let wctl_then_clause i64 (call_i64 wctl_clause
+        (param_get wctl_tree) (const_string_ptr "then")
+        (param_get wctl_then)))
+      (let wctl_else_clause i64 (call_i64 wctl_clause
+        (param_get wctl_tree) (const_string_ptr "else")
+        (param_get wctl_else)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get wctl_if) (const_i64 0))
+          (or_bool
+            (eq_i32 (call_i32 wctl_append
+              (param_get wctl_tree) (local_get wctl_if)
+              (local_get wctl_cond_clause)) (const_i32 0))
+            (or_bool
+              (eq_i32 (call_i32 wctl_append
+                (param_get wctl_tree) (local_get wctl_if)
+                (local_get wctl_then_clause)) (const_i32 0))
+              (eq_i32 (call_i32 wctl_append
+                (param_get wctl_tree) (local_get wctl_if)
+                (local_get wctl_else_clause)) (const_i32 0))))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wctl_if))))
+
+  ; `(while (condition COND) BODY)`
+  (fn wir_control_while
+    (params (wctl_tree ptr) (wctl_cond i64) (wctl_body i64))
+    (returns i64)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i64 (param_get wctl_cond) (const_i64 0))
+          (lt_i64 (param_get wctl_body) (const_i64 0))))
+        (then (do (return (call_i64 wctl_fail (param_get wctl_tree)))))
+        (else (do)))
+      (let wctl_while i64 (call_i64 wctl_headed
+        (param_get wctl_tree) (const_string_ptr "while")))
+      (let wctl_wcond i64 (call_i64 wctl_clause
+        (param_get wctl_tree) (const_string_ptr "condition")
+        (param_get wctl_cond)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get wctl_while) (const_i64 0))
+          (or_bool
+            (eq_i32 (call_i32 wctl_append
+              (param_get wctl_tree) (local_get wctl_while)
+              (local_get wctl_wcond)) (const_i32 0))
+            (eq_i32 (call_i32 wctl_append
+              (param_get wctl_tree) (local_get wctl_while)
+              (param_get wctl_body)) (const_i32 0)))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wctl_while))))
+
+  ; Write decimal digits of a non-negative i32 into dst. Returns the count.
+  (fn wctl_write_u32_digits
+    (params (wctl_dst ptr) (wctl_value i32))
+    (returns i64)
+    (do
+      (if
+        (condition (le_i32 (param_get wctl_value) (const_i32 0)))
+        (then (do
+          (store_i8 (param_get wctl_dst) (const_i32 48))
+          (return (const_i64 1))))
+        (else (do)))
+      (let wctl_tmp ptr (call_ptr malloc (const_i64 16)))
+      (if
+        (condition (eq_ptr (local_get wctl_tmp) (const_null)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let wctl_n i64 (const_i64 0))
+      (let wctl_rest i32 (param_get wctl_value))
+      (while
+        (condition (gt_i32 (local_get wctl_rest) (const_i32 0)))
+        (do
+          (let wctl_digit i32 (mod_i32
+            (local_get wctl_rest) (const_i32 10)))
+          (store_i8
+            (ptr_add (local_get wctl_tmp) (local_get wctl_n))
+            (add_i32 (const_i32 48) (local_get wctl_digit)))
+          (set wctl_n (add_i64 (local_get wctl_n) (const_i64 1)))
+          (set wctl_rest (div_i32
+            (local_get wctl_rest) (const_i32 10)))))
+      (let wctl_i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get wctl_i) (local_get wctl_n)))
+        (do
+          (let wctl_src i64 (sub_i64
+            (sub_i64 (local_get wctl_n) (local_get wctl_i))
+            (const_i64 1)))
+          (store_i8
+            (ptr_add (param_get wctl_dst) (local_get wctl_i))
+            (load_u8 (ptr_add (local_get wctl_tmp) (local_get wctl_src))))
+          (set wctl_i (add_i64 (local_get wctl_i) (const_i64 1)))))
+      (call_void free (local_get wctl_tmp))
+      (return (local_get wctl_n))))
+
+  ; Owned atom `l<id>_<suffix>`. Suffix is a compiler-owned loop flag name:
+  ; only `run`, `skip`, or `end`. The buffer is sized to `l` + decimal id +
+  ; `_` + suffix; other strings are rejected.
+  (fn wir_control_loop_ident
+    (params (wctl_tree ptr) (wctl_id i32) (wctl_suffix ptr))
+    (returns i64)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get wctl_tree) (const_null))
+          (or_bool
+            (lt_i32 (param_get wctl_id) (const_i32 0))
+            (eq_ptr (param_get wctl_suffix) (const_null)))))
+        (then (do (return (call_i64 wctl_fail (param_get wctl_tree)))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (eq_i32 (call_i32 wir_scalar_expr_cstr_equal
+            (param_get wctl_suffix) (const_string_ptr "run")) (const_i32 0))
+          (and_bool
+            (eq_i32 (call_i32 wir_scalar_expr_cstr_equal
+              (param_get wctl_suffix) (const_string_ptr "skip")) (const_i32 0))
+            (eq_i32 (call_i32 wir_scalar_expr_cstr_equal
+              (param_get wctl_suffix) (const_string_ptr "end")) (const_i32 0)))))
+        (then (do (return (call_i64 wctl_fail (param_get wctl_tree)))))
+        (else (do)))
+      (let wctl_suffix_len i64 (call_i64 strlen (param_get wctl_suffix)))
+      ; `l` + up to 10 decimal digits + `_` + suffix.
+      (let wctl_need i64 (add_i64 (const_i64 12) (local_get wctl_suffix_len)))
+      (let wctl_buf ptr (call_ptr malloc (local_get wctl_need)))
+      (if
+        (condition (eq_ptr (local_get wctl_buf) (const_null)))
+        (then (do (return (call_i64 wctl_fail (param_get wctl_tree)))))
+        (else (do)))
+      (store_i8 (local_get wctl_buf) (const_i32 108))
+      (let wctl_digits i64 (call_i64 wctl_write_u32_digits
+        (ptr_add (local_get wctl_buf) (const_i64 1)) (param_get wctl_id)))
+      (if
+        (condition (lt_i64 (local_get wctl_digits) (const_i64 0)))
+        (then (do
+          (call_void free (local_get wctl_buf))
+          (return (call_i64 wctl_fail (param_get wctl_tree)))))
+        (else (do)))
+      (store_i8
+        (ptr_add (local_get wctl_buf) (add_i64 (const_i64 1) (local_get wctl_digits)))
+        (const_i32 95))
+      (let wctl_off i64 (add_i64 (const_i64 2) (local_get wctl_digits)))
+      (let wctl_si i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get wctl_si) (local_get wctl_suffix_len)))
+        (do
+          (store_i8
+            (ptr_add (local_get wctl_buf)
+              (add_i64 (local_get wctl_off) (local_get wctl_si)))
+            (load_u8 (ptr_add (param_get wctl_suffix) (local_get wctl_si))))
+          (set wctl_si (add_i64 (local_get wctl_si) (const_i64 1)))))
+      (let wctl_total i64 (add_i64 (local_get wctl_off) (local_get wctl_suffix_len)))
+      (let wctl_atom i64 (call_i64 wir_atom_n
+        (param_get wctl_tree) (local_get wctl_buf) (local_get wctl_total)))
+      (call_void free (local_get wctl_buf))
+      (return (local_get wctl_atom))))
+
+  (fn wir_control_local_get_atom
+    (params (wctl_tree ptr) (wctl_name i64))
+    (returns i64)
+    (do
+      (let wctl_list i64 (call_i64 wctl_headed
+        (param_get wctl_tree) (const_string_ptr "local_get")))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get wctl_list) (const_i64 0))
+          (eq_i32 (call_i32 wctl_append
+            (param_get wctl_tree) (local_get wctl_list) (param_get wctl_name))
+            (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wctl_list))))
+
+  (fn wir_control_let_named
+    (params
+      (wctl_tree ptr) (wctl_name i64) (wctl_type i64) (wctl_expr i64))
+    (returns i64)
+    (do
+      (return (call_i64 wir_stmt_let
+        (param_get wctl_tree) (param_get wctl_name)
+        (param_get wctl_type) (param_get wctl_expr)))))
+
+  (fn wir_control_set_named
+    (params (wctl_tree ptr) (wctl_name i64) (wctl_expr i64))
+    (returns i64)
+    (do
+      (return (call_i64 wir_stmt_set
+        (param_get wctl_tree) (param_get wctl_name) (param_get wctl_expr)))))
+
+  ; `(let l<id>_<suffix> i32 (const_i32 VALUE))`
+  (fn wir_control_let_flag
+    (params
+      (wctl_tree ptr) (wctl_id i32) (wctl_suffix ptr) (wctl_value i32))
+    (returns i64)
+    (do
+      (let wctl_name i64 (call_i64 wir_control_loop_ident
+        (param_get wctl_tree) (param_get wctl_id) (param_get wctl_suffix)))
+      (let wctl_type i64 (call_i64 wir_control_i32_atom (param_get wctl_tree)))
+      (let wctl_expr i64 (call_i64 wir_scalar_const_i32
+        (param_get wctl_tree) (cast_i32_to_i64 (param_get wctl_value))))
+      (return (call_i64 wir_stmt_let
+        (param_get wctl_tree) (local_get wctl_name)
+        (local_get wctl_type) (local_get wctl_expr)))))
+
+  ; `(set l<id>_<suffix> (const_i32 VALUE))`
+  (fn wir_control_set_flag
+    (params
+      (wctl_tree ptr) (wctl_id i32) (wctl_suffix ptr) (wctl_value i32))
+    (returns i64)
+    (do
+      (let wctl_name i64 (call_i64 wir_control_loop_ident
+        (param_get wctl_tree) (param_get wctl_id) (param_get wctl_suffix)))
+      (let wctl_expr i64 (call_i64 wir_scalar_const_i32
+        (param_get wctl_tree) (cast_i32_to_i64 (param_get wctl_value))))
+      (return (call_i64 wir_stmt_set
+        (param_get wctl_tree) (local_get wctl_name) (local_get wctl_expr)))))
+
+  (fn wir_control_eq_i32_const
+    (params (wctl_tree ptr) (wctl_left i64) (wctl_value i32))
+    (returns i64)
+    (do
+      (let wctl_right i64 (call_i64 wir_scalar_const_i32
+        (param_get wctl_tree) (cast_i32_to_i64 (param_get wctl_value))))
+      (return (call_i64 wir_operator_binary
+        (param_get wctl_tree) (const_string_ptr "eq") (const_string_ptr "i32")
+        (param_get wctl_left) (local_get wctl_right)))))
+
+  (fn wir_control_and_bool
+    (params (wctl_tree ptr) (wctl_left i64) (wctl_right i64))
+    (returns i64)
+    (do
+      (return (call_i64 wir_operator_binary
+        (param_get wctl_tree) (const_string_ptr "and") (const_string_ptr "bool")
+        (param_get wctl_left) (param_get wctl_right)))))
+
+  (fn wir_control_lt_i32
+    (params (wctl_tree ptr) (wctl_left i64) (wctl_right i64))
+    (returns i64)
+    (do
+      (return (call_i64 wir_operator_binary
+        (param_get wctl_tree) (const_string_ptr "lt") (const_string_ptr "i32")
+        (param_get wctl_left) (param_get wctl_right)))))
+
+  (fn wir_control_add_i32
+    (params (wctl_tree ptr) (wctl_left i64) (wctl_right i64))
+    (returns i64)
+    (do
+      (return (call_i64 wir_operator_binary
+        (param_get wctl_tree) (const_string_ptr "add") (const_string_ptr "i32")
+        (param_get wctl_left) (param_get wctl_right)))))
+
+  ; `(eq_i32 (local_get l<id>_run) (const_i32 1))`
+  (fn wir_control_run_live
+    (params (wctl_tree ptr) (wctl_id i32))
+    (returns i64)
+    (do
+      (let wctl_name i64 (call_i64 wir_control_loop_ident
+        (param_get wctl_tree) (param_get wctl_id) (const_string_ptr "run")))
+      (let wctl_get i64 (call_i64 wir_control_local_get_atom
+        (param_get wctl_tree) (local_get wctl_name)))
+      (return (call_i64 wir_control_eq_i32_const
+        (param_get wctl_tree) (local_get wctl_get) (const_i32 1)))))
+
+  ; `(and_bool (eq_i32 (local_get l<id>_run) (const_i32 1))
+  ;            (eq_i32 (local_get l<id>_skip) (const_i32 0)))`
+  (fn wir_control_gate_cond
+    (params (wctl_tree ptr) (wctl_id i32))
+    (returns i64)
+    (do
+      (let wctl_run_name i64 (call_i64 wir_control_loop_ident
+        (param_get wctl_tree) (param_get wctl_id) (const_string_ptr "run")))
+      (let wctl_skip_name i64 (call_i64 wir_control_loop_ident
+        (param_get wctl_tree) (param_get wctl_id) (const_string_ptr "skip")))
+      (let wctl_run_get i64 (call_i64 wir_control_local_get_atom
+        (param_get wctl_tree) (local_get wctl_run_name)))
+      (let wctl_skip_get i64 (call_i64 wir_control_local_get_atom
+        (param_get wctl_tree) (local_get wctl_skip_name)))
+      (let wctl_run_eq i64 (call_i64 wir_control_eq_i32_const
+        (param_get wctl_tree) (local_get wctl_run_get) (const_i32 1)))
+      (let wctl_skip_eq i64 (call_i64 wir_control_eq_i32_const
+        (param_get wctl_tree) (local_get wctl_skip_get) (const_i32 0)))
+      (return (call_i64 wir_control_and_bool
+        (param_get wctl_tree) (local_get wctl_run_eq) (local_get wctl_skip_eq)))))
+
+  ; `(lt_i32 (local_get NAME) (local_get l<id>_end))`
+  (fn wir_control_lt_name_end
+    (params (wctl_tree ptr) (wctl_name i64) (wctl_id i32))
+    (returns i64)
+    (do
+      (let wctl_left i64 (call_i64 wir_control_local_get_atom
+        (param_get wctl_tree) (param_get wctl_name)))
+      (let wctl_end_name i64 (call_i64 wir_control_loop_ident
+        (param_get wctl_tree) (param_get wctl_id) (const_string_ptr "end")))
+      (let wctl_right i64 (call_i64 wir_control_local_get_atom
+        (param_get wctl_tree) (local_get wctl_end_name)))
+      (return (call_i64 wir_control_lt_i32
+        (param_get wctl_tree) (local_get wctl_left) (local_get wctl_right)))))
+
+  ; `(set NAME (add_i32 (local_get NAME) (const_i32 1)))`
+  ; NAME atoms cannot be shared; callers pass distinct owned copies.
+  (fn wir_control_inc_name
+    (params (wctl_tree ptr) (wctl_set_name i64) (wctl_get_name i64))
+    (returns i64)
+    (do
+      (let wctl_get i64 (call_i64 wir_control_local_get_atom
+        (param_get wctl_tree) (param_get wctl_get_name)))
+      (let wctl_one i64 (call_i64 wir_scalar_const_i32
+        (param_get wctl_tree) (const_i64 1)))
+      (let wctl_add i64 (call_i64 wir_control_add_i32
+        (param_get wctl_tree) (local_get wctl_get) (local_get wctl_one)))
+      (return (call_i64 wir_stmt_set
+        (param_get wctl_tree) (param_get wctl_set_name) (local_get wctl_add)))))
+
+  ; Dummy initializer matching weave_surface_match_write_dummy.
+  (fn wir_control_dummy_value
+    (params (wctl_tree ptr) (wctl_type_name ptr))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 wir_scalar_expr_cstr_equal
+          (param_get wctl_type_name) (const_string_ptr "ptr")) (const_i32 1)))
+        (then (do (return (call_i64 wir_scalar_const_null
+          (param_get wctl_tree)))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_scalar_expr_cstr_equal
+          (param_get wctl_type_name) (const_string_ptr "bool")) (const_i32 1)))
+        (then (do (return (call_i64 wir_scalar_const_bool
+          (param_get wctl_tree) (const_bool false)))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_scalar_expr_cstr_equal
+          (param_get wctl_type_name) (const_string_ptr "i64")) (const_i32 1)))
+        (then (do (return (call_i64 wir_scalar_const_i64
+          (param_get wctl_tree) (const_i64 0)))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_scalar_expr_cstr_equal
+          (param_get wctl_type_name) (const_string_ptr "f32")) (const_i32 1)))
+        (then (do
+          (let wctl_f32 i64 (call_i64 wctl_headed
+            (param_get wctl_tree) (const_string_ptr "const_f32")))
+          (let wctl_f32v i64 (call_i64 wir_decimal
+            (param_get wctl_tree) (const_string_ptr "0.0")))
+          (if
+            (condition (eq_i32 (call_i32 wctl_append
+              (param_get wctl_tree) (local_get wctl_f32) (local_get wctl_f32v))
+              (const_i32 0)))
+            (then (do (return (const_i64 -1))))
+            (else (do)))
+          (return (local_get wctl_f32))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_scalar_expr_cstr_equal
+          (param_get wctl_type_name) (const_string_ptr "f64")) (const_i32 1)))
+        (then (do
+          (let wctl_f64 i64 (call_i64 wctl_headed
+            (param_get wctl_tree) (const_string_ptr "const_f64")))
+          (let wctl_f64v i64 (call_i64 wir_decimal
+            (param_get wctl_tree) (const_string_ptr "0.0")))
+          (if
+            (condition (eq_i32 (call_i32 wctl_append
+              (param_get wctl_tree) (local_get wctl_f64) (local_get wctl_f64v))
+              (const_i32 0)))
+            (then (do (return (const_i64 -1))))
+            (else (do)))
+          (return (local_get wctl_f64))))
+        (else (do)))
+      (return (call_i64 wir_scalar_const_i32
+        (param_get wctl_tree) (const_i64 0)))))
+)

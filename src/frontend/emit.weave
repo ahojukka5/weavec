@@ -229,6 +229,12 @@
               (param_get tree) (param_get source) (param_get node))
               (const_i32 0)))
             (then (do
+              (if
+                (condition (ne_i32 (call_i32 sctl_try_publish_when
+                  (param_get fd) (param_get source) (param_get tree)
+                  (param_get node)) (const_i32 0)))
+                (then (do (return_void)))
+                (else (do)))
               (call_void when_emit
                 (param_get fd) (param_get source) (param_get tree) (param_get node))
               (return_void)))
@@ -238,6 +244,12 @@
               (param_get tree) (param_get source) (param_get node))
               (const_i32 0)))
             (then (do
+              (if
+                (condition (ne_i32 (call_i32 sctl_try_publish_if_stmt
+                  (param_get fd) (param_get source) (param_get tree)
+                  (param_get node)) (const_i32 0)))
+                (then (do (return_void)))
+                (else (do)))
               (call_void if_stmt_emit
                 (param_get fd) (param_get source) (param_get tree) (param_get node))
               (return_void)))
@@ -354,6 +366,15 @@
                     (param_get tree) (param_get node) (const_i64 1)))
                   (const_i32 0)))
                 (then (do
+                  (if
+                    (condition (ne_i32 (call_i32 sctl_try_publish_if_expr_return
+                      (param_get fd) (param_get source) (param_get tree)
+                      (call_i64 nth_child
+                        (param_get tree) (param_get node) (const_i64 1))
+                      (call_i32 weave_surface_get_return_type))
+                      (const_i32 0)))
+                    (then (do (return_void)))
+                    (else (do)))
                   (call_void if_expr_emit_return
                     (param_get fd) (param_get source) (param_get tree)
                     (call_i64 nth_child
@@ -451,6 +472,12 @@
                     (param_get tree) (param_get node) (const_i64 2)))
                   (const_i32 0)))
                 (then (do
+                  (if
+                    (condition (ne_i32 (call_i32 sctl_try_publish_if_expr_let
+                      (param_get fd) (param_get source) (param_get tree)
+                      (param_get node)) (const_i32 0)))
+                    (then (do (return_void)))
+                    (else (do)))
                   (call_void if_expr_emit_let
                     (param_get fd) (param_get source) (param_get tree)
                     (param_get node))
@@ -500,6 +527,12 @@
                     (param_get tree) (param_get node) (const_i64 3)))
                   (const_i32 0)))
                 (then (do
+                  (if
+                    (condition (ne_i32 (call_i32 sctl_try_publish_if_expr_let
+                      (param_get fd) (param_get source) (param_get tree)
+                      (param_get node)) (const_i32 0)))
+                    (then (do (return_void)))
+                    (else (do)))
                   (call_void if_expr_emit_let
                     (param_get fd) (param_get source) (param_get tree)
                     (param_get node))
@@ -542,6 +575,12 @@
               (param_get tree) (param_get source) (param_get node))
               (const_i32 0)))
             (then (do
+              (if
+                (condition (ne_i32 (call_i32 sctl_try_publish_for
+                  (param_get fd) (param_get source) (param_get tree)
+                  (param_get node)) (const_i32 0)))
+                (then (do (return_void)))
+                (else (do)))
               (call_void loop_emit_for
                 (param_get fd) (param_get source) (param_get tree)
                 (param_get node))
@@ -552,6 +591,12 @@
               (param_get tree) (param_get source) (param_get node))
               (const_i32 0)))
             (then (do
+              (if
+                (condition (ne_i32 (call_i32 sctl_try_publish_while
+                  (param_get fd) (param_get source) (param_get tree)
+                  (param_get node)) (const_i32 0)))
+                (then (do (return_void)))
+                (else (do)))
               (if
                 (condition (ne_i32 (call_i32 loop_emit_while
                   (param_get fd) (param_get source) (param_get tree)
@@ -564,6 +609,12 @@
               (param_get tree) (param_get source) (param_get node))
               (const_i32 0)))
             (then (do
+              (if
+                (condition (ne_i32 (call_i32 sctl_try_publish_break
+                  (param_get fd) (param_get source) (param_get tree)
+                  (param_get node)) (const_i32 0)))
+                (then (do (return_void)))
+                (else (do)))
               (call_void loop_emit_break
                 (param_get fd) (param_get source) (param_get tree)
                 (param_get node))
@@ -574,6 +625,12 @@
               (param_get tree) (param_get source) (param_get node))
               (const_i32 0)))
             (then (do
+              (if
+                (condition (ne_i32 (call_i32 sctl_try_publish_continue
+                  (param_get fd) (param_get source) (param_get tree)
+                  (param_get node)) (const_i32 0)))
+                (then (do (return_void)))
+                (else (do)))
               (call_void loop_emit_continue
                 (param_get fd) (param_get source) (param_get tree)
                 (param_get node))
