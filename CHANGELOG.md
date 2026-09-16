@@ -10,6 +10,11 @@ surface-language contract stabilises.
 
 ### Added
 
+- Structured `if`/`when`/`while`/`for`/`break`/`continue` keep their
+  existing fallthrough, loop-control, and diagnostic authority, but
+  admitted success paths now compose owned WIR control trees instead of
+  nested text fragments. Unmigrated children still use the temporary
+  text renderer. See issue #379.
 - A deterministic mutation-fuzzing lane over conformance and current
   WIR fixtures. `scripts/mutation_fuzz.py` applies a recorded seed,
   asserts documented exits, schema-valid diagnostics, and no partial
