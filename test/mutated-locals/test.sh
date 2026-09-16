@@ -108,6 +108,8 @@ set +e
     "$ROOT/src/llvm/mutated_locals.weave" \
     "$ROOT/test/mutated-locals/main.weave" \
     --runtime "$TMP/runtime.o" \
+    --emit-llvm "$TMP/unit.raw.ll" \
+    --emit-optimized-llvm "$TMP/unit.opt.ll" \
     -o "$TMP/mutated-locals-test"
 build_status="$?"
 set -e
@@ -134,6 +136,15 @@ printf 'mutated-locals: unit stderr (%s bytes):\n' \
   "$(wc -c < "$TMP/unit.stderr" | tr -d ' ')" >&2
 cat "$TMP/unit.stderr" >&2 || true
 if [[ "$status" -ne 0 ]]; then
+  if [[ -f "$TMP/unit.raw.ll" ]]; then
+    printf 'mutated-locals: raw LLVM (head):\n' >&2
+    head -n 80 "$TMP/unit.raw.ll" >&2 || true
+  fi
+  if command -v llvm-nm >/dev/null 2>&1 || command -v nm >/dev/null 2>&1; then
+    NM="$(command -v llvm-nm || command -v nm)"
+    printf 'mutated-locals: nm T/U symbols:\n' >&2
+    "$NM" "$UNIT" 2>/dev/null | grep -E ' [TU] ' | head -n 40 >&2 || true
+  fi
   exit 1
 fi
 
@@ -163,7 +174,11 @@ if [[ "$addr_count" -ne 1 ]]; then
   cat "$TMP/shadow.ll" >&2
   exit 1
 fi
-grep -Fq 'ret i32 1' "$TMP/shadow.ll"
+if ! grep -Fq 'ret i32 1' "$TMP/shadow.ll"; then
+  printf 'mutated-locals: expected ret i32 1 after shadowed set\n' >&2
+  cat "$TMP/shadow.ll" >&2
+  exit 1
+fi
 
 cat > "$TMP/set-local.wir" <<'EOF'
 (core-module
@@ -182,7 +197,15 @@ EOF
   cat "$TMP/set-local.stderr" >&2
   exit 1
 }
-grep -Fq '%x.addr = alloca' "$TMP/set-local.ll"
-grep -Fq 'store i32 40, ptr %x.addr' "$TMP/set-local.ll"
+if ! grep -Fq '%x.addr = alloca' "$TMP/set-local.ll"; then
+  printf 'mutated-locals: expected %%x.addr alloca for ordinary set\n' >&2
+  cat "$TMP/set-local.ll" >&2
+  exit 1
+fi
+if ! grep -Fq 'store i32 40, ptr %x.addr' "$TMP/set-local.ll"; then
+  printf 'mutated-locals: expected store of 40 to %%x.addr\n' >&2
+  cat "$TMP/set-local.ll" >&2
+  exit 1
+fi
 
 printf 'mutated-locals: passed\n'
