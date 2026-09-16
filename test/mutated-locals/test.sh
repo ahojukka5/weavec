@@ -35,8 +35,27 @@ grep -Fq 'ml_table_new' "$ROOT/src/llvm/ctx.weave" || {
   exit 1
 }
 
+report_status() {
+  local label="$1"
+  local status="$2"
+  if [[ "$status" -gt 128 ]]; then
+    printf 'mutated-locals: %s exit %s signal %s\n' \
+      "$label" "$status" "$((status - 128))" >&2
+  else
+    printf 'mutated-locals: %s exit %s\n' "$label" "$status" >&2
+  fi
+}
+
 printf 'mutated-locals: compile program runtime + write shims\n' >&2
+set +e
 "${CC:-clang}" -c "$ROOT/runtime/program.c" -o "$TMP/program.o"
+cc_status="$?"
+set -e
+printf 'mutated-locals: clang program.c command: %s -c %s -o %s\n' \
+  "${CC:-clang}" "$ROOT/runtime/program.c" "$TMP/program.o" >&2
+report_status 'clang program.c' "$cc_status"
+[[ "$cc_status" -eq 0 ]] || exit 1
+
 cat > "$TMP/write.c" <<'C'
 #include <stddef.h>
 #include <stdint.h>
@@ -60,10 +79,24 @@ int32_t weave_rt_write_failed(void) {
     return 0;
 }
 C
+set +e
 "${CC:-clang}" -c "$TMP/write.c" -o "$TMP/write.o"
+cc_status="$?"
+set -e
+report_status 'clang write.c' "$cc_status"
+[[ "$cc_status" -eq 0 ]] || exit 1
+
+printf 'mutated-locals: linker command: ld -r -o %s %s %s\n' \
+  "$TMP/runtime.o" "$TMP/program.o" "$TMP/write.o" >&2
+set +e
 ld -r -o "$TMP/runtime.o" "$TMP/program.o" "$TMP/write.o"
+ld_status="$?"
+set -e
+report_status 'ld -r runtime.o' "$ld_status"
+[[ "$ld_status" -eq 0 ]] || exit 1
 
 printf 'mutated-locals: weavec build\n' >&2
+set +e
 "$WEAVEC" build \
     "$ROOT/src/core/extern.weave" \
     "$ROOT/src/parser/tokens.weave" \
@@ -76,14 +109,31 @@ printf 'mutated-locals: weavec build\n' >&2
     "$ROOT/test/mutated-locals/main.weave" \
     --runtime "$TMP/runtime.o" \
     -o "$TMP/mutated-locals-test"
+build_status="$?"
+set -e
+report_status 'weavec build' "$build_status"
+[[ "$build_status" -eq 0 ]] || exit 1
+
+UNIT="$TMP/mutated-locals-test"
+printf 'mutated-locals: generated program path: %s\n' "$UNIT" >&2
+ls -l "$UNIT" >&2 || true
+if command -v file >/dev/null 2>&1; then
+  file "$UNIT" >&2 || true
+fi
 
 printf 'mutated-locals: run unit program\n' >&2
-set +e
-"$TMP/mutated-locals-test"
+set +e +o pipefail
+"$UNIT" >"$TMP/unit.stdout" 2>"$TMP/unit.stderr"
 status="$?"
-set -e
+set -e -o pipefail
+report_status 'unit program' "$status"
+printf 'mutated-locals: unit stdout (%s bytes):\n' \
+  "$(wc -c < "$TMP/unit.stdout" | tr -d ' ')" >&2
+cat "$TMP/unit.stdout" >&2 || true
+printf 'mutated-locals: unit stderr (%s bytes):\n' \
+  "$(wc -c < "$TMP/unit.stderr" | tr -d ' ')" >&2
+cat "$TMP/unit.stderr" >&2 || true
 if [[ "$status" -ne 0 ]]; then
-  printf 'mutated-locals: unit program exited %s\n' "$status" >&2
   exit 1
 fi
 
