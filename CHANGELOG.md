@@ -57,6 +57,9 @@ surface-language contract stabilises.
 - Inverse-pair cancellation (`S`/`Sdg`, `T`/`Tdg`) on the compiled
   circuit matcher, and ZX conversion of `H` as a pending wire edge so
   `H H` does not invent identity spiders.
+- A per-function mutated-local identity table collected in one body walk.
+  Let/set emission queries binding node identities instead of rescanning
+  the function for each local. See issue #388.
 
 ### Removed
 

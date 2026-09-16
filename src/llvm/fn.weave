@@ -141,6 +141,17 @@
       ; child 4: (do ...)
       (let do_node i64 (call_i64 nth_child (local_get tree) (param_get node) (const_i64 4)))
       (call_void ctx_set_fn_body (param_get ctx) (local_get do_node))
+      (if
+        (condition (ne_i32 (call_i32 ml_collect
+          (call_ptr ctx_get_mutated (param_get ctx))
+          (local_get tree) (local_get source) (local_get do_node))
+          (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (call_void ctx_set_fn_has_set
+        (param_get ctx)
+        (cast_i32_to_i64 (call_i32 ml_has_set
+          (call_ptr ctx_get_mutated (param_get ctx)))))
       (let ret_type_node i64 (call_i64 nth_child (local_get tree) (local_get returns_node) (const_i64 1)))
       (let ret_type_id i32 (call_i32 parse_type (local_get tree) (local_get source) (local_get ret_type_node)))
       ; Build params table for type lookups
@@ -149,9 +160,6 @@
           (param_get ctx) (local_get params_node)) (const_i32 0)))
         (then (do (return (const_i32 1))))
         (else (do)))
-      (call_void ctx_set_fn_has_set
-        (param_get ctx)
-        (cast_i32_to_i64 (call_i32 node_contains_set (param_get ctx) (local_get do_node))))
       ; Emit comment header
       (call_void write_cstr (local_get fd) (const_string_ptr "; function: "))
       (call_void emit_node_text (local_get fd) (local_get source) (local_get tree) (local_get name_node))
