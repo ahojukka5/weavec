@@ -96,6 +96,9 @@ bash "$ROOT/test/surface-stmt-tree/test.sh"
 log 'option and result'
 bash "$ROOT/test/option-result/test.sh"
 
+log 'structural module envelope and ordinary declaration lowering'
+bash "$ROOT/test/surface-decl-tree/test.sh"
+
 log 'option helpers'
 bash "$ROOT/test/option-helpers/test.sh"
 

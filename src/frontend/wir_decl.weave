@@ -1,0 +1,301 @@
+; SPDX-License-Identifier: Apache-2.0
+; wir_decl.weave — structural WIR builders for the module envelope and ordinary
+; declarations
+;
+; This module owns representation only. Existing name, type, arity, and
+; module-ordering authorities remain elsewhere. Callers pass already-owned WIR
+; name, type, parameter, return, and body node identities. No textual WIR is
+; emitted here and no generic surface-tree copier exists.
+
+(program
+  (name "frontend.wir_decl")
+  (version "0.1")
+
+  (fn wir_decl_require2
+    (params (wdr2_tree ptr) (wdr2_a i64) (wdr2_b i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (lt_i64 (param_get wdr2_a) (const_i64 0))
+          (lt_i64 (param_get wdr2_b) (const_i64 0))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wdr2_tree))
+          (return (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+
+  (fn wir_decl_require3
+    (params (wdr3_tree ptr) (wdr3_a i64) (wdr3_b i64) (wdr3_c i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 wir_decl_require2
+          (param_get wdr3_tree) (param_get wdr3_a) (param_get wdr3_b))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (lt_i64 (param_get wdr3_c) (const_i64 0)))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wdr3_tree))
+          (return (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+
+  (fn wir_decl_require4
+    (params
+      (wdr4_tree ptr) (wdr4_a i64) (wdr4_b i64) (wdr4_c i64) (wdr4_d i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 wir_decl_require3
+          (param_get wdr4_tree) (param_get wdr4_a)
+          (param_get wdr4_b) (param_get wdr4_c))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (lt_i64 (param_get wdr4_d) (const_i64 0)))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wdr4_tree))
+          (return (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+
+  (fn wir_decl_atom
+    (params (wda_tree ptr) (wda_text ptr))
+    (returns i64)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get wda_tree) (const_null))
+          (eq_ptr (param_get wda_text) (const_null))))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wda_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 wir_atom
+        (param_get wda_tree) (param_get wda_text)))))
+
+  (fn wir_decl_append
+    (params (wdap_tree ptr) (wdap_parent i64) (wdap_child i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 wir_decl_require2
+          (param_get wdap_tree) (param_get wdap_parent) (param_get wdap_child))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (call_i32 wir_append_child
+        (param_get wdap_tree) (param_get wdap_parent) (param_get wdap_child)))))
+
+  ; Unheaded `(NAME TYPE)` parameter pair.
+  (fn wir_decl_param
+    (params (wdp_tree ptr) (wdp_name i64) (wdp_type i64))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 wir_decl_require2
+          (param_get wdp_tree) (param_get wdp_name) (param_get wdp_type))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let wdp_list i64 (call_i64 wir_list (param_get wdp_tree)))
+      (if
+        (condition (lt_i64 (local_get wdp_list) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_append_child
+            (param_get wdp_tree) (local_get wdp_list) (param_get wdp_name))
+            (const_i32 0))
+          (eq_i32 (call_i32 wir_append_child
+            (param_get wdp_tree) (local_get wdp_list) (param_get wdp_type))
+            (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wdp_list))))
+
+  ; `(params)` — callers append parameter pairs.
+  (fn wir_decl_params
+    (params (wdps_tree ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wir_scalar_headed_list
+        (param_get wdps_tree) (const_string_ptr "params")))))
+
+  ; `(returns TYPE)`
+  (fn wir_decl_returns
+    (params (wdrt_tree ptr) (wdrt_type i64))
+    (returns i64)
+    (do
+      (if
+        (condition (lt_i64 (param_get wdrt_type) (const_i64 0)))
+        (then (do
+          (call_i32 wir_tree_mark_failed (param_get wdrt_tree))
+          (return (const_i64 -1))))
+        (else (do)))
+      (let wdrt_list i64 (call_i64 wir_scalar_headed_list
+        (param_get wdrt_tree) (const_string_ptr "returns")))
+      (if
+        (condition (lt_i64 (local_get wdrt_list) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_append_child
+          (param_get wdrt_tree) (local_get wdrt_list) (param_get wdrt_type))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wdrt_list))))
+
+  ; `(do)` — callers append already-built statement nodes.
+  (fn wir_decl_do
+    (params (wdd_tree ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wir_scalar_headed_list
+        (param_get wdd_tree) (const_string_ptr "do")))))
+
+  ; `(fn NAME PARAMS RETURNS BODY)`
+  (fn wir_decl_fn
+    (params
+      (wdf_tree ptr) (wdf_name i64) (wdf_params i64)
+      (wdf_returns i64) (wdf_body i64))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 wir_decl_require4
+          (param_get wdf_tree) (param_get wdf_name) (param_get wdf_params)
+          (param_get wdf_returns) (param_get wdf_body))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let wdf_list i64 (call_i64 wir_scalar_headed_list
+        (param_get wdf_tree) (const_string_ptr "fn")))
+      (if
+        (condition (lt_i64 (local_get wdf_list) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_append_child
+            (param_get wdf_tree) (local_get wdf_list) (param_get wdf_name))
+            (const_i32 0))
+          (or_bool
+            (eq_i32 (call_i32 wir_append_child
+              (param_get wdf_tree) (local_get wdf_list) (param_get wdf_params))
+              (const_i32 0))
+            (or_bool
+              (eq_i32 (call_i32 wir_append_child
+                (param_get wdf_tree) (local_get wdf_list)
+                (param_get wdf_returns))
+                (const_i32 0))
+              (eq_i32 (call_i32 wir_append_child
+                (param_get wdf_tree) (local_get wdf_list) (param_get wdf_body))
+                (const_i32 0))))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wdf_list))))
+
+  ; `(extern NAME PARAMS RETURNS)`
+  (fn wir_decl_extern
+    (params
+      (wde_tree ptr) (wde_name i64) (wde_params i64) (wde_returns i64))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 wir_decl_require3
+          (param_get wde_tree) (param_get wde_name)
+          (param_get wde_params) (param_get wde_returns))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let wde_list i64 (call_i64 wir_scalar_headed_list
+        (param_get wde_tree) (const_string_ptr "extern")))
+      (if
+        (condition (lt_i64 (local_get wde_list) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_append_child
+            (param_get wde_tree) (local_get wde_list) (param_get wde_name))
+            (const_i32 0))
+          (or_bool
+            (eq_i32 (call_i32 wir_append_child
+              (param_get wde_tree) (local_get wde_list) (param_get wde_params))
+              (const_i32 0))
+            (eq_i32 (call_i32 wir_append_child
+              (param_get wde_tree) (local_get wde_list)
+              (param_get wde_returns))
+              (const_i32 0)))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wde_list))))
+
+  ; `(core-version 3)`
+  (fn wir_decl_core_version
+    (params (wdv_tree ptr))
+    (returns i64)
+    (do
+      (let wdv_list i64 (call_i64 wir_scalar_headed_list
+        (param_get wdv_tree) (const_string_ptr "core-version")))
+      (if
+        (condition (lt_i64 (local_get wdv_list) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let wdv_value i64 (call_i64 wir_int
+        (param_get wdv_tree) (const_i64 3)))
+      (if
+        (condition (lt_i64 (local_get wdv_value) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (eq_i32 (call_i32 wir_append_child
+          (param_get wdv_tree) (local_get wdv_list) (local_get wdv_value))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wdv_list))))
+
+  ; `(decls)` — callers append complete declaration nodes.
+  (fn wir_decl_decls
+    (params (wdds_tree ptr))
+    (returns i64)
+    (do
+      (return (call_i64 wir_scalar_headed_list
+        (param_get wdds_tree) (const_string_ptr "decls")))))
+
+  ; `(core-module VERSION DECLS)`
+  (fn wir_decl_core_module
+    (params (wdm_tree ptr) (wdm_version i64) (wdm_decls i64))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 wir_decl_require2
+          (param_get wdm_tree) (param_get wdm_version) (param_get wdm_decls))
+          (const_i32 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let wdm_list i64 (call_i64 wir_scalar_headed_list
+        (param_get wdm_tree) (const_string_ptr "core-module")))
+      (if
+        (condition (lt_i64 (local_get wdm_list) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (eq_i32 (call_i32 wir_append_child
+            (param_get wdm_tree) (local_get wdm_list) (param_get wdm_version))
+            (const_i32 0))
+          (eq_i32 (call_i32 wir_append_child
+            (param_get wdm_tree) (local_get wdm_list) (param_get wdm_decls))
+            (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (local_get wdm_list))))
+)

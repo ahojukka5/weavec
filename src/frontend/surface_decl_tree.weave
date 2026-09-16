@@ -1,0 +1,994 @@
+; SPDX-License-Identifier: Apache-2.0
+; surface_decl_tree.weave — structural success-path lowering for ordinary decls
+;
+; Semantic validation stays in emit.weave, sst_emit_params, and
+; lower_program_*. This module builds owned WIR declaration nodes that compose
+; #410–#413 children. Unmigrated children return failure so the caller can keep
+; the text renderer. A failed judgment never publishes a partial declaration
+; subtree.
+
+(program
+  (name "surface_decl_tree")
+  (version "0.1")
+
+  (fn sdtt_reject
+    (params (sdtt_r_wir ptr))
+    (returns i64)
+    (do
+      (call_i32 wir_tree_mark_failed (param_get sdtt_r_wir))
+      (return (const_i64 -1))))
+
+  (fn sdtt_head_is
+    (params
+      (sdtt_h_tree ptr) (sdtt_h_source ptr) (sdtt_h_node i64)
+      (sdtt_h_text ptr) (sdtt_h_len i64))
+    (returns i32)
+    (do
+      (return (call_i32 head_equals
+        (param_get sdtt_h_tree) (param_get sdtt_h_source)
+        (param_get sdtt_h_node) (param_get sdtt_h_text)
+        (param_get sdtt_h_len)))))
+
+  ; Family heads that this issue must not tree-lower.
+  (fn sdtt_head_unmigrated
+    (params (sdtt_u_tree ptr) (sdtt_u_source ptr) (sdtt_u_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node) (const_string_ptr "if") (const_i64 2))
+              (const_i32 0))
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node) (const_string_ptr "when") (const_i64 4))
+              (const_i32 0)))
+          (or_bool
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node) (const_string_ptr "while") (const_i64 5))
+              (const_i32 0))
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node) (const_string_ptr "for") (const_i64 3))
+              (const_i32 0)))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node) (const_string_ptr "loop") (const_i64 4))
+              (const_i32 0))
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node) (const_string_ptr "break") (const_i64 5))
+              (const_i32 0)))
+          (or_bool
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node) (const_string_ptr "continue") (const_i64 8))
+              (const_i32 0))
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node) (const_string_ptr "match") (const_i64 5))
+              (const_i32 0)))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node) (const_string_ptr "try") (const_i64 3))
+              (const_i32 0))
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node) (const_string_ptr "qgate") (const_i64 5))
+              (const_i32 0)))
+          (or_bool
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node) (const_string_ptr "qmeasure") (const_i64 8))
+              (const_i32 0))
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node) (const_string_ptr "new") (const_i64 3))
+              (const_i32 0)))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node) (const_string_ptr "variant") (const_i64 7))
+              (const_i32 0))
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node)
+              (const_string_ptr "variant-tag") (const_i64 11))
+              (const_i32 0)))
+          (or_bool
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node)
+              (const_string_ptr "variant-payload") (const_i64 15))
+              (const_i32 0))
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node)
+              (const_string_ptr "field-get") (const_i64 9))
+              (const_i32 0)))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (or_bool
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node)
+              (const_string_ptr "field-set") (const_i64 9))
+              (const_i32 0))
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node) (const_string_ptr "do") (const_i64 2))
+              (const_i32 0)))
+          (or_bool
+            (or_bool
+              (ne_i32 (call_i32 sdtt_head_is
+                (param_get sdtt_u_tree) (param_get sdtt_u_source)
+                (param_get sdtt_u_node)
+                (const_string_ptr "type-params") (const_i64 11))
+                (const_i32 0))
+              (ne_i32 (call_i32 sdtt_head_is
+                (param_get sdtt_u_tree) (param_get sdtt_u_source)
+                (param_get sdtt_u_node)
+                (const_string_ptr "type-app") (const_i64 8))
+                (const_i32 0)))
+            (ne_i32 (call_i32 sdtt_head_is
+              (param_get sdtt_u_tree) (param_get sdtt_u_source)
+              (param_get sdtt_u_node)
+              (const_string_ptr "type-args") (const_i64 9))
+              (const_i32 0)))))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  ; Recursively reject unmigrated descendants so the text path stays the
+  ; diagnostic authority and no check runs before the tree path is committed.
+  (fn sdtt_node_tree_supported
+    (params (sdtt_n_tree ptr) (sdtt_n_source ptr) (sdtt_n_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (param_get sdtt_n_node) (const_i64 -1)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get sdtt_n_tree) (param_get sdtt_n_node))
+          (call_i32 node_list)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 comment_is_node
+          (param_get sdtt_n_tree) (param_get sdtt_n_source)
+          (param_get sdtt_n_node))
+          (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 sdtt_head_unmigrated
+          (param_get sdtt_n_tree) (param_get sdtt_n_source)
+          (param_get sdtt_n_node))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sdtt_n_child i64 (call_i64 node_first_child
+        (param_get sdtt_n_tree) (param_get sdtt_n_node)))
+      (while
+        (condition (ne_i64 (local_get sdtt_n_child) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 sdtt_node_tree_supported
+              (param_get sdtt_n_tree) (param_get sdtt_n_source)
+              (local_get sdtt_n_child))
+              (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))
+          (set sdtt_n_child (call_i64 node_next_sibling
+            (param_get sdtt_n_tree) (local_get sdtt_n_child)))))
+      (return (const_i32 1))))
+
+  (fn sdtt_body_tree_supported
+    (params (sdtt_b_tree ptr) (sdtt_b_source ptr) (sdtt_b_decl i64))
+    (returns i32)
+    (do
+      (let sdtt_b_stmt i64 (call_i64 surface_fn_body_first_stmt
+        (param_get sdtt_b_tree) (param_get sdtt_b_source)
+        (param_get sdtt_b_decl)))
+      (while
+        (condition (ne_i64 (local_get sdtt_b_stmt) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 comment_is_node
+              (param_get sdtt_b_tree) (param_get sdtt_b_source)
+              (local_get sdtt_b_stmt))
+              (const_i32 0)))
+            (then (do
+              (if
+                (condition (eq_i32 (call_i32 sdtt_node_tree_supported
+                  (param_get sdtt_b_tree) (param_get sdtt_b_source)
+                  (local_get sdtt_b_stmt))
+                  (const_i32 0)))
+                (then (do (return (const_i32 0))))
+                (else (do)))))
+            (else (do)))
+          (set sdtt_b_stmt (call_i64 node_next_sibling
+            (param_get sdtt_b_tree) (local_get sdtt_b_stmt)))))
+      (return (const_i32 1))))
+
+  (fn sdtt_symbol_atom
+    (params
+      (sdtt_s_wir ptr) (sdtt_s_source ptr)
+      (sdtt_s_tree ptr) (sdtt_s_node i64))
+    (returns i64)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 surface_node_is_ident
+          (param_get sdtt_s_tree) (param_get sdtt_s_node))
+          (const_i32 0)))
+        (then (do (return (call_i64 sdtt_reject (param_get sdtt_s_wir)))))
+        (else (do)))
+      (let sdtt_s_start i64 (call_i64 node_text_start
+        (param_get sdtt_s_tree) (param_get sdtt_s_node)))
+      (let sdtt_s_length i64 (call_i64 node_text_len
+        (param_get sdtt_s_tree) (param_get sdtt_s_node)))
+      (let sdtt_s_wir_name ptr (call_ptr weave_surface_symbol_wir_name
+        (param_get sdtt_s_source) (local_get sdtt_s_start)
+        (local_get sdtt_s_length)))
+      (if
+        (condition (ne_ptr (local_get sdtt_s_wir_name) (const_null)))
+        (then (do
+          (return (call_i64 wir_decl_atom
+            (param_get sdtt_s_wir) (local_get sdtt_s_wir_name)))))
+        (else (do)))
+      (return (call_i64 wir_scalar_source_ident
+        (param_get sdtt_s_wir) (param_get sdtt_s_source)
+        (param_get sdtt_s_tree) (param_get sdtt_s_node)))))
+
+  (fn sdtt_bind_local
+    (params
+      (sdtt_l_source ptr) (sdtt_l_tree ptr)
+      (sdtt_l_name i64) (sdtt_l_type i32))
+    (returns void)
+    (do
+      (call_i32 weave_surface_local_add
+        (param_get sdtt_l_source)
+        (call_i64 node_text_start
+          (param_get sdtt_l_tree) (param_get sdtt_l_name))
+        (call_i64 node_text_len
+          (param_get sdtt_l_tree) (param_get sdtt_l_name))
+        (param_get sdtt_l_type))
+      (return_void)))
+
+  (fn sdtt_build_params
+    (params
+      (sdtt_p_wir ptr) (sdtt_p_source ptr)
+      (sdtt_p_tree ptr) (sdtt_p_decl i64))
+    (returns i64)
+    (do
+      (let sdtt_p_node i64 (call_i64 surface_fn_params_node
+        (param_get sdtt_p_tree) (param_get sdtt_p_source)
+        (param_get sdtt_p_decl)))
+      (if
+        (condition (eq_i32 (call_i32 surface_parameters_shape_valid
+          (param_get sdtt_p_tree) (param_get sdtt_p_source)
+          (local_get sdtt_p_node))
+          (const_i32 0)))
+        (then (do (return (call_i64 sdtt_reject (param_get sdtt_p_wir)))))
+        (else (do)))
+      (call_void sst_prepare_params
+        (param_get sdtt_p_tree) (param_get sdtt_p_source)
+        (local_get sdtt_p_node))
+      (let sdtt_p_list i64 (call_i64 wir_decl_params (param_get sdtt_p_wir)))
+      (if
+        (condition (lt_i64 (local_get sdtt_p_list) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sdtt_p_pair i64 (call_i64 surface_params_first_pair
+        (param_get sdtt_p_tree) (param_get sdtt_p_source)
+        (local_get sdtt_p_node)))
+      (while
+        (condition (ne_i64 (local_get sdtt_p_pair) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i32 (call_i32 node_kind
+              (param_get sdtt_p_tree) (local_get sdtt_p_pair))
+              (call_i32 node_list)))
+            (then (do (return (call_i64 sdtt_reject (param_get sdtt_p_wir)))))
+            (else (do)))
+          (let sdtt_p_name_node i64 (call_i64 nth_child
+            (param_get sdtt_p_tree) (local_get sdtt_p_pair) (const_i64 0)))
+          (let sdtt_p_type_node i64 (call_i64 nth_child
+            (param_get sdtt_p_tree) (local_get sdtt_p_pair) (const_i64 1)))
+          (let sdtt_p_type i32 (call_i32 sst_type_code
+            (param_get sdtt_p_tree) (param_get sdtt_p_source)
+            (local_get sdtt_p_type_node)))
+          (let sdtt_p_name i64 (call_i64 wir_scalar_source_ident
+            (param_get sdtt_p_wir) (param_get sdtt_p_source)
+            (param_get sdtt_p_tree) (local_get sdtt_p_name_node)))
+          (let sdtt_p_type_atom i64 (call_i64 sstt_wir_type_atom
+            (param_get sdtt_p_wir) (local_get sdtt_p_type)))
+          (let sdtt_p_item i64 (call_i64 wir_decl_param
+            (param_get sdtt_p_wir) (local_get sdtt_p_name)
+            (local_get sdtt_p_type_atom)))
+          (if
+            (condition (or_bool
+              (lt_i64 (local_get sdtt_p_item) (const_i64 0))
+              (eq_i32 (call_i32 wir_decl_append
+                (param_get sdtt_p_wir) (local_get sdtt_p_list)
+                (local_get sdtt_p_item))
+                (const_i32 0))))
+            (then (do (return (const_i64 -1))))
+            (else (do)))
+          (set sdtt_p_pair (call_i64 node_next_sibling
+            (param_get sdtt_p_tree) (local_get sdtt_p_pair)))))
+      (return (local_get sdtt_p_list))))
+
+  (fn sdtt_build_returns
+    (params
+      (sdtt_rt_wir ptr) (sdtt_rt_source ptr)
+      (sdtt_rt_tree ptr) (sdtt_rt_decl i64))
+    (returns i64)
+    (do
+      (let sdtt_rt_type_node i64 (call_i64 surface_fn_return_type_node
+        (param_get sdtt_rt_tree) (param_get sdtt_rt_source)
+        (param_get sdtt_rt_decl)))
+      (if
+        (condition (eq_i64 (local_get sdtt_rt_type_node) (const_i64 -1)))
+        (then (do (return (call_i64 sdtt_reject (param_get sdtt_rt_wir)))))
+        (else (do)))
+      (let sdtt_rt_code i32 (call_i32 sst_type_code
+        (param_get sdtt_rt_tree) (param_get sdtt_rt_source)
+        (local_get sdtt_rt_type_node)))
+      (call_i32 sst_require_defined_type
+        (param_get sdtt_rt_tree) (param_get sdtt_rt_source)
+        (local_get sdtt_rt_type_node) (local_get sdtt_rt_code))
+      (call_void weave_surface_set_return_type (local_get sdtt_rt_code))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals
+          (param_get sdtt_rt_tree) (param_get sdtt_rt_source)
+          (local_get sdtt_rt_type_node)
+          (const_string_ptr "Qubit") (const_i64 5))
+          (const_i32 0)))
+        (then (do
+          (call_void trace_lower_qubit_to_i64
+            (param_get sdtt_rt_source) (param_get sdtt_rt_tree)
+            (local_get sdtt_rt_type_node) (const_i64 -1))))
+        (else (do)))
+      (let sdtt_rt_atom i64 (call_i64 sstt_wir_type_atom
+        (param_get sdtt_rt_wir) (local_get sdtt_rt_code)))
+      (return (call_i64 wir_decl_returns
+        (param_get sdtt_rt_wir) (local_get sdtt_rt_atom)))))
+
+  (fn sdtt_build_let_stmt
+    (params
+      (sdtt_ls_wir ptr) (sdtt_ls_source ptr)
+      (sdtt_ls_tree ptr) (sdtt_ls_node i64))
+    (returns i64)
+    (do
+      (let sdtt_ls_count i64 (call_i64 count_children
+        (param_get sdtt_ls_tree) (param_get sdtt_ls_node)))
+      (if
+        (condition (eq_i64 (local_get sdtt_ls_count) (const_i64 3)))
+        (then (do
+          (let sdtt_ls_iname i64 (call_i64 nth_child
+            (param_get sdtt_ls_tree) (param_get sdtt_ls_node) (const_i64 1)))
+          (let sdtt_ls_iexpr i64 (call_i64 nth_child
+            (param_get sdtt_ls_tree) (param_get sdtt_ls_node) (const_i64 2)))
+          (let sdtt_ls_itype i32 (call_i32 li_infer_type
+            (param_get sdtt_ls_tree) (param_get sdtt_ls_source)
+            (local_get sdtt_ls_iexpr)))
+          (if
+            (condition (eq_i32 (local_get sdtt_ls_itype)
+              (call_i32 surface_type_unknown)))
+            (then (do (return (call_i64 sdtt_reject (param_get sdtt_ls_wir)))))
+            (else (do)))
+          (let sdtt_ls_ilet i64 (call_i64 sstt_build_let
+            (param_get sdtt_ls_wir) (param_get sdtt_ls_source)
+            (param_get sdtt_ls_tree) (local_get sdtt_ls_iname)
+            (local_get sdtt_ls_itype) (local_get sdtt_ls_iexpr)))
+          (if
+            (condition (ge_i64 (local_get sdtt_ls_ilet) (const_i64 0)))
+            (then (do
+              (call_void sdtt_bind_local
+                (param_get sdtt_ls_source) (param_get sdtt_ls_tree)
+                (local_get sdtt_ls_iname) (local_get sdtt_ls_itype))))
+            (else (do)))
+          (return (local_get sdtt_ls_ilet))))
+        (else (do)))
+      (if
+        (condition (ne_i64 (local_get sdtt_ls_count) (const_i64 4)))
+        (then (do (return (call_i64 sdtt_reject (param_get sdtt_ls_wir)))))
+        (else (do)))
+      (let sdtt_ls_name i64 (call_i64 nth_child
+        (param_get sdtt_ls_tree) (param_get sdtt_ls_node) (const_i64 1)))
+      (let sdtt_ls_type_node i64 (call_i64 nth_child
+        (param_get sdtt_ls_tree) (param_get sdtt_ls_node) (const_i64 2)))
+      (let sdtt_ls_expr i64 (call_i64 nth_child
+        (param_get sdtt_ls_tree) (param_get sdtt_ls_node) (const_i64 3)))
+      (let sdtt_ls_type i32 (call_i32 sst_type_code
+        (param_get sdtt_ls_tree) (param_get sdtt_ls_source)
+        (local_get sdtt_ls_type_node)))
+      (let sdtt_ls_let i64 (call_i64 sstt_build_let
+        (param_get sdtt_ls_wir) (param_get sdtt_ls_source)
+        (param_get sdtt_ls_tree) (local_get sdtt_ls_name)
+        (local_get sdtt_ls_type) (local_get sdtt_ls_expr)))
+      (if
+        (condition (ge_i64 (local_get sdtt_ls_let) (const_i64 0)))
+        (then (do
+          (call_void sdtt_bind_local
+            (param_get sdtt_ls_source) (param_get sdtt_ls_tree)
+            (local_get sdtt_ls_name) (local_get sdtt_ls_type))))
+        (else (do)))
+      (return (local_get sdtt_ls_let))))
+
+  (fn sdtt_build_stmt
+    (params
+      (sdtt_st_wir ptr) (sdtt_st_source ptr)
+      (sdtt_st_tree ptr) (sdtt_st_node i64))
+    (returns i64)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get sdtt_st_tree) (param_get sdtt_st_node))
+          (call_i32 node_list)))
+        (then (do (return (call_i64 sdtt_reject (param_get sdtt_st_wir)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 sdtt_head_is
+          (param_get sdtt_st_tree) (param_get sdtt_st_source)
+          (param_get sdtt_st_node) (const_string_ptr "let") (const_i64 3))
+          (const_i32 0)))
+        (then (do
+          (return (call_i64 sdtt_build_let_stmt
+            (param_get sdtt_st_wir) (param_get sdtt_st_source)
+            (param_get sdtt_st_tree) (param_get sdtt_st_node)))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (call_i32 sdtt_head_is
+            (param_get sdtt_st_tree) (param_get sdtt_st_source)
+            (param_get sdtt_st_node) (const_string_ptr "set") (const_i64 3))
+            (const_i32 0))
+          (eq_i64 (call_i64 count_children
+            (param_get sdtt_st_tree) (param_get sdtt_st_node))
+            (const_i64 3))))
+        (then (do
+          (let sdtt_st_set_name i64 (call_i64 nth_child
+            (param_get sdtt_st_tree) (param_get sdtt_st_node) (const_i64 1)))
+          (let sdtt_st_set_expr i64 (call_i64 nth_child
+            (param_get sdtt_st_tree) (param_get sdtt_st_node) (const_i64 2)))
+          (let sdtt_st_set_type i32 (call_i32 surface_ident_type
+            (param_get sdtt_st_tree) (param_get sdtt_st_source)
+            (local_get sdtt_st_set_name)))
+          (return (call_i64 sstt_build_set
+            (param_get sdtt_st_wir) (param_get sdtt_st_source)
+            (param_get sdtt_st_tree) (local_get sdtt_st_set_name)
+            (local_get sdtt_st_set_type) (local_get sdtt_st_set_expr)))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (call_i32 sdtt_head_is
+            (param_get sdtt_st_tree) (param_get sdtt_st_source)
+            (param_get sdtt_st_node) (const_string_ptr "return") (const_i64 6))
+            (const_i32 0))
+          (eq_i64 (call_i64 count_children
+            (param_get sdtt_st_tree) (param_get sdtt_st_node))
+            (const_i64 1))))
+        (then (do
+          (return (call_i64 wir_stmt_return_void (param_get sdtt_st_wir)))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (ne_i32 (call_i32 sdtt_head_is
+            (param_get sdtt_st_tree) (param_get sdtt_st_source)
+            (param_get sdtt_st_node) (const_string_ptr "return") (const_i64 6))
+            (const_i32 0))
+          (eq_i64 (call_i64 count_children
+            (param_get sdtt_st_tree) (param_get sdtt_st_node))
+            (const_i64 2))))
+        (then (do
+          (let sdtt_st_ret_expr i64 (call_i64 nth_child
+            (param_get sdtt_st_tree) (param_get sdtt_st_node) (const_i64 1)))
+          (return (call_i64 sstt_build_return
+            (param_get sdtt_st_wir) (param_get sdtt_st_source)
+            (param_get sdtt_st_tree) (local_get sdtt_st_ret_expr)
+            (call_i32 weave_surface_get_return_type)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 sdtt_head_is
+          (param_get sdtt_st_tree) (param_get sdtt_st_source)
+          (param_get sdtt_st_node)
+          (const_string_ptr "return_void") (const_i64 11))
+          (const_i32 0)))
+        (then (do
+          (return (call_i64 wir_stmt_return_void (param_get sdtt_st_wir)))))
+        (else (do)))
+      (let sdtt_st_expr_type i32 (call_i32 sop_expr_type
+        (param_get sdtt_st_tree) (param_get sdtt_st_source)
+        (param_get sdtt_st_node) (call_i32 surface_type_unknown)))
+      (let sdtt_st_expr i64 (call_i64 sot_build_operand
+        (param_get sdtt_st_wir) (param_get sdtt_st_source)
+        (param_get sdtt_st_tree) (param_get sdtt_st_node)
+        (local_get sdtt_st_expr_type)))
+      (if
+        (condition (lt_i64 (local_get sdtt_st_expr) (const_i64 0)))
+        (then (do (return (call_i64 sdtt_reject (param_get sdtt_st_wir)))))
+        (else (do)))
+      (return (local_get sdtt_st_expr))))
+
+  (fn sdtt_build_body
+    (params
+      (sdtt_bd_wir ptr) (sdtt_bd_source ptr)
+      (sdtt_bd_tree ptr) (sdtt_bd_decl i64))
+    (returns i64)
+    (do
+      (let sdtt_bd_do i64 (call_i64 wir_decl_do (param_get sdtt_bd_wir)))
+      (if
+        (condition (lt_i64 (local_get sdtt_bd_do) (const_i64 0)))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (let sdtt_bd_stmt i64 (call_i64 surface_fn_body_first_stmt
+        (param_get sdtt_bd_tree) (param_get sdtt_bd_source)
+        (param_get sdtt_bd_decl)))
+      (while
+        (condition (ne_i64 (local_get sdtt_bd_stmt) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 comment_is_node
+              (param_get sdtt_bd_tree) (param_get sdtt_bd_source)
+              (local_get sdtt_bd_stmt))
+              (const_i32 0)))
+            (then (do
+              (let sdtt_bd_built i64 (call_i64 sdtt_build_stmt
+                (param_get sdtt_bd_wir) (param_get sdtt_bd_source)
+                (param_get sdtt_bd_tree) (local_get sdtt_bd_stmt)))
+              (if
+                (condition (or_bool
+                  (lt_i64 (local_get sdtt_bd_built) (const_i64 0))
+                  (eq_i32 (call_i32 wir_decl_append
+                    (param_get sdtt_bd_wir) (local_get sdtt_bd_do)
+                    (local_get sdtt_bd_built))
+                    (const_i32 0))))
+                (then (do (return (const_i64 -1))))
+                (else (do)))))
+            (else (do)))
+          (set sdtt_bd_stmt (call_i64 node_next_sibling
+            (param_get sdtt_bd_tree) (local_get sdtt_bd_stmt)))))
+      (return (local_get sdtt_bd_do))))
+
+  (fn sdtt_check_let_stmt
+    (params (sdtt_cl_source ptr) (sdtt_cl_tree ptr) (sdtt_cl_node i64))
+    (returns void)
+    (do
+      (let sdtt_cl_count i64 (call_i64 count_children
+        (param_get sdtt_cl_tree) (param_get sdtt_cl_node)))
+      (if
+        (condition (eq_i64 (local_get sdtt_cl_count) (const_i64 3)))
+        (then (do
+          (let sdtt_cl_iexpr i64 (call_i64 nth_child
+            (param_get sdtt_cl_tree) (param_get sdtt_cl_node) (const_i64 2)))
+          (let sdtt_cl_itype i32 (call_i32 li_infer_type
+            (param_get sdtt_cl_tree) (param_get sdtt_cl_source)
+            (local_get sdtt_cl_iexpr)))
+          (call_void sst_check_expr_expected
+            (param_get sdtt_cl_tree) (param_get sdtt_cl_source)
+            (local_get sdtt_cl_iexpr) (local_get sdtt_cl_itype)
+            (const_string_ptr "binding"))
+          (return_void)))
+        (else (do)))
+      (if
+        (condition (ne_i64 (local_get sdtt_cl_count) (const_i64 4)))
+        (then (do (return_void)))
+        (else (do)))
+      (let sdtt_cl_type_node i64 (call_i64 nth_child
+        (param_get sdtt_cl_tree) (param_get sdtt_cl_node) (const_i64 2)))
+      (let sdtt_cl_expr i64 (call_i64 nth_child
+        (param_get sdtt_cl_tree) (param_get sdtt_cl_node) (const_i64 3)))
+      (let sdtt_cl_type i32 (call_i32 sst_type_code
+        (param_get sdtt_cl_tree) (param_get sdtt_cl_source)
+        (local_get sdtt_cl_type_node)))
+      (call_i32 sst_require_defined_type
+        (param_get sdtt_cl_tree) (param_get sdtt_cl_source)
+        (local_get sdtt_cl_type_node) (local_get sdtt_cl_type))
+      (if
+        (condition (ne_i32 (call_i32 ident_equals
+          (param_get sdtt_cl_tree) (param_get sdtt_cl_source)
+          (local_get sdtt_cl_type_node)
+          (const_string_ptr "Qubit") (const_i64 5))
+          (const_i32 0)))
+        (then (do
+          (call_void trace_lower_qubit_to_i64
+            (param_get sdtt_cl_source) (param_get sdtt_cl_tree)
+            (local_get sdtt_cl_type_node) (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (and_bool
+          (eq_i32 (call_i32 node_kind
+            (param_get sdtt_cl_tree) (local_get sdtt_cl_expr))
+            (call_i32 node_int))
+          (eq_i32 (call_i32 weave_surface_struct_is_type
+            (local_get sdtt_cl_type))
+            (const_i32 0))))
+        (then (do
+          (call_void trace_wrap_typed_integer
+            (param_get sdtt_cl_source) (param_get sdtt_cl_tree)
+            (local_get sdtt_cl_expr) (local_get sdtt_cl_type_node))))
+        (else (do)))
+      (call_void sst_check_expr_expected
+        (param_get sdtt_cl_tree) (param_get sdtt_cl_source)
+        (local_get sdtt_cl_expr) (local_get sdtt_cl_type)
+        (const_string_ptr "binding"))
+      (return_void)))
+
+  ; Existing let/set/return authorities run only after the complete subtree is
+  ; built, so a later unmigrated child cannot double-emit diagnostics.
+  (fn sdtt_check_fn_body
+    (params (sdtt_ck_source ptr) (sdtt_ck_tree ptr) (sdtt_ck_decl i64))
+    (returns void)
+    (do
+      (let sdtt_ck_stmt i64 (call_i64 surface_fn_body_first_stmt
+        (param_get sdtt_ck_tree) (param_get sdtt_ck_source)
+        (param_get sdtt_ck_decl)))
+      (while
+        (condition (ne_i64 (local_get sdtt_ck_stmt) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 comment_is_node
+              (param_get sdtt_ck_tree) (param_get sdtt_ck_source)
+              (local_get sdtt_ck_stmt))
+              (const_i32 0)))
+            (then (do
+              (if
+                (condition (ne_i32 (call_i32 sdtt_head_is
+                  (param_get sdtt_ck_tree) (param_get sdtt_ck_source)
+                  (local_get sdtt_ck_stmt)
+                  (const_string_ptr "let") (const_i64 3))
+                  (const_i32 0)))
+                (then (do
+                  (call_void sdtt_check_let_stmt
+                    (param_get sdtt_ck_source) (param_get sdtt_ck_tree)
+                    (local_get sdtt_ck_stmt))))
+                (else (do)))
+              (if
+                (condition (and_bool
+                  (ne_i32 (call_i32 sdtt_head_is
+                    (param_get sdtt_ck_tree) (param_get sdtt_ck_source)
+                    (local_get sdtt_ck_stmt)
+                    (const_string_ptr "set") (const_i64 3))
+                    (const_i32 0))
+                  (eq_i64 (call_i64 count_children
+                    (param_get sdtt_ck_tree) (local_get sdtt_ck_stmt))
+                    (const_i64 3))))
+                (then (do
+                  (let sdtt_ck_set_name i64 (call_i64 nth_child
+                    (param_get sdtt_ck_tree) (local_get sdtt_ck_stmt)
+                    (const_i64 1)))
+                  (let sdtt_ck_set_expr i64 (call_i64 nth_child
+                    (param_get sdtt_ck_tree) (local_get sdtt_ck_stmt)
+                    (const_i64 2)))
+                  (call_void sst_check_expr_expected
+                    (param_get sdtt_ck_tree) (param_get sdtt_ck_source)
+                    (local_get sdtt_ck_set_expr)
+                    (call_i32 surface_ident_type
+                      (param_get sdtt_ck_tree) (param_get sdtt_ck_source)
+                      (local_get sdtt_ck_set_name))
+                    (const_string_ptr "assignment"))))
+                (else (do)))
+              (if
+                (condition (and_bool
+                  (ne_i32 (call_i32 sdtt_head_is
+                    (param_get sdtt_ck_tree) (param_get sdtt_ck_source)
+                    (local_get sdtt_ck_stmt)
+                    (const_string_ptr "return") (const_i64 6))
+                    (const_i32 0))
+                  (eq_i64 (call_i64 count_children
+                    (param_get sdtt_ck_tree) (local_get sdtt_ck_stmt))
+                    (const_i64 1))))
+                (then (do
+                  (if
+                    (condition (ne_i32 (call_i32 weave_surface_get_return_type)
+                      (call_i32 surface_type_void)))
+                    (then (do
+                      (call_void surface_error_prefix
+                        (const_string_ptr "return"))
+                      (call_void write_cstr (const_i32 2)
+                        (const_string_ptr "this function returns a value, so (return) needs one"))
+                      (call_void write_byte (const_i32 2) (const_i32 10))))
+                    (else (do)))))
+                (else (do)))
+              (if
+                (condition (and_bool
+                  (ne_i32 (call_i32 sdtt_head_is
+                    (param_get sdtt_ck_tree) (param_get sdtt_ck_source)
+                    (local_get sdtt_ck_stmt)
+                    (const_string_ptr "return") (const_i64 6))
+                    (const_i32 0))
+                  (eq_i64 (call_i64 count_children
+                    (param_get sdtt_ck_tree) (local_get sdtt_ck_stmt))
+                    (const_i64 2))))
+                (then (do
+                  (call_void sst_check_expr_expected
+                    (param_get sdtt_ck_tree) (param_get sdtt_ck_source)
+                    (call_i64 nth_child
+                      (param_get sdtt_ck_tree) (local_get sdtt_ck_stmt)
+                      (const_i64 1))
+                    (call_i32 weave_surface_get_return_type)
+                    (const_string_ptr "return"))))
+                (else (do)))))
+            (else (do)))
+          (set sdtt_ck_stmt (call_i64 node_next_sibling
+            (param_get sdtt_ck_tree) (local_get sdtt_ck_stmt)))))
+      (return_void)))
+
+  (fn sdtt_build_fn
+    (params
+      (sdtt_f_wir ptr) (sdtt_f_source ptr)
+      (sdtt_f_tree ptr) (sdtt_f_decl i64))
+    (returns i64)
+    (do
+      (let sdtt_f_name i64 (call_i64 sdtt_symbol_atom
+        (param_get sdtt_f_wir) (param_get sdtt_f_source)
+        (param_get sdtt_f_tree)
+        (call_i64 nth_child
+          (param_get sdtt_f_tree) (param_get sdtt_f_decl) (const_i64 1))))
+      (let sdtt_f_params i64 (call_i64 sdtt_build_params
+        (param_get sdtt_f_wir) (param_get sdtt_f_source)
+        (param_get sdtt_f_tree) (param_get sdtt_f_decl)))
+      (let sdtt_f_returns i64 (call_i64 sdtt_build_returns
+        (param_get sdtt_f_wir) (param_get sdtt_f_source)
+        (param_get sdtt_f_tree) (param_get sdtt_f_decl)))
+      (let sdtt_f_body i64 (call_i64 sdtt_build_body
+        (param_get sdtt_f_wir) (param_get sdtt_f_source)
+        (param_get sdtt_f_tree) (param_get sdtt_f_decl)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get sdtt_f_name) (const_i64 0))
+          (or_bool
+            (lt_i64 (local_get sdtt_f_params) (const_i64 0))
+            (or_bool
+              (lt_i64 (local_get sdtt_f_returns) (const_i64 0))
+              (lt_i64 (local_get sdtt_f_body) (const_i64 0))))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 wir_decl_fn
+        (param_get sdtt_f_wir) (local_get sdtt_f_name)
+        (local_get sdtt_f_params) (local_get sdtt_f_returns)
+        (local_get sdtt_f_body)))))
+
+  (fn sdtt_build_extern
+    (params
+      (sdtt_e_wir ptr) (sdtt_e_source ptr)
+      (sdtt_e_tree ptr) (sdtt_e_decl i64))
+    (returns i64)
+    (do
+      (let sdtt_e_name i64 (call_i64 sdtt_symbol_atom
+        (param_get sdtt_e_wir) (param_get sdtt_e_source)
+        (param_get sdtt_e_tree)
+        (call_i64 nth_child
+          (param_get sdtt_e_tree) (param_get sdtt_e_decl) (const_i64 1))))
+      (let sdtt_e_params i64 (call_i64 sdtt_build_params
+        (param_get sdtt_e_wir) (param_get sdtt_e_source)
+        (param_get sdtt_e_tree) (param_get sdtt_e_decl)))
+      (let sdtt_e_returns i64 (call_i64 sdtt_build_returns
+        (param_get sdtt_e_wir) (param_get sdtt_e_source)
+        (param_get sdtt_e_tree) (param_get sdtt_e_decl)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get sdtt_e_name) (const_i64 0))
+          (or_bool
+            (lt_i64 (local_get sdtt_e_params) (const_i64 0))
+            (lt_i64 (local_get sdtt_e_returns) (const_i64 0)))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 wir_decl_extern
+        (param_get sdtt_e_wir) (local_get sdtt_e_name)
+        (local_get sdtt_e_params) (local_get sdtt_e_returns)))))
+
+  (fn sdtt_build_const
+    (params
+      (sdtt_c_wir ptr) (sdtt_c_source ptr)
+      (sdtt_c_tree ptr) (sdtt_c_node i64))
+    (returns i64)
+    (do
+      (if
+        (condition (ne_i64 (call_i64 count_children
+          (param_get sdtt_c_tree) (param_get sdtt_c_node))
+          (const_i64 4)))
+        (then (do (return (call_i64 sdtt_reject (param_get sdtt_c_wir)))))
+        (else (do)))
+      (let sdtt_c_name_node i64 (call_i64 nth_child
+        (param_get sdtt_c_tree) (param_get sdtt_c_node) (const_i64 1)))
+      (let sdtt_c_type_node i64 (call_i64 nth_child
+        (param_get sdtt_c_tree) (param_get sdtt_c_node) (const_i64 2)))
+      (let sdtt_c_val_node i64 (call_i64 nth_child
+        (param_get sdtt_c_tree) (param_get sdtt_c_node) (const_i64 3)))
+      (let sdtt_c_is_ptr i32 (call_i32 ident_equals
+        (param_get sdtt_c_tree) (param_get sdtt_c_source)
+        (local_get sdtt_c_type_node)
+        (const_string_ptr "ptr") (const_i64 3)))
+      (let sdtt_c_type i32 (call_i32 sst_type_code
+        (param_get sdtt_c_tree) (param_get sdtt_c_source)
+        (local_get sdtt_c_type_node)))
+      (let sdtt_c_name i64 (call_i64 sdtt_symbol_atom
+        (param_get sdtt_c_wir) (param_get sdtt_c_source)
+        (param_get sdtt_c_tree) (local_get sdtt_c_name_node)))
+      (let sdtt_c_params i64 (call_i64 wir_decl_params (param_get sdtt_c_wir)))
+      (let sdtt_c_type_atom i64 (call_i64 sstt_wir_type_atom
+        (param_get sdtt_c_wir) (local_get sdtt_c_type)))
+      (let sdtt_c_returns i64 (call_i64 wir_decl_returns
+        (param_get sdtt_c_wir) (local_get sdtt_c_type_atom)))
+      (let sdtt_c_value i64 (const_i64 -1))
+      (if
+        (condition (ne_i32 (local_get sdtt_c_is_ptr) (const_i32 0)))
+        (then (do
+          (set sdtt_c_value (call_i64 wir_scalar_const_null
+            (param_get sdtt_c_wir)))))
+        (else (do
+          (set sdtt_c_value (call_i64 sot_build_operand
+            (param_get sdtt_c_wir) (param_get sdtt_c_source)
+            (param_get sdtt_c_tree) (local_get sdtt_c_val_node)
+            (local_get sdtt_c_type))))))
+      (let sdtt_c_ret i64 (call_i64 wir_stmt_return
+        (param_get sdtt_c_wir) (local_get sdtt_c_value)))
+      (let sdtt_c_body i64 (call_i64 wir_decl_do (param_get sdtt_c_wir)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get sdtt_c_body) (const_i64 0))
+          (eq_i32 (call_i32 wir_decl_append
+            (param_get sdtt_c_wir) (local_get sdtt_c_body)
+            (local_get sdtt_c_ret))
+            (const_i32 0))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (if
+        (condition (or_bool
+          (lt_i64 (local_get sdtt_c_name) (const_i64 0))
+          (or_bool
+            (lt_i64 (local_get sdtt_c_params) (const_i64 0))
+            (or_bool
+              (lt_i64 (local_get sdtt_c_returns) (const_i64 0))
+              (lt_i64 (local_get sdtt_c_ret) (const_i64 0))))))
+        (then (do (return (const_i64 -1))))
+        (else (do)))
+      (return (call_i64 wir_decl_fn
+        (param_get sdtt_c_wir) (local_get sdtt_c_name)
+        (local_get sdtt_c_params) (local_get sdtt_c_returns)
+        (local_get sdtt_c_body)))))
+
+  ; Empty `(core-module (core-version 3) (decls))` for builder tests and #384.
+  (fn sdtt_build_module_envelope
+    (params (sdtt_m_wir ptr))
+    (returns i64)
+    (do
+      (let sdtt_m_version i64 (call_i64 wir_decl_core_version
+        (param_get sdtt_m_wir)))
+      (let sdtt_m_decls i64 (call_i64 wir_decl_decls (param_get sdtt_m_wir)))
+      (return (call_i64 wir_decl_core_module
+        (param_get sdtt_m_wir) (local_get sdtt_m_version)
+        (local_get sdtt_m_decls)))))
+
+  (fn sdtt_publish_root
+    (params (sdtt_pr_fd i32) (sdtt_pr_wir ptr) (sdtt_pr_root i64))
+    (returns i32)
+    (do
+      (if
+        (condition (or_bool
+          (eq_ptr (param_get sdtt_pr_wir) (const_null))
+          (or_bool
+            (lt_i64 (param_get sdtt_pr_root) (const_i64 0))
+            (ne_i32 (call_i32 wir_tree_failed (param_get sdtt_pr_wir))
+              (const_i32 0)))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 wir_subtree_publish
+          (param_get sdtt_pr_fd) (param_get sdtt_pr_wir)
+          (param_get sdtt_pr_root))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (return (const_i32 1))))
+
+  ; Build and publish one already-validated fn/entry/extern declaration.
+  (fn sdtt_try_publish_fn
+    (params
+      (sdtt_tf_fd i32) (sdtt_tf_source ptr)
+      (sdtt_tf_tree ptr) (sdtt_tf_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 surface_decl_is_generic
+          (param_get sdtt_tf_tree) (param_get sdtt_tf_source)
+          (param_get sdtt_tf_node))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sdtt_tf_extern i32 (call_i32 sdtt_head_is
+        (param_get sdtt_tf_tree) (param_get sdtt_tf_source)
+        (param_get sdtt_tf_node) (const_string_ptr "extern") (const_i64 6)))
+      (if
+        (condition (eq_i32 (local_get sdtt_tf_extern) (const_i32 0)))
+        (then (do
+          (if
+            (condition (eq_i32 (call_i32 sdtt_body_tree_supported
+              (param_get sdtt_tf_tree) (param_get sdtt_tf_source)
+              (param_get sdtt_tf_node))
+              (const_i32 0)))
+            (then (do (return (const_i32 0))))
+            (else (do)))))
+        (else (do)))
+      (let sdtt_tf_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sdtt_tf_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sdtt_tf_root i64 (const_i64 -1))
+      (if
+        (condition (ne_i32 (local_get sdtt_tf_extern) (const_i32 0)))
+        (then (do
+          (set sdtt_tf_root (call_i64 sdtt_build_extern
+            (local_get sdtt_tf_wir) (param_get sdtt_tf_source)
+            (param_get sdtt_tf_tree) (param_get sdtt_tf_node)))))
+        (else (do
+          (set sdtt_tf_root (call_i64 sdtt_build_fn
+            (local_get sdtt_tf_wir) (param_get sdtt_tf_source)
+            (param_get sdtt_tf_tree) (param_get sdtt_tf_node))))))
+      (if
+        (condition (and_bool
+          (ge_i64 (local_get sdtt_tf_root) (const_i64 0))
+          (eq_i32 (local_get sdtt_tf_extern) (const_i32 0))))
+        (then (do
+          (call_void sdtt_check_fn_body
+            (param_get sdtt_tf_source) (param_get sdtt_tf_tree)
+            (param_get sdtt_tf_node))))
+        (else (do)))
+      (let sdtt_tf_ok i32 (call_i32 sdtt_publish_root
+        (param_get sdtt_tf_fd) (local_get sdtt_tf_wir)
+        (local_get sdtt_tf_root)))
+      (call_void wir_tree_free (local_get sdtt_tf_wir))
+      (return (local_get sdtt_tf_ok))))
+
+  (fn sdtt_try_publish_const
+    (params
+      (sdtt_tc_fd i32) (sdtt_tc_source ptr)
+      (sdtt_tc_tree ptr) (sdtt_tc_node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i32 (call_i32 sdtt_node_tree_supported
+          (param_get sdtt_tc_tree) (param_get sdtt_tc_source)
+          (param_get sdtt_tc_node))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sdtt_tc_wir ptr (call_ptr wir_tree_new))
+      (if
+        (condition (eq_ptr (local_get sdtt_tc_wir) (const_null)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let sdtt_tc_root i64 (call_i64 sdtt_build_const
+        (local_get sdtt_tc_wir) (param_get sdtt_tc_source)
+        (param_get sdtt_tc_tree) (param_get sdtt_tc_node)))
+      (let sdtt_tc_ok i32 (call_i32 sdtt_publish_root
+        (param_get sdtt_tc_fd) (local_get sdtt_tc_wir)
+        (local_get sdtt_tc_root)))
+      (call_void wir_tree_free (local_get sdtt_tc_wir))
+      (return (local_get sdtt_tc_ok))))
+)
