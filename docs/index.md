@@ -23,6 +23,12 @@ names used when they were released.
 - [Typed deterministic rewrite semantics](rewrite-semantics.md) — the M0
   compiled-rewriting contract: pattern variables, guards, replacements, rule
   identity, provenance, match order, and cost/search separation.
+- [Compiled transformation design](transform-design.md) — specialization-first
+  Transform/RepresentationFamily/RewriteRule/Strategy architecture, internal
+  `StaticRuleSpec`, and the controlled A/B/C specialization experiment.
+- [SequenceLocal2 specialization profile](sequence-local2.md) — the first
+  automatically recognized specialization profile for local, strictly
+  length-reducing sequence rewrite systems.
 - [Rule authoring](rewrite-authoring.md) — how to write rules in ordinary
   Weave against the compiler-owned rewrite library.
 - [Circuit IR and compiled local rewrites](circuit-rewrite.md) — the M1
@@ -122,6 +128,8 @@ names used when they were released.
 - [Struct value semantics](struct-ownership.md)
 - [Ownership requirements for concurrency and GPU](ownership-concurrency.md)
 - [Typed deterministic rewrite semantics](rewrite-semantics.md)
+- [Compiled transformation design](transform-design.md)
+- [SequenceLocal2 specialization profile](sequence-local2.md)
 - [Rule authoring](rewrite-authoring.md)
 - [Circuit IR and compiled local rewrites](circuit-rewrite.md)
 - [Syntax tree-walk depth budget](syntax-depth.md)
