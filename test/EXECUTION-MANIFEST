@@ -176,6 +176,8 @@ executes surface-op-tree
 executes surface-call-tree
 # builds let/set/return and inferred-let programs and runs them
 executes surface-stmt-tree
+# builds nested if/when/while/for/break/continue programs and runs them
+executes surface-control-tree
 executes surface-symbols
 executes tagged-variants
 # tooling artifact documents
