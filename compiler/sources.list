@@ -80,6 +80,8 @@ src/frontend/wir_stmt.weave
 src/frontend/surface_op_tree.weave
 src/frontend/surface_call_tree.weave
 src/frontend/surface_stmt_tree.weave
+src/frontend/wir_control.weave
+src/frontend/surface_control_tree.weave
 src/frontend/emit.weave
 src/frontend/contract_canonical.weave
 src/frontend/contract-lower.weave
