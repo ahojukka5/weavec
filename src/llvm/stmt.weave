@@ -34,8 +34,6 @@
           (let name_node i64 (call_i64 nth_child (local_get tree) (param_get node) (const_i64 1)))
           (let type_node i64 (call_i64 nth_child (local_get tree) (param_get node) (const_i64 2)))
           (let type_id i32 (call_i32 parse_type (local_get tree) (local_get source) (local_get type_node)))
-          (let ns0 i64 (call_i64 node_text_start (local_get tree) (local_get name_node)))
-          (let nl0 i64 (call_i64 node_text_len (local_get tree) (local_get name_node)))
           (if
             (condition (ne_i32 (call_i32 ml_binding_mutated
               (call_ptr ctx_get_mutated (param_get ctx)) (local_get name_node))
@@ -45,17 +43,7 @@
               (call_void emit_node_text (local_get fd) (local_get source) (local_get tree) (local_get name_node))
               (call_void write_cstr (local_get fd) (const_string_ptr ".addr = alloca "))
               (call_void emit_type (local_get fd) (local_get type_id))
-              (call_void write_byte (local_get fd) (const_i32 10))
-              (if
-                (condition (eq_i32 (call_i32 local_binding_exists
-                  (param_get ctx) (local_get ns0) (local_get nl0)) (const_i32 0)))
-                (then (do
-                  (if
-                    (condition (ne_i32 (call_i32 add_local
-                      (param_get ctx) (local_get ns0) (local_get nl0) (local_get type_id) (const_i64 -1) (const_i64 0)) (const_i32 0)))
-                    (then (do (return (const_i32 1))))
-                    (else (do)))))
-                (else (do)))))
+              (call_void write_byte (local_get fd) (const_i32 10))))
             (else (do)))))
         (else (do)))
       (let child i64 (call_i64 node_first_child (local_get tree) (param_get node)))
@@ -365,16 +353,11 @@
           (return (const_i32 0))))
         (else (do)))
       (if
-        (condition (eq_i32 (call_i32 local_binding_exists (param_get ctx) (local_get ns) (local_get nl)) (const_i32 0)))
-        (then (do
-          (if
-            (condition (ne_i32 (call_i32 add_local
-              (param_get ctx) (local_get ns) (local_get nl) (local_get type_id) (const_i64 -1) (const_i64 0)) (const_i32 0)))
-            (then (do (return (const_i32 1))))
-            (else (do)))))
-        (else (do
-          (call_void set_local_value
-            (param_get ctx) (local_get ns) (local_get nl) (local_get ev) (const_i64 0)))))
+        (condition (ne_i32 (call_i32 add_local
+          (param_get ctx) (local_get ns) (local_get nl) (local_get type_id)
+          (const_i64 -1) (const_i64 0)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
       (if
         (condition (eq_i32 (local_get is_set_local) (const_i32 0)))
         (then (do
