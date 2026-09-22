@@ -62,41 +62,23 @@ has nothing current to compare against otherwise, and rejects the push with
 
 ## Validation and reporting
 
-Run the smallest relevant checks while developing and the repository-required
-qualification before declaring a pull request ready. Do not invoke or wait for
-GitHub Actions when the project workflow says they are unavailable; report the
-local evidence and any checks the reviewer must run.
+Run the smallest local check that exercises the change. Follow Fast
+development in `~/dev/AGENTS.md`. Do not wait for GitHub Actions. Report the
+local command that passed.
 
 Always provide the direct pull-request link. State honestly which validation was
 run, which could not be run, and whether the branch contains exactly the intended
 commits and files.
 
-## CI completion gate
+## CI
 
-Pull-request CI is the file-based contract smoke, commit-message lint, and a
-GitHub-hosted compile of `weavec` plus the fast behavioral suites. The full
-ladder and deep self-host run only after merge, on `master`.
+Follow Fast development in `~/dev/AGENTS.md`. Run the smallest local check
+that exercises the change, then continue. Do not wait on pull-request checks,
+and do not treat a red job as the next task unless the user asks for a CI
+pass.
 
-A task is not complete while a required pull-request check for the exact
-current head is queued, pending, in progress, cancelled, timed out, or failing.
-
-- Keep the pull request in draft while those PR checks are unresolved or
-  red.
-- A red or cancelled PR check is unfinished work. Inspect its logs, fix the
-  underlying code, test, workflow, or runner interaction, and trigger fresh
-  validation for the exact corrected head.
-- Continue until every required PR check is green. A red PR check is
-  unfinished work, not a status that can be explained away or handed to the
-  reviewer.
-- After every history rewrite or force-push, discard earlier PR-check evidence
-  and wait for the new exact head.
-- Mark the pull request ready for review only after the PR checks are
-  green and the branch history and validation summary are final.
-- Do not wait for the full ladder or deep self-host on a pull request. If
-  post-merge `master` CI fails, open a follow-up fix.
-- If GitHub-hosted PR infrastructure is unavailable, keep the pull request in
-  draft and report the concrete blocker. Do not claim the task or pull request
-  is ready.
+The full ladder and deep self-host run only after merge, on `master`. Do not
+wait for those on a pull request.
 
 ## Reviewing and merging a pull request
 
@@ -136,12 +118,9 @@ repository's own history.
   point (a script, a CLI flag, a build/test/selfhost step) and the suite
   never actually invokes it end-to-end, run it yourself before trusting
   the suite.
-- A local failure that doesn't reproduce in the PR's actual CI may be an
-  environment gap (an older LLVM/clang on your machine, a missing
-  toolchain component) rather than a defect in the change. If CI is green
-  on the real target matrix, don't block the merge on it — but don't stay
-  silent either; note the gap explicitly so a real version dependency
-  isn't hidden.
+- A local failure that is a known older toolchain on this machine (an older
+  LLVM/clang, a missing component) is an environment gap. Record it and
+  continue. Do not start a CI watch to decide whether the change is done.
 - Regenerated fixtures (LLVM goldens, `--regen-goldens` output) are the one
   category of tracked file expected to conflict across concurrent PRs. If
   rebasing produces a conflict only in golden files, don't hand-splice the
