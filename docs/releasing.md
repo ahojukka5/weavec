@@ -22,7 +22,7 @@ source commit must identify the same release.
 Before preparing a release:
 
 - update `VERSION` only for the intended release;
-- move relevant entries from `Unreleased` into the new changelog section;
+- write the release notes from `git log` since the previous tag;
 - confirm the README and reference documents describe the released behavior;
 - confirm dependency pins name published lower-stage releases.
 
@@ -231,7 +231,7 @@ After publication:
 
 Before merging release preparation or creating the tag, confirm:
 
-- [ ] `VERSION`, changelog, README, and release guide agree.
+- [ ] `VERSION`, README, and release guide agree.
 - [ ] Lower-stage pins identify existing published SDK releases.
 - [ ] glibc, musl, and macOS full compiler ladders pass.
 - [ ] Deep self-hosting passes through stage 2.

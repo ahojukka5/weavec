@@ -237,10 +237,10 @@ Current reference documents are authoritative over stale comments or historical
 proposal text. When behavior changes:
 
 1. update the relevant reference document;
-2. update nearby source comments that describe the changed invariant;
-3. update the changelog when the change is user-visible or structurally
-   significant;
-4. preserve historical release wording inside existing changelog sections.
+2. update nearby source comments that describe the changed invariant.
+
+The repository keeps no changelog. Release notes are written from `git log`
+at release time, so a clear commit message is the record of the change.
 
 Files under `docs/` use lowercase kebab-case. Conventional root metadata retains
 its standard uppercase spelling.

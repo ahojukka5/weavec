@@ -245,8 +245,7 @@ portable across supported hosts and covered by the complete platform matrix.
    git diff -- test/performance
    ```
 
-8. Update the README, changelog, and every affected reference or design
-   document.
+8. Update the README and every affected reference or design document.
 9. Inspect the complete base-to-head diff and commit list, clean feature-branch
    history, and open a focused pull request as a draft while validation runs.
 
@@ -308,8 +307,7 @@ For a documentation-only pull request:
 - distinguish implemented behavior, current limitations, historical notes, and
   future proposals;
 - state the relevant WIR core version when discussing frontend/backend behavior;
-- avoid workspace-specific paths or commands that assume sibling repositories;
-- record meaningful structural documentation changes under `Unreleased`.
+- avoid workspace-specific paths or commands that assume sibling repositories.
 
 The normal compiler workflows remain useful evidence that documentation-only
 renames did not accidentally alter tracked executable files, but no compiler
