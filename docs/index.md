@@ -6,8 +6,8 @@ contracts, internal architecture, bootstrap dependencies, diagnostics, release
 process, and focused implementation notes.
 
 The repository was named `weavec2` through release `v0.1.2`. Current documents
-use only the final product name `weavec`; historical changelog entries retain the
-names used when they were released.
+use only the final product name `weavec`; Git history and published release
+notes retain the names used when they were released.
 
 ## Start here
 
@@ -151,10 +151,9 @@ contract.
 
 - [README](../README.md) — product overview and quick start.
 - [Contributing](../CONTRIBUTING.md) — change policy and required checks.
-- [Changelog](../CHANGELOG.md) — release history.
 
 ## Naming policy
 
 Files under `docs/` use lowercase kebab-case names. Conventional repository-root
-files such as `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `LICENSE`, and
-`NOTICE` retain their standard names.
+files such as `README.md`, `CONTRIBUTING.md`, `LICENSE`, and `NOTICE` retain
+their standard names.

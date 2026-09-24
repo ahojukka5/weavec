@@ -37,11 +37,6 @@ SUPERSEDED_CORE_VERSIONS = (1, 2)
 SCANNED_ROOTS = (Path("docs"), Path("spec"))
 SCANNED_FILES = (Path("README.md"), Path("CONTRIBUTING.md"), Path("AGENTS.md"))
 
-# Released history, not a live contract. A changelog entry describing the
-# version-2 era must keep saying "version 2"; rewriting it would falsify the
-# record.
-EXCLUDED_FILES = frozenset({Path("CHANGELOG.md")})
-
 # Files exempt from the attribution rule entirely.
 #
 # This list is deliberately short and each entry needs a reason that the
@@ -108,8 +103,7 @@ def scanned_files() -> list[Path]:
         candidate = ROOT / name
         if candidate.is_file():
             files.add(candidate)
-    excluded = {ROOT / name for name in EXCLUDED_FILES}
-    return sorted(path for path in files if path not in excluded)
+    return sorted(files)
 
 
 # A sentence boundary: terminal punctuation followed by whitespace or the end
