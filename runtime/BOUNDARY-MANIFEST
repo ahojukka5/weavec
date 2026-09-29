@@ -44,7 +44,9 @@ host 215 runtime/path_safety.c
 # tree-walk budget weavec1 cannot store as a compiler global.
 # raised by 40 for #466: stop using a spoofable environment hatch
 # and keep the generated-WIR reparse on a bounded internal budget.
-host 513 runtime/portable.c
+# raised by 2 for #362: this unit includes the test-fact storage the C
+# semantic index still owns. Remove it with that port.
+host 515 runtime/portable.c
 # why: argv/argc access for produced programs.
 host 24 runtime/process_args.inc
 # why: private runtime linked into produced programs, not into the compiler.
@@ -103,17 +105,24 @@ port-pending 2012 runtime/surface_symbols.c
 # ---------------------------------------------------------------------------
 # port-pending — semantic index
 # ---------------------------------------------------------------------------
-port-pending 233 runtime/semantic_index.c
+# raised by 13 for #362: the model records registered tests.
+port-pending 246 runtime/semantic_index.c
 port-pending 801 runtime/semantic_index_ast.inc
 port-pending 657 runtime/semantic_index_body_collect.inc
 port-pending 558 runtime/semantic_index_body_lookup.inc
 port-pending 348 runtime/semantic_index_calls.inc
-port-pending 246 runtime/semantic_index_collect.inc
-port-pending 254 runtime/semantic_index_driver.inc
-port-pending 514 runtime/semantic_index_emit.inc
+# raised by 131 for #362: collect registered tests into the model.
+port-pending 377 runtime/semantic_index_collect.inc
+# raised by 2 for #362: free the registered tests with the model.
+port-pending 256 runtime/semantic_index_driver.inc
+# raised by 37 for #362: publish the registered tests in the index.
+port-pending 551 runtime/semantic_index_emit.inc
 port-pending 244 runtime/semantic_index_hash.inc
 port-pending 54 runtime/semantic_surface_types.c
 port-pending 22 runtime/semantic_type_graph.c
+# #362: retains names the frontend already classified. The index that
+# publishes them is still C. Remove this with that port (#432).
+port-pending 327 runtime/test_semantics.c
 
 # ---------------------------------------------------------------------------
 # port-pending — project system and build driver

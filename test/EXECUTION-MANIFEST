@@ -186,6 +186,8 @@ executes surface-control-tree
 executes surface-struct-tree
 executes surface-symbols
 executes tagged-variants
+# registered tests and collision diagnostics; the semantic index is the subject
+contract test-semantics
 # tooling artifact documents
 contract tooling-artifacts
 executes trace
