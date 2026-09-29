@@ -57,15 +57,22 @@ host 272 runtime/quantum_runtime.c
 # ---------------------------------------------------------------------------
 # port-pending — canonical formatter (#432, bugs #428 and #430 landed here)
 # ---------------------------------------------------------------------------
-port-pending 196 runtime/formatter_driver.c
+# raised by 3 for #360: the formatter context records a surface rejection
+# and the input path so test-form diagnostics name the file. No Weave
+# formatter exists to hold that yet. Lower this when the driver moves.
+port-pending 199 runtime/formatter_driver.c
 # raised by 9 for #386: fmt uses parse_recorded so depth failures get a
 # structured parse diagnostic instead of a generic parse-failed line.
-port-pending 265 runtime/formatter_driver_cli.inc
+# raised by 5 for #360: reject a test form before formatting, and keep a
+# surface rejection from being rewritten as a generic format failure.
+port-pending 270 runtime/formatter_driver_cli.inc
 port-pending 66 runtime/formatter_driver_comments.inc
 port-pending 163 runtime/formatter_driver_control_layout.inc
 port-pending 73 runtime/formatter_driver_control_plans.inc
 port-pending 109 runtime/formatter_driver_control_spacing.inc
-port-pending 284 runtime/formatter_driver_emit.inc
+# raised by 6 for #360: a tags list is formatted where other head forms
+# are, and there is no Weave formatter to hold it yet.
+port-pending 290 runtime/formatter_driver_emit.inc
 port-pending 604 runtime/formatter_driver_emit_helpers.inc
 port-pending 243 runtime/formatter_driver_function_spacing.inc
 port-pending 160 runtime/formatter_driver_gaps.inc
@@ -79,6 +86,10 @@ port-pending 280 runtime/formatter_driver_normalize.inc
 port-pending 218 runtime/formatter_driver_plans.inc
 port-pending 299 runtime/formatter_driver_structs.inc
 port-pending 140 runtime/formatter_driver_symbols.inc
+# raised for #360: test, tag, and assertion checks live with the formatter
+# because no Weave formatter exists to hold them yet. Lower this when the
+# formatter moves to Weave.
+port-pending 267 runtime/formatter_driver_tests.inc
 port-pending 299 runtime/formatter_driver_types.inc
 
 # ---------------------------------------------------------------------------

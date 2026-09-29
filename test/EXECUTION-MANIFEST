@@ -87,6 +87,8 @@ executes generic-type-params
 executes interp
 executes io-stderr
 contract json-publication
+# fmt canonical text and exact-span diagnostics for test forms; no harness
+contract language-testing
 executes let-infer
 executes llvm-provenance
 executes loop-control
