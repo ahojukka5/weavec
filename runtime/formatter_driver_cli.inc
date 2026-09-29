@@ -1,5 +1,7 @@
     weave_fmt_context *context,
     int64_t root) {
+    weave_fmt_check_test_tree(context, root, 0);
+    if (context->surface_rejected) return 0;
     size_t root_start = weave_fmt_node_start(context, root);
     size_t root_end = weave_fmt_node_end(context, root);
     if (root_start > context->source_length || root_end == 0) return 0;
@@ -106,6 +108,7 @@ static int weave_fmt_format_file_to_fd(
         .source = source,
         .source_length = source_length,
         .tree = tree,
+        .input_path = input_path,
         .writer = {
             .stream = output,
             .at_line_start = 1,
@@ -115,7 +118,9 @@ static int weave_fmt_format_file_to_fd(
     int flush_failed = fflush(output) != 0;
     int sync_failed = !flush_failed && fsync(fileno(output)) != 0;
     int close_failed = fclose(output) != 0;
-    if (!formatted || context.semantic_overflow || flush_failed ||
+    if (context.surface_rejected) {
+        formatted = 0;
+    } else if (!formatted || context.semantic_overflow || flush_failed ||
         sync_failed || close_failed) {
         fprintf(stderr, "weavec: fmt: formatting failed for %s\n", input_path);
         formatted = 0;

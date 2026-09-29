@@ -111,6 +111,12 @@ The `string-interpolation` feature is experimental. It publishes
 [#240](https://github.com/ahojukka5/weavec/issues/240). Admitted pieces
 are `i32`, `i64`, `bool`, and text pointers. The result is `ptr`.
 
+The `language-testing` feature is experimental. It publishes `test`, `tags`,
+`expect`, `expect-eq`, `expect-ne`, and `fail`. The formatter admits those
+forms and rejects a malformed test name, a duplicate tag, or a nested test.
+There is no `weavec test` command in this slice, so the registry does not
+list a runner.
+
 The `source-comments` feature is experimental. It publishes the canonical
 `comment` form and links to issue
 [#337](https://github.com/ahojukka5/weavec/issues/337). The form is admitted as
