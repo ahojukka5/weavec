@@ -271,4 +271,30 @@
     (params
       (fd i32) (prefix ptr) (variant_name ptr) (load_head ptr) (wir_type ptr))
     (returns void))
+
+  ; Copied names for test registration. The frontend owns the rules.
+  (extern weave_test_semantics_reset (params) (returns void))
+  (extern weave_test_semantics_set_module_bytes
+    (params (source ptr) (start i64) (len i64)) (returns i32))
+  (extern weave_test_semantics_set_module_cstr
+    (params (text ptr)) (returns i32))
+  (extern weave_test_semantics_note_export
+    (params (source ptr) (start i64) (len i64)) (returns i32))
+  (extern weave_test_semantics_export_noted
+    (params (source ptr) (start i64) (len i64)) (returns i32))
+  (extern weave_test_semantics_add
+    (params
+      (source ptr) (start i64) (len i64) (span_start i64)
+      (kind i32) (exported i32))
+    (returns i32))
+  (extern weave_test_semantics_classify
+    (params (source ptr) (start i64) (len i64) (span_start i64))
+    (returns i32))
+  (extern weave_test_semantics_private_foreign
+    (params (source ptr) (start i64) (len i64)) (returns i32))
+  (extern weave_test_semantics_locals_reset (params) (returns void))
+  (extern weave_test_semantics_local_push
+    (params (source ptr) (start i64) (len i64)) (returns i32))
+  (extern weave_test_semantics_local_contains
+    (params (source ptr) (start i64) (len i64)) (returns i32))
 )

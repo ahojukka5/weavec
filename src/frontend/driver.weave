@@ -204,6 +204,7 @@
     (params (argc i32) (argv ptr) (output_path ptr) (first_input_index i64))
     (returns i32)
     (do
+      (call_void weave_test_semantics_reset)
       (call_void weave_frontend_set_strict_contracts (const_i32 0))
       (let scan_idx i64 (const_i64 2))
       (while

@@ -367,6 +367,8 @@ static char *weave_rt_mkdtemp(char *path_template) {
 #undef weave_surface_symbol_begin
 #undef weave_surface_symbols_reset
 
+#include "test_semantics.c"
+
 #define weave_surface_symbols_reset weave_surface_symbols_reset_symbol_names
 #include "module_wir_names.c"
 #undef weave_surface_symbols_reset

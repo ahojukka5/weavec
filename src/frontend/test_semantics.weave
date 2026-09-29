@@ -1,0 +1,385 @@
+; SPDX-License-Identifier: Apache-2.0
+; test_semantics.weave — register tests and reject illegal names and uses
+;
+; Duplicate names, collisions with fn/entry/const, and private cross-module
+; uses fail here, before declaration emission. Host storage only copies names
+; between the registration pass and this check.
+
+(program
+  (name "test-semantics")
+  (version "0.1")
+
+  (fn surface_test_error
+    (params
+      (source ptr) (tree ptr) (node i64) (message ptr)
+      (code ptr) (role ptr))
+    (returns void)
+    (do
+      (call_void weave_rt_diag_record
+        (param_get code)
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (param_get node))
+        (call_i64 node_text_len (param_get tree) (param_get node))
+        (const_null)
+        (const_null)
+        (const_i32 -1)
+        (const_i32 -1)
+        (const_i32 -1)
+        (param_get role)
+        (param_get source)
+        (call_i64 node_text_start (param_get tree) (param_get node))
+        (call_i64 node_text_len (param_get tree) (param_get node))
+        (const_i32 0))
+      (call_void surface_error_prefix (const_string_ptr "test"))
+      (call_void write_cstr (const_i32 2) (param_get message))
+      (call_void write_cstr (const_i32 2) (const_string_ptr " "))
+      (call_void emit_node_text
+        (const_i32 2) (param_get source) (param_get tree) (param_get node))
+      (call_void write_byte (const_i32 2) (const_i32 10))
+      (return_void)))
+
+  (fn surface_test_bind_module
+    (params (tree ptr) (source ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 surface_module_is_explicit
+          (param_get tree) (param_get source)) (const_i32 0)))
+        (then (do
+          (let name_node i64 (call_i64 surface_module_name_node
+            (param_get tree)))
+          (return (call_i32 weave_test_semantics_set_module_bytes
+            (param_get source)
+            (call_i64 node_text_start (param_get tree) (local_get name_node))
+            (call_i64 node_text_len (param_get tree) (local_get name_node))))))
+        (else (do)))
+      (return (call_i32 weave_test_semantics_set_module_cstr
+        (call_ptr weave_surface_get_current_source_path)))))
+
+  (fn surface_test_note_exports
+    (params (tree ptr) (source ptr))
+    (returns i32)
+    (do
+      (let child i64 (call_i64 node_first_child (param_get tree) (const_i64 0)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (if
+            (condition (and_bool
+              (eq_i32 (call_i32 node_kind (param_get tree) (local_get child))
+                (call_i32 node_list))
+              (ne_i32 (call_i32 head_equals
+                (param_get tree) (param_get source) (local_get child)
+                (const_string_ptr "export") (const_i64 6)) (const_i32 0))))
+            (then (do
+              (let symbol i64 (call_i64 node_next_sibling
+                (param_get tree)
+                (call_i64 node_first_child (param_get tree) (local_get child))))
+              (while
+                (condition (ne_i64 (local_get symbol) (const_i64 -1)))
+                (do
+                  (if
+                    (condition (eq_i32 (call_i32 node_kind
+                      (param_get tree) (local_get symbol)) (call_i32 node_ident)))
+                    (then (do
+                      (if
+                        (condition (ne_i32 (call_i32 weave_test_semantics_note_export
+                          (param_get source)
+                          (call_i64 node_text_start
+                            (param_get tree) (local_get symbol))
+                          (call_i64 node_text_len
+                            (param_get tree) (local_get symbol)))
+                          (const_i32 0)))
+                        (then (do (return (const_i32 1))))
+                        (else (do)))))
+                    (else (do)))
+                  (set symbol (call_i64 node_next_sibling
+                    (param_get tree) (local_get symbol)))))))
+            (else (do)))
+          (set child (call_i64 node_next_sibling (param_get tree) (local_get child)))))
+      (return (const_i32 0))))
+
+  (fn surface_test_record_one
+    (params (tree ptr) (source ptr) (decl i64) (kind i32))
+    (returns i32)
+    (do
+      (let name_node i64 (call_i64 nth_child
+        (param_get tree) (param_get decl) (const_i64 1)))
+      (if
+        (condition (or_bool
+          (eq_i64 (local_get name_node) (const_i64 -1))
+          (ne_i32 (call_i32 node_kind (param_get tree) (local_get name_node))
+            (call_i32 node_ident))))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let exported i32 (const_i32 0))
+      (if
+        (condition (eq_i32 (param_get kind) (const_i32 1)))
+        (then (do
+          (set exported (call_i32 weave_test_semantics_export_noted
+            (param_get source)
+            (call_i64 node_text_start (param_get tree) (local_get name_node))
+            (call_i64 node_text_len (param_get tree) (local_get name_node))))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 weave_test_semantics_add
+          (param_get source)
+          (call_i64 node_text_start (param_get tree) (local_get name_node))
+          (call_i64 node_text_len (param_get tree) (local_get name_node))
+          (call_i64 node_text_start (param_get tree) (local_get name_node))
+          (param_get kind)
+          (local_get exported))
+          (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn surface_record_test_declarations
+    (params (tree ptr) (source ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 surface_test_bind_module
+          (param_get tree) (param_get source)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 surface_test_note_exports
+          (param_get tree) (param_get source)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let child i64 (call_i64 node_first_child (param_get tree) (const_i64 0)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (if
+            (condition (eq_i32 (call_i32 node_kind
+              (param_get tree) (local_get child)) (call_i32 node_list)))
+            (then (do
+              (if
+                (condition (ne_i32 (call_i32 head_equals
+                  (param_get tree) (param_get source) (local_get child)
+                  (const_string_ptr "fn") (const_i64 2)) (const_i32 0)))
+                (then (do
+                  (if
+                    (condition (ne_i32 (call_i32 surface_test_record_one
+                      (param_get tree) (param_get source) (local_get child)
+                      (const_i32 1)) (const_i32 0)))
+                    (then (do (return (const_i32 1))))
+                    (else (do)))))
+                (else (do)))
+              (if
+                (condition (ne_i32 (call_i32 head_equals
+                  (param_get tree) (param_get source) (local_get child)
+                  (const_string_ptr "entry") (const_i64 5)) (const_i32 0)))
+                (then (do
+                  (if
+                    (condition (ne_i32 (call_i32 surface_test_record_one
+                      (param_get tree) (param_get source) (local_get child)
+                      (const_i32 1)) (const_i32 0)))
+                    (then (do (return (const_i32 1))))
+                    (else (do)))))
+                (else (do)))
+              (if
+                (condition (ne_i32 (call_i32 head_equals
+                  (param_get tree) (param_get source) (local_get child)
+                  (const_string_ptr "const") (const_i64 5)) (const_i32 0)))
+                (then (do
+                  (if
+                    (condition (ne_i32 (call_i32 surface_test_record_one
+                      (param_get tree) (param_get source) (local_get child)
+                      (const_i32 1)) (const_i32 0)))
+                    (then (do (return (const_i32 1))))
+                    (else (do)))))
+                (else (do)))
+              (if
+                (condition (ne_i32 (call_i32 head_equals
+                  (param_get tree) (param_get source) (local_get child)
+                  (const_string_ptr "test") (const_i64 4)) (const_i32 0)))
+                (then (do
+                  (if
+                    (condition (ne_i32 (call_i32 surface_test_record_one
+                      (param_get tree) (param_get source) (local_get child)
+                      (const_i32 2)) (const_i32 0)))
+                    (then (do (return (const_i32 1))))
+                    (else (do)))))
+                (else (do)))))
+            (else (do)))
+          (set child (call_i64 node_next_sibling
+            (param_get tree) (local_get child)))))
+      (return (const_i32 0))))
+
+  (fn surface_test_use_ident
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get tree) (param_get node)) (call_i32 node_ident)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 weave_test_semantics_local_contains
+          (param_get source)
+          (call_i64 node_text_start (param_get tree) (param_get node))
+          (call_i64 node_text_len (param_get tree) (param_get node)))
+          (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 weave_test_semantics_private_foreign
+          (param_get source)
+          (call_i64 node_text_start (param_get tree) (param_get node))
+          (call_i64 node_text_len (param_get tree) (param_get node)))
+          (const_i32 0)))
+        (then (do
+          (call_void surface_test_error
+            (param_get source) (param_get tree) (param_get node)
+            (const_string_ptr "test uses a private declaration from another module")
+            (const_string_ptr "test.private-cross-module")
+            (const_string_ptr "test-use"))
+          (return (const_i32 1))))
+        (else (do)))
+      (return (const_i32 0))))
+
+  (fn surface_test_walk
+    (params (tree ptr) (source ptr) (node i64))
+    (returns i32)
+    (do
+      (if
+        (condition (eq_i64 (param_get node) (const_i64 -1)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 node_kind
+          (param_get tree) (param_get node)) (call_i32 node_list)))
+        (then (do
+          (return (call_i32 surface_test_use_ident
+            (param_get tree) (param_get source) (param_get node)))))
+        (else (do)))
+      (if
+        (condition (ne_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "tags") (const_i64 4)) (const_i32 0)))
+        (then (do (return (const_i32 0))))
+        (else (do)))
+      (let binder i64 (const_i64 -1))
+      (if
+        (condition (ne_i32 (call_i32 head_equals
+          (param_get tree) (param_get source) (param_get node)
+          (const_string_ptr "let") (const_i64 3)) (const_i32 0)))
+        (then (do
+          (set binder (call_i64 nth_child
+            (param_get tree) (param_get node) (const_i64 1)))
+          (if
+            (condition (and_bool
+              (ne_i64 (local_get binder) (const_i64 -1))
+              (eq_i32 (call_i32 node_kind
+                (param_get tree) (local_get binder)) (call_i32 node_ident))))
+            (then (do
+              (if
+                (condition (ne_i32 (call_i32 weave_test_semantics_local_push
+                  (param_get source)
+                  (call_i64 node_text_start (param_get tree) (local_get binder))
+                  (call_i64 node_text_len (param_get tree) (local_get binder)))
+                  (const_i32 0)))
+                (then (do (return (const_i32 1))))
+                (else (do)))))
+            (else (do)))))
+        (else (do)))
+      (let child i64 (call_i64 node_first_child (param_get tree) (param_get node)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (if
+            (condition (ne_i64 (local_get child) (local_get binder)))
+            (then (do
+              (if
+                (condition (ne_i32 (call_i32 surface_test_walk
+                  (param_get tree) (param_get source) (local_get child))
+                  (const_i32 0)))
+                (then (do (return (const_i32 1))))
+                (else (do)))))
+            (else (do)))
+          (set child (call_i64 node_next_sibling
+            (param_get tree) (local_get child)))))
+      (return (const_i32 0))))
+
+  (fn surface_validate_tests
+    (params (tree ptr) (source ptr))
+    (returns i32)
+    (do
+      (if
+        (condition (ne_i32 (call_i32 surface_test_bind_module
+          (param_get tree) (param_get source)) (const_i32 0)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (let child i64 (call_i64 node_first_child (param_get tree) (const_i64 0)))
+      (while
+        (condition (ne_i64 (local_get child) (const_i64 -1)))
+        (do
+          (if
+            (condition (and_bool
+              (eq_i32 (call_i32 node_kind
+                (param_get tree) (local_get child)) (call_i32 node_list))
+              (ne_i32 (call_i32 head_equals
+                (param_get tree) (param_get source) (local_get child)
+                (const_string_ptr "test") (const_i64 4)) (const_i32 0))))
+            (then (do
+              (let name_node i64 (call_i64 nth_child
+                (param_get tree) (local_get child) (const_i64 1)))
+              (if
+                (condition (and_bool
+                  (ne_i64 (local_get name_node) (const_i64 -1))
+                  (eq_i32 (call_i32 node_kind
+                    (param_get tree) (local_get name_node))
+                    (call_i32 node_ident))))
+                (then (do
+                  (let class i32 (call_i32 weave_test_semantics_classify
+                    (param_get source)
+                    (call_i64 node_text_start
+                      (param_get tree) (local_get name_node))
+                    (call_i64 node_text_len
+                      (param_get tree) (local_get name_node))
+                    (call_i64 node_text_start
+                      (param_get tree) (local_get name_node))))
+                  (if
+                    (condition (eq_i32 (local_get class) (const_i32 1)))
+                    (then (do
+                      (call_void surface_test_error
+                        (param_get source) (param_get tree) (local_get name_node)
+                        (const_string_ptr "duplicate test name")
+                        (const_string_ptr "test.duplicate-name")
+                        (const_string_ptr "test-name"))
+                      (return (const_i32 1))))
+                    (else (do)))
+                  (if
+                    (condition (eq_i32 (local_get class) (const_i32 2)))
+                    (then (do
+                      (call_void surface_test_error
+                        (param_get source) (param_get tree) (local_get name_node)
+                        (const_string_ptr "test name collides with a declaration")
+                        (const_string_ptr "test.collision")
+                        (const_string_ptr "test-name"))
+                      (return (const_i32 1))))
+                    (else (do)))
+                  (call_void weave_test_semantics_locals_reset)
+                  (let body i64 (call_i64 node_next_sibling
+                    (param_get tree) (local_get name_node)))
+                  (while
+                    (condition (ne_i64 (local_get body) (const_i64 -1)))
+                    (do
+                      (if
+                        (condition (ne_i32 (call_i32 surface_test_walk
+                          (param_get tree) (param_get source) (local_get body))
+                          (const_i32 0)))
+                        (then (do (return (const_i32 1))))
+                        (else (do)))
+                      (set body (call_i64 node_next_sibling
+                        (param_get tree) (local_get body)))))))
+                (else (do)))))
+            (else (do)))
+          (set child (call_i64 node_next_sibling
+            (param_get tree) (local_get child)))))
+      (return (const_i32 0))))
+)

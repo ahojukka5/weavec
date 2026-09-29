@@ -384,6 +384,42 @@ static int weave_si_write_matches(
     return weave_json_array_end(writer);
 }
 
+static int weave_si_write_tests_if_any(
+    weave_json_writer *writer,
+    const weave_si_model *model) {
+    if (model->test_count == 0) {
+        return 1;
+    }
+    if (!weave_json_key(writer, "tests") || !weave_json_array_begin(writer)) {
+        return 0;
+    }
+    for (size_t index = 0; index < model->test_count; ++index) {
+        const weave_si_test *test = &model->tests[index];
+        if (!weave_json_object_begin(writer) ||
+            !weave_json_key(writer, "name") ||
+            !weave_json_string(writer, test->name) ||
+            !weave_json_key(writer, "module") ||
+            !weave_json_string(writer, test->module_name) ||
+            !weave_json_key(writer, "tags") ||
+            !weave_json_array_begin(writer)) {
+            return 0;
+        }
+        for (size_t tag = 0; tag < test->tag_count; ++tag) {
+            if (!weave_json_string(writer, test->tags[tag])) {
+                return 0;
+            }
+        }
+        if (!weave_json_array_end(writer) ||
+            !weave_json_key(writer, "span") ||
+            !weave_si_write_span(
+                writer, test->source_index, test->start, test->end) ||
+            !weave_json_object_end(writer)) {
+            return 0;
+        }
+    }
+    return weave_json_array_end(writer);
+}
+
 static int weave_si_write_document(
     FILE *stream,
     const weave_si_model *model) {
@@ -461,6 +497,7 @@ static int weave_si_write_document(
         !weave_si_write_specializations(&writer, model) ||
         !weave_json_key(&writer, "matches") ||
         !weave_si_write_matches(&writer, model) ||
+        !weave_si_write_tests_if_any(&writer, model) ||
         !weave_json_key(&writer, "diagnostics") ||
         !weave_json_object_begin(&writer) ||
         !weave_json_key(&writer, "format") ||
