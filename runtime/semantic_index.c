@@ -165,6 +165,16 @@ typedef struct weave_si_match {
     size_t arm_count;
 } weave_si_match;
 
+typedef struct weave_si_test {
+    size_t source_index;
+    char *name;
+    char *module_name;
+    char **tags;
+    size_t tag_count;
+    size_t start;
+    size_t end;
+} weave_si_test;
+
 typedef struct weave_si_model {
     weave_si_source *sources;
     size_t source_count;
@@ -192,6 +202,9 @@ typedef struct weave_si_model {
     weave_si_match *matches;
     size_t match_count;
     size_t match_capacity;
+    weave_si_test *tests;
+    size_t test_count;
+    size_t test_capacity;
     char source_set_sha256[65];
     char options_sha256[65];
     int body_references_complete;

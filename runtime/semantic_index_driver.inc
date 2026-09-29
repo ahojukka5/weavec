@@ -1,4 +1,5 @@
 static void weave_si_free_model(weave_si_model *model) {
+    weave_si_free_tests(model);
     for (size_t index = 0; index < model->source_count; ++index) {
         if (model->sources[index].tree != NULL) {
             tree_free(model->sources[index].tree);
@@ -142,6 +143,7 @@ static int weave_si_build_model(weave_si_model *model) {
 }
 
 static void weave_si_clear_graph(weave_si_model *model) {
+    weave_si_free_tests(model);
     for (size_t index = 0; index < model->module_count; ++index) {
         free(model->modules[index].name);
         free(model->modules[index].exported_symbols);

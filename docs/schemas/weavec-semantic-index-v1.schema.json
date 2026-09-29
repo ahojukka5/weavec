@@ -62,6 +62,10 @@
       "type": "array",
       "items": {"$ref": "#/$defs/match"}
     },
+    "tests": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/test"}
+    },
     "diagnostics": {"$ref": "#/$defs/diagnostics"}
   },
   "additionalProperties": true,
@@ -412,6 +416,20 @@
         "exhaustive": {"type": "boolean"},
         "wildcard": {"type": "boolean"},
         "arm_count": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": true
+    },
+    "test": {
+      "type": "object",
+      "required": ["name", "module", "tags", "span"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "module": {"type": "string", "minLength": 1},
+        "tags": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "span": {"$ref": "#/$defs/span"}
       },
       "additionalProperties": true
     },

@@ -1,3 +1,129 @@
+static void weave_si_free_tests(weave_si_model *model) {
+    for (size_t index = 0; index < model->test_count; ++index) {
+        free(model->tests[index].name);
+        free(model->tests[index].module_name);
+        for (size_t tag = 0; tag < model->tests[index].tag_count; ++tag) {
+            free(model->tests[index].tags[tag]);
+        }
+        free(model->tests[index].tags);
+    }
+    free(model->tests);
+    model->tests = NULL;
+    model->test_count = 0;
+    model->test_capacity = 0;
+}
+
+static int weave_si_add_test(weave_si_model *model, weave_si_test *item) {
+    if (model->test_count == model->test_capacity) {
+        size_t next = model->test_capacity == 0 ? 4 : model->test_capacity * 2;
+        weave_si_test *grown = (weave_si_test *)realloc(
+            model->tests, next * sizeof(*grown));
+        if (grown == NULL) {
+            return 0;
+        }
+        model->tests = grown;
+        model->test_capacity = next;
+    }
+    model->tests[model->test_count++] = *item;
+    return 1;
+}
+
+static int weave_si_collect_test(
+    weave_si_model *model,
+    weave_si_source *source,
+    size_t source_index,
+    size_t module_index,
+    int64_t declaration) {
+    int64_t name_node = weave_si_nth_child(source->tree, declaration, 1);
+    if (name_node < 0) {
+        return 1;
+    }
+    char *name = weave_si_node_text(source, name_node);
+    if (name == NULL || name[0] == '\0') {
+        free(name);
+        return 1;
+    }
+    const char *module_text = model->modules[module_index].name;
+    if (module_text == NULL) {
+        free(name);
+        return 0;
+    }
+    char *module_name = weave_si_copy(module_text, strlen(module_text));
+    size_t start = 0;
+    size_t end = 0;
+    if (module_name == NULL ||
+        !weave_si_span(source, declaration, &start, &end)) {
+        free(name);
+        free(module_name);
+        return 0;
+    }
+    char **tags = NULL;
+    size_t tag_count = 0;
+    size_t tag_capacity = 0;
+    int64_t clause = node_next_sibling(source->tree, name_node);
+    while (clause >= 0) {
+        if (node_kind(source->tree, clause) == node_list() &&
+            weave_si_head_equals(source, clause, "tags")) {
+            int64_t tag_node = weave_si_nth_child(source->tree, clause, 1);
+            while (tag_node >= 0) {
+                char *tag = weave_si_node_text(source, tag_node);
+                if (tag == NULL) {
+                    free(name);
+                    free(module_name);
+                    for (size_t index = 0; index < tag_count; ++index) {
+                        free(tags[index]);
+                    }
+                    free(tags);
+                    return 0;
+                }
+                if (tag[0] != '\0') {
+                    if (tag_count == tag_capacity) {
+                        size_t next = tag_capacity == 0 ? 4 : tag_capacity * 2;
+                        char **grown = (char **)realloc(
+                            tags, next * sizeof(*grown));
+                        if (grown == NULL) {
+                            free(tag);
+                            free(name);
+                            free(module_name);
+                            for (size_t index = 0; index < tag_count; ++index) {
+                                free(tags[index]);
+                            }
+                            free(tags);
+                            return 0;
+                        }
+                        tags = grown;
+                        tag_capacity = next;
+                    }
+                    tags[tag_count++] = tag;
+                } else {
+                    free(tag);
+                }
+                tag_node = node_next_sibling(source->tree, tag_node);
+            }
+        }
+        clause = node_next_sibling(source->tree, clause);
+    }
+    weave_si_test item = {
+        .source_index = source_index,
+        .name = name,
+        .module_name = module_name,
+        .tags = tags,
+        .tag_count = tag_count,
+        .start = start,
+        .end = end,
+    };
+    if (!weave_si_add_test(model, &item)) {
+        free(name);
+        free(module_name);
+        for (size_t index = 0; index < tag_count; ++index) {
+            free(tags[index]);
+        }
+        free(tags);
+        return 0;
+    }
+    return 1;
+}
+
 static int weave_si_collect_source_declarations(
     weave_si_model *model,
     size_t source_index) {
@@ -154,6 +280,11 @@ static int weave_si_collect_source_declarations(
                         return 0;
                     }
                     name_node = node_next_sibling(source->tree, name_node);
+                }
+            } else if (weave_si_head_equals(source, child, "test")) {
+                if (!weave_si_collect_test(
+                        model, source, source_index, module_index, child)) {
+                    return 0;
                 }
             }
         }

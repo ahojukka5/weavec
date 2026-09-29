@@ -2,9 +2,13 @@
 
 Status: specified contract for epic
 [#114](https://github.com/ahojukka5/weavec/issues/114). The parser and
-formatter admit `test`, `tags`, and assertion forms. The harness and
-`weavec test` command are not implemented yet. This document is the
-semantic authority for those slices.
+formatter admit `test`, `tags`, and assertion forms. The frontend
+registers each test and rejects a duplicate name, a collision with
+`fn`, `entry`, or `const` in the same module, and a private use from
+another module. A successful analysis publishes those tests in the
+semantic index. The harness and `weavec test` command are not
+implemented yet. This document is the semantic authority for those
+slices.
 
 Weave programs define tests as ordinary surface declarations. The compiler
 discovers them, lowers them through WIR core version 3 as ordinary functions
