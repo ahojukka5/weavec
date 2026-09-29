@@ -39,7 +39,8 @@ A successful analysis publishes authoritative facts for:
 - variant construction and match-pattern references;
 - concrete function and enum specializations;
 - stable module interface descriptions and SHA-256 hashes;
-- complete successful and explicit failed-analysis states.
+- complete successful and explicit failed-analysis states;
+- test declarations, when any exist, as an optional `tests` array.
 
 The compiler validates the source set through the existing self-hosted frontend
 passes. The semantic-index driver walks the same parser trees after validation;
@@ -61,6 +62,12 @@ expression compatibility forms, a successful document reports:
 A semantic validation failure returns a nonzero exit status and publishes a
 `failed` document with empty semantic graph collections and an explicit
 diagnostic item.
+
+When analysis succeeds and the source set contains tests, the document
+includes `tests`. Each item records the test name, module name, tags in
+source order, and the declaration span. The array is omitted when there
+are no tests, so a test-free document stays unchanged. A test is not a
+symbol kind.
 
 ## Reference roles and targets
 
