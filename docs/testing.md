@@ -1,8 +1,9 @@
 # Language testing
 
 Status: specified contract for epic
-[#114](https://github.com/ahojukka5/weavec/issues/114). The parser, harness,
-and `weavec test` command are not implemented yet. This document is the
+[#114](https://github.com/ahojukka5/weavec/issues/114). The parser and
+formatter admit `test`, `tags`, and assertion forms. The harness and
+`weavec test` command are not implemented yet. This document is the
 semantic authority for those slices.
 
 Weave programs define tests as ordinary surface declarations. The compiler

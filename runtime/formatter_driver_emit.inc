@@ -32,6 +32,12 @@ static int weave_fmt_format_list(
         if (!formatted) weave_fmt_fail(context);
         return formatted;
     }
+    if (weave_fmt_node_text_equals(context, head, "tags")) {
+        int formatted = weave_fmt_format_tags(
+            context, list, head, indentation);
+        if (!formatted) weave_fmt_fail(context);
+        return formatted;
+    }
 
     int64_t access_name = -1;
     if (weave_fmt_can_unwrap_access(context, list, head, &access_name)) {

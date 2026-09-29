@@ -69,7 +69,8 @@ rendered structure; arbitrary input blank lines are discarded. Standalone
 lexical trivia that the printer recovers from source gaps. Preserving admitted
 comments into WIR and LLVM evidence is issue #374.
 
-Formatting never sorts declarations or children. Source order remains semantic
+Formatting never sorts declarations or children, except tag identifiers
+inside `(tags ...)`. Source order remains semantic
 and continues to be part of the bootstrap and multi-file compilation contract.
 Formatting twice must produce byte-identical output to formatting once.
 
@@ -239,6 +240,8 @@ removes an explicit `return` because it occupies tail position.
 
 Experimental forms are formatted structurally but remain experimental according
 to the capability registry. Formatting does not promote a feature's stability.
+A `(tags ...)` list is the one child sequence the formatter sorts: tag
+identifiers are ordered by UTF-8 bytes, because that order is not semantic.
 
 ## Implementation boundary
 

@@ -152,6 +152,8 @@ typedef struct weave_fmt_context {
     weave_fmt_type current_return_type;
     int semantic_overflow;
     int has_struct_declarations;
+    int surface_rejected;
+    const char *input_path;
 } weave_fmt_context;
 
 enum { WEAVE_FMT_COLUMN_LIMIT = 80 };
@@ -188,6 +190,7 @@ static int weave_fmt_emit_control_stmts(
 #include "formatter_driver_control_layout.inc"
 #include "formatter_driver_control_spacing.inc"
 #include "formatter_driver_function_spacing.inc"
+#include "formatter_driver_tests.inc"
 #define weave_fmt_format_control weave_fmt_format_control_canonical
 #include "formatter_driver_emit.inc"
 #undef weave_fmt_format_control
