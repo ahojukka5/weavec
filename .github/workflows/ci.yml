@@ -2,8 +2,8 @@
 name: ci
 
 # Pull requests get a file-based smoke plus a hosted compile-and-fast-suite
-# gate. The full ladder and deep self-host run only after merge, on the
-# self-hosted fleet.
+# gate. The full ladder and deep compiler self-hosting run only after merge,
+# using free GitHub-hosted Ubuntu runners for this public repository.
 on:
   push:
     branches: [master]
@@ -148,7 +148,7 @@ jobs:
   test:
     name: "test: compile & run full ladder (${{ matrix.name }})"
     if: github.event_name == 'push'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -168,6 +168,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install hosted LLVM and musl toolchain
+        run: bash scripts/ci-install-llvm.sh
 
       - name: Verify toolchain
         run: |
@@ -210,7 +213,7 @@ jobs:
     name: "test: deep self-host ladder"
     needs: test
     if: github.event_name == 'push'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
       WEAVEC1_VERSION: v0.3.2
@@ -221,6 +224,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install hosted LLVM and musl toolchain
+        run: bash scripts/ci-install-llvm.sh
 
       - name: Select self-host scratch storage
         shell: bash
