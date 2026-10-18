@@ -251,8 +251,8 @@ See the [command reference](docs/command-reference.md),
 
 Pull requests run a file-based contract smoke, commit-message lint, and a
 GitHub-hosted compile of `weavec` plus the fast behavioral suites. The full
-ladder and deep self-host run after merge, on `master`, with Linux glibc SDKs
-and Linux musl SDKs. macOS is a supported build host and is exercised locally,
+ladder and deep compiler self-hosting run after merge, on `master`, on
+GitHub-hosted Ubuntu runners with Linux glibc and musl SDKs. macOS is a supported build host and is exercised locally,
 but no macOS job runs in CI. Versioned GitHub releases wait for the post-merge
 ladder on the same SHA before publishing.
 
