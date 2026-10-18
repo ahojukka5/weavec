@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Light pull-request contracts. These checks are file-based and do not build
-# the compiler or occupy the self-hosted ladder fleet. The compile-and-fast-suite
+# the compiler or duplicate the post-merge ladder. The compile-and-fast-suite
 # gate is scripts/pr-compile.sh. The full ladder runs on master after merge.
 set -euo pipefail
 
