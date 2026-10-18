@@ -256,8 +256,8 @@ GitHub-hosted runners. The required PR checks are commit-message lint, the
 file-based contract smoke (`scripts/pr-check.sh`), and the compile gate
 (`scripts/pr-compile.sh`: `build.sh`, `test.sh`, the surface conformance
 corpus, diagnostic repairs, formatter, Option/Result suites, and the
-short mutation-fuzz campaign). They do not occupy the self-hosted
-ladder fleet.
+short mutation-fuzz campaign). Post-merge ladder and release checks also
+run on GitHub-hosted Linux runners because this repository is public.
 
 A pull request is ready for review when those PR checks for the exact current
 head have completed successfully.
