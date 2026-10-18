@@ -19,7 +19,7 @@ concurrency:
 jobs:
   build-linux:
     name: "build: linux x86-64 (${{ matrix.libc }})"
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
       fail-fast: false
@@ -35,6 +35,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install hosted LLVM and musl toolchain
+        run: bash scripts/ci-install-llvm.sh
 
       - name: Show toolchain versions
         run: |
@@ -99,12 +102,15 @@ jobs:
   verify-archives:
     name: "test: verify extracted release archives"
     needs: build-linux
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install hosted LLVM and musl toolchain
+        run: bash scripts/ci-install-llvm.sh
 
       - name: Download compiler archives
         uses: actions/download-artifact@v4
@@ -336,7 +342,7 @@ jobs:
       (startsWith(github.ref, 'refs/tags/v') ||
        (github.event_name == 'push' && github.ref == 'refs/heads/master'))
     needs: [build-linux, verify-archives, wait-ladder]
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     permissions:
       contents: write
 
