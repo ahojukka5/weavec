@@ -15,7 +15,7 @@ jobs:
   publish:
     name: "stage: publish push workflow status"
     if: github.event.workflow_run.event == 'push'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Publish commit status
