@@ -343,6 +343,7 @@ jobs:
        (github.event_name == 'push' && github.ref == 'refs/heads/master'))
     needs: [build-linux, verify-archives, wait-ladder]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
 

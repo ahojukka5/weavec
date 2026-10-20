@@ -20,6 +20,7 @@ jobs:
   validate:
     name: "lint: validate commit messages"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout trusted policy
         uses: actions/checkout@v4
