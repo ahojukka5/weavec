@@ -1,5 +1,11 @@
 # Agent instructions for weavec
 
+[OodiHandbook](https://github.com/ahojukka5/OodiHandbook/blob/v0.1.0/index.qmd)
+is the source of common rules. Follow the repository's explicitly adopted
+immutable release (AUTH-003). Use [reviewed master guidance](https://github.com/ahojukka5/OodiHandbook/blob/master/index.qmd)
+as a voluntary improvement target (AUTH-006). Local instructions provide
+technical details and do not override the Handbook.
+
 These instructions apply to automated agents and connector-backed workflows in
 this repository. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before changing code,
 documentation, branches, commits, issues, or pull requests.
@@ -30,8 +36,8 @@ The default branch is protected working history, not a staging area.
 If an accidental default-branch write occurs, stop all writes immediately,
 record the exact commit and affected paths, and report it. Do not stack more
 direct default-branch commits in an attempt to hide or repair the mistake. Use a
-normal reviewed revert when content must be restored, or ask the repository owner
-to repair protected history.
+normal reviewed revert when content must be restored. Report the incident;
+never rewrite protected integration history (ENG-007).
 
 ## Publishing safely
 
