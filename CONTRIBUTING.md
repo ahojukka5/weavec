@@ -1,5 +1,11 @@
 # Contributing to weavec
 
+[OodiHandbook](https://github.com/ahojukka5/OodiHandbook/blob/v0.1.0/index.qmd)
+is the source of common rules. Follow the repository's explicitly adopted
+immutable release (AUTH-003). Use [reviewed master guidance](https://github.com/ahojukka5/OodiHandbook/blob/master/index.qmd)
+as a voluntary improvement target (AUTH-006). Local instructions provide
+technical details and do not override the Handbook.
+
 `weavec` is the user-facing self-hosted compiler written primarily in surface
 Weave. It combines surface lowering, analysis, self-hosted WIR-to-LLVM emission,
 native build orchestration, diagnostics, and package runtime discovery.
@@ -121,8 +127,8 @@ staging area by a human, script, automated agent, or connector-backed tool.
 If an accidental default-branch write occurs, stop all writes immediately,
 record and report the exact commit and affected paths, and do not stack further
 direct commits to hide or repair it. Restore content through a normal reviewed
-revert, or ask the repository owner to repair protected history when a ref-level
-correction is required.
+revert and report the incident. Never rewrite protected integration history
+to conceal it (ENG-007).
 
 Before opening a pull request, compare the feature branch against its intended
 base and verify both the complete file list and commit list. The branch must
@@ -146,7 +152,7 @@ first attempt, not the debugging trail.
 Use Conventional Commits:
 
 ```text
-<type>(<optional-scope>): <description>
+<type>(<scope>): <description>
 ```
 
 Common types include `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `build`,
