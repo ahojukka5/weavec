@@ -1,0 +1,94 @@
+; SPDX-License-Identifier: Apache-2.0
+; Direct qualification of the structural operator path (#421). Calls the
+; publish entry points that surface_emit_canonical_op uses and prints each
+; published subtree followed by "|<return code>". Code 1 means the tree path
+; owned the output; code 0 with no bytes means the caller keeps the text
+; renderer. The end-to-end WIR is identical either way, so only this direct
+; call can show that the tree path still runs.
+
+(program
+  (name "surface_op_tree_test")
+  (version "0.1")
+
+  (fn sott_copy
+    (params (dst ptr) (src ptr) (n i64))
+    (returns void)
+    (do
+      (let i i64 (const_i64 0))
+      (while
+        (condition (lt_i64 (local_get i) (param_get n)))
+        (do
+          (store_i8 (ptr_add (param_get dst) (local_get i))
+            (load_u8 (ptr_add (param_get src) (local_get i))))
+          (set i (add_i64 (local_get i) (const_i64 1)))))
+      (return_void)))
+
+  (fn sott_report
+    (params (code i32))
+    (returns void)
+    (do
+      (if
+        (condition (eq_i32 (param_get code) (const_i32 1)))
+        (then (do (call_void write_cstr (const_i32 1) (const_string_ptr "|1\n"))))
+        (else (do (call_void write_cstr (const_i32 1) (const_string_ptr "|0\n")))))
+      (return_void)))
+
+  (fn sott_unary
+    (params (surface ptr) (source ptr) (op i64))
+    (returns void)
+    (do
+      (call_void sott_report (call_i32 sot_try_publish_unary
+        (const_i32 1) (param_get source) (param_get surface)
+        (call_i64 nth_child (param_get surface) (param_get op) (const_i64 0))
+        (call_i64 nth_child (param_get surface) (param_get op) (const_i64 1))))
+      (return_void)))
+
+  (fn sott_binary_bool
+    (params (surface ptr) (source ptr) (op i64))
+    (returns void)
+    (do
+      (call_void sott_report (call_i32 sot_try_publish_binary
+        (const_i32 1) (param_get source) (param_get surface)
+        (call_i64 nth_child (param_get surface) (param_get op) (const_i64 0))
+        (call_i64 nth_child (param_get surface) (param_get op) (const_i64 1))
+        (call_i64 nth_child (param_get surface) (param_get op) (const_i64 2))
+        (call_i32 surface_type_bool) (const_i32 1)))
+      (return_void)))
+
+  (fn main
+    (params)
+    (returns i32)
+    (do
+      (let fixture ptr (const_string_ptr "(cases (not true) (and alpha beta) (or (not true) false) (not (if flag true false)) (and alpha (if flag true false)))"))
+      (let source_len i64 (call_i64 strlen (local_get fixture)))
+      (let source ptr (call_ptr malloc (add_i64 (local_get source_len) (const_i64 1))))
+      (if
+        (condition (eq_ptr (local_get source) (const_null)))
+        (then (do (return (const_i32 1))))
+        (else (do)))
+      (call_void sott_copy (local_get source) (local_get fixture) (local_get source_len))
+      (store_i8 (ptr_add (local_get source) (local_get source_len)) (const_i32 0))
+      (let tokens ptr (call_ptr lex (local_get source) (local_get source_len)))
+      (if
+        (condition (eq_ptr (local_get tokens) (const_null)))
+        (then (do (return (const_i32 2))))
+        (else (do)))
+      (let surface ptr (call_ptr parse (local_get tokens)))
+      (if
+        (condition (eq_ptr (local_get surface) (const_null)))
+        (then (do (return (const_i32 3))))
+        (else (do)))
+      (let root i64 (const_i64 0))
+      ; Leaf literal, leaf bare identifiers, and a nested operator operand.
+      (call_void sott_unary (local_get surface) (local_get source)
+        (call_i64 nth_child (local_get surface) (local_get root) (const_i64 1)))
+      (call_void sott_binary_bool (local_get surface) (local_get source)
+        (call_i64 nth_child (local_get surface) (local_get root) (const_i64 2)))
+      (call_void sott_binary_bool (local_get surface) (local_get source)
+        (call_i64 nth_child (local_get surface) (local_get root) (const_i64 3)))
+      ; An unmigrated `if` operand must leave the text renderer in charge.
+      (call_void sott_unary (local_get surface) (local_get source)
+        (call_i64 nth_child (local_get surface) (local_get root) (const_i64 4)))
+      (call_void sott_binary_bool (local_get surface) (local_get source)
+        (call_i64 nth_child (local_get surface) (local_get root) (const_i64 5)))
+      (return (const_i32 0)))))
